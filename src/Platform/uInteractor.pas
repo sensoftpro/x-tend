@@ -1,0 +1,323 @@
+﻿{---------------------------------------------------------------------------------
+  X-Tend runtime
+
+  Contributors:
+    Vladimir Kustikov (kustikov@sensoft.pro)
+    Sergey Arlamenkov (arlamenkov@sensoft.pro)
+
+  You may retrieve the latest version of this file at the GitHub,
+  located at https://github.com/sensoftpro/x-tend.git
+ ---------------------------------------------------------------------------------
+  MIT License
+
+  Copyright © 2021 Sensoft
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+ ---------------------------------------------------------------------------------}
+
+unit uInteractor;
+
+interface
+
+uses
+  Generics.Collections, uConsts, uUIBuilder, uView;
+
+type
+  TGetViewFunc = reference to function(const AHolder: TObject): TView;
+
+  TInteractor = class
+  private
+    [Weak] FSession: TObject;          // Пользовательская сессия
+    [Weak] FDomain: TObject;           // Ссылка на исполняемый домен
+    [Weak] FConfiguration: TObject;    // Ссылка на конфигурацию
+    [Weak] FPresenter: TObject;        // Ссылка на UI
+
+    FSysImagesResolution: Integer;
+    FLayout: string;
+    FAppTitle: string;
+
+    FUIBuilder: TUIBuilder;
+    FUIHolder: TObject;
+    FImages: TObjectDictionary<Integer, TObject>;
+    FImageMap: TDictionary<Integer, Integer>;
+    function GetImages(const AResolution: Integer): TObject;
+  public
+    constructor Create(const APresenter, ASession: TObject);
+    destructor Destroy; override;
+
+    function GetViewOfEntity(const AEntity: TObject): TView;
+    function ShowEntityEditor(const AView: TView; const AChangeHolder: TObject; const ALayoutName: string = ''): Boolean;
+    function AtomicEditEntity(const AGetViewFunc: TGetViewFunc; const AParentHolder: TObject; const ALayoutName: string = ''): Boolean; overload;
+    function AtomicEditEntity(const AView: TView; const AParentHolder: TObject; const ALayoutName: string = ''): Boolean; overload;
+    function AtomicEditParams(const AView: TView; const ALayoutName: string = ''): Boolean;
+    function EditParams(const AEntity: TObject; const ALayoutName: string = ''): Boolean;
+    procedure ViewEntity(const AView: TView; const ALayoutName: string = '');
+
+    function Translate(const AKey: string; const ADefault: string = ''): string;
+    function NeedSkipField(const ASource: TObject; const AFieldDef: TObject; const AAutoCreation: Boolean = True): Boolean;
+    function NeedSkipColumn(const ASource: TObject; const AFieldDef: TObject): Boolean;
+
+    procedure ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);
+    function ShowYesNoDialog(const ACaption, AText: string; const AWithCancel: Boolean = False): TDialogResult;
+    function ShowOkCancelDialog(const ACaption, AText: string): TDialogResult;
+    procedure PrintHierarchy;
+
+    procedure StoreImageIndex(const AImageID, AImageIndex: Integer);
+    function GetImageIndex(const AImageID: Integer): Integer;
+
+    property Images[const AResolution: Integer]: TObject read GetImages;
+    property Presenter: TObject read FPresenter;
+    property UIBuilder: TUIBuilder read FUIBuilder;
+    property SysImagesResolution: Integer read FSysImagesResolution write FSysImagesResolution;
+    property Layout: string read FLayout write FLayout;
+    property AppTitle: string read FAppTitle;
+    property Session: TObject read FSession;
+    property UIHolder: TObject read FUIHolder;
+    property Domain: TObject read FDomain;
+    property Configuration: TObject read FConfiguration;
+  end;
+
+implementation
+
+uses
+  SysUtils,
+  uDomain, uEntity, uObjectField, uSession, uPresenter, uEntityList,
+  uConfiguration, uDefinition, uChangeManager;
+
+{ TInteractor }
+
+function TInteractor.AtomicEditEntity(const AGetViewFunc: TGetViewFunc; const AParentHolder: TObject;
+  const ALayoutName: string = ''): Boolean;
+var
+  vView: TView;
+  vResult: Boolean;
+  vHolder: TChangeHolder;
+begin
+  TUserSession(FSession).DomainWrite(procedure
+    begin
+      vHolder := TUserSession(FSession).RetainChangeHolder(TChangeHolder(AParentHolder));
+      vView := AGetViewFunc(vHolder);
+    end);
+
+  try
+    vResult := ShowEntityEditor(vView, vHolder, ALayoutName);
+  finally
+    TUserSession(FSession).DomainWrite(procedure
+      begin
+        TUserSession(FSession).ReleaseChangeHolder(vHolder, vResult);
+      end);
+  end;
+
+  Result := vResult;
+end;
+
+function TInteractor.AtomicEditEntity(const AView: TView; const AParentHolder: TObject; const ALayoutName: string = ''): Boolean;
+begin
+  Result := AtomicEditEntity(function(const AHolder: TObject): TView
+    begin
+      Result := AView;
+    end, AParentHolder, ALayoutName);
+end;
+
+function TInteractor.AtomicEditParams(const AView: TView; const ALayoutName: string = ''): Boolean;
+begin
+  Result := ShowEntityEditor(AView, nil, ALayoutName);
+end;
+
+constructor TInteractor.Create(const APresenter, ASession: TObject);
+begin
+  inherited Create;
+
+  FPresenter := APresenter;
+
+  FSession := ASession;
+  TUserSession(FSession).Interactor := Self;
+  FDomain := TUserSession(ASession).Domain;
+  FConfiguration := TDomain(FDomain).Configuration;
+
+  FUIHolder := nil;//TUserSession(FSession).Edit(nil);
+
+  FUIBuilder := TUIBuilder.Create(Self);
+
+  FAppTitle := Translate('AppTitle', TConfiguration(FConfiguration)._Caption);
+
+  FSysImagesResolution := StrToIntDef(TDomain(FDomain).Settings.GetValue('Core', 'SysImagesResolution'), 16);
+  FLayout := TDomain(FDomain).Settings.GetValue('Core', 'Layout');
+
+  FImageMap := TDictionary<Integer, Integer>.Create;
+  FImages := TObjectDictionary<Integer, TObject>.Create([doOwnsValues]);
+  GetImages(16);
+end;
+
+destructor TInteractor.Destroy;
+begin
+  //TUserSession(FSession).Save(TChangeHolder(FUIHolder));
+  FreeAndNil(FUIHolder);
+
+  FreeAndNil(FUIBuilder);
+  FreeAndNil(FImageMap);
+  FreeAndNil(FImages);
+
+  FPresenter := nil;
+
+  TUserSession(FSession).Interactor := nil;
+  FSession := nil;
+  FDomain := nil;
+  FConfiguration := nil;
+
+  inherited Destroy;
+end;
+
+function TInteractor.EditParams(const AEntity: TObject; const ALayoutName: string = ''): Boolean;
+begin
+  Result := ShowEntityEditor(GetViewOfEntity(AEntity), nil, ALayoutName);
+end;
+
+function TInteractor.GetImageIndex(const AImageID: Integer): Integer;
+begin
+  if not FImageMap.TryGetValue(AImageID, Result) then
+    Result := -1;
+end;
+
+function TInteractor.GetImages(const AResolution: Integer): TObject;
+begin
+  if not FImages.TryGetValue(AResolution, Result) then
+  begin
+    Result := TPresenter(FPresenter).CreateImages(Self, AResolution);
+    FImages.AddOrSetValue(AResolution, Result);
+  end;
+end;
+
+function TInteractor.GetViewOfEntity(const AEntity: TObject): TView;
+var
+  vEntity: TEntity absolute AEntity;
+begin
+  if not Assigned(vEntity) then
+    Exit(nil);
+
+  if vEntity.ID > 0 then
+    Result := FUIBuilder.RootView.BuildView(vEntity.Definition.Name + '/' + IntToStr(vEntity.ID))
+  else if vEntity.ID < 0 then
+    Result := FUIBuilder.RootView.BuildView(vEntity.Definition.Name + '/New' + IntToStr(-vEntity.ID))
+  else if (vEntity.ID = 0) and not vEntity.IsNew then
+    Result := FUIBuilder.RootView.BuildView(vEntity.Definition.Name + '/Auto')
+  else
+    Result := nil;
+end;
+
+function TInteractor.NeedSkipColumn(const ASource: TObject; const AFieldDef: TObject): Boolean;
+var
+  vFieldKind: TFieldKind;
+  vFieldDef: TFieldDef absolute AFieldDef;
+begin
+  if vFieldDef = nil then
+  begin
+    Result := True;
+    Exit;
+  end;
+
+  vFieldKind := vFieldDef.Kind;
+
+  Result := (NeedSkipField(ASource, AFieldDef) and not vFieldDef.HasFlag(cHideInEdit))
+    or vFieldDef.HasFlag(cHideInGrid) or (vFieldKind in [fkList, fkBlob, fkComplex])
+    or ((vFieldKind = fkObject) and (TEntityList(ASource).FillerKind = lfkList) and
+       (vFieldDef.Name = TListField(TEntityList(ASource).Filler).MasterFieldName));
+end;
+
+function TInteractor.NeedSkipField(const ASource: TObject; const AFieldDef: TObject; const AAutoCreation: Boolean = True): Boolean;
+var
+  vFieldDef: TFieldDef absolute AFieldDef;
+
+  function FieldIsHidden(const AFieldDef: TFieldDef): Boolean;
+  begin
+    Result := AFieldDef.UIState and TUserSession(FSession).GetUIState(AFieldDef.FullName, nil) = vsHidden;
+  end;
+
+begin
+  Result := (AFieldDef is TServiceFieldDef)
+    or FieldIsHidden(vFieldDef) or (AAutoCreation and vFieldDef.HasFlag(cHideInEdit))
+    or (Assigned(ASource) and (TEntityList(ASource).FillerKind = lfkList) and
+      (TListFieldDef(TListField(TEntityList(ASource).Filler).FieldDef).IsFieldHidden(vFieldDef.Name)));
+end;
+
+procedure TInteractor.PrintHierarchy;
+begin
+  if Assigned(FUIBuilder) then
+    FUIBuilder.PrintHierarchy;
+end;
+
+function TInteractor.ShowEntityEditor(const AView: TView; const AChangeHolder: TObject; const ALayoutName: string = ''): Boolean;
+var
+  vEntity: TEntity;
+  vLayoutName: string;
+begin
+  TUserSession(FSession).CheckLocking(False);
+  Assert(AView.DefinitionKind in [dkEntity, dkAction, dkObjectField], 'Показываем непонятно что');
+
+  vEntity := TEntity(AView.DomainObject);
+  if not Assigned(vEntity) then
+  begin
+    Result := False;
+    Exit;
+  end;
+
+  if ALayoutName = '' then
+    vLayoutName := vEntity.Definition.Name + 'EditForm'
+  else
+    vLayoutName := ALayoutName;
+
+  Result := FUIBuilder.Navigate(AView, 'child', vLayoutName, '', AChangeHolder) = drOk;
+end;
+
+procedure TInteractor.ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);
+begin
+  TUserSession(FSession).CheckLocking(False);
+  TPresenter(FPresenter).ShowMessage(FAppTitle, AText, AMessageType);
+end;
+
+function TInteractor.ShowOkCancelDialog(const ACaption, AText: string): TDialogResult;
+begin
+  TUserSession(FSession).CheckLocking(False);
+  Result := TPresenter(FPresenter).ShowOkCancelDialog(ACaption, AText);
+end;
+
+function TInteractor.ShowYesNoDialog(const ACaption, AText: string;
+  const AWithCancel: Boolean): TDialogResult;
+begin
+  TUserSession(FSession).CheckLocking(False);
+  Result := TPresenter(FPresenter).ShowYesNoDialog(ACaption, AText, AWithCancel);
+end;
+
+procedure TInteractor.StoreImageIndex(const AImageID, AImageIndex: Integer);
+begin
+  if not FImageMap.ContainsKey(AImageID) then
+    FImageMap.Add(AImageID, AImageIndex);
+end;
+
+function TInteractor.Translate(const AKey, ADefault: string): string;
+begin
+  Result := TDomain(FDomain).Translate(AKey, ADefault);
+end;
+
+procedure TInteractor.ViewEntity(const AView: TView; const ALayoutName: string = '');
+begin
+  ShowEntityEditor(AView, nil, ALayoutName);
+end;
+
+end.

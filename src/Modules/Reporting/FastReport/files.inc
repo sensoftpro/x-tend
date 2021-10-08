@@ -1,0 +1,1 @@
+  uFRReport in '..\..\Modules\Reporting\FastReport\uFRReport.pas',

@@ -1,0 +1,1912 @@
+﻿{---------------------------------------------------------------------------------
+  X-Tend runtime
+
+  Contributors:
+    Vladimir Kustikov (kustikov@sensoft.pro)
+    Sergey Arlamenkov (arlamenkov@sensoft.pro)
+
+  You may retrieve the latest version of this file at the GitHub,
+  located at https://github.com/sensoftpro/x-tend.git
+ ---------------------------------------------------------------------------------
+  MIT License
+
+  Copyright © 2021 Sensoft
+
+  Permission is hereby granted, free of charge, to any person obtaining a copy
+  of this software and associated documentation files (the "Software"), to deal
+  in the Software without restriction, including without limitation the rights
+  to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+  copies of the Software, and to permit persons to whom the Software is
+  furnished to do so, subject to the following conditions:
+
+  The above copyright notice and this permission notice shall be included in all
+  copies or substantial portions of the Software.
+
+  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+  IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+  FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+  AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+  LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+  OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+  SOFTWARE.
+ ---------------------------------------------------------------------------------}
+
+unit uDomain;
+
+interface
+
+uses
+  Generics.Collections, uFastClasses, Classes, SyncObjs, uModule, uConsts, uConfiguration, uDefinition,
+  uCollection, uEntity, uEntityList, uStorage, uSession, uChangeManager, uSettings, uLogger, uScheduler,
+  uTranslator, uJSON, uPresenter;
+
+type
+  //TODO Нужен исключительно для задания состояний из скрипта
+  // Должен быть удален, когда перейдем на стейт-машины
+  TDomainAction = class
+  private
+    [Weak] FDomain: TObject;
+    [Weak] FAction: TActionDef;
+    FListeners: TList<TObject>;
+    FState: TViewState;
+    procedure NotifyListeners;
+    procedure SetState(const Value: TViewState);
+  public
+    constructor Create(const ADomain: TObject; const AAction: TActionDef);
+    destructor Destroy; override;
+
+    procedure AddViewListener(const AListener: TObject);
+    procedure RemoveViewListener(const AListener: TObject);
+
+    property State: TViewState read FState; // write SetState;
+  end;
+
+  TDomainLock = class
+  private
+    [Weak] FDomain: TObject;
+    [Weak] FCurrentSession: TUserSession;
+    FLock: TCriticalSection;
+    FLockCount: Integer;
+  public
+    constructor Create(const ADomain: TObject);
+    destructor Destroy; override;
+
+    procedure Enter(const ASession: TUserSession);
+    procedure Leave;
+    function Locked: Boolean;
+  end;
+
+
+  // в домене должна быть возможность прямого указания на соединение
+  // например, домен заказа еды м.б. связан с телеграм-ботами @feed, @eda и т.п.
+
+  TDomain = class
+  private
+    [Weak] FConfiguration: TConfiguration;
+    FUid: string;
+    FIsAlive: Boolean; // Домен загружен и готов к работе
+    FEnvironmentID: string;
+    FStyleName: string;
+    FDeploymentType: string;
+    FSettings: TSettings;
+    FUserSettings: TSettings;
+    FScheduler: TScheduler;
+    FLogger: TLogger;
+    FDomainLogger: TLogger;
+    FTranslator: TTranslator;
+    FViewSubscriptions: TObjectDictionary<string, TList<TEntity>>;
+    FActions: TObjectDictionary<string, TDomainAction>;
+    FModules: TDictionary<string, TBaseModule>;
+    FModuleInstances: TObjectList<TBaseModule>;
+    FProgressInfo: TProgressInfo;
+    FNeedShowSplash: Boolean;
+    FWereErrors: Boolean;
+    FSharedFolderAvailable: Boolean;
+
+    // Модули
+    FPresenter: TPresenter;
+    FStorage: TStorage;
+
+    FActualLogID: Integer;
+    FSessions: TUserSessions;
+    FDomainSession: TUserSession;
+
+    FDataLock: TDomainLock;
+
+    function CreateStorage(const ASettings: TSettings): TStorage;
+    function CreatePresenter(const ASettings: TSettings): TPresenter;
+    procedure ApplyChanges(const AInteractor: TObject; const AChanges: TJSONObject;
+      const AHolder: TChangeHolder = nil);
+  private
+    FCollections: TStringDictionary<TCollection>;
+    FRootCollection: TCollection;
+    FAppTitle: string;
+    FLoadingChanges: Boolean;
+
+    procedure SyncFieldsWithStorage(const ADefinition: TDefinition; const AStorage: TStorage);
+    function VerifyStorageStructure: Boolean;
+    procedure UpdateDomainStructures;
+    function GetDomainName: string;
+    function GetLanguage: string;
+    procedure SetLanguage(const Value: string);
+    procedure Preload(const AStorage: TStorage);
+    procedure Load(const AStorage: TStorage);
+    function InternalLogin(const ALogin, APassword: string): TEntity;
+    procedure SetActionState(const AName: string; const AState: TViewState);
+    function GetActionState(const AName: string): TViewState;
+    function GetConstant(const AName: string): Variant;
+    function GetModuleByName(const AName: string): TBaseModule;
+    function CompareVersions(const AVersion1, AVersion2: string): Integer;
+  public
+    constructor Create(const APlatform: TObject; const AConfiguration: TConfiguration;
+      const AUid: string; const ASettings: TSettings);
+    destructor Destroy; override;
+
+    procedure Run(const AParameter: string);
+    procedure Stop;
+
+    procedure NotifyLoadingProgress(const AProgress: Integer; const AInfo: string = '');
+
+    function Login(const AName, APassword: string): TUserSession;
+    //function LoginByRFID(const ARFID: string): TUserSession;
+    procedure Logout(const ASession: TUserSession);
+    //procedure SetRFIDHandler(const ARFIDHandler: TRFIDReadEvent);
+
+    procedure ExecuteDefaultAction(const ASession: TUserSession; const AParameter: string);
+
+    procedure AddViewSubscription(const AEntity: TEntity);
+    procedure RemoveViewSubscription(const AEntity: TEntity);
+    function TextHierarchy: string;
+
+    // storage
+    function Now: TDateTime;
+    procedure ReloadChanges(const AInteractor: TObject; const AHolder: TChangeHolder);
+    procedure ImportChanges(const AChanges: TJSONObject);
+
+    // object extensions
+    //function ResolveExtension(const AName: string; const AParams: string = ''): TBaseExtension;
+    function TryGetModule(const AName, AType: string; out AModule: TBaseModule): Boolean;
+    function ResolveModuleClass(const AName, AType: string): TModuleClass;
+    function SyncWithStorage(const ADefinition: TDefinition; const AStorage: TStorage): Boolean;
+
+    function CollectionByName(const AName: string): TCollection;
+    function CollectionExists(const AName: string): Boolean;
+    function CollectionByStorageName(const AStorageName: string): TCollection;
+    function CollectionByID(const AID: Integer): TCollection;
+    procedure GetCollections(const AList: TList<TCollection>; const ADefinitionKind: TCollectionKind);
+
+    function ActionByName(const AName: string): TDomainAction;
+
+    // Handling inheritance
+    procedure GetEntityList(const ASession: TObject; const ADefinition: TDefinition;
+      const AEntityList: TEntityList; const AFilterName: string);
+    function CollectionsByDefinition(const ADefinition: TDefinition): TList<TCollection>;
+
+    function LoadCollection(const ACollectionName: string): TCollection;
+
+    function CreateNewEntity(const ACollectionName: string; const AHolder: TObject;
+      const AID: Integer = cNewID; const AFieldContext: TBaseField = nil): TEntity;
+    function EntityByID(const ACollectionName: string; const AID: Integer): TEntity;
+    function FirstEntity(const ACollectionName: string): TEntity;
+    function FindOneEntity(const ADefinitionName: string; const ASession: TUserSession;
+      const AQuery: string; const AParams: array of Variant): TEntity;
+    function FindEntities(const ADefinitionName: string; const ASession: TUserSession;
+      const AQuery: string; const AParams: array of Variant): TList<TEntity>;
+
+    //function CreateNotification(const AMessage, AActionLink: string): TEntity;
+    //procedure NotifyUser(const AUser, ANotification: TEntity);
+
+    function Translate(const AKey, ADefault: string): string;
+    function TranslateDefinition(const ADefinition: TDefinition;
+      const ATranslationPart: TTranslationPart = tpCaption): string;
+    function TranslateFieldDef(const AFieldDef: TFieldDef;
+      const ATranslationPart: TTranslationPart = tpCaption): string;
+
+    procedure UpdateLogID(const ANewLogID: Integer);
+
+    function Log(const AMessage: string; const AMessageKind: TMessageKind = mkAny): string;
+    function LogEnter(const AMessage: string): string;
+    function LogExit(const AMessage: string): string;
+
+    property AppTitle: string read FAppTitle;
+    property CollectionNameIndexed[const AName: string]: TCollection read CollectionByName; default;
+    property Collections: TStringDictionary<TCollection> read FCollections;
+    property RootCollection: TCollection read FRootCollection;
+    //TODO Убрать после переделки на состояния
+    property ActionState[const AName: string]: TViewState read GetActionState write SetActionState;
+    property Name: string read GetDomainName;
+    property Uid: string read FUid;
+    property IsAlive: Boolean read FIsAlive write FIsAlive;
+    property EnvironmentID: string read FEnvironmentID;
+    property DeploymentType: string read FDeploymentType;
+    property StyleName: string read FStyleName;
+    property WereErrors: Boolean read FWereErrors;
+    property SharedFolderAvailable: Boolean read FSharedFolderAvailable;
+    property Settings: TSettings read FSettings;
+    property UserSettings: TSettings read FUserSettings;
+    property Logger: TLogger read FLogger;
+    property Language: string read GetLanguage write SetLanguage;
+    property Constant[const AName: string]: Variant read GetConstant;
+
+    property Sessions: TUserSessions read FSessions;
+    property DomainSession: TUserSession read FDomainSession;
+    property Storage: TStorage read FStorage;
+    property Configuration: TConfiguration read FConfiguration;
+    property Presenter: TPresenter read FPresenter;
+    property Module[const AName: string]: TBaseModule read GetModuleByName;
+    function NewModule(const AType, AModuleName: string): TBaseModule;
+    property DataLock: TDomainLock read FDataLock;
+    property LoadingChanges: Boolean read FLoadingChanges;
+  end;
+
+implementation
+
+uses
+  Types, SysUtils, IOUtils, Math, RegularExpressions, Variants, IniFiles, uPlatform, uObjectField, uQueryDef, uQuery,
+  uMigration, uUtils;
+
+type
+  TCreateDefaultEntitiesProc = procedure (const ADomain: TObject) of object;
+  TExecuteDefaultActionFunc = function(const ASession: TUserSession; const AParams: string): Boolean of object;
+  TDomainReadyProc = procedure (const ADomain: TObject) of object;
+  TDomainStoppedProc = procedure of object;
+
+{ TDomain }
+
+function TDomain.ActionByName(const AName: string): TDomainAction;
+begin
+  if not FActions.TryGetValue(AName, Result) then
+    Result := nil;
+end;
+
+procedure TDomain.AddViewSubscription(const AEntity: TEntity);
+var
+  vCollectionName: string;
+  vList: TList<TEntity>;
+begin
+  vCollectionName := AEntity.Definition.Name;
+  if not FViewSubscriptions.TryGetValue(vCollectionName, vList) then
+  begin
+    vList := TList<TEntity>.Create;
+    FViewSubscriptions.Add(vCollectionName, vList);
+  end;
+
+  if not vList.Contains(AEntity) then
+    vList.Add(AEntity);
+end;
+
+procedure TDomain.ApplyChanges(const AInteractor: TObject; const AChanges: TJSONObject;
+  const AHolder: TChangeHolder = nil);
+var
+  vPair: TJSONPair;
+  vUpdates: TJSONArray;
+  vUpdate: TJSONObject;
+  vActions: TJSONArray;
+  vAction: TJSONObject;
+  vActionID: Integer;
+  vFields: TJSONObject;
+  i, j: Integer;
+  vActionKind: TEntitySaveAction;
+  vCollection: string;
+  vEntityID: Integer;
+  vEntity: TEntity;
+  vJustCreated: TList<TEntity>;
+  vLogID: Integer;
+  vContext: string;
+begin
+  vJustCreated := TList<TEntity>.Create;
+  vLogID := -1;
+  try
+    try
+      // Раскладываем обновления по своим местам
+      vUpdates := TJSONArray(AChanges.Get('updates').JsonValue);
+      for i := 0 to vUpdates.Size - 1 do
+      begin
+        vUpdate := TJSONObject(vUpdates.Get(i));
+        vLogID := TJSONNumber(vUpdate.Get('log_id').JsonValue).AsInt;
+        vActions := TJSONArray(vUpdate.Get('actions').JsonValue);
+
+        if Assigned(AInteractor) then
+        begin
+          vContext := vUpdate.Get('log_time').JsonValue.Value + ' ' + Format(Translate('fmtUserChangedField',
+            'пользователь %s изменил значение поля %%s записи %%s'), [AnsiUpperCase(vUpdate.Get('user_name').JsonValue.Value)]) +
+            #13#10#13#10 + Translate('txtChangedValue', 'Пришедшее значение') + ': '#9'%s'#13#10 +
+            Translate('txtActualValue', 'Текущее значение') + ': '#9'%s'#13#10#13#10 +
+            Translate('txtPromptIgnoreChanges', 'Игнорировать пришедшие изменения, оставив текущую версию?');
+        end
+        else
+          vContext := '';
+
+        for j := 0 to vActions.Size - 1 do
+        begin
+          vAction := TJSONObject(vActions.Get(j));
+          vActionID := TJSONNumber(vAction.Get('change_id').JsonValue).AsInt;
+          vActionKind := TEntitySaveAction(TJSONNumber(vAction.Get('action_kind_id').JsonValue).AsInt);
+          vCollection := vAction.Get('collection').JsonValue.Value;
+          vEntityID := TJSONNumber(vAction.Get('entity_id').JsonValue).AsInt;
+          vPair := vAction.Get('fields');
+          if Assigned(vPair) then
+            vFields := TJSONObject(vPair.JsonValue)
+          else
+            vFields := nil;
+          // Наиболее простой случай - идентификаторы выдаются одним хранилищем
+          case vActionKind of
+            esaInsert: begin
+                vEntity := CollectionByName(vCollection).
+                  CreateEntityFromJSON(vEntityID, vFields);
+                vEntity.LogID := vActionID;
+                vJustCreated.Add(vEntity);
+              end;
+            esaUpdate: begin
+                vEntity := CollectionByName(vCollection).EntityByID(vEntityID);
+                // Пришедшая сущность могла уже быть удалена
+                if Assigned(vEntity) then
+                begin
+                  // Убрать поля, которые конфликтуют, записать их в холдер
+                  //   инициировать пересчеты калькулируемых полей
+                  if Assigned(AHolder) then
+                    AHolder.ProcessUpdatingEntity(AInteractor, vEntity, vFields, vContext);
+                  CollectionByName(vCollection).FillEntityFromJSON(vEntity, vFields, False);
+                  vEntity.LogID := vActionID;
+                end;
+              end;
+            esaDelete: begin
+                vEntity := CollectionByName(vCollection).EntityByID(vEntityID);
+                if Assigned(vEntity) then
+                begin
+                  vJustCreated.Remove(vEntity);
+
+                  // Убрать все ссылки на изменения в холдерах
+                  if Assigned(AHolder) then
+                    AHolder.ProcessDeletingEntity(vEntity);
+
+                  FLoadingChanges := True;
+                  try
+                    CollectionByName(vCollection).MarkEntityAsDeleted(nil, vEntity);
+                  finally
+                    FLoadingChanges := False;
+                  end;
+                  CollectionByName(vCollection).RemoveEntity(vEntity);
+                end;
+              end;
+          else
+            // Do nothing
+          end;
+        end;
+
+        // Теперь добавляем сущности в списки, если это нужно
+        for vEntity in vJustCreated do
+        begin
+          FLoadingChanges := True;
+          try
+            vEntity.SubscribeFields;
+            TCollection(vEntity.Collection).NotifyListeners(dckListAdded, vEntity);
+          finally
+            FLoadingChanges := False;
+          end;
+        end;
+
+        vJustCreated.Clear;
+
+        FActualLogID := vLogID;
+      end;
+    except
+      on E: Exception do
+      begin
+        FLogger.AddMessage('Something gone wrong: ' + E.Message + ', log id = ' + IntToStr(vLogID));
+        FLogger.Flush;
+      end;
+    end;
+  finally
+    FreeAndNil(vJustCreated);
+  end;
+end;
+
+function TDomain.CollectionByID(const AID: Integer): TCollection;
+begin
+  Result := TCollection(FRootCollection.EntityByID(AID));
+end;
+
+function TDomain.CollectionByStorageName(const AStorageName: string): TCollection;
+var
+  vCollection: TCollection;
+begin
+  for vCollection in FCollections do
+    if SameText(AStorageName, vCollection.ContentDefinition.StorageName) then
+      Exit(vCollection);
+  Result := nil;
+end;
+
+function TDomain.CollectionExists(const AName: string): Boolean;
+begin
+  Result := FCollections.Exists(AName);
+end;
+
+function TDomain.CollectionsByDefinition(const ADefinition: TDefinition): TList<TCollection>;
+  procedure GetCollectionsByDefinition(const ADefinition: TDefinition; const AList: TList<TCollection>);
+  var
+    vCollection: TCollection;
+    vDescDefinition: TDefinition;
+  begin
+    if FCollections.TryGetObject(ADefinition.Name, vCollection) then
+      AList.Add(vCollection);
+
+    for vDescDefinition in ADefinition.Descendants do
+      GetCollectionsByDefinition(vDescDefinition, AList);
+  end;
+begin
+  Result := TList<TCollection>.Create;
+  GetCollectionsByDefinition(ADefinition, Result);
+end;
+
+function TDomain.CompareVersions(const AVersion1, AVersion2: string): Integer;
+var
+  vList1, vList2: TStrings;
+  i: Integer;
+begin
+  if SameText(AVersion1, AVersion2) then
+    Exit(0);
+
+  vList1 := CreateDelimitedList(AVersion1, '.');
+  vList2 := CreateDelimitedList(AVersion2, '.');
+  Result := 0;
+  for i := 0 to Max(vList1.Count, vList2.Count) - 1 do
+  begin
+    if vList1.Count <= i then
+      Exit(-1);
+    if vList2.Count <= i then
+      Exit(1);
+
+    Result := StrToIntDef(Trim(vList1[i]), 0) - StrToIntDef(Trim(vList2[i]), 0);
+    if Result <> 0 then
+      Exit;
+  end;
+end;
+
+constructor TDomain.Create(const APlatform: TObject; const AConfiguration: TConfiguration;
+  const AUid: string; const ASettings: TSettings);
+var
+  vAppDataDirectory: string;
+  vVersion: string;
+  i: Integer;
+  vMigration: TMigration;
+  vNextMigrationIndex: Integer;
+  vActionDef: TActionDef;
+  vCompareResult: Integer;
+begin
+  inherited Create;
+
+  FConfiguration := AConfiguration;
+  FUid := AUid;
+  FIsAlive := False;
+  FStyleName := '';
+  FDataLock := TDomainLock.Create(Self);
+  FProgressInfo := TProgressInfo.Create(Self);
+  FLoadingChanges := False;
+  FWereErrors := True;
+  FSharedFolderAvailable := False;
+
+  // Использовать ASettings для нахождения путей к рабочим папкам
+  FSettings := TIniSettings.Create(TPath.Combine(FConfiguration.ConfigurationDir, 'settings.ini'));
+  FNeedShowSplash := StrToBoolDef(FSettings.GetValue('Core', 'ShowSplash'), False);
+
+  FTranslator := TTranslator.Create(AConfiguration.Localizator, TPlatform(APlatform).Language);
+  FModules := TDictionary<string, TBaseModule>.Create;
+  FModuleInstances := TObjectList<TBaseModule>.Create;
+
+  FPresenter := CreatePresenter(FSettings);
+  NotifyLoadingProgress(0, 'Создание домена');
+
+  vAppDataDirectory := FConfiguration.CacheDir;
+  FUserSettings := TIniSettings.Create(TPath.Combine(vAppDataDirectory, 'settings.ini'));
+  FLogger := TLogger.Create(TPath.Combine(vAppDataDirectory, 'log.txt'));
+  FDomainLogger := TLogger.Create(TPath.Combine(vAppDataDirectory, 'domain_log.txt'));
+  FViewSubscriptions := TObjectDictionary<string, TList<TEntity>>.Create([doOwnsValues]);
+  FScheduler := TScheduler.Create(Self, 60);
+
+  FDeploymentType := FSettings.GetValue('Core', 'Deployment', 'prod');
+  FEnvironmentID := FSettings.GetValue('Core', 'EnvironmentID', '');
+  if FEnvironmentID = '' then
+  begin
+    FEnvironmentID := GUIDToString(NewGUID);
+    FSettings.SetValue('Core', 'EnvironmentID', FEnvironmentID);
+  end;
+
+  FAppTitle := Translate('AppTitle', FConfiguration._Caption) + ' - ' + FConfiguration.Version;
+
+  FSessions := TUserSessions.Create(Self);
+  FDomainSession := FSessions.AddSession(nil);
+
+  FActions := TObjectDictionary<string, TDomainAction>.Create([doOwnsValues]);
+  for vActionDef in FConfiguration.Actions.Objects do
+    FActions.Add(vActionDef.Name, TDomainAction.Create(Self, vActionDef));
+
+  FCollections := TStringDictionary<TCollection>.Create;
+  FRootCollection := TCollection.Create(Self, FConfiguration.RootDefinition);
+  FRootCollection.SetCollectionAttributes(TCollection, FConfiguration.RootDefinition);
+
+  //FExtensions := TObjectDictionary<string, TBaseExtension>.Create;
+  NotifyLoadingProgress(5, 'Соединение с базой данных');
+
+  FStorage := CreateStorage(FSettings);
+  try
+    FStorage.Connect;
+  except
+    on E: Exception do
+    begin
+      FPresenter.ShowMessage('Ошибка подключения', 'Ошибка подключения к хранилищу данных. ' + E.Message, msError);
+      Exit;
+      //raise Exception.Create('Ошибка подключения к хранилищу данных. ' + E.Message);
+    end;
+  end;
+
+  NotifyLoadingProgress(15, 'Обновление структур данных');
+
+  vVersion := FStorage.Version;
+  if vVersion = '' then
+    vVersion := FConfiguration.Version;
+
+  vCompareResult := CompareVersions(FConfiguration.Version, vVersion);
+
+  // Хранилище обновлено извне
+  if (vCompareResult < 0) then
+  begin
+    FPresenter.ShowMessage('Ошибка запуска',
+      'Вы используете устаревшую версию программы [' + FConfiguration.Version + '].'#13#10 +
+      'Пожалуйста, установите новую версию [' + vVersion + '] самостоятельно или обратитесь за помощью к администратору.'#13#10 +
+      'Программа будет закрыта', msError);
+    Exit;
+    //raise Exception.Create('Устаревшая версия программы');
+  end
+  // Новая версия конфигурации, требуется обновление структуры
+  else if (vCompareResult > 0) or (FStorage.Version = '') or (FDeploymentType = 'dev') then
+  begin
+    for vMigration in FConfiguration.Migrations do
+      vMigration.Apply(FConfiguration);
+
+    // Проверяем, новая ли это база данных
+    if VerifyStorageStructure then
+      FStorage.Version := FConfiguration.Version;
+    //AConfiguration.Localizator.EnumerateConfigurationElements(Self);
+  end;
+
+  FWereErrors := False;
+  Exit;
+
+  // Накатывание миграций
+  vNextMigrationIndex := FConfiguration.Migrations.NextMigrationIndex(vVersion);
+  if vNextMigrationIndex >= 0 then
+  begin
+    for i := 0 to vNextMigrationIndex - 1 do
+      FConfiguration.Migrations[i].Apply(FConfiguration);
+
+    Preload(FStorage);
+    Load(FStorage);
+
+    for i := vNextMigrationIndex to FConfiguration.Migrations.Count - 1 do
+    begin
+      vMigration := FConfiguration.Migrations[i];
+
+      if vMigration.CreateNewStructures(FConfiguration) then
+      begin
+        VerifyStorageStructure;
+        UpdateDomainStructures;
+      end;
+
+      if Assigned(vMigration.MigrationProc) then
+      begin
+        FDomainSession.AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
+          begin
+            vMigration.MigrationProc(Self);
+            Result := True;
+          end, nil, True);
+      end;
+
+      if vMigration.DeleteOldStructures(FConfiguration) then
+      begin
+        VerifyStorageStructure;
+        UpdateDomainStructures;
+      end;
+    end;
+
+    //AConfiguration.Localizator.EnumerateConfigurationElements(Self);
+  end;
+
+  FSettings.SetValue(FStorage.Name, 'Version', FConfiguration.Version);
+end;
+
+function TDomain.CreateNewEntity(const ACollectionName: string; const AHolder: TObject; const AID: Integer;
+  const AFieldContext: TBaseField): TEntity;
+var
+  vCollection: TCollection;
+begin
+  vCollection := CollectionByName(ACollectionName);
+  if Assigned(vCollection) then
+    Result := vCollection.CreateNewEntity(TChangeHolder(AHolder), AID, AFieldContext)
+  else
+    Result := nil;
+end;
+
+(*function TDomain.CreateNotification(const AMessage, AActionLink: string): TEntity;
+var
+  vCollection: TCollection;
+  vEntity: TEntity;
+  i: Integer;
+begin
+  // Медленно
+  vCollection := CollectionByName('SysNotifications');
+  for i := 0 to vCollection.Count - 1 do
+  begin
+    Result := vCollection[i];
+    if Result['ActionLink'] = AActionLink then
+      Exit;
+  end;
+
+  FDomainSession.AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
+    begin
+      vEntity := vCollection.CreateNewEntity(AHolder);
+      AHolder.SetFieldEntity(vEntity, 'Sender', CollectionByName('SysUsers').EntityByID(0));
+      AHolder.SetFieldEntity(vEntity, 'Severity', CollectionByName('SysNotificationSeverities').EntityByID(1));
+      AHolder.SetFieldValue(vEntity, 'Message', AMessage);
+      AHolder.SetFieldValue(vEntity, 'DueDate', Now + 1);
+      AHolder.SetFieldValue(vEntity, 'ActionLink', AActionLink);
+      Result := True;
+    end, nil, True);
+
+  Result := vEntity;
+end; *)
+
+function TDomain.CreatePresenter(const ASettings: TSettings): TPresenter;
+var
+  vPresenterClass: TPresenterClass;
+begin
+  vPresenterClass := TPresenterClass(ResolveModuleClass('UI', 'UI'));
+  if Assigned(vPresenterClass) then
+  begin
+    FStyleName := FSettings.GetValue('Core', 'Style', 'default');
+    Result := vPresenterClass.Create(FStyleName);
+  end
+  else
+    Result := nil;
+end;
+
+function TDomain.CreateStorage(const ASettings: TSettings): TStorage;
+var
+  vConnectionString: string;
+  vStorageClass: TStorageClass;
+  vModuleName: string;
+  vHost: string;
+  vDatabase: string;
+  vIsTrusted: Boolean;
+  vUserName: string;
+  vPassword: string;
+begin
+  Result := nil;
+
+  vModuleName := FSettings.GetValue('Modules', 'DataStorage', '');
+
+  vStorageClass := TStorageClass(ResolveModuleClass('DataStorage', 'Storage'));
+  Assert(Assigned(vStorageClass), 'Storage module is not found [' + vModuleName + ']');
+
+  if CompareText(vModuleName, 'MSAccess.OLEDB') = 0 then
+  begin
+    if not FSettings.SectionExists('MSAccess') then
+      FSettings.SetValue('MSAccess', 'Database', 'empty.mdb');
+    vDatabase := FSettings.GetValue('MSAccess', 'Database', 'empty.mdb');
+    vConnectionString := Format(cMSAccessConnectionString, [TPath.Combine(FConfiguration.ConfigurationDir, vDatabase)]);
+
+    FLogger.AddMessage(vConnectionString);
+    Result := vStorageClass.Create(FLogger, vConnectionString)
+  end
+  else if SameText(vModuleName, 'SQLServer.OLEDB') then
+  begin
+    if not FSettings.SectionExists('MSSQLServer') then
+      FSettings.SetValue('MSSQLServer', 'Database', 'empty');
+    vHost := FSettings.GetValue('MSSQLServer', 'Host', '(local)');
+    vDatabase := FSettings.GetValue('MSSQLServer', 'Database', 'empty');
+    vIsTrusted := StrToBoolDef(FSettings.GetValue('MSSQLServer', 'IsTrusted'), False);
+    if vIsTrusted then
+      vConnectionString := Format(cTrustedMSSQLConnectionString,
+        [vHost, vDatabase])
+    else begin
+      vUserName := FSettings.GetValue('MSSQLServer', 'User', 'sa');
+      vPassword := FSettings.GetValue('MSSQLServer', 'Password', 'nhfyitz');
+      vConnectionString := Format(cRegularMSSQLConnectionString,
+        [vHost, vDatabase, vUserName, vPassword])
+    end;
+
+    FLogger.AddMessage(vConnectionString);
+    Result := vStorageClass.Create(FLogger, vConnectionString);
+  end
+  else if CompareText(vModuleName, 'XmlFile') = 0 then
+  begin
+    if not FSettings.SectionExists('XML') then
+      FSettings.SetValue('XML', 'FileName', 'database.xml');
+    vDatabase := FSettings.GetValue('XML', 'FileName', 'database.xml');
+    //Result := vStorageClass.Create(Self, vStorageName, vVersion, vDatabase)
+  end
+  else if CompareText(vModuleName, 'IniFile') = 0 then
+  begin
+    if not FSettings.SectionExists('INI') then
+      FSettings.SetValue('INI', 'FileName', 'database.ini');
+    vDatabase := FSettings.GetValue('INI', 'FileName', 'database.ini');
+    Result := vStorageClass.Create(FLogger, TPath.Combine(FConfiguration.ConfigurationDir, vDatabase));
+  end;
+
+  if not Assigned(Result) then
+    Assert(False, 'Storage type is not supported');
+end;
+
+destructor TDomain.Destroy;
+var
+  vCollection: TCollection;
+  i: Integer;
+begin
+  FreeAndNil(FProgressInfo);
+
+  FreeAndNil(FPresenter);
+
+  FreeAndNil(FViewSubscriptions);
+
+  FScheduler.CancelAll;
+  FreeAndNil(FScheduler);
+
+  // Модули должны очищаться в обратном порядке
+  FreeAndNil(FModules);
+  for i := FModuleInstances.Count - 1 downto 0 do
+    FModuleInstances.Delete(i);
+  FreeAndNil(FModuleInstances);
+
+  // Удаляем всех слушателей, чтобы уведомления не приходили
+  for vCollection in FCollections do
+    vCollection.Unsubscribe;
+  // При удалении корневой коллекции она почистит все подчиненные коллекции
+  FreeAndNil(FRootCollection);
+  FreeAndNil(FCollections);
+
+  FreeAndNil(FActions);
+
+  FreeAndNil(FStorage);
+  FreeAndNil(FLogger);
+  FreeAndNil(FDomainLogger);
+  FreeAndNil(FSettings);
+  FreeAndNil(FUserSettings);
+  FreeAndNil(FTranslator);
+
+  FreeAndNil(FSessions);
+
+  FreeAndNil(FDataLock);
+
+  FConfiguration := nil;
+
+  inherited Destroy;
+end;
+
+function TDomain.EntityByID(const ACollectionName: string; const AID: Integer): TEntity;
+var
+  vCollection: TCollection;
+begin
+  vCollection := CollectionByName(ACollectionName);
+  if Assigned(vCollection) then
+    Result := vCollection.EntityByID(AID)
+  else
+    Result := nil;
+end;
+
+procedure TDomain.ExecuteDefaultAction(const ASession: TUserSession; const AParameter: string);
+var
+  i: Integer;
+  vSession: TUserSession;
+begin
+  if Assigned(ASession) then
+    vSession := ASession
+  else begin
+    vSession := FDomainSession;
+    for i := 0 to FSessions.Count - 1 do
+    begin
+      vSession := FSessions[i];
+      if vSession <> FDomainSession then
+        Break;
+    end;
+  end;
+
+  TExecuteDefaultActionFunc(FConfiguration.ExecuteDefaultActionFunc)(vSession, AParameter);
+end;
+
+function TDomain.FindEntities(const ADefinitionName: string; const ASession: TUserSession; const AQuery: string;
+  const AParams: array of Variant): TList<TEntity>;
+  procedure InternalFindEntities(const ADefinitionName: string; const ASession: TUserSession; const AQuery: string;
+    const AParams: array of Variant; const AList: TList<TEntity>);
+  var
+    vCollection: TCollection;
+    vDescendant: TDefinition;
+    vDefinition: TDefinition;
+  begin
+    vDefinition := FConfiguration[ADefinitionName];
+    if not Assigned(vDefinition) then
+      Exit;
+
+    vCollection := CollectionByName(vDefinition.Name);
+    if Assigned(vCollection) then
+      vCollection.FindInto(ASession, AQuery, AParams, Result);
+
+    if vDefinition.Descendants.Count > 0 then
+      for vDescendant in vDefinition.Descendants do
+        InternalFindEntities(vDescendant.Name, ASession, AQuery, AParams, AList);
+  end;
+begin
+  Result := TList<TEntity>.Create;
+  InternalFindEntities(ADefinitionName, ASession, AQuery, AParams, Result);
+end;
+
+function TDomain.FindOneEntity(const ADefinitionName: string; const ASession: TUserSession; const AQuery: string;
+  const AParams: array of Variant): TEntity;
+var
+  vCollection: TCollection;
+  vDescendant: TDefinition;
+  vDefinition: TDefinition;
+begin
+  vDefinition := FConfiguration[ADefinitionName];
+  if not Assigned(vDefinition) then
+    Exit(nil);
+
+  vCollection := CollectionByName(vDefinition.Name);
+  if Assigned(vCollection) then
+  begin
+    Result := vCollection.FindOne(ASession, AQuery, AParams);
+    if Assigned(Result) then
+      Exit;
+  end;
+
+  if vDefinition.Descendants.Count > 0 then
+    for vDescendant in vDefinition.Descendants do
+    begin
+      Result := FindOneEntity(vDescendant.Name, ASession, AQuery, AParams);
+      if Assigned(Result) then
+        Exit;
+    end;
+
+  Result := nil;
+end;
+
+function TDomain.FirstEntity(const ACollectionName: string): TEntity;
+var
+  vCollection: TCollection;
+begin
+  vCollection := CollectionByName(ACollectionName);
+  if Assigned(vCollection) then
+    Result := vCollection.First
+  else
+    Result := nil;
+end;
+
+function TDomain.GetActionState(const AName: string): TViewState;
+var
+  vAction: TDomainAction;
+begin
+  vAction := ActionByName(AName);
+  if Assigned(vAction) then
+    Result := vAction.State
+  else
+    Result := vsFullAccess;
+end;
+
+function TDomain.CollectionByName(const AName: string): TCollection;
+begin
+  Result := FCollections.ObjectByName(AName);
+end;
+
+procedure TDomain.GetCollections(const AList: TList<TCollection>; const ADefinitionKind: TCollectionKind);
+var
+  vCollection: TCollection;
+begin
+  AList.Clear;
+  for vCollection in FCollections do
+    if vCollection.ContentDefinition.Kind = ADefinitionKind then
+      AList.Add(vCollection);
+end;
+
+function TDomain.GetConstant(const AName: string): Variant;
+var
+  vConsts: TEntity;
+begin
+  vConsts := CollectionByName('SysConstants').First;
+  if Assigned(vConsts) and vConsts.FieldExists(AName) then
+    Result := vConsts[AName]
+  else
+    Result := '';
+end;
+
+function TDomain.GetDomainName: string;
+begin
+  Result := Format('Domain [%s], style: %s',
+    [FConfiguration.Name, FStyleName]);
+end;
+
+procedure TDomain.GetEntityList(const ASession: TObject; const ADefinition: TDefinition;
+  const AEntityList: TEntityList; const AFilterName: string);
+var
+  vQueryDef: TQueryDef;
+  vSession: TUserSession;
+  vFilter: TFilter;
+
+  procedure ApplyFilter(const ADefinition: TDefinition; const AFilterName: string);
+  var
+    vFilter: TFilter;
+    vQueryObject: TQueryExecutor;
+    i: Integer;
+  begin
+    if not ADefinition.Filters.TryGetValue(AFilterName, vFilter) then
+      Exit;
+
+    vQueryObject := TQueryExecutor.Create(vFilter.QueryDef);
+    try
+      vQueryObject.SetParameters(vSession, nil);
+      vQueryObject.Select(vSession);
+      for i := 0 to vQueryObject.Results.Count - 1 do
+        AEntityList.Add(vQueryObject.Results[i]);
+    finally
+      FreeAndNil(vQueryObject);
+    end;
+  end;
+
+  procedure InternalGetEntityList(const ADefinition: TDefinition; const AFilterName: string);
+  var
+    vCollection: TCollection;
+    vDescDefinition: TDefinition;
+    i: Integer;
+  begin
+    if not Assigned(ADefinition) then
+      Exit;
+
+    vCollection := CollectionByName(ADefinition.Name);
+    if Assigned(vCollection) then
+    begin
+      // Добавить значения
+      if ADefinition.Filters.ContainsKey(AFilterName) then
+        ApplyFilter(ADefinition, AFilterName)
+      else
+        for i := 0 to vCollection.Count - 1 do
+          AEntityList.Add(vCollection[i]);
+    end;
+
+    for vDescDefinition in ADefinition.Descendants do
+      InternalGetEntityList(vDescDefinition, AFilterName);
+  end;
+begin
+  AEntityList.Clear;
+  if not Assigned(ADefinition) then
+    Exit;
+
+  if Assigned(ASession) then
+    vSession := TUserSession(ASession)
+  else
+    vSession := FDomainSession;
+
+  InternalGetEntityList(ADefinition, AFilterName);
+
+  if ADefinition.Filters.TryGetValue(AFilterName, vFilter) then
+    vQueryDef := vFilter.QueryDef
+  else
+    vQueryDef := nil;
+
+  AEntityList.SetFiller(ADefinition, False, vQueryDef);
+end;
+
+function TDomain.GetLanguage: string;
+begin
+  Result := FTranslator.Language;
+end;
+
+function TDomain.GetModuleByName(const AName: string): TBaseModule;
+var
+  vModuleClass: TModuleClass;
+begin
+  if FModules.TryGetValue(AName, Result) then
+    Exit;
+
+  vModuleClass := ResolveModuleClass(AName, AName);
+  if Assigned(vModuleClass) then
+  begin
+    Result := TDomainModuleClass(vModuleClass).Create(Self);
+    FModules.AddOrSetValue(AName, Result);
+    FModuleInstances.Add(Result);
+  end
+  else
+    Result := nil;
+end;
+
+procedure TDomain.ImportChanges(const AChanges: TJSONObject);
+var
+  vUpdates: TJSONArray;
+  vUpdate: TJSONObject;
+  vActions: TJSONArray;
+  i: Integer;
+  vJustCreated: TList<TEntity>;
+  vLogID: Integer;
+begin
+  vJustCreated := TList<TEntity>.Create;
+  try
+    try
+      // Раскладываем обновления по своим местам
+      vUpdates := TJSONArray(AChanges.Get('updates').JsonValue);
+      for i := 0 to vUpdates.Size - 1 do
+      begin
+        vUpdate := TJSONObject(vUpdates.Get(i));
+        vLogID := TJSONNumber(vUpdate.Get('log_id').JsonValue).AsInt;
+        vActions := TJSONArray(vUpdate.Get('actions').JsonValue);
+
+        FDomainSession.AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
+          var
+            vPair: TJSONPair;
+            j: Integer;
+            vAction: TJSONObject;
+            vActionID: Integer;
+            vActionKind: TEntitySaveAction;
+            vFields: TJSONObject;
+            vCollectionName: string;
+            vCollection: TCollection;
+            vEntityID: Integer;
+            vEntity: TEntity;
+          begin
+            for j := 0 to vActions.Size - 1 do
+            begin
+              vAction := TJSONObject(vActions.Get(j));
+              vActionID := TJSONNumber(vAction.Get('change_id').JsonValue).AsInt;
+              vActionKind := TEntitySaveAction(TJSONNumber(vAction.Get('action_kind_id').JsonValue).AsInt);
+              vCollectionName := vAction.Get('collection').JsonValue.Value;
+              vCollection := CollectionByName(vCollectionName);
+              if not Assigned(vCollection) then
+                Continue;
+              vEntityID := TJSONNumber(vAction.Get('entity_id').JsonValue).AsInt;
+              vPair := vAction.Get('fields');
+              if Assigned(vPair) then
+                vFields := TJSONObject(vPair.JsonValue)
+              else
+                vFields := nil;
+              // Наиболее простой случай - идентификаторы выдаются одним хранилищем
+              case vActionKind of
+                esaInsert: begin
+                    vEntity := vCollection.CreateEntityFromJSON(vEntityID, vFields);
+                    vEntity.IsNew := True;
+                    vEntity.LogID := vActionID;
+                    AHolder.RegisterEntityCreating(vEntity);
+                    vJustCreated.Add(vEntity);
+                  end;
+                esaUpdate: begin
+                    vEntity := vCollection.EntityByID(vEntityID);
+                    // Пришедшая сущность могла уже быть удалена
+                    if Assigned(vEntity) then
+                    begin
+                      vCollection.FillEntityFromJSON(vEntity, vFields, False);
+                      vEntity.LogID := vActionID;
+                    end;
+                  end;
+                esaDelete: begin
+                    vEntity := vCollection.EntityByID(vEntityID);
+                    if Assigned(vEntity) then
+                    begin
+                      vJustCreated.Remove(vEntity);
+
+                      FLoadingChanges := True;
+                      try
+                        vCollection.MarkEntityAsDeleted(nil, vEntity);
+                      finally
+                        FLoadingChanges := False;
+                      end;
+                      vCollection.RemoveEntity(vEntity);
+                    end;
+                  end;
+              else
+                // Do nothing
+              end;
+            end;
+
+            // Теперь добавляем сущности в списки, если это нужно
+            for vEntity in vJustCreated do
+            begin
+              FLoadingChanges := True;
+              try
+                vEntity.SubscribeFields;
+                TCollection(vEntity.Collection).NotifyListeners(dckListAdded, vEntity);
+              finally
+                FLoadingChanges := False;
+              end;
+            end;
+
+            vJustCreated.Clear;
+
+            FActualLogID := vLogID;
+
+            Result := True;
+          end, nil, True);
+      end;
+    except
+    end;
+  finally
+    FreeAndNil(vJustCreated);
+  end;
+end;
+
+function TDomain.InternalLogin(const ALogin, APassword: string): TEntity;
+var
+  i, j: Integer;
+  vCollections: TList<TCollection>;
+  vCollection: TCollection;
+begin
+  vCollections := CollectionsByDefinition(FConfiguration['SysUsers']);
+  try
+    for i := 0 to vCollections.Count - 1 do
+    begin
+      vCollection := TCollection(vCollections[i]);
+      for j := 0 to vCollection.Count - 1 do
+      begin
+        Result := vCollection[j];
+        if SameText(Result['Login'], ALogin) and SameText(Result['Password'], MD5Hash(APassword)) then
+          Exit;
+      end;
+    end;
+    Result := nil;
+  finally
+    FreeAndNil(vCollections);
+  end;
+end;
+
+procedure TDomain.Load(const AStorage: TStorage);
+var
+  i: Integer;
+  vCollection: TCollection;
+  vSharedFolder: string;
+begin
+  CollectionByName('SysConstants').LoadAll(FStorage);
+
+  vSharedFolder := Trim(GetConstant('SharedFolder'));
+  FSharedFolderAvailable := (vSharedFolder <> '') and TDirectory.Exists(vSharedFolder);
+
+  for i := 0 to FCollections.Count - 1 do
+  begin
+    vCollection := FCollections[i];
+    if vCollection.ContentDefinition.Name = 'SysConstants' then
+      Continue;
+    NotifyLoadingProgress(35 + Round((85 - 35) * i / FCollections.Count),
+      'Загрузка коллекции "' + vCollection.ContentDefinition._Caption + '"');
+    if not vCollection.ContentDefinition.HasFlag(ccNotSave or ccLazyLoad) then
+      vCollection.LoadAll(FStorage);
+  end;
+
+  NotifyLoadingProgress(85, 'Заполнение системных справочников данными');
+  TCreateDefaultEntitiesProc(FConfiguration.CreateDefaultEntitiesProc)(Self);
+
+  NotifyLoadingProgress(90, 'Создание связей внутри модели');
+
+  // Создаем все связи в модели
+  for vCollection in FCollections do
+    if not vCollection.ContentDefinition.HasFlag(ccLazyLoad) then
+    begin
+      FStorage.UpdateNumerator(vCollection.ContentDefinition.StorageName, vCollection.MaxID);
+      vCollection.Subscribe;
+    end;
+
+  FScheduler.ScheduleAll;
+end;
+
+function TDomain.LoadCollection(const ACollectionName: string): TCollection;
+begin
+  Result := CollectionByName(ACollectionName);
+  if Assigned(Result) and not Result.Loaded then
+  begin
+    Result.LoadAll(FStorage);
+    Result.Subscribe;
+  end;
+end;
+
+function TDomain.Log(const AMessage: string; const AMessageKind: TMessageKind): string;
+begin
+  Result := FDomainLogger.AddMessage(AMessage, AMessageKind);
+end;
+
+function TDomain.LogEnter(const AMessage: string): string;
+begin
+  Result := FDomainLogger.AddEnterMessage(AMessage);
+end;
+
+function TDomain.LogExit(const AMessage: string): string;
+begin
+  Result := FDomainLogger.AddExitMessage(AMessage);
+end;
+
+function TDomain.Login(const AName, APassword: string): TUserSession;
+var
+  vUser: TEntity;
+begin
+  try
+    vUser := InternalLogin(AName, APassword);
+    if Assigned(vUser) then
+      Result := FSessions.AddSession(vUser)
+    else
+      Result := nil;
+  except
+    on E: Exception do
+    begin
+      Result := nil;
+      FLogger.AddMessage(E.Message);
+      FLogger.Flush;
+    end;
+  end;
+end;
+
+{function TDomain.LoginByRFID(const ARFID: string): TUserSession;
+var
+  i, j: Integer;
+  vCollections: TList<TCollection>;
+  vCollection: TCollection;
+  vUser: TEntity;
+begin
+  vCollections := CollectionsByDefinition(FConfiguration['SysUsers']);
+  try
+    for i := 0 to vCollections.Count - 1 do
+    begin
+      vCollection := TCollection(vCollections[i]);
+      for j := 0 to vCollection.Count - 1 do
+      begin
+        vUser := vCollection[j];
+        if SameText(vUser['RFID'], ARFID) then
+        begin
+          Result := FSessions.AddSession(vUser);
+          Exit;
+        end;
+      end;
+    end;
+    Result := nil;
+  finally
+    FreeAndNil(vCollections);
+  end;
+end; }
+
+procedure TDomain.Logout(const ASession: TUserSession);
+begin
+  FSessions.RemoveSession(ASession);
+end;
+
+function TDomain.NewModule(const AType, AModuleName: string): TBaseModule;
+var
+  vModuleClass: TModuleClass;
+begin
+  vModuleClass := TBaseModule.GetModuleClass(AType, AModuleName);
+  if not Assigned(vModuleClass) then
+  begin
+    if Assigned(FPresenter) then
+      FPresenter.ShowMessage('Ошибка загрузки модуля',
+        Format('Модуль [%s] типа [%s] не зарегистрирован в системе', [AModuleName, AType]) + #13#10#13#10
+        + 'Проверьте, что файл с модулем подключен к проекту и регистрация класса модуля в нём выполнена правильно:'
+        + #13#10#13#10'initialization'#13#10'  TBaseModule.RegisterModule(''' + AType + ''', '''
+        + AModuleName + ''', {Класс модуля});');
+    Result := nil;
+  end
+  else
+    Result := TDomainModuleClass(vModuleClass).Create(Self);
+end;
+
+procedure TDomain.NotifyLoadingProgress(const AProgress: Integer; const AInfo: string);
+begin
+  if FNeedShowSplash and Assigned(FPresenter) then
+  begin
+    FProgressInfo.SetProgress(AProgress, AInfo);
+    FPresenter.ShowPage(nil, 'splash', FProgressInfo);
+  end;
+end;
+
+(*procedure TDomain.NotifyUser(const AUser, ANotification: TEntity);
+var
+  i: Integer;
+  vNotifications: TListField;
+  vEntity: TEntity;
+begin
+  { TODO -owa -caddition : Уведомить и всех его заместителей (тогда нужно создавать отдельные уведомления под каждого пользователя) }
+  vNotifications := TListField(AUser.FieldByName('Notifications'));
+  for i := 0 to vNotifications.Count - 1 do
+  begin
+    vEntity := TEntity(vNotifications[i]);
+    if not Assigned(vEntity) then
+      Continue;
+
+    if SafeID(vEntity.ExtractEntity('Notification')) = SafeID(ANotification) then
+      Exit;
+  end;
+
+  FDomainSession.AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
+    var
+      vUserNotification: TEntity;
+    begin
+      vUserNotification := CollectionByName('SysUsersNotifications').CreateNewEntity(AHolder);
+      AHolder.SetFieldEntity(vUserNotification, 'User', AUser);
+      AHolder.SetFieldEntity(vUserNotification, 'Notification', ANotification);
+      Result := True;
+    end, nil, True);
+end; *)
+
+function TDomain.Now: TDateTime;
+begin
+  if FStorage = nil then
+    Result := SysUtils.Now
+  else
+    Result := FStorage.GetTime;
+end;
+
+procedure TDomain.Preload(const AStorage: TStorage);
+begin
+  NotifyLoadingProgress(25, 'Создание системных структур');
+
+  // Приоритетным источником загрузки является хранилище
+  FRootCollection.LoadAll(FStorage, False);
+
+{  FDomainSession.AtomicModification(function: Boolean
+    var
+      vCollection: TCollection;
+      vCollectionName: string;
+      vContentDefinition: TCfgDefinition;
+      i: Integer;
+    begin
+      for i := 0 to FRootCollection.Count - 1 do
+      begin
+        vCollection := TCollection(FRootCollection[i]);
+        vCollectionName := vCollection.FieldValues['Name'];
+        vContentDefinition := FConfiguration.DefinitionByName(vCollectionName);
+        if not Assigned(vContentDefinition) then
+          FRootCollection.MarkEntityAsDeleted(FDomainSession, vCollection)
+        else
+          vCollection.SetCollectionAttributes(TEntity, vContentDefinition);
+      end;
+
+      Result := True;
+    end, chkMaster, True); }
+
+  FDomainSession.AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
+    var
+      vSyncDefinition: TDefinition;
+      vDefEntity: TCollection;
+      vHolder: TChangeHolder;
+    begin
+      for vSyncDefinition in FConfiguration.Definitions do
+      begin
+        if (vSyncDefinition.Kind = clkMixin) or (vSyncDefinition.Name = 'Numerators')
+          //or (vSyncDefinition.Name = 'SysDefinitions')
+        then
+          Continue;
+
+        if vSyncDefinition = FConfiguration.RootDefinition then
+        begin
+          vDefEntity := FRootCollection;
+          vHolder := nil;
+        end
+        else begin
+          // Search by Name
+          vDefEntity := TCollection(FRootCollection.FindOne(FDomainSession, 'Name=:Name', [vSyncDefinition.Name]));
+          if not Assigned(vDefEntity) then
+          begin
+            if vSyncDefinition.ID > 0 then
+              vDefEntity := TCollection(FRootCollection.EntityByID(vSyncDefinition.ID));
+            if not Assigned(vDefEntity) then
+              vDefEntity := TCollection(FRootCollection.CreateNewEntity(AHolder));
+          end;
+          vDefEntity.SetCollectionAttributes(TEntity, vSyncDefinition);
+          vHolder := AHolder;
+        end;
+
+        FCollections.AddObject(vSyncDefinition.Name, vDefEntity);
+        vDefEntity._SetFieldValue(vHolder, 'Name', vSyncDefinition.Name);
+        vDefEntity._SetFieldValue(vHolder, 'Caption', TranslateDefinition(vSyncDefinition));
+        vDefEntity._SetFieldValue(vHolder, 'StorageName', vSyncDefinition.StorageName);
+        vDefEntity._SetFieldValue(vHolder, 'Kind', Integer(vSyncDefinition.Kind));
+      end;
+      Result := True;
+    end, nil, True);
+
+  FStorage.UpdateNumerator(FConfiguration.RootDefinition.StorageName, FRootCollection.MaxID);
+end;
+
+procedure TDomain.ReloadChanges(const AInteractor: TObject; const AHolder: TChangeHolder);
+var
+  vJSONObject: TJSONObject;
+begin
+  vJSONObject := FStorage.GetChanges(FActualLogID);
+  if not Assigned(vJSONObject) then
+    Exit;
+
+  try
+    ApplyChanges(AInteractor, vJSONObject, AHolder);
+  finally
+    vJSONObject.Free;
+  end;
+end;
+
+procedure TDomain.RemoveViewSubscription(const AEntity: TEntity);
+var
+  vCollectionName: string;
+  vList: TList<TEntity>;
+  vListenersText: string;
+begin
+  vListenersText := AEntity.UIListenerCount;
+  if vListenersText <> '' then
+    Exit;
+
+  vCollectionName := AEntity.Definition.Name;
+  if FViewSubscriptions.TryGetValue(vCollectionName, vList) then
+    vList.Remove(AEntity)
+  else
+    Assert(False, 'Отписывается неподписанная запись!');
+end;
+
+{function TDomain.ResolveExtension(const AName, AParams: string): TBaseExtension;
+var
+  vExtensionClass: TExtensionClass;
+begin
+  // Проверка: Объект уже создан и закеширован в системе
+  if FExtensions.TryGetValue(AName, Result) then
+    Exit;
+
+  vExtensionClass := FConfiguration.Extensions.ResolveClass(AName, FDeploymentType);
+  if Assigned(vExtensionClass) then
+  begin
+    Result := vExtensionClass.Create(Self, AParams);
+    FExtensions.Add(AName, Result);
+  end
+  else
+    Result := nil;
+end;}
+
+function TDomain.ResolveModuleClass(const AName, AType: string): TModuleClass;
+var
+  vSectionName: string;
+  vModuleName: string;
+  vAvailableTypes: TStrings;
+begin
+  Result := nil;
+
+  vSectionName := 'Modules';
+  if (FDeploymentType <> '') and FSettings.KeyExists(vSectionName + '$' + FDeploymentType, AName) then
+    vSectionName := vSectionName + '$' + FDeploymentType;
+
+  // Пользователь знает о нужной секции
+  if FSettings.KeyExists(vSectionName, AName) then
+  begin
+    vModuleName := Trim(FSettings.GetValue(vSectionName, AName, ''));
+    Result := TBaseModule.GetModuleClass(AType, vModuleName);
+    if not Assigned(Result) and (vModuleName <> '') and Assigned(FPresenter) then
+      FPresenter.ShowMessage('Ошибка загрузки модуля',
+        Format('Модуль [%s] типа [%s] не зарегистрирован в системе', [AName, AType]) + #13#10#13#10
+        + 'Проверьте, что файл с модулем подключен к проекту и регистрация класса модуля в нём выполнена правильно:'
+        + #13#10#13#10'initialization'#13#10'  TBaseModule.RegisterModule(''' + AType + ''', '''
+        + AName + ''', {Класс модуля});');
+    Exit;
+  end;
+
+  // Запрос презентера
+  if SameText(AType, 'UI') then
+  begin
+    vAvailableTypes := TBaseModule.GetModuleNamesOfType(AType);
+    if vAvailableTypes.Count > 0 then
+    begin
+      vModuleName := vAvailableTypes[0];
+      Result := TBaseModule.GetModuleClass(AType, vModuleName);
+      FSettings.SetValue('Modules', AName, vModuleName);
+    end;
+    Exit;
+  end;
+
+  // Нет возможностей для исправления
+  if not Assigned(FPresenter) then
+    Exit;
+
+  vAvailableTypes := TBaseModule.GetModuleNamesOfType(AType);
+  if vAvailableTypes.Count = 0 then
+  begin
+    FPresenter.ShowMessage('Загрузка модуля',
+      Format('В системе не обнаружено ни одного класса типа [%s]', [AType]) + #13#10#13#10
+      + 'Для загрузки модуля подключите содержащий его файл к проекту и перезапустите приложение');
+    vModuleName := '';
+  end
+  else while vAvailableTypes.Count > 0 do
+  begin
+    if FPresenter.ShowYesNoDialog(Format('Загрузка модуля, case: %d', [vAvailableTypes.Count]),
+      Format('В системе найден класс [%s], реализующий тип [%s]', [vAvailableTypes[0], AType]) + #13#10#13#10
+      + Format('Хотите использовать его для модуля [%s] того же типа?', [AName])) = drYes
+    then begin
+      vModuleName := vAvailableTypes[0];
+      Result := TBaseModule.GetModuleClass(AType, vModuleName);
+      FSettings.SetValue('Modules', AName, vModuleName);
+      Break;
+    end
+    else
+      vAvailableTypes.Delete(0);
+  end;
+
+  FreeAndNil(vAvailableTypes);
+end;
+
+procedure TDomain.Run(const AParameter: string);
+var
+  vCollection: TCollection;
+  vDefinition: TDefinition;
+  vEntity: TEntity;
+  vFieldDef: TFieldDef;
+begin
+  Preload(FStorage);
+  Load(FStorage);
+  FActualLogID := FStorage.GetLastLogID;
+
+  NotifyLoadingProgress(95, 'Локализация интерфейса');
+
+  // Проверка локализаций
+  FConfiguration.Localizator.EnumerateConfigurationElements(FConfiguration);
+  for vCollection in FCollections do
+  begin
+    vDefinition := vCollection.ContentDefinition;
+    for vEntity in vCollection do
+    begin
+      if not vEntity.IsService and not vDefinition.HasFlag(ccSystem) then
+        Continue;
+
+      for vFieldDef in vDefinition.Fields do
+      begin
+        if vFieldDef.HasFlag(cLocalizable) then
+          FConfiguration.Localizator.AddTranslation(vDefinition.Name + '#' + IntToStr(vEntity.ID) +
+            '.' + vFieldDef.Name, vEntity._FieldText(vFieldDef.Name));
+      end;
+    end;
+  end;
+
+  FIsAlive := True;
+
+  if Assigned(FPresenter) then
+    FPresenter.OnAppStarted := procedure
+    begin
+      NotifyLoadingProgress(100, '');
+    end;
+
+  TDomainReadyProc(FConfiguration.DomainReadyProc)(Self);
+
+  if Assigned(FPresenter) then
+    FPresenter.Run(AParameter);
+end;
+
+procedure TDomain.SetActionState(const AName: string; const AState: TViewState);
+var
+  vAction: TDomainAction;
+begin
+  vAction := ActionByName(AName);
+  if Assigned(vAction) then
+    vAction.SetState(AState);
+end;
+
+procedure TDomain.SetLanguage(const Value: string);
+begin
+  FTranslator.Language := Value;
+end;
+
+{procedure TDomain.SetRFIDHandler(const ARFIDHandler: TRFIDReadEvent);
+var
+  vExtension: TBaseExtension;
+begin
+  vExtension := ResolveExtension('ProbePrepares');
+  if Assigned(vExtension) then
+    vExtension.SetRFIDHandler(ARFIDHandler);
+end;}
+
+procedure TDomain.Stop;
+begin
+  FIsAlive := False;
+  if Assigned(FPresenter) then
+    FPresenter.Stop;
+  TDomainStoppedProc(FConfiguration.DomainStoppedProc)();
+end;
+
+procedure TDomain.SyncFieldsWithStorage(const ADefinition: TDefinition; const AStorage: TStorage);
+var
+  vField: TFieldDef;
+
+  procedure InternalSyncronize(const AFieldDef: TFieldDef);
+  var
+    vEntityFieldDef: TEntityFieldDef;
+    vSize: Integer;
+  begin
+    if AFieldDef.HasFlag(cNotSave) then
+      Exit;
+
+    if AFieldDef.Kind = fkString then
+    begin
+      if TSimpleFieldDef(AFieldDef).Size > 0 then
+        vSize := TSimpleFieldDef(AFieldDef).Size
+      else if not VarIsNull(TSimpleFieldDef(AFieldDef).MaxValue) then
+        vSize := TSimpleFieldDef(AFieldDef).MaxValue
+      else
+        vSize := 50;
+    end
+    else
+      vSize := 0;
+
+    if (AFieldDef.Kind = fkObject) then
+    begin
+      vEntityFieldDef := TEntityFieldDef(AFieldDef);
+      AStorage.SyncItemDef(AFieldDef.StorageName, fkObject, 0);
+      if TEntityFieldDef(AFieldDef).IsSelector then
+        AStorage.SyncItemDef(vEntityFieldDef.SelectorStorageName, fkInteger, 0);
+    end
+    else if AFieldDef.Kind = fkComplex then
+      AStorage.SyncItemDef(AFieldDef.StorageName, fkString, -1)
+    else
+      AStorage.SyncItemDef(AFieldDef.StorageName, AFieldDef.Kind, vSize);
+  end;
+
+begin
+  for vField in ADefinition.Fields do
+    InternalSyncronize(vField);
+  for vField in ADefinition.ServiceFields.Objects do
+    InternalSyncronize(vField);
+end;
+
+function TDomain.SyncWithStorage(const ADefinition: TDefinition; const AStorage: TStorage): Boolean;
+begin
+{$IFDEF DEBUG}
+  if (ADefinition.Kind = clkMixin) or ADefinition.HasFlag(ccNotSave) then
+    Result := True
+  else
+    Result := AStorage.SyncGroupDef(ADefinition.StorageName, procedure(const AStorage: TStorage)
+      begin
+        SyncFieldsWithStorage(ADefinition, AStorage);
+      end);
+{$ENDIF}
+end;
+
+function TDomain.TextHierarchy: string;
+var
+  vItem: TPair<string, TList<TEntity>>;
+  vEntity: TEntity;
+  vText: string;
+begin
+  Result := '';
+  for vItem in FViewSubscriptions do
+  begin
+    vText := '';
+    for vEntity in vItem.Value do
+      if vEntity.UIListenerCount <> '' then
+        vText := vText + '  ' + IntToStr(SafeID(vEntity)) + ': ' + vEntity.UIListenerCount + #13#10;
+
+    if vText <> '' then
+    begin
+      if Result <> '' then
+        Result := Result + #13#10;
+      Result := Result + UpperCase(vItem.Key) + #13#10 + vText;
+    end;    
+  end;
+end;
+
+function TDomain.Translate(const AKey, ADefault: string): string;
+begin
+  Result := FTranslator.Translate(AKey, ADefault);
+end;
+
+function TDomain.TranslateDefinition(const ADefinition: TDefinition;
+  const ATranslationPart: TTranslationPart = tpCaption): string;
+var
+  vDefaultValue: string;
+begin
+  case ATranslationPart of
+    tpCaption: vDefaultValue := ADefinition._Caption;
+    tpEmptyValue: vDefaultValue := ADefinition._EmptyValue;
+    tpPrefix: vDefaultValue := ADefinition.Prefix;
+  else
+    vDefaultValue := '';
+  end;
+
+  Result := FTranslator.Translate(ADefinition.FullName + '@' + cTranslationPartCaptions[ATranslationPart], vDefaultValue);
+end;
+
+function TDomain.TranslateFieldDef(const AFieldDef: TFieldDef;
+  const ATranslationPart: TTranslationPart = tpCaption): string;
+var
+  vDefaultValue: string;
+begin
+  case ATranslationPart of
+    tpCaption: vDefaultValue := AFieldDef._Caption;
+    tpHint: vDefaultValue := AFieldDef._Hint;
+  else
+    vDefaultValue := '';
+  end;
+
+  Result := FTranslator.Translate(AFieldDef.FullName + '@' + cTranslationPartCaptions[ATranslationPart], vDefaultValue);
+end;
+
+function TDomain.TryGetModule(const AName, AType: string; out AModule: TBaseModule): Boolean;
+begin
+  Result := FModules.TryGetValue(AName + ':' + AType, AModule);
+end;
+
+function TDomain.VerifyStorageStructure: Boolean;
+var
+  vDefinition: TDefinition;
+  vNeedRestart: Boolean;
+  vSyncronized: Boolean;
+  vAttempts: Integer;
+begin
+  Result := True;
+  try
+    vNeedRestart := False;
+    for vDefinition in FConfiguration.Definitions do
+    begin
+      // Синхронизация коллекций с текущим состоянием базы данных
+      vAttempts := 0;
+      vSyncronized := False;
+      while not vSyncronized and (vAttempts <= 1) do
+      begin
+        try
+          if not SyncWithStorage(vDefinition, FStorage) then
+          begin
+            FLogger.AddMessage('Creating storage structures for collection ' + vDefinition.Name);
+            vNeedRestart := True;
+          end;
+          vSyncronized := True;
+        except
+          on E: Exception do
+          begin
+            vAttempts := vAttempts + 1;
+            FLogger.AddMessage('Error: ' + E.Message + '. Trying to fix, attempt #' + IntToStr(vAttempts));
+            vNeedRestart := False;
+            FStorage.Rebuild;
+          end;
+        end;
+      end;
+    end;
+
+    if vNeedRestart then
+      FStorage.Rebuild;
+  except
+    on E: Exception do
+    begin
+      FLogger.AddMessage('Critical error while synchronizing: ' + E.Message);
+      Result := False;
+    end;
+  end;
+
+  if not Result then
+  begin
+    FLogger.AddMessage('Error occurs while synchronization has been processed');
+    FLogger.Flush;
+    Abort;
+  end;
+end;
+
+procedure TDomain.UpdateDomainStructures;
+var
+  vCollections: TList<TCollection>;
+  vDefinition: TDefinition;
+  vCollection: TCollection;
+  vEntity: TEntity;
+begin
+  vCollections := TList<TCollection>.Create(FCollections);
+  try
+    for vDefinition in FConfiguration.Definitions do
+    begin
+      vCollection := FCollections.ObjectByName(vDefinition.Name);
+      if not Assigned(vCollection) then
+      begin
+        Assert(False, 'Redo this!');
+        //vCollection := AddCollection(vDefinition);
+        //FStorage.UpdateNumerator(vDefinition.StorageName, vCollection.MaxID);
+      end
+      else begin
+        // Обновляем поля всех загруженных записей
+        for vEntity in vCollection do
+          vEntity.UpdateFields;
+        vCollections.Remove(vCollection);
+      end;
+    end;
+
+    for vCollection in vCollections do
+      FCollections.RemoveObject(vCollection.Name);
+  finally
+    FreeAndNil(vCollections);
+  end;
+end;
+
+procedure TDomain.UpdateLogID(const ANewLogID: Integer);
+begin
+  if ANewLogID > FActualLogID then
+    FActualLogID := ANewLogID;
+end;
+
+{ TDomainAction }
+
+procedure TDomainAction.AddViewListener(const AListener: TObject);
+begin
+  if FListeners.IndexOf(AListener) < 0 then
+    FListeners.Add(AListener);
+end;
+
+constructor TDomainAction.Create(const ADomain: TObject; const AAction: TActionDef);
+begin
+  inherited Create;
+  FDomain := ADomain;
+  FAction := AAction;
+  FListeners := TList<TObject>.Create;
+  FState := vsFullAccess; // взять из скрипта
+end;
+
+destructor TDomainAction.Destroy;
+begin
+  FreeAndNil(FListeners);
+  FDomain := nil;
+  FAction := nil;
+  inherited Destroy;
+end;
+
+procedure TDomainAction.NotifyListeners;
+var
+  vMessage: TDomainChangedMessage;
+  i: Integer;
+  vListener: TObject;
+begin
+  vMessage.Msg := DM_DOMAIN_CHANGED;
+  vMessage.Kind := dckViewStateChanged;
+  vMessage.Sender := Self;
+  vMessage.Parameter := nil;
+
+  for i := FListeners.Count - 1 downto 0 do
+  begin
+    vListener := FListeners[i];
+    vListener.Dispatch(vMessage);
+  end;
+end;
+
+procedure TDomainAction.RemoveViewListener(const AListener: TObject);
+begin
+  FListeners.Remove(AListener);
+end;
+
+procedure TDomainAction.SetState(const Value: TViewState);
+begin
+  if FState = Value then
+    Exit;
+  FState := Value;
+  NotifyListeners;
+end;
+
+{ TDomainLock }
+
+constructor TDomainLock.Create(const ADomain: TObject);
+begin
+  inherited Create;
+  FDomain := ADomain;
+  FLock := TCriticalSection.Create;
+  FCurrentSession := nil;
+  FLockCount := 0;
+end;
+
+destructor TDomainLock.Destroy;
+begin
+  FDomain := nil;
+  FCurrentSession := nil;
+  FreeAndNil(FLock);
+  inherited Destroy;
+end;
+
+procedure TDomainLock.Enter(const ASession: TUserSession);
+begin
+  repeat until FLock.TryEnter;
+  FLockCount := FLockCount + 1;
+  FCurrentSession := ASession;
+end;
+
+procedure TDomainLock.Leave;
+begin
+  FCurrentSession := nil;
+  FLockCount := FLockCount - 1;
+  FLock.Leave;
+end;
+
+function TDomainLock.Locked: Boolean;
+begin
+  Result := FLockCount > 0;
+end;
+
+end.

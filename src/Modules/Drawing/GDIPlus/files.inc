@@ -1,0 +1,1 @@
+  uGDIPlusPainter in '..\..\Modules\Drawing\GDIPlus\uGDIPlusPainter.pas',
