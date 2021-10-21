@@ -36,7 +36,7 @@ unit uPresenter;
 interface
 
 uses
-  Classes, Generics.Collections, uModule, uInteractor, uView, uConsts, uUIBuilder, uIcon;
+  Classes, Generics.Collections, uModule, uSettings, uInteractor, uView, uConsts, uUIBuilder, uIcon;
 
 type
   { НАВИГАЦИЯ И ИДЕНТИФИКАЦИЯ ПОЛЕЙ }
@@ -148,7 +148,7 @@ type
       - путь от корня до этого домена
   }
 
-  TNavigateEvent = function(const AAccount: TObject; const AURL: string): Boolean of object;
+  TNavigateEvent = function(const AAccount: TObject; const AUrl: string): Boolean of object;
 
   TUIClassInfo = class
   private
@@ -162,17 +162,16 @@ type
 
   TProgressInfo = class
   private
-    FDomain: TObject;
     FProgress: Integer;
     FInfo: string;
     FStartTime: Cardinal;
   public
-    constructor Create(const ADomain: TObject);
-    destructor Destroy; override;
+    Domain: TObject;
+
+    constructor Create;
 
     procedure SetProgress(const AProgress: Integer; const AInfo: string = '');
 
-    property Domain: TObject read FDomain;
     property Progress: Integer read FProgress;
     property Info: string read FInfo;
   end;
@@ -193,20 +192,20 @@ type
   private
     FOnAppStarted: TStartedEvent;
   protected
+    FName: string;
+    FProgressInfo: TProgressInfo;
     FInteractors: TObjectList<TInteractor>;
     FCommonIcons: TIcons;
 
     procedure DoOnAppStarted;
     function ItemTypeByFieldType(const AFieldKind: TFieldKind): TUIItemType;
 
-    function GetPresenterName: string; virtual; abstract;
-
     procedure DoRun(const AParameter: string); virtual;
     procedure DoStop; virtual;
 
     function DoLogin(const ADomain: TObject): TInteractor; virtual;
     procedure DoLogout(const AInteractor: TInteractor); virtual;
-    procedure DoAuthorize(const AAccount: TObject; const AURL: string; const AWidth, AHeight: Integer;
+    procedure DoAuthorize(const AAccount: TObject; const AUrl: string; const AWidth, AHeight: Integer;
       const AOnNavigated: TNavigateEvent); virtual;
 
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); virtual; abstract;
@@ -223,7 +222,7 @@ type
 
     function ActiveInteractor: TInteractor;
   public
-    constructor Create(const AStyleName: string); virtual;
+    constructor Create(const AName: string; const ASettings: TSettings); virtual;
     destructor Destroy; override;
     procedure Run(const AParameter: string = '');
     procedure Stop;
@@ -231,7 +230,7 @@ type
     function Login(const ADomain: TObject): TInteractor;
     procedure Logout(const AInteractor: TInteractor);
 
-    procedure Authorize(const AAccount: TObject; const AURL: string; const AWidth, AHeight: Integer;
+    procedure Authorize(const AAccount: TObject; const AUrl: string; const AWidth, AHeight: Integer;
       const AOnNavigated: TNavigateEvent);
 
     function CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
@@ -264,8 +263,11 @@ type
 
     procedure ToggleUI(const AVisible: Boolean);
 
+    procedure SetDomain(const ADomain: TObject); virtual;
+
     function CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
     property OnAppStarted: TStartedEvent read FOnAppStarted write FOnAppStarted;
+    property Name: string read FName;
   end;
 
   TPresenterClass = class of TPresenter;
@@ -285,10 +287,10 @@ begin
     Result := nil;
 end;
 
-procedure TPresenter.Authorize(const AAccount: TObject; const AURL: string;
+procedure TPresenter.Authorize(const AAccount: TObject; const AUrl: string;
   const AWidth, AHeight: Integer; const AOnNavigated: TNavigateEvent);
 begin
-  DoAuthorize(AAccount, AURL, AWidth, AHeight, AOnNavigated);
+  DoAuthorize(AAccount, AUrl, AWidth, AHeight, AOnNavigated);
 end;
 
 procedure TPresenter.CloseAllPages(const AInteractor: TInteractor);
@@ -316,13 +318,18 @@ procedure TPresenter.CloseUIArea(const AInteractor: TInteractor; const AOldArea,
 begin
 end;
 
-constructor TPresenter.Create(const AStyleName: string);
+constructor TPresenter.Create(const AName: string; const ASettings: TSettings);
+var
+  vStyleName: string;
 begin
   inherited Create;
 
+  FName := AName;
+  vStyleName := ASettings.GetValue('Core', 'Style', 'default');
   FCommonIcons := TIcons.Create;
-  FCommonIcons.Load(TPath.Combine(GetPlatformDir, 'res' + PathDelim + 'Styles' + PathDelim + AStyleName));
+  FCommonIcons.Load(TPath.Combine(GetPlatformDir, 'res' + PathDelim + 'Styles' + PathDelim + vStyleName));
   FInteractors := TObjectList<TInteractor>.Create;
+  FProgressInfo := TProgressInfo.Create;
 end;
 
 function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
@@ -344,12 +351,13 @@ end;
 
 destructor TPresenter.Destroy;
 begin
+  FreeAndNil(FProgressInfo);
   FreeAndNil(FInteractors);
   FreeAndNil(FCommonIcons);
   inherited Destroy;
 end;
 
-procedure TPresenter.DoAuthorize(const AAccount: TObject; const AURL: string;
+procedure TPresenter.DoAuthorize(const AAccount: TObject; const AUrl: string;
   const AWidth, AHeight: Integer; const AOnNavigated: TNavigateEvent);
 begin
 end;
@@ -522,6 +530,11 @@ begin
   Result := DoSelectFile(AFileName, ADirectory);
 end;
 
+procedure TPresenter.SetDomain(const ADomain: TObject);
+begin
+  FProgressInfo.Domain := ADomain;
+end;
+
 function TPresenter.ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
 begin
   Result := DoShowDialog(ACaption, AText, ADialogActions);
@@ -593,19 +606,12 @@ end;
 
 { TProgressInfo }
 
-constructor TProgressInfo.Create(const ADomain: TObject);
+constructor TProgressInfo.Create;
 begin
   inherited Create;
-  FDomain := ADomain;
   FProgress := 0;
   FInfo := '';
   FStartTime := TThread.GetTickCount;
-end;
-
-destructor TProgressInfo.Destroy;
-begin
-  FDomain := nil;
-  inherited Destroy;
 end;
 
 procedure TProgressInfo.SetProgress(const AProgress: Integer; const AInfo: string);

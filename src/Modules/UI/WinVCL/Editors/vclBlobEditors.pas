@@ -36,7 +36,7 @@ unit vclBlobEditors;
 interface
 
 uses
-  vclArea, uScene, uSimpleChart, uView;
+  vclArea, uScene, uSimpleChart;
 
 type
   TFieldSceneArea = class(TVCLFieldArea)
@@ -58,7 +58,7 @@ type
 implementation
 
 uses
-  uDomain, uDrawStyles, uWinScene, uChartData, uInteractor, uPresenter, uConfiguration, uDefinition, uEntity, uConsts;
+  uPLatform, uDomain, uDrawStyles, uWinScene, uPresenter, uConfiguration, uConsts;
 
 { TFieldSceneArea }
 
@@ -71,9 +71,10 @@ procedure TFieldSceneArea.DoCreateControl(const ALayout: TObject);
 var
   vDomain: TDomain;
   vPainterClass: TPainterClass;
+  vModuleName: string;
 begin
   vDomain := TDomain(FView.Domain);
-  vPainterClass := TPainterClass(vDomain.ResolveModuleClass('ChartPainter', 'Painting'));
+  vPainterClass := TPainterClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ChartPainter', 'Painting', vModuleName));
   FScene := TWinScene.Create(nil, vPainterClass.Create(vDomain.Configuration.Icons));
   FControl := TWinScene(FScene).Panel;
 end;
@@ -108,6 +109,6 @@ end;
 
 initialization
 
-TPresenter.RegisterUIClass('WinVCL', uiComplexEdit, 'chart', TFieldChartArea);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiComplexEdit, 'chart', TFieldChartArea);
 
 end.

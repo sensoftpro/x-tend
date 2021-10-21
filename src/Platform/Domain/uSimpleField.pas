@@ -224,8 +224,6 @@ type
     property InitialJSON: TJSONValue read FInitialJSON;
   end;
 
-function CalcFileName(const ADomain: TObject): string;
-
 implementation
 
 uses

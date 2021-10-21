@@ -36,7 +36,7 @@ unit uTask;
 interface
 
 uses
-  Classes, SysUtils, SyncObjs, Generics.Collections, uModule, uConsts;
+  Classes, SysUtils, SyncObjs, Generics.Collections, uModule;
 
 type
   TTaskEngine = class;
@@ -118,7 +118,7 @@ type
   protected
     procedure DoExecuteTask(const ATask: TTaskHandle); virtual; abstract;
   public
-    constructor Create(const ADomain: TObject); override;
+    constructor Create(const ADomain: TObject; const AName: string); override;
     destructor Destroy; override;
 
     // Создание и запуск на исполнение
@@ -143,7 +143,7 @@ type
   protected
     procedure DoExecuteTask(const ATask: TTaskHandle); override;
   public
-    constructor Create(const ADomain: TObject); override;
+    constructor Create(const ADomain: TObject; const AName: string); override;
     destructor Destroy; override;
   end;
 
@@ -171,13 +171,13 @@ type
 
   TTaskEngineClass = class of TTaskEngine;
 
-const
-  cThreadCount = 4;
-
 implementation
 
 uses
   Types, Math, Threading;
+
+const
+  cThreadCount = 4;
 
 { TExecutor }
 
@@ -236,12 +236,12 @@ begin
     CreateExecutor;
 end;
 
-constructor TSimpleTaskEngine.Create(const ADomain: TObject);
+constructor TSimpleTaskEngine.Create(const ADomain: TObject; const AName: string);
 var
   i: Integer;
   vRunnableThreadCount: Integer;
 begin
-  inherited Create(ADomain);
+  inherited Create(ADomain, AName);
 
   FDestroying := False;
   FAvailableThreadCount := 0;
@@ -452,9 +452,9 @@ end;
 
 { TTaskEngine }
 
-constructor TTaskEngine.Create(const ADomain: TObject);
+constructor TTaskEngine.Create(const ADomain: TObject; const AName: string);
 begin
-  inherited Create(ADomain);
+  inherited Create(ADomain, AName);
   FLambdas := TObjectList<TTaskHandle>.Create;
 end;
 

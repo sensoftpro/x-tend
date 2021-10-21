@@ -36,7 +36,7 @@ unit uReport;
 interface
 
 uses
-  Classes, Generics.Collections, uFastClasses, uModule, uEntity, uDefinition, uQueryDef, uConsts, Character, uInteractor;
+  Classes, Generics.Collections, uFastClasses, uModule, uEntity, uDefinition, uConsts, Character, uInteractor;
 
 type
   TReportData = class;
@@ -116,8 +116,6 @@ type
     property ReportName: string read GetReportName;
   end;
 
-  TReportDataClass = class of TReportData;
-
 procedure GeneratePDF(const AInteractor: TInteractor; const AReport: TReportDef;
   const AContextEntity, AInputParams: TEntity; const AFileName: string);
 procedure ShowReport(const AInteractor: TInteractor; const AReport: TReportDef;
@@ -128,10 +126,11 @@ procedure ShowRTFReport(const AInteractor: TInteractor; const AReport: TRTFRepor
 implementation
 
 uses
-  SysUtils, IOUtils, Variants, uEnumeration, uConfiguration, uDomain, uSession,
+  SysUtils, IOUtils, Variants, uPlatform, uEnumeration, uConfiguration, uDomain, uSession,
   uObjectField, uQuery, uUtils, uDomainUtils, uPresenter;
 
 type
+  TReportDataClass = class of TReportData;
   TGetReportValueFunc = function(const AReportData: TReportData; const AParamName: string;
     const AIndex1, AIndex2: Integer): TReportValue of object;
 
@@ -141,6 +140,7 @@ var
   vDomain: TDomain;
   vReportDataClass: TReportDataClass;
   vReportData: TReportData;
+  vModuleName: string;
 begin
   vDomain := TDomain(AInteractor.Domain);
   if not Assigned(AReport.Content) then
@@ -149,7 +149,7 @@ begin
     Exit;
   end;
 
-  vReportDataClass := TReportDataClass(vDomain.ResolveModuleClass('ReportEngine', 'Reporting'));
+  vReportDataClass := TReportDataClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ReportEngine', 'Reporting', vModuleName));
   if not Assigned(vReportDataClass) then
     Exit;
 
@@ -170,6 +170,7 @@ var
   vReportDataClass: TReportDataClass;
   vReportData: TReportData;
   vFileName: string;
+  vModuleName: string;
 begin
   if not Assigned(AContextEntity) then
     Exit;
@@ -181,7 +182,7 @@ begin
     Exit;
   end;
 
-  vReportDataClass := TReportDataClass(vDomain.ResolveModuleClass('ReportEngine', 'Reporting'));
+  vReportDataClass := TReportDataClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ReportEngine', 'Reporting', vModuleName));
   if not Assigned(vReportDataClass) then
     Exit;
 
@@ -425,7 +426,7 @@ begin
     fkEnum: begin
       Assert(vValue.Extra <> '', 'There is no enumeration type name!');
       vIntValue := IntegerFromVariant(vValue.Value);
-      vEnum := Enums.ObjectByName(vValue.Extra);
+      vEnum := _Platform.Enumerations.ObjectByName(vValue.Extra);
       Assert(Assigned(vEnum), 'There is no enumeration [' + vValue.Extra + ']');
       vItem := vEnum.Items[vIntValue];
       Result := TDomain(FDomain).Translate(vItem.FullName, vItem.DisplayText);

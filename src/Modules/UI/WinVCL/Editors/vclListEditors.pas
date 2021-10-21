@@ -38,7 +38,7 @@ interface
 uses
   Generics.Collections, Graphics, Classes, Controls, Types, CheckLst, ExtCtrls,
 
-  uEntity, uEntityList, vclArea, vclBlobEditors, uView, uUIBuilder, uDefinition, uConsts, uScene,
+  uEntity, uEntityList, vclArea, uView, uUIBuilder, uDefinition, uConsts,
 
   cxCheckListBox, cxLookAndFeelPainters, dxColorEdit,
   cxTL, cxGrid, cxGridTableView, cxCustomData, cxGridLevel, cxGridCustomTableView, cxGridChartView, cxStyles,
@@ -285,10 +285,10 @@ type
 
   TTreeLevel = class
     Def: TDefinition;
-    ListFieldNames: TStrings;
+    ListFieldName: string;
     PaintListFieldNodes: Boolean;
   public
-    constructor Create;
+    constructor Create(const AListFieldName: string);
     destructor Destroy; override;
   end;
 
@@ -302,7 +302,7 @@ type
 //    FFilterDateFrom, FFilterDateTo: TDateTime;
 //    FFilterDateActive: Boolean;
     FDomain: TObject;
-    FLevels: TList<TTreeLevel>;
+    FLevels: TObjectList<TTreeLevel>;
 //    procedure DoOnCompare(ADataController: TcxCustomDataController; ARecordIndex1, ARecordIndex2, AItemIndex: Integer;
 //      const V1, V2: Variant; var Compare: Integer);
     procedure DoOnTableViewDblClick(Sender: TObject);
@@ -342,30 +342,22 @@ type
     destructor Destroy; override;
   end;
 
-const
-  cColWidthDelim = ',';
-
-  cFooterCount = 1;
-  cFooterSum = 2;
-  cFooterAvg = 3;
-
-procedure LoadTreeColumnWidths(const ADomain: TObject; const ATreeList: TcxCustomTreeList; const AObjectName: string);
-procedure SaveTreeColumnWidths(const ADomain: TObject; const ATreeList: TcxCustomTreeList; const AObjectName: string);
-procedure OnTableViewDblClick(const AView: TView; const AArea: TUIArea);
-
 implementation
 
 uses
   TypInfo, Windows, SysUtils, Messages, Math, Variants, DateUtils, Dialogs, Menus, ShellApi, IOUtils,
 
   uWinVCLPresenter, uObjectField, uInteractor, uEnumeration, uSession, uChangeManager,
-  uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings, uDrawStyles, uWinScene, uCollection,
+  uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings,
 
   dxCore, cxGridStrs, cxPivotGridStrs, cxDataStorage, cxGridCustomView, cxImageComboBox, cxDateUtils,
   cxGridExportLink, cxProgressBar;
 
 type
   TCalculateStyleFunc = function(const AViewName: string; const AEntity: TEntity): TColor of object;
+
+const
+  cColWidthDelim = ',';
 
 function GetRelColor(const ASourceColor: TColor;
   const ARelRed, ARelGreen, ARelBlue: integer): TColor;
@@ -534,7 +526,7 @@ begin
       end;
     end;
 
-    if vEntity.IsService then
+    if vEntity.IsService or vEntity.IsNew then
       vStyle.TextColor := clSilver
     else if (AItem.Name = 'TotalAmount') and (vEntity['TotalAmount'] < 0) then
       vStyle.TextColor := clRed;
@@ -3145,22 +3137,17 @@ var
   vTreeLevels: string;
   vList: TStrings;
   i: Integer;
-  vLevel: TTreeLevel;
 
   procedure CreateLevel(const ADef: TDefinition);
   var
     vFieldDef: TFieldDef;
   begin
-    vLevel := TTreeLevel.Create;
     for vFieldDef in ADef.Fields do
       if vFieldDef is TListFieldDef then
-      begin
-        vLevel.ListFieldNames.Add(vFieldDef.Name);
-        FLevels.Add(vLevel);
-      end;
+        FLevels.Add(TTreeLevel.Create(vFieldDef.Name));
   end;
 begin
-  FLevels := TList<TTreeLevel>.Create;
+  FLevels := TObjectList<TTreeLevel>.Create;
   //  Assert(Length(vTreeLevels) > 0, 'Parameter "TreeLevels" not defined in layout: ' + vLayout.Caption + '. Specify "TreeLevels=<ListField>[|<ChildListField>]');
 
   vTreeLevels := GetUrlParam(vLayout.Caption, 'TreeLevels');
@@ -3170,11 +3157,7 @@ begin
     vList := CreateDelimitedList(vTreeLevels, '|');
 
     for i := 0 to vList.Count - 1 do
-    begin
-      vLevel := TTreeLevel.Create;
-      vLevel.ListFieldNames.Add(vList[i]);
-      FLevels.Add(vLevel);
-    end;
+      FLevels.Add(TTreeLevel.Create(vList[i]));
 
     FreeAndNil(vList);
   end
@@ -3271,9 +3254,9 @@ begin
   else
   begin
     vEntity := GetEntity(ANode, ANode.Level);
-    vFieldName := GetLevel(ANode.Level).ListFieldNames[0];
+    vFieldName := GetLevel(ANode.Level).ListFieldName;
     if vEntity.FieldExists(vFieldName) then
-      Result := vEntity.GetFieldList(vFieldName).Count
+      Result := TListField(vEntity.FieldByName(vFieldName)).Count
     else
       Result := 0;
   end;
@@ -3282,13 +3265,15 @@ end;
 function TTreeCollectionEditor.GetEntity(const ANode: TcxTreeListNode; const ACurrLevel: Integer): TEntity;
 var
   vEnt: TEntity;
+  vListField: TListField;
 begin
   if ACurrLevel = 0 then
     Result := FAllData[ANode.Index]
   else
   begin
     vEnt := GetEntity(ANode.Parent, ANode.Level - 1);
-    Result := vEnt.GetFieldList(GetLevel(ACurrLevel - 1).ListFieldNames[0])[ANode.Index];
+    vListField := TListField(vEnt.FieldByName(GetLevel(ACurrLevel - 1).ListFieldName));
+    Result := vListField[ANode.Index];
   end;
 end;
 
@@ -3424,15 +3409,15 @@ end;
 
 { TTreeLevel }
 
-constructor TTreeLevel.Create;
+constructor TTreeLevel.Create(const AListFieldName: string);
 begin
-  ListFieldNames := TStringList.Create;
+  ListFieldName := AListFieldName;
   PaintListFieldNodes := True;
 end;
 
 destructor TTreeLevel.Destroy;
 begin
-  FreeAndNil(ListFieldNames);
+  Def := nil;
   inherited;
 end;
 
@@ -3499,27 +3484,29 @@ var
 begin
   vSelectedList := TEntityList(FView.DomainObject);
   vList := TList<TEntity>.Create;
-
-  for i := 0 to vSelectedList.Count - 1 do
-    vList.Add(vSelectedList[i].ExtractEntity(FTransitField.Name));
-
-  FListBox.Items.BeginUpdate;
   try
-    FListBox.Items.Clear;
+    for i := 0 to vSelectedList.Count - 1 do
+      vList.Add(vSelectedList[i].ExtractEntity(FTransitField.Name));
 
-    for i := 0 to FEntityList.Count - 1 do
-    begin
-      vItem := FListBox.Items.Add;
-      vItem.Text := FEntityList[i].DisplayName;
-      vSelectedIndex := vList.IndexOf(FEntityList[i]);
-      vItem.Checked := vSelectedIndex >= 0;
-      if vItem.Checked then
-        vItem.ItemObject := vSelectedList[vSelectedIndex]
-      else
-        vItem.ItemObject := FEntityList[i];
+    FListBox.Items.BeginUpdate;
+    try
+      FListBox.Items.Clear;
+
+      for i := 0 to FEntityList.Count - 1 do
+      begin
+        vItem := FListBox.Items.Add;
+        vItem.Text := FEntityList[i].DisplayName;
+        vSelectedIndex := vList.IndexOf(FEntityList[i]);
+        vItem.Checked := vSelectedIndex >= 0;
+        if vItem.Checked then
+          vItem.ItemObject := vSelectedList[vSelectedIndex]
+        else
+          vItem.ItemObject := FEntityList[i];
+      end;
+    finally
+      FListBox.Items.EndUpdate;
     end;
   finally
-    FListBox.Items.EndUpdate;
     FreeAndNil(vList);
   end;
 end;
@@ -3640,12 +3627,12 @@ end;
 
 initialization
 
-TPresenter.RegisterUIClass('WinVCL', uiListEdit, '', TColumnListEditor);
-TPresenter.RegisterUIClass('WinVCL', uiListEdit, 'simple', TListEditor);
-TPresenter.RegisterUIClass('WinVCL', uiListEdit, 'selector', TEntityListSelector); //deprecated
-TPresenter.RegisterUIClass('WinVCL', uiListEdit, 'multiselect', TEntityListSelector2);
-TPresenter.RegisterUIClass('WinVCL', uiListEdit, 'mtm', TEntityListSelectorMTM);
-TPresenter.RegisterUIClass('WinVCL', uiListEdit, 'parameters', TParametersEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, '', TColumnListEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'simple', TListEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'selector', TEntityListSelector); //deprecated
+TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'multiselect', TEntityListSelector2);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'mtm', TEntityListSelectorMTM);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'parameters', TParametersEditor);
 
 end.
 

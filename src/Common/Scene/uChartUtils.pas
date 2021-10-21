@@ -108,9 +108,6 @@ type
     Shift: Integer;
   end;
 
-function CalcStep(const AMaxValue: Double; const AItemCount: Integer;
-  const AUseOnlyIntegers: Boolean = True): Double;
-
 procedure CalcAxisFactors(var AFactors: TChartScaleFactors;
   const AMaxValue: Double; const APossibleItemsCount: Integer; const ASize: Single;
   const ANeedAllSpace: Boolean);

@@ -116,44 +116,10 @@ type
     function AddStateMachine<T>(const AName: string): TStateMachine;
   end;
 
-var
-  Enums: TEnumerations;
-
 implementation
 
 uses
-  RTTI, SysUtils, IniFiles, uConsts;
-
-const
-  cBrushStyleNames: array[TBrushStyle] of string = ('Сплошная', 'Нет заливки',
-    'Горизонтальная', 'Вертикальная', 'Прямая диагональная', 'Обратная диагональная',
-    'Перекрестная', 'Диаг. перекрестная');
-
-  cPenStyleNames: array[TPenStyle] of string = ('', '', '', '', '', '', 'Внутри', '', '');
-
-  cTextPositionNames: array[TTextPosition] of string = ('<по умолчанию>',
-    'Внутри', 'Слева', 'Справа', 'Сверху', 'Снизу', 'По центру');
-
-  cPeriodTypeText: array[TPeriodType] of string =
-    ('За всё время', 'За этот год', 'За этот месяц', 'За эту неделю', 'За сегодня',
-    'За прошлый год', 'За прошлый месяц', 'За прошлую неделю', 'За вчерашний день');
-
-//  cEngMonths: array[0..11] of string = ('January', 'February', 'March', 'April',
-//    'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December');
-  cMonthNames: array[TMonth] of string = ('Январь', 'Февраль', 'Март', 'Апрель',
-    'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь');
-
-  cUserNames: array[TUserKind] of string = ('Гость', 'Система', 'Пользователь', 'Администратор');
-
-procedure AddEnums;
-begin
-  Enums.AddEnum<TPeriodType>('PeriodTypes').AddDisplayNames(cPeriodTypeText);
-  Enums.AddEnum<TBrushStyle>('BrushStyles').AddDisplayNames(cBrushStyleNames);
-  Enums.AddEnum<TPenStyle>('PenStyles').AddDisplayNames(cPenStyleNames);
-  Enums.AddEnum<TTextPosition>('TextPositions').AddDisplayNames(cTextPositionNames);
-  Enums.AddEnum<TMonth>('Months').AddDisplayNames(cMonthNames);
-  Enums.AddEnum<TUserKind>('UserKinds').AddDisplayNames(cUserNames);
-end;
+  RTTI, SysUtils, IniFiles;
 
 { TEnumeration }
 
@@ -348,12 +314,5 @@ begin
   Result := TStateMachine(TEnumeration.CreateEnum<T>(AName, TState));
   AddObject(AName, Result);
 end;
-
-initialization
-  Enums := TEnumerations.Create;
-  AddEnums;
-
-finalization
-  FreeAndNil(Enums);
 
 end.

@@ -38,7 +38,7 @@ interface
 uses
   Classes, Graphics, ExtCtrls, StdCtrls, Dialogs, Controls, ActnList, StdActns,
 
-  vclArea, uDefinition, uEnumeration,
+  vclArea, uDefinition, uEnumeration, uView,
 
   //DevExpress
   cxSpinEdit, cxEdit, cxCalendar, cxDateUtils, cxTextEdit, cxRadioGroup, cxPC,
@@ -230,6 +230,19 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
+  TDEImagedAction = class(TDEEditor)
+  private
+    FTrueImageID: Integer;
+    FFalseImageID: Integer;
+    FActionView: TView;
+    procedure OnButtonClick(Sender: TObject);
+  protected
+    procedure DoCreateControl(const ALayout: TObject); override;
+    procedure DoBeforeFreeControl; override;
+    procedure FillEditor; override;
+    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+  end;
+
   TDEPagesFieldEditor = class(TDEEditor)
   protected
     procedure DoCreateControl(const ALayout: TObject); override;
@@ -319,7 +332,7 @@ uses
   Forms, ComCtrls, Math, DateUtils, Messages, cxBlobEdit, cxImage, dxGDIPlusClasses, cxMaskEdit, cxMRUEdit,
   dxActivityIndicator, cxLookAndFeels, cxProgressBar, dxBreadcrumbEdit, cxCustomListBox, cxCheckListBox, {CPort,}
 
-  uConfiguration, uDomain, uInteractor, uPresenter, uCollection, uEntity, uConsts, uView, uUtils;
+  uConfiguration, uDomain, uInteractor, uPresenter, uCollection, uEntity, uConsts, uUtils;
 
 { TTextInfo }
 
@@ -922,7 +935,6 @@ begin
 
   TcxCheckBox(FControl).Caption := GetFieldTranslation(FFieldDef);
   TcxCheckBox(FControl).Hint := GetFieldTranslation(FFieldDef, tpHint);
-//  SetShowCaption(False);
 end;
 
 procedure TDEBoolFieldEditor.DoOnChange;
@@ -2192,6 +2204,7 @@ begin
   TcxProgressBar(FControl).AutoSize := TPanel(ALayout).ShowCaption;
   TcxProgressBar(FControl).Properties.ShowText := TPanel(ALayout).ShowCaption;
   FNeedCreateCaption := False;
+  TcxProgressBar(FControl).Properties.Max := TSimpleFieldDef(FFieldDef).MaxValue;
 end;
 
 procedure TProgress.FillEditor;
@@ -2361,6 +2374,81 @@ begin
     TcxCheckListBox(FControl).OnClickCheck := nil;
 end;
 
+{ TDEImagedAction }
+
+procedure TDEImagedAction.DoBeforeFreeControl;
+begin
+  if Assigned(FActionView) then
+  begin
+    FActionView.CleanView;
+    FActionView := nil;
+  end;
+end;
+
+procedure TDEImagedAction.DoCreateControl(const ALayout: TObject);
+var
+  vActionName: string;
+  vImageSize: Integer;
+  vButton: TcxButton;
+begin
+  if Assigned(FCreateParams) then
+  begin
+    vActionName := FCreateParams.Values['action'];
+    vImageSize := StrToIntDef(FCreateParams.Values['ImageSize'], 16);
+    FFalseImageID := GetImageID(StrToIntDef(FCreateParams.Values['false'], -1));
+    FTrueImageID := GetImageID(StrToIntDef(FCreateParams.Values['true'], -1));
+  end
+  else begin
+    vActionName := '';
+    vImageSize := 16;
+    FTrueImageID := GetImageID(-1);
+    FFalseImageID := GetImageID(-1);
+  end;
+
+  if vActionName <> '' then
+  begin
+    FActionView := FUIBuilder.RootView.BuildView(vActionName);
+    if FActionView.DefinitionKind = dkUndefined then
+    begin
+      FActionView.CleanView;
+      FActionView := nil;
+    end;
+  end
+  else
+    FActionView := nil;
+
+  vButton := TcxButton.Create(nil);
+  vButton.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[vImageSize]);
+  vButton.SpeedButtonOptions.Flat := True;
+  vButton.SpeedButtonOptions.CanBeFocused := False;
+  vButton.PaintStyle := bpsGlyph;
+  vButton.OnClick := OnButtonClick;
+  vButton.Hint := TFieldDef(FView.Definition)._Caption;
+
+  FControl := vButton;
+end;
+
+procedure TDEImagedAction.FillEditor;
+begin
+  if VarIsNull(FView.FieldValue) then
+    TcxButton(FControl).OptionsImage.ImageIndex := FFalseImageID
+  else if FView.FieldValue then
+    TcxButton(FControl).OptionsImage.ImageIndex := FTrueImageID
+  else
+    TcxButton(FControl).OptionsImage.ImageIndex := FFalseImageID;
+end;
+
+procedure TDEImagedAction.OnButtonClick(Sender: TObject);
+begin
+  if Assigned(FActionView) then
+    FActionView.ExecuteAction(Holder);
+end;
+
+procedure TDEImagedAction.SwitchChangeHandlers(const AHandler: TNotifyEvent);
+begin
+  //TcxButton(FControl).OnClick := AHandler;
+end;
+
 initialization
 
 RegisterClasses([TdxBevel, TcxLabel, TcxTreeList, TcxTreeListColumn]);
@@ -2368,45 +2456,46 @@ RegisterClasses([TdxBevel, TcxLabel, TcxTreeList, TcxTreeListColumn]);
 cxSetResourceString(@cxSDateThursday, 'Donderdag'); //=Thursday
 cxSetResourceString(@cxSDatePopupToday, 'Vandaag');//= 'Today';}
 
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, '', TDETextFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'phone', TDETextFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'email', TDEMaskFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'url', TDEMaskFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'INN', TDEMaskFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'memo', TDEMemoFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'log', TDELogFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'mru', TMRUFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'dir', TSelectFolderFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'file', TFilenameFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'ImageByString', TImageByString);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'selector', TTextSelector);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'comport', TTextSelector);
-TPresenter.RegisterUIClass('WinVCL', uiTextEdit, 'fieldpath', TEntityBreadcrumb);
-TPresenter.RegisterUIClass('WinVCL', uiIntegerEdit, '', TDEIntegerFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiIntegerEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('WinVCL', uiIntegerEdit, 'spinner', TSpinner);
-TPresenter.RegisterUIClass('WinVCL', uiIntegerEdit, 'progress', TProgress);
-TPresenter.RegisterUIClass('WinVCL', uiEnumEdit, '', TDEEnumEditor);
-TPresenter.RegisterUIClass('WinVCL', uiEnumEdit, 'radio', TDEEnumEditor);
-TPresenter.RegisterUIClass('WinVCL', uiEnumEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('WinVCL', uiEnumEdit, 'pages', TDEPagesFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiFlagEdit, '', TDEFlagsEditor);
-TPresenter.RegisterUIClass('WinVCL', uiEntityEdit, 'enum', TDEEnumFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiFloatEdit, '', TDEFloatFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiFloatEdit, 'formatted', TDEFloatFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiFloatEdit, 'currency_rate', TDEFloatFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiDateEdit, '', TDEDateFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiDateEdit, 'time', TDETimeFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiDateEdit, 'datetime', TDEDateTimeFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiDateEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('WinVCL', uiCurrencyEdit, '', TDECurrencyFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiCurrencyEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('WinVCL', uiBoolEdit, '', TDEBoolFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiBoolEdit, 'pages', TDEPagesFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiColorEdit, '', TColorEditor);
-TPresenter.RegisterUIClass('WinVCL', uiBLOBEdit, '', TDEBLOBEditor);
-TPresenter.RegisterUIClass('WinVCL', uiBLOBEdit, 'image', TDEImageEditor);
-TPresenter.RegisterUIClass('WinVCL', uiEntityEdit, 'info', TTextInfo);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, '', TDETextFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'phone', TDETextFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'email', TDEMaskFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'url', TDEMaskFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'INN', TDEMaskFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'memo', TDEMemoFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'log', TDELogFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'info', TTextInfo);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'mru', TMRUFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'dir', TSelectFolderFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'file', TFilenameFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'ImageByString', TImageByString);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'selector', TTextSelector);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'comport', TTextSelector);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'fieldpath', TEntityBreadcrumb);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, '', TDEIntegerFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'info', TTextInfo);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'spinner', TSpinner);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'progress', TProgress);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, '', TDEEnumEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, 'radio', TDEEnumEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, 'info', TTextInfo);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, 'pages', TDEPagesFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiFlagEdit, '', TDEFlagsEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'enum', TDEEnumFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, '', TDEFloatFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'formatted', TDEFloatFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'currency_rate', TDEFloatFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiDateEdit, '', TDEDateFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiDateEdit, 'time', TDETimeFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiDateEdit, 'datetime', TDEDateTimeFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiDateEdit, 'info', TTextInfo);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiCurrencyEdit, '', TDECurrencyFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiCurrencyEdit, 'info', TTextInfo);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, '', TDEBoolFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'imaged_action', TDEImagedAction);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'pages', TDEPagesFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiColorEdit, '', TColorEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiBLOBEdit, '', TDEBLOBEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiBLOBEdit, 'image', TDEImageEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'info', TTextInfo);
 
 end.

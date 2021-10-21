@@ -163,7 +163,7 @@ implementation
 
 uses
   Types, SysUtils, Variants, uDomain, uSimpleField, uObjectField,
-  uQueryDef, uQuery, uDomainUtils, uUtils;
+  uQueryDef, uQuery, uDomainUtils;
 
 { TIndexMap }
 
@@ -487,7 +487,7 @@ end;
 procedure TCollection.DoFetchAll(const AFieldDict: TDictionary<string, Integer>; const AData: Variant);
 var
   i, j: Integer;
-  vID: Integer;
+  vId: Integer;
   vEntity: TEntity;
   vField: TBaseField;
 
@@ -503,14 +503,14 @@ var
 begin
   for i := VarArrayLowBound(AData, 2) to VarArrayHighBound(AData, 2) do
   begin
-    vID := ValueByFieldName(i, 'id');
-    if Assigned(EntityByID(vID)) then
+    vId := ValueByFieldName(i, 'id');
+    if Assigned(EntityByID(vId)) then
       Continue;
 
-    if (FContentDefinition = TDomain(FDomain).Configuration.RootDefinition) and (vID = 2) then
+    if (FContentDefinition = TDomain(FDomain).Configuration.RootDefinition) and (vId = 2) then
       vEntity := Self
     else
-      vEntity := InternalCreateEntity(vID, False);
+      vEntity := InternalCreateEntity(vId, False);
 
     vEntity.IsNew := False;
     if vEntity.IsEnvSpecific then
@@ -541,12 +541,12 @@ end;
 
 procedure TCollection.DoLoadAll(const AStorage: TStorage);
 var
-  vID: Integer;
+  vId: Integer;
   vName: string;
   vEntity: TEntity;
 begin
-  vID := AStorage.ReadValue('id', fkInteger);
-  if Assigned(EntityByID(vID)) then
+  vId := AStorage.ReadValue('id', fkInteger);
+  if Assigned(EntityByID(vId)) then
     Exit;
 
   { TODO -owa : Убрать магическую константу 2 - это SysDefinition }
@@ -556,10 +556,10 @@ begin
     if SameText('SysDefinitions', vName) then
       vEntity := Self
     else
-      vEntity := InternalCreateEntity(vID, False);
+      vEntity := InternalCreateEntity(vId, False);
   end
   else
-    vEntity := InternalCreateEntity(vID, False);
+    vEntity := InternalCreateEntity(vId, False);
   TCrackedEntity(vEntity).InternalLoad(AStorage);
 end;
 
@@ -748,14 +748,14 @@ end;
 
 procedure TCollection.GenerateEntityID(const AEntity: TEntity);
 var
-  vID: Integer;
+  vId: Integer;
 begin
   Assert(Assigned(AEntity) and (AEntity.ID < 0), 'Generation of new ID for already existed entity');
 
   FIndexMap.DeleteEntity(AEntity.ID);
-  vID := TDomain(FDomain).Storage.CreateIDs(FContentDefinition.StorageName);
-  AEntity.SetID(vID);
-  FIndexMap.AddEntity(vID, AEntity);
+  vId := TDomain(FDomain).Storage.CreateIDs(FContentDefinition.StorageName);
+  AEntity.SetID(vId);
+  FIndexMap.AddEntity(vId, AEntity);
 
   TDomain(FDomain).Logger.AddMessage('> Generated new ID for entity: ' + AEntity.ToString);
 end;

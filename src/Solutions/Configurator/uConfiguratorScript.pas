@@ -36,7 +36,7 @@ unit uConfiguratorScript;
 interface
 
 uses
-  Classes, uScript, uCollection, uEntity, uReport, uSession, uView, uConsts, uChangeManager, uInteractor;
+  Classes, uScript, uCollection, uEntity, uSession, uView, uConsts, uChangeManager, uInteractor;
 
 type
   TConfiguratorScript = class(TScript)
@@ -59,9 +59,7 @@ implementation
 
 uses
   Windows, Dialogs, ClipBrd, Math, SysUtils, DateUtils, Variants, XMLIntf, XMLDoc, ZIP, RegularExpressions,
-  IniFiles, IOUtils, StrUtils, Generics.Collections,
-  uJSON, uConfiguration, uDefinition, uDomain, uTask, uWebTask, uPresenter, uSimpleField, uObjectField,
-  uUtils, uDBConnector, uEnumeration, uEntityList, uComplexObject;
+  IniFiles, IOUtils, StrUtils, Generics.Collections, uConfiguration, uDefinition, uDomain, uPresenter, uUtils, uEntityList;
 
 const
   cAdminID = 1;

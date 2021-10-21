@@ -18,4 +18,3 @@
   ReportConfigureForm in '..\..\Modules\UI\WinVCL\Forms\ReportConfigureForm.pas' {ReportConfigureFm},
   uOAuthForm in '..\..\Modules\UI\WinVCL\Forms\uOAuthForm.pas' {frmOAuth},
   DebugInfoForm in '..\..\Modules\UI\WinVCL\Forms\DebugInfoForm.pas' {DebugFm},
-  OkCancelFrame in '..\..\Modules\UI\WinVCL\Forms\OkCancelFrame.pas' {OkCancelFrm: TFrame},

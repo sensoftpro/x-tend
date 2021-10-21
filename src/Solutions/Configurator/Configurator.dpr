@@ -57,26 +57,10 @@ uses
   uOLEDBStorage in '..\..\Modules\Storage\OLEDB\uOLEDBStorage.pas',
   uFRReport in '..\..\Modules\Reporting\FastReport\uFRReport.pas',
   uGDIPlusPainter in '..\..\Modules\Drawing\GDIPlus\uGDIPlusPainter.pas',
-  uWinVCLPresenter in '..\..\Modules\UI\WinVCL\uWinVCLPresenter.pas',
-  uWinScene in '..\..\Modules\UI\WinVCL\uWinScene.pas',
-  vclArea in '..\..\Modules\UI\WinVCL\Editors\vclArea.pas',
-  vclSimpleEditors in '..\..\Modules\UI\WinVCL\Editors\vclSimpleEditors.pas',
-  vclEntityEditors in '..\..\Modules\UI\WinVCL\Editors\vclEntityEditors.pas',
-  vclListEditors in '..\..\Modules\UI\WinVCL\Editors\vclListEditors.pas',
-  vclBlobEditors in '..\..\Modules\UI\WinVCL\Editors\vclBlobEditors.pas',
-  vclPopupForm in '..\..\Modules\UI\WinVCL\Editors\vclPopupForm.pas',
-  uManagedForm in '..\..\Modules\UI\WinVCL\Forms\uManagedForm.pas',
-  StartForm in '..\..\Modules\UI\WinVCL\Forms\StartForm.pas' {StartFm},
-  LoginForm in '..\..\Modules\UI\WinVCL\Forms\LoginForm.pas' {LoginFm},
-  OptionsForm in '..\..\Modules\UI\WinVCL\Forms\OptionsForm.pas' {OptionsFm},
-  TranslationEditForm in '..\..\Modules\UI\WinVCL\Forms\TranslationEditForm.pas' {TranslationEditFm},
-  LangEditForm in '..\..\Modules\UI\WinVCL\Forms\LangEditForm.pas' {LangEditFm},
-  AboutForm in '..\..\Modules\UI\WinVCL\Forms\AboutForm.pas' {AboutFm},
-  ReportConfigureForm in '..\..\Modules\UI\WinVCL\Forms\ReportConfigureForm.pas' {ReportConfigureFm},
-  uOAuthForm in '..\..\Modules\UI\WinVCL\Forms\uOAuthForm.pas' {frmOAuth},
-  DebugInfoForm in '..\..\Modules\UI\WinVCL\Forms\DebugInfoForm.pas' {DebugFm},
-  OkCancelFrame in '..\..\Modules\UI\WinVCL\Forms\OkCancelFrame.pas' {OkCancelFrm: TFrame},
-  SplashForm in '..\..\Modules\UI\WinVCL\Forms\SplashForm.pas' {SplashFm},
+
+{$I ..\..\Modules\UI\WinVCL\files.inc}
+{$I ..\..\Modules\UI\Web\uniGUI\files.inc}
+
   uConfiguratorScript in 'uConfiguratorScript.pas';
 
 {$R *.res}

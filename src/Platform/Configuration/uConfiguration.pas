@@ -36,7 +36,7 @@ unit uConfiguration;
 interface
 
 uses
-  Classes, SysUtils, Generics.Collections, uFastClasses, uDefinition, uEnumeration, uReaction,
+  Classes, SysUtils, Generics.Collections, uDefinition, uEnumeration, uReaction,
   uIcon, uLocalizator, uMigration;
 
 type

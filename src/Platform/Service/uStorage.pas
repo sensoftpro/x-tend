@@ -43,10 +43,9 @@ type
 
   TStorageFunc = reference to procedure(const AStorage: TStorage);
 
-  TStorage = class(TBaseModule)
+  TStorage = class(TDomainModule)
   protected
     FLogger: TLogger;
-    FName: string;
     FVersion: string;
     FItemDefsList: TStrings;
   private
@@ -83,7 +82,7 @@ type
     procedure DoCommitTransaction(const ATransactionID: Integer = -1); virtual;
     procedure DoRollbackTransaction(const ATransactionID: Integer = -1); virtual;
   public
-    constructor Create(const ALogger: TLogger; const AParams: string = ''); virtual;
+    constructor Create(const ADomain: TObject; const AName: string); override;
     destructor Destroy; override;
 
     procedure WriteValue(const ATag: string; const AFieldKind: TFieldKind; const AValue: Variant;
@@ -123,12 +122,8 @@ type
     // Wide API
     function GetLastLogID: Integer;
     function GetChanges(const ALogID: Integer): TJSONObject;
-
-    property Name: string read FName write FName;
     property Version: string read GetVersion write DoSetVersion;
   end;
-
-  TStorageClass = class of TStorage;
 
   TIniStorage = class(TStorage)
   private
@@ -171,7 +166,7 @@ type
     procedure DoCommitTransaction(const ATransactionID: Integer = -1); override;
     procedure DoRollbackTransaction(const ATransactionID: Integer = -1); override;
   public
-    constructor Create(const ALogger: TLogger; const AParams: string = ''); override;
+    constructor Create(const ADomain: TObject; const AName: string); override;
     destructor Destroy; override;
 
     procedure UpdateNumerator(const ATag: string; const ALastID: Integer); override;
@@ -225,7 +220,7 @@ type
 implementation
 
 uses
-  RegularExpressions, Math, SysUtils, IOUtils, uUtils;
+  RegularExpressions, Math, SysUtils, IOUtils, uDomain, uSettings, uUtils;
 
 { TStorage }
 
@@ -249,12 +244,11 @@ begin
   DoConnect;
 end;
 
-constructor TStorage.Create(const ALogger: TLogger; const AParams: string = '');
+constructor TStorage.Create(const ADomain: TObject; const AName: string);
 begin
-  inherited Create;
+  inherited Create(ADomain, AName);
 
-  FLogger := ALogger;
-  FName := '';
+  FLogger := TDomain(ADomain).Logger;
   FVersion := '~';
   FItemDefsList := TStringList.Create;
 end;
@@ -437,6 +431,11 @@ constructor TXMLStorage.Create(const ACore: TObject; const AIDName: string;
 begin
   inherited Create(ACore, AIDName);
 
+    if not FSettings.SectionExists('XML') then
+      FSettings.SetValue('XML', 'FileName', 'database.xml');
+    vDatabase := FSettings.GetValue('XML', 'FileName', 'database.xml');
+    //Result := vStorageClass.Create(Self, vStorageName, vVersion, vDatabase)
+
   FFileName := AFileName;
   FNumerators := TStringList.Create;
   FCodeNumerators := TStringList.Create;
@@ -521,7 +520,7 @@ procedure TXMLStorage.DoReadGroup(const ATag: string;
 var
   vGroupNode: IXMLNode;
   vNode: IXMLNode;
-  vID: Integer;
+  vId: Integer;
   i: Integer;
 begin
   vGroupNode := FXMLRootNode.ChildNodes.FindNode(ATag);
@@ -537,8 +536,8 @@ begin
       vNode := vGroupNode.ChildNodes[i];
       if vNode.AttributeNodes.IndexOf('id') >= 0 then
       begin
-        vID := vNode.Attributes['id'];
-        UpdateNumerator(ATag, vID);
+        vId := vNode.Attributes['id'];
+        UpdateNumerator(ATag, vId);
       end;
 
       Push(vNode);
@@ -698,12 +697,22 @@ begin
   Result := Format('Item$%d$%s', [FCurrentID, ATag]);
 end;
 
-constructor TIniStorage.Create(const ALogger: TLogger; const AParams: string = '');
+constructor TIniStorage.Create(const ADomain: TObject; const AName: string);
+var
+  vSettings: TSettings;
+  vDBName: string;
 begin
-  inherited Create(ALogger, AParams);
+  inherited Create(ADomain, AName);
 
-  FName := 'INI';
-  FFileName := AParams;
+  vSettings := TDomain(ADomain).Settings;
+  if vSettings.SectionExists(AName) then
+    vDBName := vSettings.GetValue(AName, 'FileName', 'database.ini')
+  else
+    vDBName := vSettings.GetValue('INI', 'FileName', 'database.ini');
+  if not vSettings.KeyExists(AName, 'FileName') then
+    vSettings.SetValue(AName, 'FileName', vDBName);
+
+  FFileName := TPath.Combine(TDomain(ADomain).Configuration.ConfigurationDir, vDBName);
 
   FInTransaction := False;
   FTransactionFileName := ChangeFileExt(FFileName, '.~trn');
@@ -823,7 +832,7 @@ procedure TIniStorage.DoReadGroup(const ATag: string; const AReadFunc: TStorageF
 var
   vAllItems: TStrings;
   i: Integer;
-  vID: Integer;
+  vId: Integer;
   vKeyStart: string;
 
   function ExtractID(const s: string): Integer;
@@ -846,15 +855,15 @@ begin
   try
     while vAllItems.Count > 0 do
     begin
-      vID := ExtractID(vAllItems[0]);
-      if vID <= 0 then
+      vId := ExtractID(vAllItems[0]);
+      if vId <= 0 then
       begin
         vAllItems.Delete(0);
         Continue;
       end;
 
-      FCurrentID := vID;
-      vKeyStart := Format('Item$%d$', [vID]);
+      FCurrentID := vId;
+      vKeyStart := Format('Item$%d$', [vId]);
       try
         if Assigned(AReadFunc) then
           AReadFunc(Self);

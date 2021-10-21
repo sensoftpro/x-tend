@@ -73,7 +73,7 @@ procedure SetBlobValue(var vOut: TReportValue; const AValue: TObject);
 
 // Blobs
 function StreamToString(const AStream: TStream): string;
-function StringToStream(const S: string): TStream;
+function StringToStream(const s: string): TStream;
 
 function EntityFilled(const AEntity: TObject): Boolean;
 
@@ -616,9 +616,9 @@ begin
   end;
 end;
 
-function StringToStream(const S: string): TStream;
+function StringToStream(const s: string): TStream;
 begin
-  Result := TStringStream.Create(DecodeBase64(S));
+  Result := TStringStream.Create(DecodeBase64(s));
 end;
 
 end.

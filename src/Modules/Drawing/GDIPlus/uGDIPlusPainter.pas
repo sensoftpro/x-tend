@@ -36,7 +36,7 @@ unit uGDIPlusPainter;
 interface
 
 uses
-  Windows, Types, Classes, Graphics, GDIPAPI, GDIPOBJ, uDrawStyles, uIcon, uConsts;
+  Windows, Types, Classes, Graphics, GDIPAPI, GDIPOBJ, uDrawStyles, uIcon;
 
 type
   TVCLNinePatchImage = class(TNinePatchImage)
@@ -146,7 +146,7 @@ type
 implementation
 
 uses
-  StrUtils, SysUtils, PngImage, UITypes, UIConsts, IOUtils, Math, uModule;
+  StrUtils, SysUtils, PngImage, UITypes, UIConsts, IOUtils, Math, uModule, uConsts;
 
 { TVCLNinePatchImage }
 

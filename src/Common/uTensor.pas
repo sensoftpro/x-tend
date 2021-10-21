@@ -252,10 +252,10 @@ end;
 
 function TTensor.ArrayToIntegerList(const ADimensions: array of Integer): TIntegerList;
 var
-  I: Integer;
+  i: Integer;
 begin
   Result := TIntegerList.Create;
-  for I := Low(ADimensions) to High(ADimensions) do
+  for i := Low(ADimensions) to High(ADimensions) do
     Result.Add(ADimensions[i]);
 end;
 
@@ -474,14 +474,14 @@ begin
   Result := MeanAndTotalVariance(vVariance);
 end;
 
-procedure KahanSumExtended(var S, R: Extended; const D: Extended);
+procedure KahanSumExtended(var s, r: Extended; const d: Extended);
 var
-  T,U: Extended;
+  t, u: Extended;
 begin
-  T := D - R;
-  U := S + T;
-  R := (U - S) - T;
-  S := U;
+  t := d - r;
+  u := s + t;
+  r := (u - s) - t;
+  s := u;
 end;
 
 function TTensor.MeanAndStdDev(var AStdDev: Double): Double;
@@ -500,7 +500,7 @@ end;
 
 function TTensor.MeanAndTotalVariance(var ATotalVariance: Extended): Extended;
 var
-  S,R: Extended;
+  s, r: Extended;
   i: Integer;
 begin
   if FTensorSize = 0 then
@@ -517,11 +517,11 @@ begin
   end;
 
   Result := Sum / FTensorSize;
-  S := Sqr(Result - InternalGetDouble(0));
-  R := 0;
+  s := Sqr(Result - InternalGetDouble(0));
+  r := 0;
   for i := 1 to FTensorSize - 1 do
-    KahanSumExtended(S, R, Sqr(Result - InternalGetDouble(i)));
-  ATotalVariance := S;
+    KahanSumExtended(s, r, Sqr(Result - InternalGetDouble(i)));
+  ATotalVariance := s;
 end;
 
 function TTensor.Median: Double;
@@ -846,36 +846,36 @@ begin
   end;
 end;
 
-procedure QuickSort(const ATensor: TTensor; L, R: Integer);
+procedure QuickSort(const ATensor: TTensor; l, r: Integer);
 var
-  I, J: Integer;
-  P, T: Double;
+  i, j: Integer;
+  p, t: Double;
 begin
   repeat
-    I := L;
-    J := R;
-    P := ATensor.FlatValues[(L + R) shr 1];
+    i := l;
+    j := r;
+    p := ATensor.FlatValues[(l + r) shr 1];
     repeat
-      while ATensor.FlatValues[I] < P do
-        Inc(I);
-      while ATensor.FlatValues[J] > P do
-        Dec(J);
-      if I <= J then
+      while ATensor.FlatValues[i] < p do
+        Inc(i);
+      while ATensor.FlatValues[j] > p do
+        Dec(j);
+      if i <= j then
       begin
-        if I <> J then
+        if i <> j then
         begin
-          T := ATensor.FlatValues[I];
-          ATensor.FlatValues[I] := ATensor.FlatValues[J];
-          ATensor.FlatValues[J] := T;
+          t := ATensor.FlatValues[i];
+          ATensor.FlatValues[i] := ATensor.FlatValues[j];
+          ATensor.FlatValues[j] := t;
         end;
-        Inc(I);
-        Dec(J);
+        Inc(i);
+        Dec(j);
       end;
-    until I > J;
-    if L < J then
-      QuickSort(ATensor, L, J);
-    L := I;
-  until I >= R;
+    until i > j;
+    if L < j then
+      QuickSort(ATensor, l, j);
+    l := i;
+  until i >= r;
 end;
 
 procedure TTensor.Sort;

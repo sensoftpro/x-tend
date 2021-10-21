@@ -36,8 +36,7 @@ unit uEntityList;
 interface
 
 uses
-  Classes, Generics.Collections, Generics.Defaults, uFastClasses,
-  uConsts, uEntity, uDefinition, uChangeManager, uQueryDef, uQuery;
+  Classes, Generics.Collections, Generics.Defaults, uConsts, uEntity, uDefinition, uChangeManager, uQueryDef, uQuery;
 
 type
   TEntityListFillerKind = (lfkUndefined, lfkSelector, lfkList, lfkDefinition);

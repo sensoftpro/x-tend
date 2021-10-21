@@ -37,18 +37,20 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics,
-  Controls, Forms, Dialogs, StdCtrls, OkCancelFrame, uInteractor, uLocalizator;
+  Controls, Forms, Dialogs, StdCtrls, cxButtons, uInteractor, uLocalizator, cxGraphics, cxLookAndFeels,
+  cxLookAndFeelPainters, Vcl.Menus, Vcl.ExtCtrls;
 
 type
   TTranslationEditFm = class(TForm)
     cbxLanguage: TComboBox;
     lblLanguage: TLabel;
-    OkCancelFrm1: TOkCancelFrm;
     memTranslation: TMemo;
     memSourceText: TMemo;
     lblKey: TLabel;
     lblKeyValue: TLabel;
     btnEdit: TButton;
+    btnOk: TcxButton;
+    btnCancel: TcxButton;
     procedure cbxLanguageChange(Sender: TObject);
     procedure btnEditClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
@@ -140,11 +142,12 @@ var
 begin
   FInteractor := AInteractor;
   FLocalizator := TDomain(FInteractor.Domain).Configuration.Localizator;
-  OkCancelFrm1.Init(FInteractor);
   Caption := FInteractor.Translate('@' + Self.ClassName + '@Caption', 'Перевод');
   lblKey.Caption := FInteractor.Translate('@' + Self.ClassName + '.lblKey@Caption', 'Ключ для перевода') + ':';
   lblLanguage.Caption := FInteractor.Translate('@' + Self.ClassName + '.lblLanguage@Caption', 'Язык перевода') + ':';
   lblKeyValue.Caption := FInteractor.Translate('@' + Self.ClassName + '.lblKeyValue@Caption', 'не задан');
+  btnOk.Caption := FInteractor.Translate('@btnOk@Caption', 'Ок');
+  btnCancel.Caption := FInteractor.Translate('@btnCancel@Caption', 'Отмена');
 
   FTranslations := TStringList.Create;
   for i := 0 to FLocalizator.Languages.Count - 1 do

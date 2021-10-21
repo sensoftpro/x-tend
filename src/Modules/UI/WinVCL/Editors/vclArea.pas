@@ -39,9 +39,6 @@ uses
   Windows, Classes, Generics.Collections, Controls, StdCtrls, ExtCtrls, Menus, UITypes, uConsts, uUIBuilder,
   uDefinition, uEntity, uView;
 
-const
-  cServiceAreaHeight = 44;
-
 type
   TButtonDesc = class
   public
@@ -180,7 +177,7 @@ uses
   cxLookAndFeels, cxButtons, cxScrollBox, cxControls, cxSplitter, dxActivityIndicator,
 
   uDomain, uPresenter, uConfiguration, uSession, uInteractor, uUtils, vclListEditors,
-  vclSimpleEditors, uEntityList, uChangeManager, uDomainUtils;
+  vclSimpleEditors, uEntityList, uDomainUtils;
 
 type
   TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string): Boolean of object;
@@ -215,6 +212,9 @@ type
     procedure Build(const AVCLArea: TVCLArea);
     procedure SaveToDFM(const AFileName: string);
   end;
+
+const
+  cServiceAreaHeight = 44;
 
 procedure LockControl(const AWinControl: TWinControl; const ALock: Boolean);
 begin
@@ -1682,6 +1682,7 @@ begin
       vPC.OnCanClose := OnPCCanClose;
       vPC.Align := vSourcePanel.Align;
       vPC.Anchors := vSourcePanel.Anchors;
+      vPC.Font.Assign(vSourcePanel.Font);
       Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), vPC);
 
       // Здесь можно подкорректировать параметры
@@ -2359,6 +2360,8 @@ begin
   inherited Create(AParent, AView, FFieldDef.Name, nil);
 
   DoCreateControl(ALayout);
+
+  Assert(Assigned(FControl), 'Не создан контрол для ' + FFieldDef.Name);
 
   // Установка контекстного меню
   if Assigned(ALayout) and (ALayout is TPanel) and Assigned(TPanel(ALayout).PopupMenu)

@@ -167,6 +167,7 @@ type
     ffHideInEdit, ffNotSave);
   TChangeKinds = (chkNone, chkFieldChanged, chkEntityDeleted, chkEntityChanged, chkSelectionChanged, chkListAdded,
     chkListRemoved, chkViewStateChanged, chkFilterChanged, chkEntitySaved, chkNameChanged);
+  TPrecisionType = (ptDefault, ptIntInteger, ptIntInt64, ptFloatSingle, ptFloatDouble);
 const
   cViewStateIDs: array[TViewStates] of Integer = ($00, $01, $03, $07, $0F, $80);
   cDefinitionFlagIDs: array[TDefinitionFlags] of Integer = ($000, $001, $002, $004, $008, $010, $020, $040, $080, $100, $200);

@@ -38,28 +38,11 @@ interface
 uses
   Generics.Collections, uFastClasses, Classes, SyncObjs, uModule, uConsts, uConfiguration, uDefinition,
   uCollection, uEntity, uEntityList, uStorage, uSession, uChangeManager, uSettings, uLogger, uScheduler,
-  uTranslator, uJSON, uPresenter;
+  uTranslator, uJSON;
 
 type
-  //TODO Нужен исключительно для задания состояний из скрипта
-  // Должен быть удален, когда перейдем на стейт-машины
-  TDomainAction = class
-  private
-    [Weak] FDomain: TObject;
-    [Weak] FAction: TActionDef;
-    FListeners: TList<TObject>;
-    FState: TViewState;
-    procedure NotifyListeners;
-    procedure SetState(const Value: TViewState);
-  public
-    constructor Create(const ADomain: TObject; const AAction: TActionDef);
-    destructor Destroy; override;
-
-    procedure AddViewListener(const AListener: TObject);
-    procedure RemoveViewListener(const AListener: TObject);
-
-    property State: TViewState read FState; // write SetState;
-  end;
+  TNotifyProgressEvent = procedure (const AProgress: Integer; const AInfo: string) of object;
+  TNotifyErrorEvent = procedure (const ACaption, AText: string) of object;
 
   TDomainLock = class
   private
@@ -83,28 +66,21 @@ type
   TDomain = class
   private
     [Weak] FConfiguration: TConfiguration;
-    FUid: string;
+    FUId: string;
     FIsAlive: Boolean; // Домен загружен и готов к работе
-    FEnvironmentID: string;
-    FStyleName: string;
-    FDeploymentType: string;
+
     FSettings: TSettings;
     FUserSettings: TSettings;
     FScheduler: TScheduler;
     FLogger: TLogger;
     FDomainLogger: TLogger;
     FTranslator: TTranslator;
-    FViewSubscriptions: TObjectDictionary<string, TList<TEntity>>;
-    FActions: TObjectDictionary<string, TDomainAction>;
     FModules: TDictionary<string, TBaseModule>;
     FModuleInstances: TObjectList<TBaseModule>;
-    FProgressInfo: TProgressInfo;
-    FNeedShowSplash: Boolean;
     FWereErrors: Boolean;
     FSharedFolderAvailable: Boolean;
 
     // Модули
-    FPresenter: TPresenter;
     FStorage: TStorage;
 
     FActualLogID: Integer;
@@ -113,8 +89,9 @@ type
 
     FDataLock: TDomainLock;
 
-    function CreateStorage(const ASettings: TSettings): TStorage;
-    function CreatePresenter(const ASettings: TSettings): TPresenter;
+    FOnError: TNotifyErrorEvent;
+    FOnProgress: TNotifyProgressEvent;
+
     procedure ApplyChanges(const AInteractor: TObject; const AChanges: TJSONObject;
       const AHolder: TChangeHolder = nil);
   private
@@ -126,26 +103,26 @@ type
     procedure SyncFieldsWithStorage(const ADefinition: TDefinition; const AStorage: TStorage);
     function VerifyStorageStructure: Boolean;
     procedure UpdateDomainStructures;
-    function GetDomainName: string;
     function GetLanguage: string;
     procedure SetLanguage(const Value: string);
     procedure Preload(const AStorage: TStorage);
     procedure Load(const AStorage: TStorage);
     function InternalLogin(const ALogin, APassword: string): TEntity;
-    procedure SetActionState(const AName: string; const AState: TViewState);
-    function GetActionState(const AName: string): TViewState;
     function GetConstant(const AName: string): Variant;
-    function GetModuleByName(const AName: string): TBaseModule;
+    function GetModuleByName(const AName: string; const AType: string): TBaseModule; overload;
+    function GetModuleByName(const AName: string): TBaseModule; overload;
     function CompareVersions(const AVersion1, AVersion2: string): Integer;
   public
     constructor Create(const APlatform: TObject; const AConfiguration: TConfiguration;
-      const AUid: string; const ASettings: TSettings);
+      const AUId: string; const ASettings: TSettings);
     destructor Destroy; override;
 
-    procedure Run(const AParameter: string);
+    procedure Init;
+    procedure Run;
     procedure Stop;
 
     procedure NotifyLoadingProgress(const AProgress: Integer; const AInfo: string = '');
+    procedure NotifyError(const ACaption, AText: string);
 
     function Login(const AName, APassword: string): TUserSession;
     //function LoginByRFID(const ARFID: string): TUserSession;
@@ -154,19 +131,14 @@ type
 
     procedure ExecuteDefaultAction(const ASession: TUserSession; const AParameter: string);
 
-    procedure AddViewSubscription(const AEntity: TEntity);
-    procedure RemoveViewSubscription(const AEntity: TEntity);
-    function TextHierarchy: string;
-
     // storage
     function Now: TDateTime;
     procedure ReloadChanges(const AInteractor: TObject; const AHolder: TChangeHolder);
     procedure ImportChanges(const AChanges: TJSONObject);
 
     // object extensions
-    //function ResolveExtension(const AName: string; const AParams: string = ''): TBaseExtension;
     function TryGetModule(const AName, AType: string; out AModule: TBaseModule): Boolean;
-    function ResolveModuleClass(const AName, AType: string): TModuleClass;
+
     function SyncWithStorage(const ADefinition: TDefinition; const AStorage: TStorage): Boolean;
 
     function CollectionByName(const AName: string): TCollection;
@@ -174,8 +146,6 @@ type
     function CollectionByStorageName(const AStorageName: string): TCollection;
     function CollectionByID(const AID: Integer): TCollection;
     procedure GetCollections(const AList: TList<TCollection>; const ADefinitionKind: TCollectionKind);
-
-    function ActionByName(const AName: string): TDomainAction;
 
     // Handling inheritance
     procedure GetEntityList(const ASession: TObject; const ADefinition: TDefinition;
@@ -212,14 +182,9 @@ type
     property CollectionNameIndexed[const AName: string]: TCollection read CollectionByName; default;
     property Collections: TStringDictionary<TCollection> read FCollections;
     property RootCollection: TCollection read FRootCollection;
-    //TODO Убрать после переделки на состояния
-    property ActionState[const AName: string]: TViewState read GetActionState write SetActionState;
-    property Name: string read GetDomainName;
-    property Uid: string read FUid;
+    property UId: string read FUId;
     property IsAlive: Boolean read FIsAlive write FIsAlive;
-    property EnvironmentID: string read FEnvironmentID;
-    property DeploymentType: string read FDeploymentType;
-    property StyleName: string read FStyleName;
+
     property WereErrors: Boolean read FWereErrors;
     property SharedFolderAvailable: Boolean read FSharedFolderAvailable;
     property Settings: TSettings read FSettings;
@@ -232,18 +197,19 @@ type
     property DomainSession: TUserSession read FDomainSession;
     property Storage: TStorage read FStorage;
     property Configuration: TConfiguration read FConfiguration;
-    property Presenter: TPresenter read FPresenter;
     property Module[const AName: string]: TBaseModule read GetModuleByName;
     function NewModule(const AType, AModuleName: string): TBaseModule;
     property DataLock: TDomainLock read FDataLock;
     property LoadingChanges: Boolean read FLoadingChanges;
+    property OnError: TNotifyErrorEvent read FOnError write FOnError;
+    property OnProgress: TNotifyProgressEvent read FOnProgress write FOnProgress;
   end;
 
 implementation
 
 uses
-  Types, SysUtils, IOUtils, Math, RegularExpressions, Variants, IniFiles, uPlatform, uObjectField, uQueryDef, uQuery,
-  uMigration, uUtils;
+  Types, SysUtils, StrUtils, IOUtils, Math, RegularExpressions, Variants, IniFiles,
+  uPlatform, uQueryDef, uQuery, uMigration, uUtils;
 
 type
   TCreateDefaultEntitiesProc = procedure (const ADomain: TObject) of object;
@@ -252,28 +218,6 @@ type
   TDomainStoppedProc = procedure of object;
 
 { TDomain }
-
-function TDomain.ActionByName(const AName: string): TDomainAction;
-begin
-  if not FActions.TryGetValue(AName, Result) then
-    Result := nil;
-end;
-
-procedure TDomain.AddViewSubscription(const AEntity: TEntity);
-var
-  vCollectionName: string;
-  vList: TList<TEntity>;
-begin
-  vCollectionName := AEntity.Definition.Name;
-  if not FViewSubscriptions.TryGetValue(vCollectionName, vList) then
-  begin
-    vList := TList<TEntity>.Create;
-    FViewSubscriptions.Add(vCollectionName, vList);
-  end;
-
-  if not vList.Contains(AEntity) then
-    vList.Add(AEntity);
-end;
 
 procedure TDomain.ApplyChanges(const AInteractor: TObject; const AChanges: TJSONObject;
   const AHolder: TChangeHolder = nil);
@@ -464,155 +408,43 @@ begin
 end;
 
 constructor TDomain.Create(const APlatform: TObject; const AConfiguration: TConfiguration;
-  const AUid: string; const ASettings: TSettings);
+  const AUId: string; const ASettings: TSettings);
 var
   vAppDataDirectory: string;
-  vVersion: string;
-  i: Integer;
-  vMigration: TMigration;
-  vNextMigrationIndex: Integer;
-  vActionDef: TActionDef;
-  vCompareResult: Integer;
 begin
   inherited Create;
 
   FConfiguration := AConfiguration;
-  FUid := AUid;
+  FUId := AUId;
   FIsAlive := False;
-  FStyleName := '';
   FDataLock := TDomainLock.Create(Self);
-  FProgressInfo := TProgressInfo.Create(Self);
   FLoadingChanges := False;
   FWereErrors := True;
   FSharedFolderAvailable := False;
 
   // Использовать ASettings для нахождения путей к рабочим папкам
   FSettings := TIniSettings.Create(TPath.Combine(FConfiguration.ConfigurationDir, 'settings.ini'));
-  FNeedShowSplash := StrToBoolDef(FSettings.GetValue('Core', 'ShowSplash'), False);
 
   FTranslator := TTranslator.Create(AConfiguration.Localizator, TPlatform(APlatform).Language);
   FModules := TDictionary<string, TBaseModule>.Create;
   FModuleInstances := TObjectList<TBaseModule>.Create;
 
-  FPresenter := CreatePresenter(FSettings);
   NotifyLoadingProgress(0, 'Создание домена');
 
   vAppDataDirectory := FConfiguration.CacheDir;
   FUserSettings := TIniSettings.Create(TPath.Combine(vAppDataDirectory, 'settings.ini'));
   FLogger := TLogger.Create(TPath.Combine(vAppDataDirectory, 'log.txt'));
   FDomainLogger := TLogger.Create(TPath.Combine(vAppDataDirectory, 'domain_log.txt'));
-  FViewSubscriptions := TObjectDictionary<string, TList<TEntity>>.Create([doOwnsValues]);
   FScheduler := TScheduler.Create(Self, 60);
-
-  FDeploymentType := FSettings.GetValue('Core', 'Deployment', 'prod');
-  FEnvironmentID := FSettings.GetValue('Core', 'EnvironmentID', '');
-  if FEnvironmentID = '' then
-  begin
-    FEnvironmentID := GUIDToString(NewGUID);
-    FSettings.SetValue('Core', 'EnvironmentID', FEnvironmentID);
-  end;
 
   FAppTitle := Translate('AppTitle', FConfiguration._Caption) + ' - ' + FConfiguration.Version;
 
   FSessions := TUserSessions.Create(Self);
   FDomainSession := FSessions.AddSession(nil);
 
-  FActions := TObjectDictionary<string, TDomainAction>.Create([doOwnsValues]);
-  for vActionDef in FConfiguration.Actions.Objects do
-    FActions.Add(vActionDef.Name, TDomainAction.Create(Self, vActionDef));
-
   FCollections := TStringDictionary<TCollection>.Create;
   FRootCollection := TCollection.Create(Self, FConfiguration.RootDefinition);
   FRootCollection.SetCollectionAttributes(TCollection, FConfiguration.RootDefinition);
-
-  //FExtensions := TObjectDictionary<string, TBaseExtension>.Create;
-  NotifyLoadingProgress(5, 'Соединение с базой данных');
-
-  FStorage := CreateStorage(FSettings);
-  try
-    FStorage.Connect;
-  except
-    on E: Exception do
-    begin
-      FPresenter.ShowMessage('Ошибка подключения', 'Ошибка подключения к хранилищу данных. ' + E.Message, msError);
-      Exit;
-      //raise Exception.Create('Ошибка подключения к хранилищу данных. ' + E.Message);
-    end;
-  end;
-
-  NotifyLoadingProgress(15, 'Обновление структур данных');
-
-  vVersion := FStorage.Version;
-  if vVersion = '' then
-    vVersion := FConfiguration.Version;
-
-  vCompareResult := CompareVersions(FConfiguration.Version, vVersion);
-
-  // Хранилище обновлено извне
-  if (vCompareResult < 0) then
-  begin
-    FPresenter.ShowMessage('Ошибка запуска',
-      'Вы используете устаревшую версию программы [' + FConfiguration.Version + '].'#13#10 +
-      'Пожалуйста, установите новую версию [' + vVersion + '] самостоятельно или обратитесь за помощью к администратору.'#13#10 +
-      'Программа будет закрыта', msError);
-    Exit;
-    //raise Exception.Create('Устаревшая версия программы');
-  end
-  // Новая версия конфигурации, требуется обновление структуры
-  else if (vCompareResult > 0) or (FStorage.Version = '') or (FDeploymentType = 'dev') then
-  begin
-    for vMigration in FConfiguration.Migrations do
-      vMigration.Apply(FConfiguration);
-
-    // Проверяем, новая ли это база данных
-    if VerifyStorageStructure then
-      FStorage.Version := FConfiguration.Version;
-    //AConfiguration.Localizator.EnumerateConfigurationElements(Self);
-  end;
-
-  FWereErrors := False;
-  Exit;
-
-  // Накатывание миграций
-  vNextMigrationIndex := FConfiguration.Migrations.NextMigrationIndex(vVersion);
-  if vNextMigrationIndex >= 0 then
-  begin
-    for i := 0 to vNextMigrationIndex - 1 do
-      FConfiguration.Migrations[i].Apply(FConfiguration);
-
-    Preload(FStorage);
-    Load(FStorage);
-
-    for i := vNextMigrationIndex to FConfiguration.Migrations.Count - 1 do
-    begin
-      vMigration := FConfiguration.Migrations[i];
-
-      if vMigration.CreateNewStructures(FConfiguration) then
-      begin
-        VerifyStorageStructure;
-        UpdateDomainStructures;
-      end;
-
-      if Assigned(vMigration.MigrationProc) then
-      begin
-        FDomainSession.AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
-          begin
-            vMigration.MigrationProc(Self);
-            Result := True;
-          end, nil, True);
-      end;
-
-      if vMigration.DeleteOldStructures(FConfiguration) then
-      begin
-        VerifyStorageStructure;
-        UpdateDomainStructures;
-      end;
-    end;
-
-    //AConfiguration.Localizator.EnumerateConfigurationElements(Self);
-  end;
-
-  FSettings.SetValue(FStorage.Name, 'Version', FConfiguration.Version);
 end;
 
 function TDomain.CreateNewEntity(const ACollectionName: string; const AHolder: TObject; const AID: Integer;
@@ -656,98 +488,11 @@ begin
   Result := vEntity;
 end; *)
 
-function TDomain.CreatePresenter(const ASettings: TSettings): TPresenter;
-var
-  vPresenterClass: TPresenterClass;
-begin
-  vPresenterClass := TPresenterClass(ResolveModuleClass('UI', 'UI'));
-  if Assigned(vPresenterClass) then
-  begin
-    FStyleName := FSettings.GetValue('Core', 'Style', 'default');
-    Result := vPresenterClass.Create(FStyleName);
-  end
-  else
-    Result := nil;
-end;
-
-function TDomain.CreateStorage(const ASettings: TSettings): TStorage;
-var
-  vConnectionString: string;
-  vStorageClass: TStorageClass;
-  vModuleName: string;
-  vHost: string;
-  vDatabase: string;
-  vIsTrusted: Boolean;
-  vUserName: string;
-  vPassword: string;
-begin
-  Result := nil;
-
-  vModuleName := FSettings.GetValue('Modules', 'DataStorage', '');
-
-  vStorageClass := TStorageClass(ResolveModuleClass('DataStorage', 'Storage'));
-  Assert(Assigned(vStorageClass), 'Storage module is not found [' + vModuleName + ']');
-
-  if CompareText(vModuleName, 'MSAccess.OLEDB') = 0 then
-  begin
-    if not FSettings.SectionExists('MSAccess') then
-      FSettings.SetValue('MSAccess', 'Database', 'empty.mdb');
-    vDatabase := FSettings.GetValue('MSAccess', 'Database', 'empty.mdb');
-    vConnectionString := Format(cMSAccessConnectionString, [TPath.Combine(FConfiguration.ConfigurationDir, vDatabase)]);
-
-    FLogger.AddMessage(vConnectionString);
-    Result := vStorageClass.Create(FLogger, vConnectionString)
-  end
-  else if SameText(vModuleName, 'SQLServer.OLEDB') then
-  begin
-    if not FSettings.SectionExists('MSSQLServer') then
-      FSettings.SetValue('MSSQLServer', 'Database', 'empty');
-    vHost := FSettings.GetValue('MSSQLServer', 'Host', '(local)');
-    vDatabase := FSettings.GetValue('MSSQLServer', 'Database', 'empty');
-    vIsTrusted := StrToBoolDef(FSettings.GetValue('MSSQLServer', 'IsTrusted'), False);
-    if vIsTrusted then
-      vConnectionString := Format(cTrustedMSSQLConnectionString,
-        [vHost, vDatabase])
-    else begin
-      vUserName := FSettings.GetValue('MSSQLServer', 'User', 'sa');
-      vPassword := FSettings.GetValue('MSSQLServer', 'Password', 'nhfyitz');
-      vConnectionString := Format(cRegularMSSQLConnectionString,
-        [vHost, vDatabase, vUserName, vPassword])
-    end;
-
-    FLogger.AddMessage(vConnectionString);
-    Result := vStorageClass.Create(FLogger, vConnectionString);
-  end
-  else if CompareText(vModuleName, 'XmlFile') = 0 then
-  begin
-    if not FSettings.SectionExists('XML') then
-      FSettings.SetValue('XML', 'FileName', 'database.xml');
-    vDatabase := FSettings.GetValue('XML', 'FileName', 'database.xml');
-    //Result := vStorageClass.Create(Self, vStorageName, vVersion, vDatabase)
-  end
-  else if CompareText(vModuleName, 'IniFile') = 0 then
-  begin
-    if not FSettings.SectionExists('INI') then
-      FSettings.SetValue('INI', 'FileName', 'database.ini');
-    vDatabase := FSettings.GetValue('INI', 'FileName', 'database.ini');
-    Result := vStorageClass.Create(FLogger, TPath.Combine(FConfiguration.ConfigurationDir, vDatabase));
-  end;
-
-  if not Assigned(Result) then
-    Assert(False, 'Storage type is not supported');
-end;
-
 destructor TDomain.Destroy;
 var
   vCollection: TCollection;
   i: Integer;
 begin
-  FreeAndNil(FProgressInfo);
-
-  FreeAndNil(FPresenter);
-
-  FreeAndNil(FViewSubscriptions);
-
   FScheduler.CancelAll;
   FreeAndNil(FScheduler);
 
@@ -764,9 +509,6 @@ begin
   FreeAndNil(FRootCollection);
   FreeAndNil(FCollections);
 
-  FreeAndNil(FActions);
-
-  FreeAndNil(FStorage);
   FreeAndNil(FLogger);
   FreeAndNil(FDomainLogger);
   FreeAndNil(FSettings);
@@ -880,17 +622,6 @@ begin
     Result := nil;
 end;
 
-function TDomain.GetActionState(const AName: string): TViewState;
-var
-  vAction: TDomainAction;
-begin
-  vAction := ActionByName(AName);
-  if Assigned(vAction) then
-    Result := vAction.State
-  else
-    Result := vsFullAccess;
-end;
-
 function TDomain.CollectionByName(const AName: string): TCollection;
 begin
   Result := FCollections.ObjectByName(AName);
@@ -915,12 +646,6 @@ begin
     Result := vConsts[AName]
   else
     Result := '';
-end;
-
-function TDomain.GetDomainName: string;
-begin
-  Result := Format('Domain [%s], style: %s',
-    [FConfiguration.Name, FStyleName]);
 end;
 
 procedure TDomain.GetEntityList(const ASession: TObject; const ADefinition: TDefinition;
@@ -998,22 +723,29 @@ begin
   Result := FTranslator.Language;
 end;
 
-function TDomain.GetModuleByName(const AName: string): TBaseModule;
+function TDomain.GetModuleByName(const AName: string; const AType: string): TBaseModule;
 var
   vModuleClass: TModuleClass;
+  vModuleName: string;
 begin
   if FModules.TryGetValue(AName, Result) then
     Exit;
 
-  vModuleClass := ResolveModuleClass(AName, AName);
+  vModuleClass := _Platform.ResolveModuleClass(FSettings, AName, AType, vModuleName);
   if Assigned(vModuleClass) then
   begin
-    Result := TDomainModuleClass(vModuleClass).Create(Self);
+    Result := TDomainModuleClass(vModuleClass).Create(Self, vModuleName);
     FModules.AddOrSetValue(AName, Result);
     FModuleInstances.Add(Result);
   end
   else
     Result := nil;
+end;
+
+function TDomain.GetModuleByName(const AName: string): TBaseModule;
+begin
+  if not FModules.TryGetValue(AName, Result) then
+    Result := GetModuleByName(AName, AName);
 end;
 
 procedure TDomain.ImportChanges(const AChanges: TJSONObject);
@@ -1126,6 +858,102 @@ begin
   finally
     FreeAndNil(vJustCreated);
   end;
+end;
+
+procedure TDomain.Init;
+var
+  vVersion: string;
+  i: Integer;
+  vMigration: TMigration;
+  vNextMigrationIndex: Integer;
+  vCompareResult: Integer;
+begin
+  NotifyLoadingProgress(5, 'Соединение с базой данных');
+
+  FStorage := TStorage(GetModuleByName('DataStorage', 'Storage'));
+  Assert(Assigned(FStorage), 'Для конфигурации не задано основное хранилище');
+  try
+    FStorage.Connect;
+  except
+    on E: Exception do
+    begin
+      NotifyError('Ошибка подключения', 'Ошибка подключения к хранилищу данных. ' + E.Message);
+      Exit;
+      //raise Exception.Create('Ошибка подключения');
+    end;
+  end;
+
+  NotifyLoadingProgress(15, 'Обновление структур данных');
+
+  vVersion := FStorage.Version;
+  if vVersion = '' then
+    vVersion := FConfiguration.Version;
+
+  vCompareResult := CompareVersions(FConfiguration.Version, vVersion);
+
+  // Хранилище обновлено извне
+  if (vCompareResult < 0) then
+  begin
+    NotifyError('Ошибка запуска', 'Используется устаревшая версия программы [' + FConfiguration.Version + '].'#13#10 +
+      'Необходимо установить новую версию [' + vVersion + '] самостоятельно или обратиться за помощью к администратору');
+    Exit;
+    //raise Exception.Create('Устаревшая версия программы');
+  end
+  // Новая версия конфигурации, требуется обновление структуры
+  else if (vCompareResult > 0) or (FStorage.Version = '') or (_Platform.DeploymentType = 'dev') then
+  begin
+    for vMigration in FConfiguration.Migrations do
+      vMigration.Apply(FConfiguration);
+
+    // Проверяем, новая ли это база данных
+    if VerifyStorageStructure then
+      FStorage.Version := FConfiguration.Version;
+    //AConfiguration.Localizator.EnumerateConfigurationElements(Self);
+  end;
+
+  FWereErrors := False;
+  Exit;
+
+  // Накатывание миграций
+  vNextMigrationIndex := FConfiguration.Migrations.NextMigrationIndex(vVersion);
+  if vNextMigrationIndex >= 0 then
+  begin
+    for i := 0 to vNextMigrationIndex - 1 do
+      FConfiguration.Migrations[i].Apply(FConfiguration);
+
+    Preload(FStorage);
+    Load(FStorage);
+
+    for i := vNextMigrationIndex to FConfiguration.Migrations.Count - 1 do
+    begin
+      vMigration := FConfiguration.Migrations[i];
+
+      if vMigration.CreateNewStructures(FConfiguration) then
+      begin
+        VerifyStorageStructure;
+        UpdateDomainStructures;
+      end;
+
+      if Assigned(vMigration.MigrationProc) then
+      begin
+        FDomainSession.AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
+          begin
+            vMigration.MigrationProc(Self);
+            Result := True;
+          end, nil, True);
+      end;
+
+      if vMigration.DeleteOldStructures(FConfiguration) then
+      begin
+        VerifyStorageStructure;
+        UpdateDomainStructures;
+      end;
+    end;
+
+    //AConfiguration.Localizator.EnumerateConfigurationElements(Self);
+  end;
+
+  FSettings.SetValue(FStorage.Name, 'Version', FConfiguration.Version);
 end;
 
 function TDomain.InternalLogin(const ALogin, APassword: string): TEntity;
@@ -1275,25 +1103,28 @@ begin
   vModuleClass := TBaseModule.GetModuleClass(AType, AModuleName);
   if not Assigned(vModuleClass) then
   begin
-    if Assigned(FPresenter) then
-      FPresenter.ShowMessage('Ошибка загрузки модуля',
-        Format('Модуль [%s] типа [%s] не зарегистрирован в системе', [AModuleName, AType]) + #13#10#13#10
-        + 'Проверьте, что файл с модулем подключен к проекту и регистрация класса модуля в нём выполнена правильно:'
-        + #13#10#13#10'initialization'#13#10'  TBaseModule.RegisterModule(''' + AType + ''', '''
-        + AModuleName + ''', {Класс модуля});');
+    NotifyError('Ошибка загрузки модуля',
+      Format('Модуль [%s] типа [%s] не зарегистрирован в системе', [AModuleName, AType]) + #13#10#13#10
+      + 'Проверьте, что файл с модулем подключен к проекту и регистрация класса модуля в нём выполнена правильно:'
+      + #13#10#13#10'initialization'#13#10'  TBaseModule.RegisterModule(''' + AType + ''', '''
+      + AModuleName + ''', {Класс модуля});');
     Result := nil;
   end
   else
-    Result := TDomainModuleClass(vModuleClass).Create(Self);
+    Result := TDomainModuleClass(vModuleClass).Create(Self, AModuleName);
+end;
+
+procedure TDomain.NotifyError(const ACaption, AText: string);
+begin
+  FLogger.AddMessage(AText, mkError);
+  if Assigned(FOnError) then
+    FOnError(ACaption, AText);
 end;
 
 procedure TDomain.NotifyLoadingProgress(const AProgress: Integer; const AInfo: string);
 begin
-  if FNeedShowSplash and Assigned(FPresenter) then
-  begin
-    FProgressInfo.SetProgress(AProgress, AInfo);
-    FPresenter.ShowPage(nil, 'splash', FProgressInfo);
-  end;
+  if Assigned(FOnProgress) then
+    FOnProgress(AProgress, AInfo);
 end;
 
 (*procedure TDomain.NotifyUser(const AUser, ANotification: TEntity);
@@ -1420,111 +1251,7 @@ begin
   end;
 end;
 
-procedure TDomain.RemoveViewSubscription(const AEntity: TEntity);
-var
-  vCollectionName: string;
-  vList: TList<TEntity>;
-  vListenersText: string;
-begin
-  vListenersText := AEntity.UIListenerCount;
-  if vListenersText <> '' then
-    Exit;
-
-  vCollectionName := AEntity.Definition.Name;
-  if FViewSubscriptions.TryGetValue(vCollectionName, vList) then
-    vList.Remove(AEntity)
-  else
-    Assert(False, 'Отписывается неподписанная запись!');
-end;
-
-{function TDomain.ResolveExtension(const AName, AParams: string): TBaseExtension;
-var
-  vExtensionClass: TExtensionClass;
-begin
-  // Проверка: Объект уже создан и закеширован в системе
-  if FExtensions.TryGetValue(AName, Result) then
-    Exit;
-
-  vExtensionClass := FConfiguration.Extensions.ResolveClass(AName, FDeploymentType);
-  if Assigned(vExtensionClass) then
-  begin
-    Result := vExtensionClass.Create(Self, AParams);
-    FExtensions.Add(AName, Result);
-  end
-  else
-    Result := nil;
-end;}
-
-function TDomain.ResolveModuleClass(const AName, AType: string): TModuleClass;
-var
-  vSectionName: string;
-  vModuleName: string;
-  vAvailableTypes: TStrings;
-begin
-  Result := nil;
-
-  vSectionName := 'Modules';
-  if (FDeploymentType <> '') and FSettings.KeyExists(vSectionName + '$' + FDeploymentType, AName) then
-    vSectionName := vSectionName + '$' + FDeploymentType;
-
-  // Пользователь знает о нужной секции
-  if FSettings.KeyExists(vSectionName, AName) then
-  begin
-    vModuleName := Trim(FSettings.GetValue(vSectionName, AName, ''));
-    Result := TBaseModule.GetModuleClass(AType, vModuleName);
-    if not Assigned(Result) and (vModuleName <> '') and Assigned(FPresenter) then
-      FPresenter.ShowMessage('Ошибка загрузки модуля',
-        Format('Модуль [%s] типа [%s] не зарегистрирован в системе', [AName, AType]) + #13#10#13#10
-        + 'Проверьте, что файл с модулем подключен к проекту и регистрация класса модуля в нём выполнена правильно:'
-        + #13#10#13#10'initialization'#13#10'  TBaseModule.RegisterModule(''' + AType + ''', '''
-        + AName + ''', {Класс модуля});');
-    Exit;
-  end;
-
-  // Запрос презентера
-  if SameText(AType, 'UI') then
-  begin
-    vAvailableTypes := TBaseModule.GetModuleNamesOfType(AType);
-    if vAvailableTypes.Count > 0 then
-    begin
-      vModuleName := vAvailableTypes[0];
-      Result := TBaseModule.GetModuleClass(AType, vModuleName);
-      FSettings.SetValue('Modules', AName, vModuleName);
-    end;
-    Exit;
-  end;
-
-  // Нет возможностей для исправления
-  if not Assigned(FPresenter) then
-    Exit;
-
-  vAvailableTypes := TBaseModule.GetModuleNamesOfType(AType);
-  if vAvailableTypes.Count = 0 then
-  begin
-    FPresenter.ShowMessage('Загрузка модуля',
-      Format('В системе не обнаружено ни одного класса типа [%s]', [AType]) + #13#10#13#10
-      + 'Для загрузки модуля подключите содержащий его файл к проекту и перезапустите приложение');
-    vModuleName := '';
-  end
-  else while vAvailableTypes.Count > 0 do
-  begin
-    if FPresenter.ShowYesNoDialog(Format('Загрузка модуля, case: %d', [vAvailableTypes.Count]),
-      Format('В системе найден класс [%s], реализующий тип [%s]', [vAvailableTypes[0], AType]) + #13#10#13#10
-      + Format('Хотите использовать его для модуля [%s] того же типа?', [AName])) = drYes
-    then begin
-      vModuleName := vAvailableTypes[0];
-      Result := TBaseModule.GetModuleClass(AType, vModuleName);
-      FSettings.SetValue('Modules', AName, vModuleName);
-      Break;
-    end
-    else
-      vAvailableTypes.Delete(0);
-  end;
-
-  FreeAndNil(vAvailableTypes);
-end;
-
-procedure TDomain.Run(const AParameter: string);
+procedure TDomain.Run;
 var
   vCollection: TCollection;
   vDefinition: TDefinition;
@@ -1558,25 +1285,9 @@ begin
 
   FIsAlive := True;
 
-  if Assigned(FPresenter) then
-    FPresenter.OnAppStarted := procedure
-    begin
-      NotifyLoadingProgress(100, '');
-    end;
-
   TDomainReadyProc(FConfiguration.DomainReadyProc)(Self);
 
-  if Assigned(FPresenter) then
-    FPresenter.Run(AParameter);
-end;
-
-procedure TDomain.SetActionState(const AName: string; const AState: TViewState);
-var
-  vAction: TDomainAction;
-begin
-  vAction := ActionByName(AName);
-  if Assigned(vAction) then
-    vAction.SetState(AState);
+  NotifyLoadingProgress(100, '');
 end;
 
 procedure TDomain.SetLanguage(const Value: string);
@@ -1596,8 +1307,6 @@ end;}
 procedure TDomain.Stop;
 begin
   FIsAlive := False;
-  if Assigned(FPresenter) then
-    FPresenter.Stop;
   TDomainStoppedProc(FConfiguration.DomainStoppedProc)();
 end;
 
@@ -1655,30 +1364,9 @@ begin
       begin
         SyncFieldsWithStorage(ADefinition, AStorage);
       end);
+{$ELSE}
+  Result := True;
 {$ENDIF}
-end;
-
-function TDomain.TextHierarchy: string;
-var
-  vItem: TPair<string, TList<TEntity>>;
-  vEntity: TEntity;
-  vText: string;
-begin
-  Result := '';
-  for vItem in FViewSubscriptions do
-  begin
-    vText := '';
-    for vEntity in vItem.Value do
-      if vEntity.UIListenerCount <> '' then
-        vText := vText + '  ' + IntToStr(SafeID(vEntity)) + ': ' + vEntity.UIListenerCount + #13#10;
-
-    if vText <> '' then
-    begin
-      if Result <> '' then
-        Result := Result + #13#10;
-      Result := Result + UpperCase(vItem.Key) + #13#10 + vText;
-    end;    
-  end;
 end;
 
 function TDomain.Translate(const AKey, ADefault: string): string;
@@ -1813,62 +1501,6 @@ procedure TDomain.UpdateLogID(const ANewLogID: Integer);
 begin
   if ANewLogID > FActualLogID then
     FActualLogID := ANewLogID;
-end;
-
-{ TDomainAction }
-
-procedure TDomainAction.AddViewListener(const AListener: TObject);
-begin
-  if FListeners.IndexOf(AListener) < 0 then
-    FListeners.Add(AListener);
-end;
-
-constructor TDomainAction.Create(const ADomain: TObject; const AAction: TActionDef);
-begin
-  inherited Create;
-  FDomain := ADomain;
-  FAction := AAction;
-  FListeners := TList<TObject>.Create;
-  FState := vsFullAccess; // взять из скрипта
-end;
-
-destructor TDomainAction.Destroy;
-begin
-  FreeAndNil(FListeners);
-  FDomain := nil;
-  FAction := nil;
-  inherited Destroy;
-end;
-
-procedure TDomainAction.NotifyListeners;
-var
-  vMessage: TDomainChangedMessage;
-  i: Integer;
-  vListener: TObject;
-begin
-  vMessage.Msg := DM_DOMAIN_CHANGED;
-  vMessage.Kind := dckViewStateChanged;
-  vMessage.Sender := Self;
-  vMessage.Parameter := nil;
-
-  for i := FListeners.Count - 1 downto 0 do
-  begin
-    vListener := FListeners[i];
-    vListener.Dispatch(vMessage);
-  end;
-end;
-
-procedure TDomainAction.RemoveViewListener(const AListener: TObject);
-begin
-  FListeners.Remove(AListener);
-end;
-
-procedure TDomainAction.SetState(const Value: TViewState);
-begin
-  if FState = Value then
-    Exit;
-  FState := Value;
-  NotifyListeners;
 end;
 
 { TDomainLock }

@@ -36,7 +36,7 @@ unit uEntity;
 interface
 
 uses
-  Classes, Generics.Collections, SysUtils, uFastClasses, IniFiles, uStorage, uComplexObject,
+  Classes, Generics.Collections, SysUtils, IniFiles, uStorage, uComplexObject,
   uConsts, uJSON, uDefinition, uEnumeration;
 
 //const
@@ -300,11 +300,7 @@ type
 type
   TDisplayNameRef = reference to function(const AEntity: TEntity): string;
   TDisplayNameFunc = function(const AEntity: TEntity): string of object;
-  TFullTextFunc = function(const AEntity: TEntity): string of object;
   TGetParamValueFunc = function(const AEntity: TEntity; const AParamName: string): string of object;
-
-type
-  TCheckFieldFunc = function(const AEntity: TEntity; const AFieldName: string): Boolean of object;
 
 function SafeDisplayName(const AEntity: TEntity; const ADefault: string = cNullItemName): string;
 function SafeID(const AEntity: TEntity): Integer;
@@ -315,8 +311,12 @@ implementation
 uses
   Math, StrUtils, Variants, Types, DateUtils,
 
-  uDomain, uCollection, uConfiguration, uUtils, uDomainUtils,
+  uPlatform, uDomain, uCollection, uConfiguration, uUtils, uDomainUtils,
   uSession, uChangeManager, uReaction, uSimpleField, uObjectField;
+
+type
+  TCheckFieldFunc = function(const AEntity: TEntity; const AFieldName: string): Boolean of object;
+  TFullTextFunc = function(const AEntity: TEntity): string of object;
 
 function SafeDisplayName(const AEntity: TEntity; const ADefault: string = cNullItemName): string;
 begin
@@ -698,10 +698,7 @@ begin
   end;
 
   if not vListeners.Contains(AView) then
-  begin
     vListeners.Add(AView);
-    TDomain(FDomain).AddViewSubscription(Self);
-  end;
 end;
 
 constructor TEntity.Create(const ADomain: TObject; const ADefinition: TDefinition);
@@ -1025,7 +1022,7 @@ begin
       vEnumName := TSimpleFieldDef(vFieldDef).Dictionary;
       Assert(vEnumName <> '', 'There is no enumeration type name!');
       vIntValue := TIntegerField(FieldByName(AFieldName)).Value;
-      vEnum := Enums.ObjectByName(vEnumName);
+      vEnum := _Platform.Enumerations.ObjectByName(vEnumName);
       if not Assigned(vEnum) then
         vEnum := TDomain(FDomain).Configuration.Enumerations.ObjectByName(vEnumName);
       if not Assigned(vEnum) then
@@ -1415,11 +1412,8 @@ var
 begin
   if FUIListeners.TryGetValue(AFieldName, vList) then
     if vList.Remove(AView) >= 0 then
-    begin
       if (vList.Count = 0) and (AFieldName <> '') then
         FieldByName(AFieldName).FUIState := vsUndefined;
-      TDomain(FDomain).RemoveViewSubscription(Self);
-    end;
 end;
 
 procedure TEntity.ResetToDefault;
@@ -1625,7 +1619,7 @@ begin
   if FIsEnvSpecific then
   begin
     FEnvironmentID := VarToStrDef(AStorage.ReadValue('guid', fkString), '');
-    FIsRemote := not SameText(FEnvironmentID, TDomain(FDomain).EnvironmentID);
+    FIsRemote := not SameText(FEnvironmentID, _Platform.EnvironmentID);
   end;
 
   for i := 0 to FFieldList.Count - 1 do
@@ -1636,7 +1630,7 @@ procedure TEntity.GenerateID;
 begin
   TCollection(FCollection).GenerateEntityID(Self);
   if FIsEnvSpecific then
-    FEnvironmentID := TDomain(FDomain).EnvironmentID;
+    FEnvironmentID := _Platform.EnvironmentID;
 end;
 
 function TEntity._FieldText(const AFieldName: string): string;
@@ -1757,7 +1751,7 @@ begin
   if FIsEnvSpecific then
   begin
     FEnvironmentID := AJSONObject.ExtractString('guid');
-    FIsRemote := not SameText(FEnvironmentID, TDomain(FDomain).EnvironmentID);
+    FIsRemote := not SameText(FEnvironmentID, _Platform.EnvironmentID);
   end;
 
   for i := 0 to FFieldList.Count - 1 do
@@ -1803,7 +1797,7 @@ begin
     Exit;
 
   FEnvironmentID := Value;
-  FIsRemote := not SameText(FEnvironmentID, TDomain(FDomain).EnvironmentID);
+  FIsRemote := not SameText(FEnvironmentID, _Platform.EnvironmentID);
 end;
 
 procedure TEntity.SetID(const AID: Integer);

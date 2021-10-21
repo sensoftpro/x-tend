@@ -36,7 +36,7 @@ unit uComplexObject;
 interface
 
 uses
-  Classes, uFastClasses, uJSON, uStorage, uTensor;
+  Classes, uJSON, uStorage, uTensor;
 
 type
   TComplexObject = class
@@ -84,7 +84,7 @@ type
 implementation
 
 uses
-  Variants, SysUtils, uDefinition, uEntity, uConsts;
+  Variants, SysUtils, uEntity, uConsts, uDefinition;
 
 { TComplexObject }
 

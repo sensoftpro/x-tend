@@ -46,6 +46,7 @@ type
   TDefItem = class
   protected
     FName: string;
+    [Weak] FOwner: TObject;
     [Weak] FDefinition: TDefinition;
     [Weak] FConfiguration: TObject;
   public
@@ -281,6 +282,7 @@ type
     FSearchType: TSearchType;
     FDictionaryText: string;
     FInitialSearchType: TSearchType;
+    FPrecision: TPrecisionType;
   protected
     function SetNullValue(const ANullValue: Variant): TSimpleFieldDef;
   public
@@ -292,6 +294,7 @@ type
 
     function SetDefaultValue(const AValue: Variant): TSimpleFieldDef;
     function SetValueRange(const AMinValue, AMaxValue: Variant): TSimpleFieldDef;
+    function SetPrecision(const AType: TPrecisionType): TSimpleFieldDef;
 
     property MinValue: Variant read FMinValue;
     property MaxValue: Variant read FMaxValue;
@@ -1553,6 +1556,7 @@ constructor TDefItem.Create(const AOwner: TObject; const AName: string);
 begin
   inherited Create;
 
+  FOwner := AOwner;
   if AOwner is TConfiguration then
   begin
     FDefinition := nil;
@@ -1578,7 +1582,7 @@ var
   vItem: TStringListItem;
 begin
   for vItem in Self do
-    if vItem.&Object.OwnerDefinition = FOwner then
+    if vItem.&Object.FOwner = FOwner then
       DisposeObject(vItem.&Object);
 end;
 
@@ -1765,9 +1769,7 @@ constructor TReportDef.Create(const ADefinition: TDefinition;
 var
   vRealFileName: string;
 begin
-  inherited Create(ADefinition.Configuration, False, AReportName);
-  FDefinition := ADefinition;
-  FConfiguration := ADefinition.Configuration;
+  inherited Create(ADefinition, False, AReportName);
   FFullName := ADefinition.Name + '.' + AReportName;
   FCaption := ACaption;
   FFileName := AFileName;
@@ -1803,10 +1805,7 @@ end;
 
 constructor TRTFReport.Create(const ADefinition: TDefinition; const AName, ACaption, AFileName: string);
 begin
-  inherited Create(ADefinition.Configuration, False, AName);
-
-  FDefinition := ADefinition;
-  FConfiguration := ADefinition.Configuration;
+  inherited Create(ADefinition, False, AName);
   FFullName := ADefinition.Name + '.' + AName;
   FCaption := ACaption;
   FFileName := TConfiguration(FConfiguration).FindLeafFile('reports' + TPath.DirectorySeparatorChar + AFileName);
@@ -2017,6 +2016,7 @@ begin
   FDictionaryText := FDictionary;
   FInitialSearchType := ASearchType;
   FNullValue := Null;
+  FPrecision := ptDefault;
 
   vPos := Pos('.', ADictionary);
   if vPos = 0 then
@@ -2055,6 +2055,11 @@ end;
 function TSimpleFieldDef.SetNullValue(const ANullValue: Variant): TSimpleFieldDef;
 begin
   FNullValue := ANullValue;
+  Result := Self;
+end;
+
+function TSimpleFieldDef.SetPrecision(const AType: TPrecisionType): TSimpleFieldDef;
+begin
   Result := Self;
 end;
 

@@ -117,6 +117,9 @@ implementation
 uses
   Types, Math, IdGlobal, IdUriUtils, IdURI, IdCookie, IdEMailAddress, Zlib;
 
+const
+  cUserAgent = 'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2224.3 Safari/537.36';
+
 function WWWEscape(const AText: string): string;
 const
   cSafeChars: string = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789*-._'; {do not localize}
@@ -157,9 +160,6 @@ begin
 end;
 
 { THTTPTask }
-
-const
-  cUserAgent = 'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2224.3 Safari/537.36';
 
 procedure THTTPTask.AddClientCookie(const ACookie: string);
 begin

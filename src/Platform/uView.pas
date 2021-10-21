@@ -41,10 +41,6 @@ uses
 type
   TDefinitionKind = (dkUndefined, dkDomain, dkCollection, dkEntity, dkAction,
     dkListField, dkObjectField, dkSimpleField, dkComplexField);
-const
-  cDefinitionKindNames: array[TDefinitionKind] of string = (
-    '? ? ?', 'Domain', 'Collection', 'Entity', 'Action', 'List field',
-    'Object field', 'Simple field', 'Complex field');
 
 type
   TView = class
@@ -150,6 +146,11 @@ type
   TCheckActionFlagsFunc = function(const AView: TView): TViewState of object;
   TExecuteActionFunc = function(const AView: TView; const AParentHolder: TChangeHolder): Boolean of object;
 
+const
+  cDefinitionKindNames: array[TDefinitionKind] of string = (
+    '? ? ?', 'Domain', 'Collection', 'Entity', 'Action', 'List field',
+    'Object field', 'Simple field', 'Complex field');
+
 { TView }
 
 procedure TView.AddListener(const AListener: TObject);
@@ -188,6 +189,8 @@ begin
       if not Assigned(vView) then
       begin
         vView := TView.Create(FInteractor, Result, vViewName);
+        { TODO -owa : REDO: Если View не найдено в контексте, оно ищется в корне }
+        // !!! Нужен облегченный метод проверки на возможность создания в контексте
         if (vView.DefinitionKind = dkUndefined) and (i = 0) then
         begin
           FreeAndNil(vView);
@@ -445,10 +448,11 @@ procedure TView.DoParentChanged(const AParentDomainObject: TObject);
 var
   vListField: TListField;
   vTextID: string;
-  vID: Integer;
+  vId: Integer;
   vChanged: Boolean;
   vChangeKind: Word;
   vInteractor: TInteractor;
+  vCollection: TCollection;
 begin
   vInteractor := TInteractor(FInteractor);
 
@@ -481,28 +485,38 @@ begin
       if FName <> 'New' then
       begin
         vTextID := Copy(FName, 4, Length(FName) - 3);
-        vID := StrToIntDef(vTextID, 0);
-        if vID > 0 then
-          SetDomainEntity(TDomain(vInteractor.Domain).EntityByID(TDefinition(FDefinition).Name, -vID))
+        vId := StrToIntDef(vTextID, 0);
+        if vId > 0 then
+          SetDomainEntity(TDomain(vInteractor.Domain).EntityByID(TDefinition(FDefinition).Name, -vId))
         else
           SetDomainEntity(nil);
       end;
+    end
+    else if (Pos('$', FName) = 1) and (Length(FName) > 1) then
+    begin
+      vTextID := Copy(FName, 2, Length(FName) - 1);
+      vID := StrToIntDef(vTextID, -1);
+      vCollection := TDomain(vInteractor.Domain).CollectionByName(TDefinition(FDefinition).Name);
+      if (vID >= 0) and (vCollection.Count > vID) then
+        SetDomainEntity(vCollection.Entities[vID])
+      else
+        SetDomainEntity(nil);
     end
     else if SameText(FName, 'Selected') then
       SetDomainEntity(TEntity(TEntityList(AParentDomainObject).Selected))
     else begin
       if FParent.DefinitionKind = dkListField then
       begin
-        vID := StrToIntDef(FName, -1);
-        if (vID >= 0) and (TEntityList(AParentDomainObject).Count > vID) then
-          SetDomainEntity(TEntityList(AParentDomainObject).Entity[vID])
+        vId := StrToIntDef(FName, -1);
+        if (vId >= 0) and (TEntityList(AParentDomainObject).Count > vId) then
+          SetDomainEntity(TEntityList(AParentDomainObject).Entity[vId])
         else
           SetDomainEntity(nil);
       end
       else begin
-        vID := StrToIntDef(FName, 0);
-        if vID > 0 then
-          SetDomainEntity(TDomain(vInteractor.Domain).EntityByID(TDefinition(FDefinition).Name, vID))
+        vId := StrToIntDef(FName, 0);
+        if vId > 0 then
+          SetDomainEntity(TDomain(vInteractor.Domain).EntityByID(TDefinition(FDefinition).Name, vId))
         else
           SetDomainEntity(nil);
       end;
@@ -695,7 +709,7 @@ begin
         vParentDefinition := TDefinition(vParentDefinition);
         if not ExtractAction(vParentDefinition, FName) then
         begin
-          if (FName = 'Selected') or (FName = 'Current') or (Pos('New', FName) = 1) or (StrToIntDef(FName, 0) > 0) then
+          if (FName = 'Selected') or (FName = 'Current') or (Pos('New', FName) = 1) or (Pos('$', FName) = 1) or (StrToIntDef(FName, 0) > 0) then
           begin
             FDefinition := vParentDefinition;
             FDefinitionKind := dkEntity;
@@ -1065,7 +1079,6 @@ end;
 
 procedure TView.SubscribeDomainObject;
 var
-  vAction: TDomainAction;
   vChildView: TView;
 begin
   // Нужно здесь проверить по FullName Definition-а, что
@@ -1073,14 +1086,6 @@ begin
   //  2) если родительский Definition совпадает с Definition состояния,
   //       то подписаться на поле "-State-" родительской сущности
   //       иначе найти коллекцию указанного Definition и подписаться на поле "-State-" ее сущности First
-
-  if FDefinitionKind = dkAction then
-  begin
-    vAction := TDomain(TInteractor(FInteractor).Domain).ActionByName(TActionDef(FDefinition).Name);
-    if Assigned(vAction) then
-      vAction.AddViewListener(Self);
-  end;
-
   if not Assigned(FDomainObject) then
     Exit;
 
@@ -1119,16 +1124,8 @@ end;
 
 procedure TView.UnsubscribeDomainObject;
 var
-  vAction: TDomainAction;
   vChildView: TView;
 begin
-  if FDefinitionKind = dkAction then
-  begin
-    vAction := TDomain(TInteractor(FInteractor).Domain).ActionByName(TActionDef(FDefinition).Name);
-    if Assigned(vAction) then
-      vAction.RemoveViewListener(Self);
-  end;
-
   if not Assigned(FDomainObject) then
     Exit;
 
@@ -1234,8 +1231,7 @@ begin
         end;
 
         FState := TCheckActionFlagsFunc(TConfiguration(TInteractor(FInteractor).Configuration).CheckActionFlagsFunc)(Self);
-        FState := FState and vSession.GetUIState(vActionName, vEntityState)
-          and TDomain(TInteractor(FInteractor).Domain).ActionState[vSysAction.Name];
+        FState := FState and vSession.GetUIState(vActionName, vEntityState);
         if (FName = 'Add') or (FName = 'Edit') or (FName = 'Delete') or (FName = 'Link') or (FName = 'OpenInPage')
           or (FName = 'Unlink') or (FName = 'View') or (FName = 'Refresh') or (FName = 'ViewDocument') or (FName = 'ClearDocument')
           or (FName = 'Load') or (FName = 'Create') or (FName = 'Open') or (FName = 'Show') then

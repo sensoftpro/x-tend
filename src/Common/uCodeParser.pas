@@ -45,18 +45,6 @@ type
     {tkDot,} tkComma, tkColon, tkSemicolon, tkApostrophe, tkQuote, tkEqual,
     tkLiteral, tkEof);
   TTokenKinds = set of TTokenKind;
-const
-  tkFirst = tkCommStart;
-  tkLast = tkEqual;
-  cTokenNames: array[TTokenKind] of string =
-   ('COMM_START', 'COMM_END', 'COMM_LINE', 'LINE_END', 'SPACE',
-    'PAR_OPEN', 'PAR_CLOSE', 'BRACKET_OPEN', 'BRACKET_CLOSE', 'LESS', 'GREATER',
-    'MINUS', 'PLUS', 'ASTERISK', 'SLASH', 'PERCENT', 'AMPERSAND', 'VBAR', 'CARET', 'EXCLAMATION', 'QUESTION',
-    {'DOT',} 'COMMA', 'COLON', 'SEMICOLON', 'APOSTROPHE', 'QUOTE', 'EQUAL', 'LITERAL', 'EOF');
-  cTokenRE: array[TTokenKind] of string = ('\{', '\}', '//', #13'?'#10, '[ '#9']+',
-    '\(', '\)', '\[', '\]', '\<', '\>', '\-', '\+', '\*', '/', '%', '&', '\|', '\^', '\!', '\?',
-    {'\.',} ',', ':', ';', '''', '"', '=', '', '');
-  cDefaultTokens = [tkFirst..tkLast];
 
 type
   TToken = record
@@ -70,9 +58,6 @@ type
 type
   TNodeKind = (nkService, nkComment, nkSpace, nkLineEnd, nkParenthesis, nkBracket,
     nkText, nkSymbol, nkLiteral, nkKeyword, nkIdentifier, nkNumber, nkOperator, nkFunction, nkExpression);
-const
-  cNodeKindNames: array[TNodeKind] of string = ('END', 'COMMENT', 'SPACE', 'LINE_END', 'PAR', 'BRACKET',
-    'TEXT', 'SYMBOL', 'LITERAL', 'KEYWORD', 'IDENT', 'NUMBER', 'OPERATOR', 'FUNCTION', 'EXPRESSION');
 
 type
   TASTNode = class(TEnumerable<TASTNode>)
@@ -119,11 +104,6 @@ type
   TValueKind = (vkString, vkInteger, vkFloat, vkBoolean);
   TOperatorKind = (okNone, okNeg, okAdd, okSub, okMul, okDiv, okMod, okPower, okEq, okNotEq, okGreater, okLess,
     okGreaterOrEg, okLessOrEg, okAnd, okOr, okNot, okBitAnd, okBitOr, okBitShl, okBitShr);
-const
-  cOperatorTexts: array[TOperatorKind] of string = ('', '-', '+', '-', '*', '/', '%', '^', '=', '<>', '>', '<',
-    '>=', '<=', '&&', '||', '!', '&', '|', '<<', '>>');
-  cOperatorPriorities: array[TOperatorKind] of Integer = (-1, 4, 3, 3, 5, 5, 5, 6, 1, 1, 1, 1,
-    1, 1, 0, 0, 2, 7, 7, 7, 7);
 
 type
   TExpressionAST = class;
@@ -266,6 +246,25 @@ implementation
 
 uses
   Types, SysUtils, StrUtils, Math, Variants, Character, RegularExpressions;
+
+const
+  tkFirst = tkCommStart;
+  tkLast = tkEqual;
+  cTokenNames: array[TTokenKind] of string =
+   ('COMM_START', 'COMM_END', 'COMM_LINE', 'LINE_END', 'SPACE',
+    'PAR_OPEN', 'PAR_CLOSE', 'BRACKET_OPEN', 'BRACKET_CLOSE', 'LESS', 'GREATER',
+    'MINUS', 'PLUS', 'ASTERISK', 'SLASH', 'PERCENT', 'AMPERSAND', 'VBAR', 'CARET', 'EXCLAMATION', 'QUESTION',
+    {'DOT',} 'COMMA', 'COLON', 'SEMICOLON', 'APOSTROPHE', 'QUOTE', 'EQUAL', 'LITERAL', 'EOF');
+  cTokenRE: array[TTokenKind] of string = ('\{', '\}', '//', #13'?'#10, '[ '#9']+',
+    '\(', '\)', '\[', '\]', '\<', '\>', '\-', '\+', '\*', '/', '%', '&', '\|', '\^', '\!', '\?',
+    {'\.',} ',', ':', ';', '''', '"', '=', '', '');
+  cDefaultTokens = [tkFirst..tkLast];
+  cNodeKindNames: array[TNodeKind] of string = ('END', 'COMMENT', 'SPACE', 'LINE_END', 'PAR', 'BRACKET',
+    'TEXT', 'SYMBOL', 'LITERAL', 'KEYWORD', 'IDENT', 'NUMBER', 'OPERATOR', 'FUNCTION', 'EXPRESSION');
+  cOperatorTexts: array[TOperatorKind] of string = ('', '-', '+', '-', '*', '/', '%', '^', '=', '<>', '>', '<',
+    '>=', '<=', '&&', '||', '!', '&', '|', '<<', '>>');
+  cOperatorPriorities: array[TOperatorKind] of Integer = (-1, 4, 3, 3, 5, 5, 5, 6, 1, 1, 1, 1,
+    1, 1, 0, 0, 2, 7, 7, 7, 7);
 
 function CreateCalcTree(const AText: string; const AValuesOnly: Boolean): TCalcTree;
 var

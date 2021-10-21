@@ -40,10 +40,6 @@ interface
 uses
   Classes, SysUtils, Generics.Collections, UITypes, UIConsts;
 
-const
-  NullString = '';
-  {$EXTERNALSYM NullString}
-
 type
   TInt15 = 0..15;
 
@@ -147,7 +143,7 @@ type
     property Offset: Integer read GetOffset;
   end;
 
-  TJSONException = class(Exception)
+  EJSONException = class(Exception)
   public
     constructor Create(const ErrorMessage: UnicodeString);
   private
@@ -168,16 +164,16 @@ type
     function Clone: TJSONAncestor; override;
   protected
     procedure AddDescendant(const Descendant: TJSONAncestor); override;
-    procedure SetJsonString(const Descendant: TJSONString);
-    procedure SetJsonValue(const Val: TJSONValue);
-    function GetJsonString: TJSONString;
-    function GetJsonValue: TJSONValue;
+    procedure SetJSONString(const Descendant: TJSONString);
+    procedure SetJSONValue(const Val: TJSONValue);
+    function GetJSONString: TJSONString;
+    function GetJSONValue: TJSONValue;
   private
     FJsonString: TJSONString;
     FJsonValue: TJSONValue;
   public
-    property JsonString: TJSONString read GetJsonString write SetJsonString;
-    property JsonValue: TJSONValue read GetJsonValue write SetJsonValue;
+    property JSONString: TJSONString read GetJSONString write SetJSONString;
+    property JSONValue: TJSONValue read GetJSONValue write SetJSONValue;
   end;
 
   TJSONValue = class abstract(TJSONAncestor)
@@ -259,7 +255,7 @@ type
     constructor Create; overload;
     constructor Create(const Pair: TJSONPair); overload;
     function Size: Integer;
-    function Get(const I: Integer): TJSONPair; overload;
+    function Get(const i: Integer): TJSONPair; overload;
     function GetEnumerator: TJSONPairEnumerator;
     function Get(const PairName: UnicodeString): TJSONPair; overload;
     destructor Destroy; override;
@@ -416,6 +412,8 @@ resourcestring
 
 const
   HexChars = '0123456789ABCDEF';
+  NullString = '';
+  {$EXTERNALSYM NullString}
 
 procedure SaveTextToFile(const AText: string; const AFileName: string);
 begin
@@ -572,9 +570,9 @@ end;
 
 procedure Zap(Buffer: TStringBuffer);
 var
-  I: Integer;
+  i: Integer;
 begin
-  for I := Buffer.FCount+1 to Length(Buffer.FBuffer) do
+  for i := Buffer.FCount+1 to Length(Buffer.FBuffer) do
     Buffer.FBuffer[I] := ' ';
 end;
 
@@ -683,19 +681,19 @@ end;
 constructor TJSONByteReader.Create(const Data: TBytes; const Offset: Integer; const Range: Integer);
 begin
   inherited Create;
-  self.FData := Data;
-  self.FOffset := Offset;
-  self.FRange := Range;
+  FData := Data;
+  FOffset := Offset;
+  FRange := Range;
   ConsumeBOM;
 end;
 
 constructor TJSONByteReader.Create(const Data: TBytes; const Offset: Integer; const Range: Integer; const IsUTF8: Boolean);
 begin
   inherited Create;
-  self.FData := Data;
-  self.FOffset := Offset;
-  self.FRange := Range;
-  self.FIsUTF8 := IsUTF8;
+  FData := Data;
+  FOffset := Offset;
+  FRange := Range;
+  FIsUTF8 := IsUTF8;
   if IsUTF8 then
     ConsumeBOM;
 end;
@@ -745,9 +743,9 @@ begin
     if (FData[FOffset] and (Byte(224))) = Byte(192) then
     begin
       if FOffset + 1 >= FRange then
-        raise TJSONException.Create(Format(SUTF8Start, [TInt32Object.Create(FOffset)]));
+        raise EJSONException.Create(Format(SUTF8Start, [TInt32Object.Create(FOffset)]));
       if (FData[FOffset + 1] and (Byte(192))) <> Byte(128) then
-        raise TJSONException.Create(Format(SUTF8UnexpectedByte, [TInt32Object.Create(2),TInt32Object.Create(FOffset + 1)]));
+        raise EJSONException.Create(Format(SUTF8UnexpectedByte, [TInt32Object.Create(2),TInt32Object.Create(FOffset + 1)]));
       SetLength(FUtf8data,6);
       FUtf8length := 6;
       FUtf8data[0] := Ord('\');
@@ -761,11 +759,11 @@ begin
     else if (FData[FOffset] and (Byte(240))) = Byte(224) then
     begin
       if FOffset + 2 >= FRange then
-        raise TJSONException.Create(Format(SUTF8Start, [TInt32Object.Create(FOffset)]));
+        raise EJSONException.Create(Format(SUTF8Start, [TInt32Object.Create(FOffset)]));
       if (FData[FOffset + 1] and (Byte(192))) <> Byte(128) then
-        raise TJSONException.Create(Format(SUTF8UnexpectedByte, [TInt32Object.Create(3),TInt32Object.Create(FOffset + 1)]));
+        raise EJSONException.Create(Format(SUTF8UnexpectedByte, [TInt32Object.Create(3),TInt32Object.Create(FOffset + 1)]));
       if (FData[FOffset + 2] and (Byte(192))) <> Byte(128) then
-        raise TJSONException.Create(Format(SUTF8UnexpectedByte, [TInt32Object.Create(3),TInt32Object.Create(FOffset + 2)]));
+        raise EJSONException.Create(Format(SUTF8UnexpectedByte, [TInt32Object.Create(3),TInt32Object.Create(FOffset + 2)]));
       SetLength(FUtf8data,6);
       FUtf8length := 6;
       FUtf8data[0] := Ord('\');
@@ -779,13 +777,13 @@ begin
     else if (FData[FOffset] and (Byte(248))) = Byte(240) then
     begin
       if FOffset + 3 >= FRange then
-        raise TJSONException.Create(Format(SUTF8Start, [TInt32Object.Create(FOffset)]));
+        raise EJSONException.Create(Format(SUTF8Start, [TInt32Object.Create(FOffset)]));
       if (FData[FOffset + 1] and (Byte(192))) <> Byte(128) then
-        raise TJSONException.Create(Format(SUTF8UnexpectedByte, [TInt32Object.Create(4),TInt32Object.Create(FOffset + 1)]));
+        raise EJSONException.Create(Format(SUTF8UnexpectedByte, [TInt32Object.Create(4),TInt32Object.Create(FOffset + 1)]));
       if (FData[FOffset + 2] and (Byte(192))) <> Byte(128) then
-        raise TJSONException.Create(Format(SUTF8UnexpectedByte, [TInt32Object.Create(4),TInt32Object.Create(FOffset + 2)]));
+        raise EJSONException.Create(Format(SUTF8UnexpectedByte, [TInt32Object.Create(4),TInt32Object.Create(FOffset + 2)]));
       if (FData[FOffset + 3] and (Byte(192))) <> Byte(128) then
-        raise TJSONException.Create(Format(SUTF8UnexpectedByte, [TInt32Object.Create(4),TInt32Object.Create(FOffset + 3)]));
+        raise EJSONException.Create(Format(SUTF8UnexpectedByte, [TInt32Object.Create(4),TInt32Object.Create(FOffset + 3)]));
       Bmp := FData[FOffset] and Byte(7);
       Bmp := (Bmp shl 6) or (FData[FOffset + 1] and Byte(63));
       Bmp := (Bmp shl 6) or (FData[FOffset + 2] and Byte(63));
@@ -812,7 +810,7 @@ begin
       FOffset := FOffset + 4;
     end
     else
-      raise TJSONException.Create(Format(SUTF8InvalidHeaderByte, [TInt32Object.Create(FOffset)]));
+      raise EJSONException.Create(Format(SUTF8InvalidHeaderByte, [TInt32Object.Create(FOffset)]));
     Result := FUtf8data[FUtf8offset];
   end
   else
@@ -839,7 +837,7 @@ begin
     Result := False;
 end;
 
-constructor TJSONException.Create(const ErrorMessage: UnicodeString);
+constructor EJSONException.Create(const ErrorMessage: UnicodeString);
 begin
   inherited Create(ErrorMessage);
 end;
@@ -883,13 +881,13 @@ begin
     FJsonValue := TJSONValue(Descendant);
 end;
 
-procedure TJSONPair.SetJsonString(const Descendant: TJSONString);
+procedure TJSONPair.SetJSONString(const Descendant: TJSONString);
 begin
   if Descendant <> nil then
     FJsonString := Descendant;
 end;
 
-procedure TJSONPair.SetJsonValue(const Val: TJSONValue);
+procedure TJSONPair.SetJSONValue(const Val: TJSONValue);
 begin
   if Val <> nil then
     FJsonValue := Val;
@@ -917,12 +915,12 @@ begin
     Result := NullString;
 end;
 
-function TJSONPair.GetJsonString: TJSONString;
+function TJSONPair.GetJSONString: TJSONString;
 begin
   Result := FJsonString;
 end;
 
-function TJSONPair.GetJsonValue: TJSONValue;
+function TJSONPair.GetJSONValue: TJSONValue;
 begin
   Result := FJsonValue;
 end;
@@ -1490,15 +1488,15 @@ begin
     SaveStrings(Self, AKey, AValue);
 end;
 
-function TJSONObject.Get(const I: Integer): TJSONPair;
+function TJSONObject.Get(const i: Integer): TJSONPair;
 begin
 //{$IFDEF DEVELOPERS}
 //  // JSONObjects are unordered pairs, so do not depend on the index
 //  // of a pair.  Here we allow index to be used only in a special case.
-//  Assert((I = 0) and (Size <= 1));
+//  Assert((i = 0) and (Size <= 1));
 //{$ENDIF}
-  if (I >= 0) and (I < Size) then
-    Result := TJSONPair(FMembers[I])
+  if (i >= 0) and (i < Size) then
+    Result := TJSONPair(FMembers[i])
   else
     Result := nil;
 end;
@@ -1506,11 +1504,11 @@ end;
 function TJSONObject.Get(const PairName: UnicodeString): TJSONPair;
 var
   Candidate: TJSONPair;
-  I: Integer;
+  i: Integer;
 begin
   for i := 0 to Size - 1 do
   begin
-    Candidate := TJSONPair(FMembers[I]);
+    Candidate := TJSONPair(FMembers[i]);
     if (Candidate.JsonString.Value = PairName) then
       Exit(Candidate);
   end;
@@ -1525,13 +1523,13 @@ end;
 destructor TJSONObject.Destroy;
 var
   Member: TJSONAncestor;
-  I: Integer;
+  i: Integer;
 begin
   if FMembers <> nil then
   begin
     for i := 0 to FMembers.Count - 1 do
     begin
-      Member := TJSONAncestor(FMembers[I]);
+      Member := TJSONAncestor(FMembers[i]);
       if Member.GetOwned then
         Member.Free;
     end;
@@ -1576,11 +1574,11 @@ end;
 function TJSONObject.EstimatedByteSize: Integer;
 var
   Size: Integer;
-  I: Integer;
+  i: Integer;
 begin
   Size := 1;
   for i := 0 to FMembers.Count - 1 do
-    Size := Size + (TJSONAncestor(FMembers[I])).EstimatedByteSize + 1;
+    Size := Size + (TJSONAncestor(FMembers[i])).EstimatedByteSize + 1;
   if Size = 1 then
     Exit(2);
   Result := Size;
@@ -1724,7 +1722,7 @@ function TJSONObject.ToBytes(const Data: TBytes; const Idx: Integer): Integer;
 var
   Offset: Integer;
   Size: Integer;
-  I: Integer;
+  i: Integer;
 begin
   Offset := Idx;
   Size := FMembers.Count;
@@ -1734,7 +1732,7 @@ begin
   for i := 1 to FMembers.Count - 1 do
   begin
     Data[IncrAfter(Offset)] := Ord(',');
-    Offset := (TJSONAncestor(FMembers[I])).ToBytes(Data, Offset);
+    Offset := (TJSONAncestor(FMembers[i])).ToBytes(Data, Offset);
   end;
   Data[IncrAfter(Offset)] := Ord('}');
   Result := Offset;
@@ -1744,7 +1742,7 @@ function TJSONObject.ToRawString: string;
 var
   Buf: TStringBuffer;
   Size: Integer;
-  I: Integer;
+  i: Integer;
 begin
   Size := FMembers.Count;
   Buf := TStringBuffer.Create;
@@ -1752,10 +1750,10 @@ begin
     Buf.Append('{');
     if Size > 0 then
       Buf.Append(FMembers[0].ToRawString);
-    for I := 1 to Size - 1 do
+    for i := 1 to Size - 1 do
     begin
       Buf.Append(',');
-      Buf.Append(FMembers[I].ToRawString);
+      Buf.Append(FMembers[i].ToRawString);
     end;
     Buf.Append('}');
     Result := Buf.ToString;
@@ -1767,11 +1765,11 @@ end;
 function TJSONObject.Clone: TJSONAncestor;
 var
   Data: TJSONObject;
-  I: Integer;
+  i: Integer;
 begin
   Data := TJSONObject.Create;
-  for I := 0 to FMembers.Count - 1 do
-    Data.AddPair(TJSONPair(Get(I).Clone));
+  for i := 0 to FMembers.Count - 1 do
+    Data.AddPair(TJSONPair(Get(i).Clone));
   Result := Data;
 end;
 
@@ -2006,11 +2004,11 @@ end;
 function TJSONObject.RemovePair(const PairName: String): TJSONPair;
 var
   Candidate: TJSONPair;
-  I: Integer;
+  i: Integer;
 begin
-  for I := 0 to Size - 1 do
+  for i := 0 to Size - 1 do
   begin
-    Candidate := TJSONPair(FMembers[I]);
+    Candidate := TJSONPair(FMembers[i]);
     if (Candidate.JsonString.Value = PairName) then
     begin
       FMembers.RemoveAt(i);
@@ -2318,7 +2316,7 @@ function TJSONObject.ToString: UnicodeString;
 var
   Buf: TStringBuffer;
   Size: Integer;
-  I: Integer;
+  i: Integer;
 begin
   Size := FMembers.Count;
   Buf := TStringBuffer.Create;
@@ -2326,10 +2324,10 @@ begin
     Buf.Append('{');
     if Size > 0 then
       Buf.Append(FMembers[0].ToString);
-    for I := 1 to Size - 1 do
+    for i := 1 to Size - 1 do
     begin
       Buf.Append(',');
-      Buf.Append(FMembers[I].ToString);
+      Buf.Append(FMembers[i].ToString);
     end;
     Buf.Append('}');
     Result := Buf.ToString;
@@ -2440,13 +2438,13 @@ end;
 destructor TJSONArray.Destroy;
 var
   Element: TJSONAncestor;
-  I: Integer;
+  i: Integer;
 begin
   if FElements <> nil then
   begin
-    for I := 0 to FElements.Count - 1 do
+    for i := 0 to FElements.Count - 1 do
     begin
-      Element := TJSONAncestor(FElements[I]);
+      Element := TJSONAncestor(FElements[i]);
       if Element.GetOwned then
         Element.Free;
     end;
@@ -2547,11 +2545,11 @@ end;
 function TJSONArray.EstimatedByteSize: Integer;
 var
   Size: Integer;
-  I: Integer;
+  i: Integer;
 begin
   Size := 1;
-  for I := 0 to FElements.Count - 1 do
-    Size := Size + (TJSONAncestor(FElements[I])).EstimatedByteSize + 1;
+  for i := 0 to FElements.Count - 1 do
+    Size := Size + (TJSONAncestor(FElements[i])).EstimatedByteSize + 1;
   if Size = 1 then
     Exit(2);
   Result := Size;
@@ -2561,17 +2559,17 @@ function TJSONArray.ToBytes(const Data: TBytes; const Pos: Integer): Integer;
 var
   Offset: Integer;
   Size: Integer;
-  I: Integer;
+  i: Integer;
 begin
   Offset := Pos;
   Size := FElements.Count;
   Data[IncrAfter(Offset)] := Ord('[');
   if Size > 0 then
     Offset := (TJSONAncestor(FElements[0])).ToBytes(Data, Offset);
-  for I := 1 to Size - 1 do
+  for i := 1 to Size - 1 do
   begin
     Data[IncrAfter(Offset)] := Ord(',');
-    Offset := (TJSONAncestor(FElements[I])).ToBytes(Data, Offset);
+    Offset := (TJSONAncestor(FElements[i])).ToBytes(Data, Offset);
   end;
   Data[IncrAfter(Offset)] := Ord(']');
   Result := Offset;
@@ -2581,7 +2579,7 @@ function TJSONArray.ToRawString: string;
 var
   Buf: TStringBuffer;
   Size: Integer;
-  I: Integer;
+  i: Integer;
 begin
   Size := FElements.Count;
   Buf := TStringBuffer.Create;
@@ -2589,10 +2587,10 @@ begin
     Buf.Append('[');
     if Size > 0 then
       Buf.Append(FElements[0].ToRawString);
-    for I := 1 to Size - 1 do
+    for i := 1 to Size - 1 do
     begin
       Buf.Append(',');
-      Buf.Append(FElements[I].ToRawString);
+      Buf.Append(FElements[i].ToRawString);
     end;
     Buf.Append(']');
     Result := Buf.ToString;
@@ -2605,7 +2603,7 @@ function TJSONArray.ToString: UnicodeString;
 var
   Buf: TStringBuffer;
   Size: Integer;
-  I: Integer;
+  i: Integer;
 begin
   Size := FElements.Count;
   Buf := TStringBuffer.Create;
@@ -2613,10 +2611,10 @@ begin
     Buf.Append('[');
     if Size > 0 then
       Buf.Append(FElements[0].ToString);
-    for I := 1 to Size - 1 do
+    for i := 1 to Size - 1 do
     begin
       Buf.Append(',');
-      Buf.Append(FElements[I].ToString);
+      Buf.Append(FElements[i].ToString);
     end;
     Buf.Append(']');
     Result := Buf.ToString;
@@ -2628,11 +2626,11 @@ end;
 function TJSONArray.Clone: TJSONAncestor;
 var
   Data: TJSONArray;
-  I: Integer;
+  i: Integer;
 begin
   Data := TJSONArray.Create;
-  for I := 0 to Size - 1 do
-    Data.AddDescendant(Get(I).Clone);
+  for i := 0 to Size - 1 do
+    Data.AddDescendant(Get(i).Clone);
   Result := Data;
 end;
 

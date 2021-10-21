@@ -48,9 +48,6 @@ type
     { Public declarations }
   end;
 
-var
-  frmOAuth: TfrmOAuth;
-
 implementation
 
 {$R *.dfm}

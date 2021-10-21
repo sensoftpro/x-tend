@@ -36,7 +36,7 @@ unit uUIBuilder;
 interface
 
 uses
-  Classes, Generics.Collections, UITypes, uConsts, uView, uDefinition, uEntity, uChangeManager;
+  Classes, Generics.Collections, UITypes, uConsts, uView, uDefinition, uEntity;
 
 type
   TUIBuilder = class;
@@ -252,7 +252,7 @@ implementation
 
 uses
   SysUtils, StrUtils, IOUtils,
-  uPresenter, uInteractor, uConfiguration, uSession,
+  uPlatform, uPresenter, uInteractor, uConfiguration, uSession, uChangeManager,
   uUtils, uDomain, uObjectField, uEntityList;
 
 { TUIBuilder }
@@ -286,8 +286,7 @@ begin
   else
   begin
     MakeDefaultLayout(AArea, AView);
-    if (TDomain(TInteractor(FInteractor).Domain).DeploymentType = 'dev')
-      or (TDomain(TInteractor(FInteractor).Domain).DeploymentType = 'mock') then
+    if (_Platform.DeploymentType = 'dev') or (_Platform.DeploymentType = 'mock') then
       AArea.SaveLayoutToFile(TPath.Combine(TPath.GetTempPath, ALayoutName + '_auto'));
   end;
 end;

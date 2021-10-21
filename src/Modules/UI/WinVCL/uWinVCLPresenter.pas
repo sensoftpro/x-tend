@@ -40,9 +40,9 @@ uses
   ExtCtrls, TypInfo, Types, ComCtrls, SysUtils, Windows, Graphics,
   Variants, Controls, Forms, Mask, Menus,
 
-  uDefinition, uPresenter, uInteractor, uView,
+  uDefinition, uPresenter, uInteractor, uView, uSettings,
 
-  StartForm, LoginForm, DebugInfoForm, SplashForm, uUIBuilder, vclArea;
+  StartForm, DebugInfoForm, SplashForm, uUIBuilder;
 
 type
   TImageResolution = (ir16x16, ir24x24, ir32x32);
@@ -52,10 +52,13 @@ type
   private
     function InternalMessageBox(const AText, ACaption: string; Flags: Longint; ALangID: Word): Integer;
     procedure LoadImages(const AInteractor: TInteractor; const AImageList: TDragImageList; const AResolution: Integer);
+    procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
+    procedure OnDomainError(const ACaption, AText: string);
   private
     FRowStyle: TObject;
     FLongOperationCount: Integer;
     FPrevCursor: TCursor;
+    FNeedShowSplash: Boolean;
   protected
     //FOnRFIDRead: TRFIDReadEvent;
     FTrayIcon: TTrayIcon;
@@ -74,14 +77,12 @@ type
     procedure OnShortCut(var Msg: TWMKey; var Handled: Boolean);
     function MessageTypeToMBFlags(const AMessageType: TMessageType): Integer;
   protected
-    function GetPresenterName: string; override;
-
     procedure DoRun(const AParameter: string); override;
     procedure DoStop; override;
 
     function DoLogin(const ADomain: TObject): TInteractor; override;
     procedure DoLogout(const AInteractor: TInteractor); override;
-    procedure DoAuthorize(const AAccount: TObject; const AURL: string; const AWidth, AHeight: Integer;
+    procedure DoAuthorize(const AAccount: TObject; const AUrl: string; const AWidth, AHeight: Integer;
       const AOnNavigated: TNavigateEvent); override;
 
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); override;
@@ -96,7 +97,7 @@ type
 
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; override;
   public
-    constructor Create(const AStyleName: string); override;
+    constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
 
     procedure SetAsMainForm(const AForm: TForm);
@@ -123,6 +124,8 @@ type
     procedure LongOperationStarted;
     procedure LongOperationEnded;
 
+    procedure SetDomain(const ADomain: TObject); override;
+
     property RowStyle: TObject read FRowStyle;
   end;
 
@@ -132,8 +135,8 @@ uses
   Dialogs, Math, MultiMon, StrUtils, ShellAPI, WinInet, SHDocVw, ActiveX,
   cxGraphics, dxGDIPlusClasses, cxImage, cxEdit, cxPC, cxLookAndFeels, cxLookAndFeelPainters, cxStyles, cxMemo,
 
-  uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity, uEntityList, uSession,
-  uManagedForm, AboutForm, ReportConfigureForm, OptionsForm, uOAuthForm;
+  uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity, uEntityList, vclArea, uSession,
+  uManagedForm, AboutForm, ReportConfigureForm, OptionsForm, uOAuthForm, LoginForm;
 
 type
   TLoginedProc = procedure(const AInteractor: TInteractor) of object;
@@ -186,11 +189,16 @@ begin
     SetAsMainForm(TForm(TVCLArea(ANewArea).Control));
 end;
 
-constructor TWinVCLPresenter.Create(const AStyleName: string);
+constructor TWinVCLPresenter.Create(const AName: string; const ASettings: TSettings);
 begin
-  inherited Create(AStyleName);
+  inherited Create(AName, ASettings);
   FLongOperationCount := 0;
   FRowStyle := TcxStyle.Create(nil);
+
+  if ASettings.KeyExists(AName, 'ShowSplash') then
+    FNeedShowSplash := StrToBoolDef(ASettings.GetValue(AName, 'ShowSplash'), False)
+  else
+    FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
 end;
 
 function TWinVCLPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
@@ -211,12 +219,12 @@ begin
   end;
 
   if AView.DefinitionKind = dkEntity then
-    vFieldAreaClass := TVCLFieldAreaClass(GetUIClass(GetPresenterName, uiEntityEdit, vViewName))
+    vFieldAreaClass := TVCLFieldAreaClass(GetUIClass(FName, uiEntityEdit, vViewName))
   else if ALayout is TPageControl then
-    vFieldAreaClass := TVCLFieldAreaClass(GetUIClass(GetPresenterName,
+    vFieldAreaClass := TVCLFieldAreaClass(GetUIClass(FName,
       ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), 'pages'))
   else
-    vFieldAreaClass := TVCLFieldAreaClass(GetUIClass(GetPresenterName,
+    vFieldAreaClass := TVCLFieldAreaClass(GetUIClass(FName,
       ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), vViewName));
 
   if vParams = '' then
@@ -433,6 +441,20 @@ begin
   end;
 end;
 
+procedure TWinVCLPresenter.OnDomainError(const ACaption, AText: string);
+begin
+  ShowMessage(ACaption, AText, msError);
+end;
+
+procedure TWinVCLPresenter.OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
+begin
+  if FNeedShowSplash then
+  begin
+    FProgressInfo.SetProgress(AProgress, AInfo);
+    ShowPage(nil, 'splash', FProgressInfo);
+  end;
+end;
+
 procedure TWinVCLPresenter.OnShortCut(var Msg: TWMKey; var Handled: Boolean);
 var
   vActiveInteractor: TInteractor;
@@ -580,27 +602,28 @@ var
   vLoginForm: TLoginFm;
 begin
   vLoginForm := TLoginFm.Create(nil);
+  try
+    vLoginForm.Init(AAppTitle);
+    vLoginForm.LoginName := ALoginName;
+    vLoginForm.Pass := APass;
+    //vLoginForm.RFID := '';
 
-  vLoginForm.Init(AAppTitle);
-  vLoginForm.LoginName := ALoginName;
-  vLoginForm.Pass := APass;
-  //vLoginForm.RFID := '';
+    //FOnRFIDRead := vLoginForm.OnRFIDReceived;
+    //try
+      Result := vLoginForm.ShowModal = mrOk;
+    //finally
+    //  FOnRFIDRead := nil;
+    //end;
 
-  //FOnRFIDRead := vLoginForm.OnRFIDReceived;
-  //try
-    Result := vLoginForm.ShowModal = mrOk;
-  //finally
-  //  FOnRFIDRead := nil;
-  //end;
-
-  if Result then
-  begin
-    ALoginName := vLoginForm.LoginName;
-    APass := vLoginForm.Pass;
-    //ARFID := vLoginForm.RFID;
+    if Result then
+    begin
+      ALoginName := vLoginForm.LoginName;
+      APass := vLoginForm.Pass;
+      //ARFID := vLoginForm.RFID;
+    end;
+  finally
+    FreeAndNil(vLoginForm);
   end;
-
-  FreeAndNil(vLoginForm);
 end;
 
 function TWinVCLPresenter.ShowPage(const AInteractor: TInteractor; const APageType: string;
@@ -618,7 +641,7 @@ begin
   end
   else if (APageType = 'debug') then
   begin
-    if TDomain(AInteractor.Domain).DeploymentType = 'dev' then
+    if _Platform.DeploymentType = 'dev' then
     begin
       if not Assigned(FDebugForm) then
       begin
@@ -658,7 +681,7 @@ begin
       FSplashForm.UpdateProgress(vProgressInfo.Progress, vProgressInfo.Info);
   end
   else begin
-    vPageClass := TManagedFormClass(GetPageClass(GetPresenterName, APageType));
+    vPageClass := TManagedFormClass(GetPageClass(FName, APageType));
     if Assigned(vPageClass) then
       TManagedForm.ShowPage(vPageClass, AInteractor);
   end;
@@ -794,7 +817,7 @@ begin
     vAuthForm.Close;
 end;
 
-procedure TWinVCLPresenter.DoAuthorize(const AAccount: TObject; const AURL: string;
+procedure TWinVCLPresenter.DoAuthorize(const AAccount: TObject; const AUrl: string;
   const AWidth, AHeight: Integer; const AOnNavigated: TNavigateEvent);
 var
   vAuthForm: TfrmOAuth;
@@ -819,7 +842,7 @@ begin
   vAuthForm.wbrAuthData.OnNavigateComplete2 := DoAuthFormNavigated;
   try
     vFlags := Cardinal(navNoReadFromCache or navNoWriteToCache or navNoHistory);
-    vAuthForm.wbrAuthData.Navigate2(AURL);
+    vAuthForm.wbrAuthData.Navigate2(AUrl);
     vAuthForm.Show;
   except
     on E: Exception do
@@ -1343,11 +1366,6 @@ begin
     AControls.Add(vParentControl.Controls[i]);
 end;
 
-function TWinVCLPresenter.GetPresenterName: string;
-begin
-  Result := 'WinVCL';
-end;
-
 function TWinVCLPresenter.GetLayoutCaption(const ALayout: TObject): string;
 begin
   if ALayout is TPageControl then
@@ -1455,6 +1473,13 @@ var
 begin
   p := @Application.MainForm;
   Pointer(p^) := AForm;
+end;
+
+procedure TWinVCLPresenter.SetDomain(const ADomain: TObject);
+begin
+  inherited SetDomain(ADomain);
+  TDomain(ADomain).OnError := OnDomainError;
+  TDomain(ADomain).OnProgress := OnDomainLoadProgress;
 end;
 
 procedure TWinVCLPresenter.SetLayoutCaption(const ALayout: TObject; const ACaption: string);

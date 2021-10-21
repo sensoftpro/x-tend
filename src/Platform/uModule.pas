@@ -59,11 +59,13 @@ type
   TDomainModule = class(TBaseModule)
   protected
     [Weak] FDomain: TObject;
+    FName: string;
   public
-    constructor Create(const ADomain: TObject); virtual;
+    constructor Create(const ADomain: TObject; const AName: string); virtual;
     destructor Destroy; override;
 
     property Domain: TObject read FDomain;
+    property Name: string read FName;
   end;
 
   TDomainModuleClass = class of TDomainModule;
@@ -126,10 +128,11 @@ end;
 
 { TDomainModule }
 
-constructor TDomainModule.Create(const ADomain: TObject);
+constructor TDomainModule.Create(const ADomain: TObject; const AName: string);
 begin
   inherited Create;
   FDomain := ADomain;
+  FName := AName;
 end;
 
 destructor TDomainModule.Destroy;

@@ -37,12 +37,14 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, IOUtils,
-  Controls, Forms, Grids, OkCancelFrame, uInteractor;
+  Controls, Forms, Grids, cxButtons, uInteractor, cxGraphics, cxLookAndFeels, cxLookAndFeelPainters, Vcl.Menus,
+  Vcl.StdCtrls, Vcl.ExtCtrls;
 
 type
   TLangEditFm = class(TForm)
-    OkCancelFrm1: TOkCancelFrm;
     gridLanguages: TStringGrid;
+    btnOk: TcxButton;
+    btnCancel: TcxButton;
     procedure gridLanguagesDblClick(Sender: TObject);
   private
     FInteractor: TInteractor;
@@ -54,7 +56,7 @@ type
 implementation
 
 uses
-  IniFiles, TranslationEditForm, uDomain, uConfiguration, uLocalizator;
+  IniFiles, TranslationEditForm, uConfiguration, uLocalizator;
 
 {$R *.dfm}
 
@@ -146,8 +148,9 @@ end;
 procedure TLangEditFm.Init(const AInteractor: TInteractor);
 begin
   FInteractor := AInteractor;
-  OkCancelFrm1.Init(FInteractor);
   Caption := FInteractor.Translate('@' + Self.ClassName + '@Caption', 'Редактирование словарей');
+  btnOk.Caption := FInteractor.Translate('@btnOk@Caption', 'Ок');
+  btnCancel.Caption := FInteractor.Translate('@btnCancel@Caption', 'Отмена');
 end;
 
 end.

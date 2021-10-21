@@ -15,21 +15,17 @@ object DebugFm: TDebugFm
   OnDestroy = FormDestroy
   PixelsPerInch = 96
   TextHeight = 13
-  object PageControl1: TPageControl
+  object pcTabs: TPageControl
     Left = 0
     Top = 0
     Width = 993
     Height = 785
-    ActivePage = TabSheet2
+    ActivePage = TabSheet1
     Align = alClient
     TabOrder = 0
     object TabSheet1: TTabSheet
       Caption = 'TabSheet1'
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
-      object Splitter1: TSplitter
+      object spltCommon: TSplitter
         Left = 397
         Top = 0
         Width = 8
@@ -47,41 +43,22 @@ object DebugFm: TDebugFm
         ScrollBars = ssBoth
         TabOrder = 0
       end
-      object Panel1: TPanel
+      object pnlView: TPanel
         Left = 405
         Top = 0
         Width = 580
         Height = 757
         Align = alClient
-        Caption = 'Panel1'
+        Caption = 'pnlView'
         TabOrder = 1
-        object Splitter2: TSplitter
-          Left = 1
-          Top = 525
-          Width = 578
-          Height = 8
-          Cursor = crVSplit
-          Align = alTop
-          ExplicitTop = 341
-          ExplicitWidth = 484
-        end
         object memView: TMemo
           Left = 1
           Top = 1
           Width = 578
-          Height = 524
-          Align = alTop
-          ScrollBars = ssBoth
-          TabOrder = 0
-        end
-        object memDomain: TMemo
-          Left = 1
-          Top = 533
-          Width = 578
-          Height = 223
+          Height = 755
           Align = alClient
           ScrollBars = ssBoth
-          TabOrder = 1
+          TabOrder = 0
         end
       end
     end

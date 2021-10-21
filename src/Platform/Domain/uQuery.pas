@@ -80,8 +80,7 @@ type
 implementation
 
 uses
-  SysUtils, Variants, uObjectField,
-  uDomain, uCollection, uSession, uDomainUtils;
+  SysUtils, Variants, uObjectField, uDomain, uCollection, uSession, uDomainUtils;
 
 { TQueryExecutor }
 
@@ -312,6 +311,8 @@ begin
       Result := TUserSession(ASession).IsAdmin
     else if TBoolCriteria(ACriteria).Variable = '$IsService$' then
       Result := AEntity.IsService
+    else if TBoolCriteria(ACriteria).Variable = '$IsNew$' then
+      Result := AEntity.IsNew
     else
       Result := CheckCondition(AValue, True, AFieldKind, ckEqualTo, cmNone);
   end

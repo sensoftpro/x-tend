@@ -155,49 +155,6 @@
         <DCCReference Include="..\..\Modules\Storage\OLEDB\uOLEDBStorage.pas"/>
         <DCCReference Include="..\..\Modules\Reporting\FastReport\uFRReport.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\GDIPlus\uGDIPlusPainter.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\uWinVCLPresenter.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\uWinScene.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclArea.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclSimpleEditors.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclEntityEditors.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclListEditors.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclBlobEditors.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclPopupForm.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\uManagedForm.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\StartForm.pas">
-            <Form>StartFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\LoginForm.pas">
-            <Form>LoginFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\OptionsForm.pas">
-            <Form>OptionsFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\TranslationEditForm.pas">
-            <Form>TranslationEditFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\LangEditForm.pas">
-            <Form>LangEditFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\AboutForm.pas">
-            <Form>AboutFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\ReportConfigureForm.pas">
-            <Form>ReportConfigureFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\uOAuthForm.pas">
-            <Form>frmOAuth</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\DebugInfoForm.pas">
-            <Form>DebugFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\OkCancelFrame.pas">
-            <Form>OkCancelFrm</Form>
-            <DesignClass>TFrame</DesignClass>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\SplashForm.pas">
-            <Form>SplashFm</Form>
-        </DCCReference>
         <DCCReference Include="uConfiguratorScript.pas">
             <Form>$R *.res</Form>
         </DCCReference>

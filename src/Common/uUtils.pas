@@ -64,7 +64,7 @@ function MoneyToStringEng(const AMoney: Currency; const ACurrName, ACentName: st
 type
   TCompLevel = (cmlNone, cmlFastest, cmlDefault, cmlMax);
 
-function CompressStream(inStream, outStream :TStream; const Level : TCompLevel = cmlDefault):boolean;
+function CompressStream(InStream, OutStream: TStream; const Level : TCompLevel = cmlDefault):boolean;
 procedure ExpandStream(const AInStream, AOutStream: TStream);
 function CryptStream(InStream, OutStream: TStream; const Password: string; isCrypt: boolean): Boolean;
 
@@ -511,8 +511,8 @@ const
   factor3: array[0..10] of byte = (3, 7, 2, 4, 10, 3, 5, 9, 4, 6, 8);
 var
  i: byte;
- sum: word;
- sum2: word;
+ Sum: word;
+ Sum2: word;
 begin
   if Length(INN) = 0 then
   begin
@@ -524,26 +524,26 @@ begin
 
   try
     if Length(INN) = 10 then begin
-      sum := 0;
+      Sum := 0;
       for i:=0 to 8 do
-        sum := sum + StrToInt(INN[i+1])*factor1[i];
-      sum := sum mod 11;
-      sum := sum mod 10;
-      Result := StrToInt(INN[10]) = sum;
+        Sum := Sum + StrToInt(INN[i+1])*factor1[i];
+      Sum := Sum mod 11;
+      Sum := Sum mod 10;
+      Result := StrToInt(INN[10]) = Sum;
     end
     else if Length(INN) = 12 then begin
-      sum := 0;
+      Sum := 0;
       for i:=0 to 9 do
-        sum := sum + StrToInt(INN[i+1])*factor2[i];
-      sum := sum mod 11;
-      sum := sum mod 10;
-      sum2 := 0;
+        Sum := Sum + StrToInt(INN[i+1])*factor2[i];
+      Sum := Sum mod 11;
+      Sum := Sum mod 10;
+      Sum2 := 0;
       for i:=0 to 10 do
-        sum2 := sum2 + StrToInt(INN[i+1])*factor3[i];
-      sum2 := sum2 mod 11;
-      sum2 := sum2 mod 10;
-      Result := (StrToInt(INN[11]) = sum) and
-                (StrToInt(INN[12]) = sum2);
+        Sum2 := Sum2 + StrToInt(INN[i+1])*factor3[i];
+      Sum2 := Sum2 mod 11;
+      Sum2 := Sum2 mod 10;
+      Result := (StrToInt(INN[11]) = Sum) and
+                (StrToInt(INN[12]) = Sum2);
     end; //
   except
     Result := False;
@@ -564,7 +564,7 @@ end;
 // ===========================================
 function CheckPFCertificate(const PF: string): Boolean;
 var
-  sum: Word;
+  Sum: Word;
   i: Byte;
 begin
   if Length(PF) = 0 then
@@ -573,16 +573,16 @@ begin
     Exit;
   end;
 
-  sum := 0;
+  Sum := 0;
 
   if Length(PF) <> 11 then
     Result := False
   else
     try
       for i:=1 to 9 do
-        sum := sum + StrToInt(PF[i])*(9-i+1);
-      sum := sum mod 101;
-      Result := StrToInt(Copy(PF, 10, 2)) = sum;
+        Sum := Sum + StrToInt(PF[i])*(9-i+1);
+      Sum := Sum mod 101;
+      Result := StrToInt(Copy(PF, 10, 2)) = Sum;
     except
       Result := False;
     end; // try
@@ -1055,17 +1055,17 @@ begin
   OutStream.Position := 0;
 end;
 
-function CompressStream(inStream, outStream :TStream; const Level : TCompLevel = cmlDefault):boolean;
+function CompressStream(InStream, OutStream: TStream; const Level: TCompLevel = cmlDefault):boolean;
 begin
-  inStream.Position := 0;
-  outStream.Position := 0;
-  with TCompressionStream.Create(TCompressionLevel(Level), outStream) do
+  InStream.Position := 0;
+  OutStream.Position := 0;
+  with TCompressionStream.Create(TCompressionLevel(Level), OutStream) do
     try
-      CopyFrom(inStream, inStream.Size);
+      CopyFrom(InStream, InStream.Size);
       Free;
-      result:=true;
+      result := True;
     except
-      result:=false;
+      result := False;
     end;
 end;
 

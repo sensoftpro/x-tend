@@ -37,13 +37,12 @@ interface
 
 uses
   Winapi.Windows, System.SysUtils, System.Variants, System.Classes, Vcl.Graphics,
-  Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.ExtCtrls, OkCancelFrame, cxGraphics, cxControls,
-  cxLookAndFeels, cxLookAndFeelPainters, cxStyles, uInteractor, uLocalizator;
+  Vcl.Controls, Vcl.Forms, Vcl.StdCtrls, Vcl.ExtCtrls, cxGraphics, cxControls,
+  cxLookAndFeels, cxLookAndFeelPainters, cxStyles, cxButtons, uInteractor, uLocalizator, Vcl.Menus;
 
 type
   TOptionsFm = class(TForm)
     chbShowStartPage: TCheckBox;
-    OkCancelFrm1: TOkCancelFrm;
     lblLanguage: TLabel;
     btnEditDictionaries: TButton;
     lbxLanguages: TListBox;
@@ -52,6 +51,9 @@ type
     chbShowBordersForDisabled: TCheckBox;
     chbMouseMultiSelectInGrids: TCheckBox;
     chbMarkRequiredFields: TCheckBox;
+    OkCancel: TPanel;
+    btnOk: TcxButton;
+    btnCancel: TcxButton;
     procedure btnEditDictionariesClick(Sender: TObject);
   private
     FInteractor: TInteractor;
@@ -115,7 +117,6 @@ procedure TOptionsFm.Init(const AInteractor: TInteractor);
 begin
   FInteractor := AInteractor;
   FLocalizator := TConfiguration(FInteractor.Configuration).Localizator;
-  OkCancelFrm1.Init(FInteractor);
   Caption := FInteractor.Translate('@' + Self.ClassName + '@Caption', 'Опции');
   lblLanguage.Caption := FInteractor.Translate('@' + Self.ClassName + '.lblLanguages@Caption', 'Языки приложения');
   btnAddLanguage.Caption := FInteractor.Translate('@' + Self.ClassName + '.btnAddLanguage@Caption', 'Добавить язык');
@@ -130,6 +131,8 @@ begin
     'Множественный выбор строк в таблицах мышкой');
   chbMarkRequiredFields.Caption := FInteractor.Translate('@' + Self.ClassName + '.chbMarkRequiredFields@Caption',
     'Помечать обязательные поля символами **');
+  btnOk.Caption := FInteractor.Translate('@btnOk@Caption', 'Ок');
+  btnCancel.Caption := FInteractor.Translate('@btnCancel@Caption', 'Отмена');
 end;
 
 end.

@@ -58,9 +58,6 @@ type
     procedure Deinit;
   end;
 
-var
-  StartFm: TStartFm;
-
 implementation
 
 uses

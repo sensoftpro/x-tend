@@ -37,7 +37,8 @@ interface
 
 uses
   Windows, Messages, Graphics, Forms,
-  StdCtrls, Controls, ExtCtrls, Classes, Buttons, Mask, dxGDIPlusClasses, OkCancelFrame;
+  StdCtrls, Controls, ExtCtrls, Classes, Buttons, Mask, dxGDIPlusClasses, cxButtons, cxGraphics, cxLookAndFeels,
+  cxLookAndFeelPainters, Vcl.Menus;
 
 type
   TLoginFm = class(TForm)
@@ -46,8 +47,10 @@ type
     lblPassword: TLabel;
     edLogin: TEdit;
     edPass: TMaskEdit;
-    OkCancelFrm1: TOkCancelFrm;
     edRFID: TEdit;
+    OkCancel: TPanel;
+    btnOk: TcxButton;
+    btnCancel: TcxButton;
     procedure FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   private
     function GetLoginName: string;
@@ -101,7 +104,8 @@ begin
   Caption := ACaption;
   lblLogin.Caption := _Platform.Translate('@' + Self.ClassName + '.lblLogin@Caption', 'Пользователь');
   lblPassword.Caption := _Platform.Translate('@' + Self.ClassName + '.lblPassword@Caption', 'Пароль');
-  OkCancelFrm1.Init(nil);
+  btnOk.Caption := _Platform.Translate('@btnOk@Caption', 'Ок');
+  btnCancel.Caption := _Platform.Translate('@btnCancel@Caption', 'Отмена');
 end;
 
 procedure TLoginFm.OnRFIDReceived(const ANewRFID: string);

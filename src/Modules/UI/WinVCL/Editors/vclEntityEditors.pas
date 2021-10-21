@@ -161,10 +161,10 @@ type
     constructor Create(const AEntity: TEntity; const AFieldDef: TFieldDef);
   end;
 
-function IsAlpha(C: Char): Boolean;
+function IsAlpha(c: Char): Boolean;
 begin
-  Result := ((C >= 'а') and (C <= 'я')) or ((C >= 'А') and (C <= 'Я')) or
-    ((C >= 'a') and (C <= 'z')) or ((C >= 'A') and (C <= 'Z'));
+  Result := ((c >= 'а') and (c <= 'я')) or ((c >= 'А') and (c <= 'Я')) or
+    ((c >= 'a') and (c <= 'z')) or ((c >= 'A') and (c <= 'Z'));
 end;
 
 function VKeytoWideString(const AKey: Word): WideString;
@@ -190,7 +190,7 @@ begin
   inherited;
 
   if Assigned(FButtonView) then
-    FButtonView.CleanView;
+    FButtonView.RemoveListener(Self);
 
   if Assigned(FSelectPopup) then
   begin
@@ -210,6 +210,7 @@ begin
     FSelectPopup := nil;
   end;
   FEntities := nil;
+  FButtonView := nil;
   FBasePanel := TPanel.Create(nil);
   FBasePanel.BevelOuter := bvNone;
   FBasePanel.ShowCaption := False;
@@ -275,6 +276,7 @@ begin
   FbtnAdd.TabStop := False;
   //FbtnAdd.Tag := Integer();
   FButtonView := FView.BuildView('Create?place=embedded');
+  FButtonView.AddListener(Self);
 
   vDefinitions := TEntityFieldDef(FFieldDef).ContentDefinitions;
   if vDefinitions.Count > 1 then
@@ -895,7 +897,7 @@ procedure TEntityFieldListEditor.CreateRowsFromModel(const ARootEntity: TEntity;
   const AViewPath: string; const ARootEntityIndex: Integer = -1);
 var
   vFieldDef: TFieldDef;
-  vEntityList: TList<TEntity>;
+  vListField: TListField;
   vCategory: TcxCategoryRow;
   i: Integer;
 begin
@@ -905,17 +907,13 @@ begin
   begin
     if vFieldDef.Kind = fkList then
     begin
-      vEntityList := ARootEntity.GetFieldList(vFieldDef.Name);
-      try
-        if vEntityList.Count > 0 then
-        begin
-          vCategory := CreateCategoryRow(ARootEntity, vFieldDef);
-          vCategory.Parent := ARootRow;
-          for i := 0 to vEntityList.Count - 1 do
-            CreateRowsFromModel(vEntityList[i], vCategory, vFieldDef.Name + '/' + IntToStr(i) + '/', i);
-        end;
-      finally
-        FreeAndNil(vEntityList);
+      vListField := TListField(ARootEntity.FieldByName(vFieldDef.Name));
+      if vListField.Count > 0 then
+      begin
+        vCategory := CreateCategoryRow(ARootEntity, vFieldDef);
+        vCategory.Parent := ARootRow;
+        for i := 0 to vListField.Count - 1 do
+          CreateRowsFromModel(vListField[i], vCategory, vFieldDef.Name + '/' + IntToStr(i) + '/', i);
       end;
     end
     else
@@ -1232,11 +1230,11 @@ end;
 
 initialization
 
-TPresenter.RegisterUIClass('WinVCL', uiEntityEdit, '', TVCLEntityFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiEntityEdit, 'list', TListEntityFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiEntityEdit, 'link', TVCLLinkedEntityFieldEditor);
-TPresenter.RegisterUIClass('WinVCL', uiEntityEdit, 'select', TVCLEntitySelector);
-TPresenter.RegisterUIClass('WinVCL', uiEntityEdit, 'fieldlist', TEntityFieldListEditor);
-TPresenter.RegisterUIClass('WinVCL', uiEntityEdit, 'radio', TRadioEntitySelector);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, '', TVCLEntityFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'list', TListEntityFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'link', TVCLLinkedEntityFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'select', TVCLEntitySelector);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'fieldlist', TEntityFieldListEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'radio', TRadioEntitySelector);
 
 end.

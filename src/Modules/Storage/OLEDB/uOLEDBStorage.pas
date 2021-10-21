@@ -36,7 +36,7 @@ unit uOLEDBStorage;
 interface
 
 uses
-  Classes, ADOX_TLB, DB, Generics.Collections, uDBConnector, uStorage, uLogger, uJSON, uParameters, uConsts;
+  Classes, ADOX_TLB, DB, Generics.Collections, uDBConnector, uStorage, uJSON, uParameters, uConsts;
 
 type
   TDBContext = class
@@ -120,7 +120,7 @@ type
     procedure DoCommitTransaction(const ATransactionID: Integer = -1); override;
     procedure DoRollbackTransaction(const ATransactionID: Integer = -1); override;
   public
-    constructor Create(const ALogger: TLogger; const AParams: string = ''); override;
+    constructor Create(const ADomain: TObject; const AName: string); override;
     destructor Destroy; override;
 
     procedure UpdateNumerator(const ATag: string; const ALastID: Integer); override;
@@ -132,7 +132,7 @@ type
       const ASize: Integer): string; override;
     procedure CheckTableIndexes(const ATable: _Table); override;
   public
-    constructor Create(const ALogger: TLogger; const AParams: string = ''); override;
+    constructor Create(const ADomain: TObject; const AName: string); override;
   end;
 
   TSQLServerStorage = class(TOLEDBStorage)
@@ -141,13 +141,13 @@ type
       const ASize: Integer): string; override;
     procedure CheckTableIndexes(const ATable: _Table); override;
   public
-    constructor Create(const ALogger: TLogger; const AParams: string = ''); override;
+    constructor Create(const ADomain: TObject; const AName: string); override;
   end;
 
 implementation
 
 uses
-  Variants, SysUtils, StrUtils, uModule;
+  Variants, SysUtils, StrUtils, IOUtils, uModule, uDomain, uSettings;
 
 { TDBContext }
 
@@ -411,7 +411,7 @@ end;
 
 //http://hiprog.com/index.php?option=com_content&task=view&id=251661555&Itemid=35
 
-constructor TOLEDBStorage.Create(const ALogger: TLogger; const AParams: string = '');
+constructor TOLEDBStorage.Create(const ADomain: TObject; const AName: string);
   {function TypeToStr(const AType: DataTypeEnum): string;
   begin
     case AType of
@@ -503,9 +503,8 @@ constructor TOLEDBStorage.Create(const ALogger: TLogger; const AParams: string =
     vStr.Free;
   end; }
 begin
-  inherited Create(ALogger, AParams);
+  inherited Create(ADomain, AName);
   FGroupList := TList.Create;
-  FConnectionString := AParams;
 end;
 
 function TOLEDBStorage.DataTypeFromFieldKind(
@@ -1132,11 +1131,48 @@ begin
   end;
 end;
 
-constructor TSQLServerStorage.Create(const ALogger: TLogger; const AParams: string = '');
+constructor TSQLServerStorage.Create(const ADomain: TObject; const AName: string);
+var
+  vSettings: TSettings;
+  vSectionName: string;
+  vHost: string;
+  vDatabase: string;
+  vIsTrusted: Boolean;
+  vUserName: string;
+  vPassword: string;
 begin
-  inherited Create(ALogger, AParams);
+  inherited Create(ADomain, AName);
 
-  FName := 'MSSQLServer';
+  vSettings := TDomain(ADomain).Settings;
+  if vSettings.SectionExists(AName) then
+    vSectionName := AName
+  else
+    vSectionName := 'MSSQLServer';
+
+  vHost := vSettings.GetValue(vSectionName, 'Host', '(local)');
+  vDatabase := vSettings.GetValue(vSectionName, 'Database', 'empty');
+  vIsTrusted := StrToBoolDef(vSettings.GetValue(vSectionName, 'IsTrusted'), False);
+  if vIsTrusted then
+    FConnectionString := Format(cTrustedMSSQLConnectionString, [vHost, vDatabase])
+  else begin
+    vUserName := vSettings.GetValue(vSectionName, 'User', 'sa');
+    vPassword := vSettings.GetValue(vSectionName, 'Password', '');
+    FConnectionString := Format(cRegularMSSQLConnectionString, [vHost, vDatabase, vUserName, vPassword]);
+  end;
+
+  if not vSettings.SectionExists(AName) then
+  begin
+    vSettings.SetValue(AName, 'Host', vHost);
+    vSettings.SetValue(AName, 'Database', vDatabase);
+    vSettings.SetValue(AName, 'IsTrusted', IfThen(vIsTrusted, '1', '0'));
+    if not vIsTrusted then
+    begin
+      vSettings.SetValue(AName, 'User', vUserName);
+      vSettings.SetValue(AName, 'Password', vPassword);
+    end;
+  end;
+
+  FLogger.AddMessage(FConnectionString);
 
   try
     FDBConnector := TSQLServerConnector.Create(FConnectionString);
@@ -1180,11 +1216,28 @@ begin
     FCurTableDef.Keys.Append(FCurTableDef.Name + '_id', adKeyPrimary, 'id', '', '');
 end;
 
-constructor TMSAccessStorage.Create(const ALogger: TLogger; const AParams: string = '');
+constructor TMSAccessStorage.Create(const ADomain: TObject; const AName: string);
+var
+  vSettings: TSettings;
+  vSectionName: string;
+  vDBName: string;
 begin
-  inherited Create(ALogger, AParams);
+  inherited Create(ADomain, AName);
 
-  FName := 'MSAccess';
+  vSettings := TDomain(ADomain).Settings;
+  if vSettings.SectionExists(AName) then
+    vSectionName := AName
+  else
+    vSectionName := 'MSAccess';
+
+  vDBName := vSettings.GetValue(vSectionName, 'Database', 'empty.mdb');
+  if not vSettings.SectionExists(AName) then
+    vSettings.SetValue(AName, 'Database', vDBName);
+
+  FConnectionString := Format(cMSAccessConnectionString,
+    [TPath.Combine(TDomain(ADomain).Configuration.ConfigurationDir, vDBName)]);
+
+  FLogger.AddMessage(FConnectionString);
 
   FDBConnector := TAccessConnector.Create(FConnectionString);
 end;

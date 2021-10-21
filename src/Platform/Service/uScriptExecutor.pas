@@ -37,15 +37,10 @@ interface
 
 uses
   Classes, Generics.Collections, SyncObjs, uFastClasses, uTask, uCodeParser, uEntity, uSession,
-  uChangeManager, uConsts, uObjectField, uEntityList, uScript, uModule, uView;
+  uChangeManager, uConsts, uScript, uModule, uView;
 
 type
   TParameterType = (ptAny, ptString, ptInteger, ptFloat, ptDateTime, ptBoolean, ptObject, ptCommand, ptText);
-const
-  cParameterTypeCaptions: array[TParameterType] of string =
-    ('Любой', 'Строка', 'Целое число', 'Дробное число', 'Дата/время', 'Булево', 'Объект', 'Команда', 'Текст');
-
-type
   TExpressionNodeKind = (enkValue, enkVariable, enkNeg, enkAdd, enkSub, enkMul, enkDiv);
 
 const
@@ -61,8 +56,8 @@ type
 
 type
   TLogMessageEvent = procedure(const AText: string) of object;
-  TExecuteCommandFunc = function(const AExecutor: TObject; const ATask: TTaskHandle; const AFiber, ACommand: TObject): Boolean of object;
   TCustomEvent = reference to procedure(const ATask: TTaskHandle; const AText: string);
+  TScriptEndEvent = reference to procedure(const AFiber: TObject);
 
   TScriptExecutor = class;
 
@@ -202,6 +197,7 @@ type
     FMethod: TCodeBlock;
     FSession: TUserSession;
     FOnCustomEvent: TCustomEvent;
+    FOnScriptEnd: TScriptEndEvent;
 
     FExecutionContexts: TObjectStack<TExecutionContext>;
 
@@ -212,7 +208,8 @@ type
     function GetDomain: TObject;
   public
     constructor Create(const AExecutor: TScriptExecutor; const AMethod: TCodeBlock;
-      const ASession: TUserSession; const AOnCustomEvent: TCustomEvent = nil);
+      const ASession: TUserSession; const AOnCustomEvent: TCustomEvent = nil;
+      const AOnScriptEnd: TScriptEndEvent = nil);
     destructor Destroy; override;
 
     procedure Suspend;
@@ -230,6 +227,8 @@ type
     property Session: TUserSession read FSession;
     property WakeTime: Cardinal read FWakeTime write FWakeTime;
     property OnCustomEvent: TCustomEvent read FOnCustomEvent;
+    property OnScriptEnd: TScriptEndEvent read FOnScriptEnd;
+
     property ScriptName: string read FScriptName;
     property Code: TCodeBlock read FMethod;
     property ID: Integer read FID;
@@ -258,35 +257,35 @@ type
     FRuntime: TExecutionRuntime;
     FOnLogMessage: TLogMessageEvent;
     FInProcess: Boolean;
-    FOnScriptEnd: TNotifyEvent;
-    FOnScriptStart: TNotifyEvent;
+
     FListeners: TList;
     FUseLogging: Boolean;
     function ExecuteCommand(const ATask: TTaskHandle; const AFiber: TExecutionFiber; const ACommand: TScriptCommand): Boolean;
-    procedure ShowLayout(const ATask: TTaskHandle; const ASession: TUserSession; const ATargetAreaName, ALayoutName: string);
     procedure WriteToLog(const AText: string);
   protected
     [Weak] FTaskEngine: TTaskEngine;
     procedure DoExecuteCommand(const ATask: TTaskHandle; const AFiber: TExecutionFiber;
       const ACommand: TScriptCommand); virtual;
   public
-    constructor Create(const ADomain: TObject); override;
+    constructor Create(const ADomain: TObject; const AName: string); override;
     destructor Destroy; override;
 
     function Prepare(const AScript: TEntity): TCodeBlock;
     function Execute(const AMainMethod: TCodeBlock; const ASession: TUserSession;
-      const AOnCustomEvent: TCustomEvent = nil): Integer;
+      const AOnCustomEvent: TCustomEvent = nil; const AOnScriptEnd: TScriptEndEvent = nil): Integer;
     procedure Stop(const ASession: TUserSession);
 
     procedure StopFiber(const ASession: TUserSession; const AFiberID: Integer);
 
     procedure PrintText(const ATask: TTaskHandle; const AText: string);
-    procedure NotifyEnd(const ATask: TTaskHandle; const AScriptName: string);
+    procedure NotifyEnd(const ATask: TTaskHandle; const AFiber: TExecutionFiber);
 
     function ExecuteScenario(const ASession: TUserSession; const AScenario: TEntity;
-      var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent = nil): Integer; overload;
+      var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent = nil;
+      const AOnScriptEnd: TScriptEndEvent = nil): Integer; overload;
     function ExecuteScenario(const ASession: TUserSession; const AIdent: string;
-      var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent = nil): Integer; overload;
+      var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent = nil;
+      const AOnScriptEnd: TScriptEndEvent = nil): Integer; overload;
     procedure StopScenario(const ASession: TUserSession; const AFiberID: Integer);
 
     //procedure Subscribe(const AListener: TObject);
@@ -296,8 +295,6 @@ type
     property OnLogMessage: TLogMessageEvent read FOnLogMessage write FOnLogMessage;
     property InProcess: Boolean read FInProcess;
     property UseLogging: Boolean read FUseLogging write FUseLogging;
-    property OnScriptStart: TNotifyEvent read FOnScriptStart write FOnScriptStart;
-    property OnScriptEnd: TNotifyEvent read FOnScriptEnd write FOnScriptEnd;
   end;
 
   TScriptInclusion = class(TInclusion)
@@ -316,7 +313,14 @@ implementation
 
 uses
   Types, SysUtils, Variants, StrUtils, RegularExpressions, Math, DateUtils,
-  uJSON, uUtils, uDomain, uDefinition, uCollection, uInteractor, uPresenter, uSettings;
+  uPlatform, uDomain, uDefinition, uCollection, uInteractor, uPresenter, uObjectField, uEntityList, uSettings;
+
+type
+  TExecuteCommandFunc = function(const AExecutor: TObject; const ATask: TTaskHandle; const AFiber, ACommand: TObject): Boolean of object;
+
+const
+  cParameterTypeCaptions: array[TParameterType] of string =
+    ('Любой', 'Строка', 'Целое число', 'Дробное число', 'Дата/время', 'Булево', 'Объект', 'Команда', 'Текст');
 
 procedure TScriptInclusion.DoInit;
 begin
@@ -464,80 +468,81 @@ begin
   end;
 
   vPointedCommands := TList<TEntity>.Create;
-
   vCommands := TEntityList.Create(AScript.Domain, nil);
-  TListField(AScript.FieldByName('Commands')).GetEntityList(nil, vCommands);
+  try
+    TListField(AScript.FieldByName('Commands')).GetEntityList(nil, vCommands);
 
-  for vCommand in vCommands do
-  begin
-    vCommandDef := vCommand.ExtractEntity('CommandDefinition');
-    if not Assigned(vCommandDef) then
-      Continue;
-
-    if (vCommandDef['Name'] = 'IF') or (vCommandDef['Name'] = 'GOTO') then
+    for vCommand in vCommands do
     begin
-      vParameter := ParameterByName(vCommand, 'NextCommand');
-      if Assigned(vParameter) and vParameter.Definition.IsDescendantOf('CommandParameterValues') then
-        vPointedCommands.Add(vParameter.ExtractEntity('Value'));
-    end;
-  end;
+      vCommandDef := vCommand.ExtractEntity('CommandDefinition');
+      if not Assigned(vCommandDef) then
+        Continue;
 
-  vTemp := '';
-  for vCommand in vCommands do
-  begin
-    vIndex := vPointedCommands.IndexOf(vCommand);
-    if vIndex >= 0 then
-      vTemp := vTemp + #13#10'>>' + AAddrPrefix + IntToStr(vIndex);
-
-    if vCommand['Description'] <> '' then
-      vTemp := vTemp + #13#10'//' + ReplaceStr(vCommand['Description'], #13#10, ' ');
-
-    vCommandDef := vCommand.ExtractEntity('CommandDefinition');
-    if SameText(vCommandDef['Name'], 'IF') then
-    begin
-      vParameter := ParameterByName(vCommand, 'NextCommand');
-      vIndex := vPointedCommands.IndexOf(vParameter.ExtractEntity('Value'));
-      if vIndex >= 0 then
-        vTemp := vTemp + #13#10 + 'if (' + ParameterByName(vCommand, 'Condition')['Value'] + ') >>' + AAddrPrefix + IntToStr(vIndex)
-      else
-        vTemp := vTemp + #13#10 + 'if (' + ParameterByName(vCommand, 'Condition')['Value'] + ') >>' + AAddrPrefix + '???';
-    end
-    else if SameText(vCommandDef['Name'], 'GOTO') then
-    begin
-      vParameter := ParameterByName(vCommand, 'NextCommand');
-      vIndex := vPointedCommands.IndexOf(vParameter.ExtractEntity('Value'));
-      if vIndex >= 0 then
-        vTemp := vTemp + #13#10 + 'goto >>' + AAddrPrefix + IntToStr(vIndex)
-      else
-        vTemp := vTemp + #13#10 + 'goto >>' + AAddrPrefix + '???';
-    end
-    else if SameText(vCommandDef['Name'], 'ASSIGN') then
-      vTemp := vTemp + #13#10 + ParameterByName(vCommand, 'Variable')['Value'] + ' := ' + ParameterByName(vCommand, 'Value')['Value']
-    else begin
-      vCommandName := CommandNameToCamelCase(vCommandDef['Name']);
-      vParameters := TListField(vCommandDef.FieldByName('Parameters'));
-      if vParameters.Count = 0 then
-        vTemp := vTemp + #13#10 + vCommandName + '()'
-      else if vParameters.Count = 1 then
+      if (vCommandDef['Name'] = 'IF') or (vCommandDef['Name'] = 'GOTO') then
       begin
-        vParameter := vParameters[0];
-        vTemp := vTemp + #13#10 + vCommandName + '(' + ParameterByName(vCommand, vParameter['Name'])['Value'] + ')';
-      end
-      else begin
-        vParams := '';
-        for vParameter in vParameters do
-        begin
-          if vParams <> '' then
-            vParams := vParams + ', ';
-          vParams := vParams + vParameter['Name'] + ': ' + ParameterByName(vCommand, vParameter['Name'])['Value'];
-        end;
-        vTemp := vTemp + #13#10 + vCommandName + '(' + vParams + ')';
+        vParameter := ParameterByName(vCommand, 'NextCommand');
+        if Assigned(vParameter) and vParameter.Definition.IsDescendantOf('CommandParameterValues') then
+          vPointedCommands.Add(vParameter.ExtractEntity('Value'));
       end;
     end;
-  end;
 
-  FreeAndNil(vPointedCommands);
-  FreeAndNil(vCommands);
+    vTemp := '';
+    for vCommand in vCommands do
+    begin
+      vIndex := vPointedCommands.IndexOf(vCommand);
+      if vIndex >= 0 then
+        vTemp := vTemp + #13#10'>>' + AAddrPrefix + IntToStr(vIndex);
+
+      if vCommand['Description'] <> '' then
+        vTemp := vTemp + #13#10'//' + ReplaceStr(vCommand['Description'], #13#10, ' ');
+
+      vCommandDef := vCommand.ExtractEntity('CommandDefinition');
+      if SameText(vCommandDef['Name'], 'IF') then
+      begin
+        vParameter := ParameterByName(vCommand, 'NextCommand');
+        vIndex := vPointedCommands.IndexOf(vParameter.ExtractEntity('Value'));
+        if vIndex >= 0 then
+          vTemp := vTemp + #13#10 + 'if (' + ParameterByName(vCommand, 'Condition')['Value'] + ') >>' + AAddrPrefix + IntToStr(vIndex)
+        else
+          vTemp := vTemp + #13#10 + 'if (' + ParameterByName(vCommand, 'Condition')['Value'] + ') >>' + AAddrPrefix + '???';
+      end
+      else if SameText(vCommandDef['Name'], 'GOTO') then
+      begin
+        vParameter := ParameterByName(vCommand, 'NextCommand');
+        vIndex := vPointedCommands.IndexOf(vParameter.ExtractEntity('Value'));
+        if vIndex >= 0 then
+          vTemp := vTemp + #13#10 + 'goto >>' + AAddrPrefix + IntToStr(vIndex)
+        else
+          vTemp := vTemp + #13#10 + 'goto >>' + AAddrPrefix + '???';
+      end
+      else if SameText(vCommandDef['Name'], 'ASSIGN') then
+        vTemp := vTemp + #13#10 + ParameterByName(vCommand, 'Variable')['Value'] + ' := ' + ParameterByName(vCommand, 'Value')['Value']
+      else begin
+        vCommandName := CommandNameToCamelCase(vCommandDef['Name']);
+        vParameters := TListField(vCommandDef.FieldByName('Parameters'));
+        if vParameters.Count = 0 then
+          vTemp := vTemp + #13#10 + vCommandName + '()'
+        else if vParameters.Count = 1 then
+        begin
+          vParameter := vParameters[0];
+          vTemp := vTemp + #13#10 + vCommandName + '(' + ParameterByName(vCommand, vParameter['Name'])['Value'] + ')';
+        end
+        else begin
+          vParams := '';
+          for vParameter in vParameters do
+          begin
+            if vParams <> '' then
+              vParams := vParams + ', ';
+            vParams := vParams + vParameter['Name'] + ': ' + ParameterByName(vCommand, vParameter['Name'])['Value'];
+          end;
+          vTemp := vTemp + #13#10 + vCommandName + '(' + vParams + ')';
+        end;
+      end;
+    end;
+  finally
+    FreeAndNil(vPointedCommands);
+    FreeAndNil(vCommands);
+  end;
 
   if AScript.InstanceOf('Scripts') then
     Result := '// Скрипт "' + AScript['Name'] + '"'#13#10 + Result;
@@ -643,9 +648,9 @@ end;
 
 { TScriptExecutor }
 
-constructor TScriptExecutor.Create(const ADomain: TObject);
+constructor TScriptExecutor.Create(const ADomain: TObject; const AName: string);
 begin
-  inherited Create(ADomain);
+  inherited Create(ADomain, AName);
 
   FTaskEngine := TTaskEngine(TDomain(ADomain).Module['TaskEngine']);
   FRuntime := TExecutionRuntime.Create(Self);
@@ -683,7 +688,7 @@ begin
 end;
 
 function TScriptExecutor.Execute(const AMainMethod: TCodeBlock; const ASession: TUserSession;
-  const AOnCustomEvent: TCustomEvent = nil): Integer;
+  const AOnCustomEvent: TCustomEvent = nil; const AOnScriptEnd: TScriptEndEvent = nil): Integer;
 var
   vFiber: TExecutionFiber;
   vVarList: TList;
@@ -695,52 +700,51 @@ var
   vVariable: TScriptVariable;
 begin
   Result := 0;
-  vFiber := TExecutionFiber.Create(Self, AMainMethod, ASession, AOnCustomEvent);
   vCanRun := True;
 
-  // Отображение диалога
-  if Assigned(ASession.Interactor) then
-  begin
-    vVarList := vFiber.GetExternalVariables;
-    try
-      if vVarList.Count > 0 then
-      begin
-        vInteractor := TInteractor(ASession.Interactor);
-        vSettings := TDomain(FDomain).UserSettings;
-        vSection := 'Script' + IntToStr(AMainMethod.FID);
-        for i := 0 to vVarList.Count - 1 do
+  vFiber := TExecutionFiber.Create(Self, AMainMethod, ASession, AOnCustomEvent, AOnScriptEnd);
+  try
+    // Отображение диалога
+    if Assigned(ASession.Interactor) then
+    begin
+      vVarList := vFiber.GetExternalVariables;
+      try
+        if vVarList.Count > 0 then
         begin
-          vVariable := TScriptVariable(vVarList[i]);
-          if vSettings.KeyExists(vSection, vVariable.Name) then
-            vVariable.SetStringValue(vSettings.GetValue(vSection, vVariable.Name, ''));
-        end;
+          vInteractor := TInteractor(ASession.Interactor);
+          vSettings := TDomain(FDomain).UserSettings;
+          vSection := 'Script' + IntToStr(AMainMethod.FID);
+          for i := 0 to vVarList.Count - 1 do
+          begin
+            vVariable := TScriptVariable(vVarList[i]);
+            if vSettings.KeyExists(vSection, vVariable.Name) then
+              vVariable.SetStringValue(vSettings.GetValue(vSection, vVariable.Name, ''));
+          end;
 
-        vCanRun := Assigned(vInteractor.Presenter) and (TPresenter(vInteractor.Presenter).ShowPage(
-          vInteractor, 'parameters', vVarList) = drOk);
+          vCanRun := Assigned(vInteractor.Presenter) and (TPresenter(vInteractor.Presenter).ShowPage(
+            vInteractor, 'parameters', vVarList) = drOk);
 
-        // SaveVariables
-        for i := 0 to vVarList.Count - 1 do
-        begin
-          vVariable := TScriptVariable(vVarList[i]);
-          vSettings.SetValue(vSection, vVariable.Name, VarToStr(vVariable.Value));
+          // SaveVariables
+          for i := 0 to vVarList.Count - 1 do
+          begin
+            vVariable := TScriptVariable(vVarList[i]);
+            vSettings.SetValue(vSection, vVariable.Name, VarToStr(vVariable.Value));
+          end;
         end;
+      finally
+        FreeAndNil(vVarList);
       end;
-    finally
-      FreeAndNil(vVarList);
     end;
+  finally
+    if vCanRun then
+    begin
+      FInProcess := True;
+      Result := vFiber.ID;
+      FRuntime.AddFiber(vFiber);
+    end
+    else
+      FreeAndNil(vFiber);
   end;
-
-  if vCanRun then
-  begin
-    FInProcess := True;
-    Result := vFiber.ID;
-    FRuntime.AddFiber(vFiber);
-	
-    if Assigned(FOnScriptStart) then
-      FOnScriptStart(AMainMethod);
-  end
-  else
-    FreeAndNil(vFiber);
 end;
 
 function TScriptExecutor.ExecuteCommand(const ATask: TTaskHandle; const AFiber: TExecutionFiber;
@@ -750,12 +754,15 @@ var
   vEntity: TEntity;
   vObject: TEntity;
   vListField: TListField;
+  vPresenter: TPresenter;
 begin
   //PrintText(ATask, 'Выполняем команду: ' + vCommandName);
 
   Result := True;
   if TExecuteCommandFunc(TDomain(FDomain).Configuration.ExecuteCommandFunc)(Self, ATask, AFiber, ACommand) then
     Exit;
+
+  vPresenter := _Platform.Presenter;
 
   vCommandName := ACommand.Name;
   if vCommandName = 'WAIT' then
@@ -777,20 +784,20 @@ begin
   end
   else if vCommandName = 'MESSAGE' then
   begin
-    TTaskHandle.SafeInvoke(ATask, procedure
-    var
-      vFlag: TMessageType;
-    begin
-      if ACommand['IconID'] = 1 then
-        vFlag := msWarning
-      else if ACommand['IconID'] = 2 then
-        vFlag := msError
-      else
-        vFlag := msInfo;
+    if Assigned(vPresenter) then
+      TTaskHandle.SafeInvoke(ATask, procedure
+      var
+        vFlag: TMessageType;
+      begin
+        if ACommand['IconID'] = 1 then
+          vFlag := msWarning
+        else if ACommand['IconID'] = 2 then
+          vFlag := msError
+        else
+          vFlag := msInfo;
 
-      if Assigned(TDomain(FDomain).Presenter) then
-        TDomain(FDomain).Presenter.ShowMessage(TDomain(FDomain).AppTitle, VarToStrDef(ACommand['Text'], ''), vFlag);
-    end);
+        vPresenter.ShowMessage(TDomain(FDomain).AppTitle, VarToStrDef(ACommand['Text'], ''), vFlag);
+      end);
   end
   else if vCommandName = 'ASK' then
   begin
@@ -798,8 +805,8 @@ begin
     var
       vResult: Boolean;
     begin
-      if Assigned(TDomain(FDomain).Presenter) then
-        vResult := TDomain(FDomain).Presenter.ShowYesNoDialog(TDomain(FDomain).AppTitle, VarToStrDef(ACommand['Question'], '')) = drYes
+      if Assigned(vPresenter) then
+        vResult := vPresenter.ShowYesNoDialog(TDomain(FDomain).AppTitle, VarToStrDef(ACommand['Question'], '')) = drYes
       else
         vResult := False;
       ACommand.Owner.SetVariableValue(ATask, AFiber.Session, ACommand['Result'], vResult);
@@ -807,7 +814,11 @@ begin
   end
   else if vCommandName = 'SHOW_LAYOUT' then
   begin
-    ShowLayout(ATask, AFiber.Session, ACommand['TargetArea'], ACommand['Layout']);
+    if Assigned(vPresenter) then
+      TTaskHandle.SafeInvoke(ATask, procedure
+        begin
+          vPresenter.ShowLayout(TInteractor(AFiber.Session.Interactor), ACommand['TargetArea'], ACommand['Layout']);
+        end);
   end
   else if vCommandName = 'FIND_OBJECT' then
   begin
@@ -838,19 +849,20 @@ begin
 end;
 
 function TScriptExecutor.ExecuteScenario(const ASession: TUserSession; const AScenario: TEntity;
-  var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent): Integer;
+  var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent; const AOnScriptEnd: TScriptEndEvent): Integer;
 var
-  vDomain: TDomain;
   vCodeBlock: TCodeBlock;
   vKey: string;
+  vPresenter: TPresenter;
 begin
   Assert(Assigned(ASession), 'Пользовательская сессия работы должна быть задана');
-  vDomain := TDomain(ASession.Domain);
+  vPresenter := _Platform.Presenter;
 
   vCodeBlock := Prepare(AScenario);
   if not Assigned(vCodeBlock) then
   begin
-    vDomain.Presenter.ShowMessage('Ошибка', Format('Не удалось скомпилировать сценарий [%s]...', [AScenario['Name']]), msError);
+    if Assigned(vPresenter) then
+      vPresenter.ShowMessage('Ошибка', Format('Не удалось скомпилировать сценарий [%s]...', [AScenario['Name']]), msError);
     Exit(0);
   end;
 
@@ -861,38 +873,43 @@ begin
     FreeAndNil(AParams);
   end;
 
-  Result := Execute(vCodeBlock, ASession, AOnCustomEvent);
+  Result := Execute(vCodeBlock, ASession, AOnCustomEvent, AOnScriptEnd);
 end;
 
 function TScriptExecutor.ExecuteScenario(const ASession: TUserSession; const AIdent: string;
-  var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent): Integer;
+  var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent; const AOnScriptEnd: TScriptEndEvent): Integer;
 var
   vDomain: TDomain;
   vScenario: TEntity;
+  vPresenter: TPresenter;
 begin
   Assert(Assigned(ASession), 'Пользовательская сессия работы должна быть задана');
   vDomain := TDomain(ASession.Domain);
+  vPresenter := _Platform.Presenter;
 
   vScenario := vDomain.FindOneEntity('Scripts', ASession, 'Ident=:Ident', [AIdent]);
 
   if not Assigned(vScenario) then
   begin
-    vDomain.Presenter.ShowMessage('Ошибка', Format('Сценарий [%s] не найден в системе!', [AIdent]), msError);
+    vPresenter.ShowMessage('Ошибка', Format('Сценарий [%s] не найден в системе!', [AIdent]), msError);
     Exit(0);
   end;
 
-  Result := ExecuteScenario(ASession, vScenario, AParams, AOnCustomEvent);
+  Result := ExecuteScenario(ASession, vScenario, AParams, AOnCustomEvent, AOnScriptEnd);
 end;
 
-procedure TScriptExecutor.NotifyEnd(const ATask: TTaskHandle; const AScriptName: string);
+procedure TScriptExecutor.NotifyEnd(const ATask: TTaskHandle; const AFiber: TExecutionFiber);
+var
+  vScriptName: string;
 begin
+  vScriptName := AFiber.ScriptName;
   TTaskHandle.SafeInvoke(ATask, procedure
     begin
       FInProcess := False;
       if Assigned(FOnLogMessage) then
-        FOnLogMessage(FormatDateTime('hh:nn:ss.zzz', Now) + '  <<< Скрипт ' + AScriptName + ' завершён');
-      if Assigned(FOnScriptEnd) then
-        FOnScriptEnd(Self);
+        FOnLogMessage(FormatDateTime('hh:nn:ss.zzz', Now) + '  <<< Скрипт ' + vScriptName + ' завершён');
+      if Assigned(AFiber.OnScriptEnd) then
+        AFiber.OnScriptEnd(AFiber);
     end);
 end;
 
@@ -945,15 +962,6 @@ begin
       end);
 end;
 
-procedure TScriptExecutor.ShowLayout(const ATask: TTaskHandle; const ASession: TUserSession;
-  const ATargetAreaName, ALayoutName: string);
-begin
-  TTaskHandle.SafeInvoke(ATask, procedure
-    begin
-      TDomain(FDomain).Presenter.ShowLayout(TInteractor(ASession.Interactor), ATargetAreaName, ALayoutName);
-    end);
-end;
-
 procedure TScriptExecutor.Stop(const ASession: TUserSession);
 begin
   FRuntime.Stop;
@@ -1003,7 +1011,7 @@ end;
 { TExecutionFiber }
 
 constructor TExecutionFiber.Create(const AExecutor: TScriptExecutor; const AMethod: TCodeBlock;
-  const ASession: TUserSession; const AOnCustomEvent: TCustomEvent = nil);
+  const ASession: TUserSession; const AOnCustomEvent: TCustomEvent; const AOnScriptEnd: TScriptEndEvent);
 begin
   inherited Create;
 
@@ -1011,6 +1019,7 @@ begin
   FMethod := AMethod;
   FSession := ASession;
   FOnCustomEvent := AOnCustomEvent;
+  FOnScriptEnd := AOnScriptEnd;
   FWakeTime := 0;
   FID := Random(10000000) + 1;
 
@@ -1199,7 +1208,7 @@ begin
             else begin
               // В списке останутся только те нити, которые нужно удалить
               if not vFiber.ExecuteCommand(ATask) then
-                FExecutor.NotifyEnd(ATask, vFiber.ScriptName)
+                FExecutor.NotifyEnd(ATask, vFiber)
               else
                 vFibers.Delete(i);
             end;
@@ -1258,7 +1267,7 @@ begin
         begin
           vFiber := vFibers[i];
           if vFiber.Interrupt then
-            FExecutor.NotifyEnd(ATask, vFiber.ScriptName)
+            FExecutor.NotifyEnd(ATask, vFiber)
           else
             vFibers.Delete(i);
         end;
@@ -1316,7 +1325,7 @@ begin
 
       if Assigned(vFound) then
       begin
-        FExecutor.NotifyEnd(ATask, vFound.ScriptName);
+        FExecutor.NotifyEnd(ATask, vFound);
         vFound.Free;
       end;
 

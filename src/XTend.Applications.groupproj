@@ -3,7 +3,7 @@
         <ProjectGuid>{F4BF479A-91FF-406B-B911-7C4A83E33414}</ProjectGuid>
     </PropertyGroup>
     <ItemGroup>
-        <Projects Include="Configurator.dproj">
+        <Projects Include="Solutions\Configurator\Configurator.dproj">
             <Dependencies/>
         </Projects>
     </ItemGroup>
@@ -15,13 +15,13 @@
         </BorlandProject>
     </ProjectExtensions>
     <Target Name="Configurator">
-        <MSBuild Projects="Configurator.dproj"/>
+        <MSBuild Projects="Solutions\Configurator\Configurator.dproj"/>
     </Target>
     <Target Name="Configurator:Clean">
-        <MSBuild Projects="Configurator.dproj" Targets="Clean"/>
+        <MSBuild Projects="Solutions\Configurator\Configurator.dproj" Targets="Clean"/>
     </Target>
     <Target Name="Configurator:Make">
-        <MSBuild Projects="Configurator.dproj" Targets="Make"/>
+        <MSBuild Projects="Solutions\Configurator\Configurator.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
         <CallTarget Targets="Configurator"/>

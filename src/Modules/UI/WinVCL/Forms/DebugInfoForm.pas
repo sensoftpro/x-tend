@@ -41,14 +41,12 @@ uses
 
 type
   TDebugFm = class(TForm)
-    PageControl1: TPageControl;
+    pcTabs: TPageControl;
     TabSheet1: TTabSheet;
     memArea: TMemo;
-    Panel1: TPanel;
-    Splitter2: TSplitter;
+    pnlView: TPanel;
     memView: TMemo;
-    memDomain: TMemo;
-    Splitter1: TSplitter;
+    spltCommon: TSplitter;
     TabSheet2: TTabSheet;
     memHolders: TMemo;
     memLog: TMemo;
@@ -107,14 +105,12 @@ var
 begin
   memArea.Lines.BeginUpdate;
   memView.Lines.BeginUpdate;
-  memDomain.Lines.BeginUpdate;
   memHolders.Lines.BeginUpdate;
   memLog.Lines.BeginUpdate;
 
   try
     memArea.Lines.Text := '';
     memView.Lines.Text := '';
-    memDomain.Lines.Text := '';
     memHolders.Lines.Text := '';
 
     for i := 0 to FInteractors.Count - 1 do
@@ -125,9 +121,6 @@ begin
 
       memView.Lines.Text := memView.Lines.Text + AnsiUpperCase(FInteractors[i]) + #13#10#13#10 +
         vInteractor.UIBuilder.RootView.TextHierarchy('') + #13#10#13#10;
-
-      memDomain.Lines.Text := memDomain.Lines.Text + AnsiUpperCase(FInteractors[i]) + #13#10#13#10 +
-        TDomain(vInteractor.Domain).TextHierarchy() + #13#10#13#10;
 
       memHolders.Lines.Text := memHolders.Lines.Text + AnsiUpperCase(FInteractors[i]) + #13#10#13#10 +
         HoldersInfo(vInteractor) + #13#10#13#10;
@@ -144,7 +137,6 @@ begin
   finally
     memArea.Lines.EndUpdate;
     memView.Lines.EndUpdate;
-    memDomain.Lines.EndUpdate;
     memHolders.Lines.EndUpdate;
     memLog.Lines.EndUpdate;
   end;
