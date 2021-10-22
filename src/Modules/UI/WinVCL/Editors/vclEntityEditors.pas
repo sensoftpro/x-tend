@@ -1163,7 +1163,7 @@ begin
 //  if FFieldDef.HasFlag(cRequired) then
 //    vIndex := TcxRadioGroup(FControl).ItemIndex + 1
 //  else
-    vIndex := TcxRadioGroup(FControl).ItemIndex;
+  vIndex := TcxRadioGroup(FControl).ItemIndex;
   SetFieldEntity(FEntities[vIndex]);
 end;
 

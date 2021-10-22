@@ -151,14 +151,6 @@ begin
   vLanguage := ASettings.GetValue('Core', 'Language', '');
   FTranslator := TTranslator.Create(FLocalizator, vLanguage);
 
-  FDeploymentType := FSettings.GetValue('Core', 'Deployment', 'prod');
-  FEnvironmentID := FSettings.GetValue('Core', 'EnvironmentID', '');
-  if FEnvironmentID = '' then
-  begin
-    FEnvironmentID := GUIDToString(NewGUID);
-    FSettings.SetValue('Core', 'EnvironmentID', FEnvironmentID);
-  end;
-
   _Platform := Self;
 end;
 
@@ -172,6 +164,14 @@ begin
     Result := vPresenterClass.Create(vModuleName, ASettings)
   else
     Result := nil;
+
+  FDeploymentType := ASettings.GetValue('Core', 'Deployment', 'prod');
+  FEnvironmentID := ASettings.GetValue('Core', 'EnvironmentID', '');
+  if FEnvironmentID = '' then
+  begin
+    FEnvironmentID := GUIDToString(NewGUID);
+    ASettings.SetValue('Core', 'EnvironmentID', FEnvironmentID);
+  end;
 end;
 
 destructor TPlatform.Destroy;

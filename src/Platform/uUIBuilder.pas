@@ -597,7 +597,6 @@ begin
 
     if (vUIArea.QueryParameter('ViewType') = 'Paged') or (vUIArea = FRootArea) then
     begin
-      vImageID := -1;
       if Assigned(AView) then
       begin
         vParams := CreateDelimitedList(AOptions, '&');
@@ -615,7 +614,10 @@ begin
         vPageID := ReplaceText(vPageID, '~', '_');
       end
       else
+      begin
         vPageID := vLayoutName;
+        vImageID := StrToIntDef(GetUrlParam(AOptions, 'ImageID', '-1'), -1);
+      end;
 
       vTabArea := vUIArea.AreaById(vPageID, False);
       if not Assigned(vTabArea) then
@@ -640,9 +642,9 @@ begin
           vTabParams := vTabParams + ';Name=' + vPageID;
         end
         else if ACaption <> '' then
-          vTabParams := 'Caption=' + ACaption + ';ImageIndex=-1;Name=' + vPageID
+          vTabParams := 'Caption=' + ACaption + ';ImageIndex=' + GetUrlParam(AOptions, 'ImageID', '-1') + ';Name=' + vPageID
         else
-          vTabParams := 'Caption=Стартовая страница;ImageIndex=-1;Name=' + vPageID;
+          vTabParams := 'Caption=Стартовая страница;ImageIndex=' + GetUrlParam(AOptions, 'ImageID', '-1') + ';Name=' + vPageID;
 
         vTab := TPresenter(FPresenter).CreateLayoutArea(lkPage, vTabParams);
         try
@@ -1016,7 +1018,7 @@ begin
         else
           vDefaultView := nil;
 
-        FUIBuilder.Navigate(vDefaultView, Result.UId, vLayout, '', nil, nil, Result.QueryParameter('Caption'));
+        FUIBuilder.Navigate(vDefaultView, Result.UId, vLayout, Result.QueryParameter('Options'), nil, nil, Result.QueryParameter('Caption'));
       end
       else
         FUIBuilder.ApplyLayout(Result, FView, vLayout)

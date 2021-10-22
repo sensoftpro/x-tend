@@ -234,6 +234,8 @@ type
   private
     FTrueImageID: Integer;
     FFalseImageID: Integer;
+    FTrueHint: string;
+    FFalseHint: string;
     FActionView: TView;
     procedure OnButtonClick(Sender: TObject);
   protected
@@ -965,7 +967,6 @@ end;
 procedure TDEImageEditor.DoBeforeFreeControl;
 begin
   inherited;
-
 end;
 
 procedure TDEImageEditor.DoCreateControl(const ALayout: TObject);
@@ -1002,19 +1003,25 @@ var
   vPicture: TPicture;
   vStr: AnsiString;
   vStream: TStream;
+  vImage: TdxSmartImage;
 begin
   inherited;
   vStream := FView.FieldStream;
   if vStream = nil then Exit;
 
   vPicture := TPicture.Create;
-  vStream.Position := 0;
-  vPicture.Graphic := TdxSmartImage.Create;
-  vPicture.Graphic.LoadFromStream(vStream);
-
-  SavePicture(vPicture, vStr);
-  TcxImage(FControl).EditValue := vStr;
-  vPicture.Free;
+  vImage := TdxSmartImage.Create;
+  vPicture.Graphic := vImage;
+  try
+    vStream.Position := 0;
+    vPicture.Graphic.LoadFromStream(vStream);
+    SavePicture(vPicture, vStr);
+    TcxImage(FControl).EditValue := vStr;
+  finally
+    vPicture.Graphic := nil;
+    FreeAndNil(vImage);
+    vPicture.Free;
+  end;
 
   TcxImage(FControl).Enabled := FView.State = vsFullAccess;
 end;
@@ -2397,12 +2404,16 @@ begin
     vImageSize := StrToIntDef(FCreateParams.Values['ImageSize'], 16);
     FFalseImageID := GetImageID(StrToIntDef(FCreateParams.Values['false'], -1));
     FTrueImageID := GetImageID(StrToIntDef(FCreateParams.Values['true'], -1));
+    FTrueHint := FCreateParams.Values['trueHint'];
+    FFalseHint := FCreateParams.Values['falseHint'];
   end
   else begin
     vActionName := '';
     vImageSize := 16;
     FTrueImageID := GetImageID(-1);
     FFalseImageID := GetImageID(-1);
+    FTrueHint := TFieldDef(FView.Definition)._Caption;
+    FFalseHint := TFieldDef(FView.Definition)._Caption;
   end;
 
   if vActionName <> '' then
@@ -2419,23 +2430,26 @@ begin
 
   vButton := TcxButton.Create(nil);
   vButton.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[vImageSize]);
-  vButton.SpeedButtonOptions.Flat := True;
-  vButton.SpeedButtonOptions.CanBeFocused := False;
   vButton.PaintStyle := bpsGlyph;
   vButton.OnClick := OnButtonClick;
-  vButton.Hint := TFieldDef(FView.Definition)._Caption;
 
   FControl := vButton;
 end;
 
 procedure TDEImagedAction.FillEditor;
 begin
-  if VarIsNull(FView.FieldValue) then
-    TcxButton(FControl).OptionsImage.ImageIndex := FFalseImageID
-  else if FView.FieldValue then
-    TcxButton(FControl).OptionsImage.ImageIndex := FTrueImageID
-  else
+  if VarIsNull(FView.FieldValue) or (not FView.FieldValue) then
+  begin
     TcxButton(FControl).OptionsImage.ImageIndex := FFalseImageID;
+    TcxButton(FControl).Hint := FTrueHint;
+  end
+  else
+  begin
+    TcxButton(FControl).OptionsImage.ImageIndex := FTrueImageID;
+    TcxButton(FControl).Hint := FFalseHint;
+  end;
+
+  TcxButton(FControl).Enabled := FView.State = vsFullAccess;
 end;
 
 procedure TDEImagedAction.OnButtonClick(Sender: TObject);

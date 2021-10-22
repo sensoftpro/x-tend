@@ -107,11 +107,13 @@ function MakeMethod(const ACode, AData: Pointer): TMethod;
 
 function GetUrlParam(const AUrl, AParamName: string; const ADefaultValue: string = ''): string;
 function GetUrlCommand(const AUrl: string): string;
+function EncodeUrl(const AUrl: string): string;
+function DecodeUrl(const AUrl: string): string;
 
 implementation
 
 uses
-  Math, Variants, SysUtils, RTTI, RegularExpressions, ZLib, NetEncoding, Hash, XMLDoc, StrUtils;
+  Math, Variants, SysUtils, RTTI, RegularExpressions, ZLib, NetEncoding, Hash, XMLDoc, StrUtils, IdURI;
 
 function MakeMethod(const ACode, AData: Pointer): TMethod;
 begin
@@ -1146,6 +1148,16 @@ begin
   if Pos('//', vUrl) = 0 then
     vUrl := '//' + vUrl;
 	Result := GetUrlParamDefTerm(vUrl, '//', '', '?');
+end;
+
+function EncodeUrl(const AUrl: string): string;
+begin
+  Result := TIdURI.URLEncode(AUrl);
+end;
+
+function DecodeUrl(const AUrl: string): string;
+begin
+  Result := TIdURI.URLDecode(AUrl);
 end;
 
 end.

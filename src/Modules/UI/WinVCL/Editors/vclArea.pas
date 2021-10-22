@@ -816,6 +816,7 @@ var
   vCaption: string;
   vUIParams: string;
   vStartPageName: string;
+  vStartPageStr: string;
   vLabel: TLabel; //TStaticText;
   vImage: TcxImage;
   vPC: TcxPageControl;
@@ -1688,11 +1689,14 @@ begin
       // Здесь можно подкорректировать параметры
       if StrToBoolDef(vDomain.UserSettings.GetValue('Core', 'ShowStartPage'), True) then
       begin
-        vStartPageName := vDomain.Settings.GetValue('Core', 'StartPage', '');
+        vStartPageStr := vDomain.Settings.GetValue('Core', 'StartPage', '');
+
+        vStartPageName := GetUrlCommand(vStartPageStr);
         if (vStartPageName <> '') and FileExists(vDomain.Configuration.FindLayoutFile(vStartPageName, LAYOUT_DFM_EXT)) then
         begin
           vParams.Values['Layout'] := vStartPageName;
           vParams.Values['View'] := '';
+          vParams.Values['Options'] := DecodeUrl(GetUrlParam(vStartPageStr, 'Options', ''));
         end;
       end;
 

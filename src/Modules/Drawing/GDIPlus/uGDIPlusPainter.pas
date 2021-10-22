@@ -1185,8 +1185,8 @@ var
   vVertexes: array[0..1] of TTriVertex;
   vGradRect: TGradientRect;
   vBlendFunction: TBlendFunction;
-  vStartColor: TColor;
-  vEndColor: TColor;
+  vStartColor: Cardinal;
+  vEndColor: Cardinal;
 begin
   if Assigned(AFill.Brush) then
   begin

@@ -1177,6 +1177,9 @@ end;}
 
 procedure TExecutionRuntime.Run;
 begin
+  if Assigned(FTask) then
+    FreeAndNil(FTask);
+
   FTask := FTaskEngine.Execute('ScriptExecutor', procedure(const ATask: TTaskHandle)
     var
       i: Integer;
