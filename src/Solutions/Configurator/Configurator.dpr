@@ -59,7 +59,6 @@ uses
   uGDIPlusPainter in '..\..\Modules\Drawing\GDIPlus\uGDIPlusPainter.pas',
 
 {$I ..\..\Modules\UI\WinVCL\files.inc}
-{$I ..\..\Modules\UI\Web\uniGUI\files.inc}
 
   uConfiguratorScript in 'uConfiguratorScript.pas';
 
