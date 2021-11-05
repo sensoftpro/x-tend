@@ -36,10 +36,10 @@ unit uLogger;
 interface
 
 uses
-  Classes, uConsts;
+  Classes, uConsts, uModule;
 
 type
-  TLogger = class
+  TLogger = class(TDomainModule)
   private
     FItems: TStrings;
     FFileName: string;
@@ -49,16 +49,18 @@ type
     function GetCount: Integer;
     function GetItem(const AIndex: Integer): string;
   public
-    constructor Create(const AFileName: string);
+    constructor Create(const ADomain: TObject; const AName: string); override;
     destructor Destroy; override;
 
     function AddMessage(const AMessage: string; const AMessageKind: TMessageKind = mkAny): string;
     function AddEnterMessage(const AMessage: string; const AMessageKind: TMessageKind = mkAny): string;
     function AddExitMessage(const AMessage: string; const AMessageKind: TMessageKind = mkAny): string;
 
-    procedure DisableLogging;
-    procedure EnableLogging;
+    //procedure DisableLogging;
+    //procedure EnableLogging;
+    procedure SetTarget(const AFileName: string);
     procedure Flush;
+    property Enabled: Boolean read FEnabled write FEnabled;
 
     property Count: Integer read GetCount;
     property Items[const AIndex: Integer]: string read GetItem; default;
@@ -95,15 +97,14 @@ begin
   Result := FormatDateTime('hh:nn:ss.zzz', Now) + ' ' + cLogMessageTypes[AMessageKind] +
     ' ' + StringOfChar(' ', FLogIndentLevel * 2) + AMessage;
   FItems.Add(Result);
-  Flush;
+  //Flush;
 {$ENDIF}
 end;
 
-constructor TLogger.Create(const AFileName: string);
+constructor TLogger.Create(const ADomain: TObject; const AName: string);
 begin
-  inherited Create;
+  inherited Create(ADomain, AName);
   FItems := TStringList.Create;
-  FFileName := AFileName;
   FLogIndentLevel := 0;
   FLogMessageKind := mkAny;
   FEnabled := True;
@@ -116,19 +117,9 @@ begin
   inherited Destroy;
 end;
 
-procedure TLogger.DisableLogging;
-begin
-  FEnabled := False;
-end;
-
-procedure TLogger.EnableLogging;
-begin
-  FEnabled := True;
-end;
-
 procedure TLogger.Flush;
 begin
-//  FItems.SaveToFile(FFileName);
+  FItems.SaveToFile(FFileName);
 end;
 
 function TLogger.GetCount: Integer;
@@ -139,6 +130,11 @@ end;
 function TLogger.GetItem(const AIndex: Integer): string;
 begin
   Result := FItems[AIndex];
+end;
+
+procedure TLogger.SetTarget(const AFileName: string);
+begin
+  FFileName := AFileName;
 end;
 
 end.

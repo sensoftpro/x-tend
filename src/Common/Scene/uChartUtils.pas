@@ -206,7 +206,10 @@ begin
   Result.Options := AOptions;
   Result.Width := AAreaSize;
   Result.Shift := AShift;
-  vPossibleItemCount := Max(Trunc(AAreaSize / AItemSize), 1);
+  if AItemSize > 0.001 then
+    vPossibleItemCount := Max(Trunc(AAreaSize / AItemSize), 1)
+  else
+    vPossibleItemCount := 1;
 
   if cpoLogarithmic in AOptions then
   begin
@@ -398,20 +401,20 @@ begin
             vPowerRect.Left := vPowerRect.Left + APainter.TextWidth(AStyle, AFontName, vCurText) + 1;
             vPowerRect.Right := vPowerRect.Left + APainter.TextWidth(AStyle, 'power', IntToStr(i));
             vTextRect.Right := vTextRect.Left + APainter.TextWidth(AStyle, AFontName, vCurText);
-            APainter.DrawText(AStyle, 'text', 'power', IntToStr(i), vPowerRect, DT_LEFT);
+            APainter.DrawText(AStyle, 'power', IntToStr(i), vPowerRect, DT_LEFT);
           end
           else begin
             vPowerRect.Left := vPowerRect.Right - APainter.TextWidth(AStyle, 'power', IntToStr(i));
             vTextRect.Right := vPowerRect.Left - 1;
             vTextRect.Left := vTextRect.Right - APainter.TextWidth(AStyle, AFontName, vCurText);
-            APainter.DrawText(AStyle, 'text', 'power', IntToStr(i), vPowerRect, DT_LEFT);
+            APainter.DrawText(AStyle, 'power', IntToStr(i), vPowerRect, DT_LEFT);
           end;
         end;
 
         if IsLeftAlign then
-          APainter.DrawText(AStyle, 'text', AFontName, vCurText, vTextRect, DT_LEFT)
+          APainter.DrawText(AStyle, AFontName, vCurText, vTextRect, DT_LEFT)
         else
-          APainter.DrawText(AStyle, 'text', AFontName, vCurText, vTextRect, DT_RIGHT);
+          APainter.DrawText(AStyle, AFontName, vCurText, vTextRect, DT_RIGHT);
       end;
     end
     else begin
@@ -437,9 +440,9 @@ begin
         vTextRect.Bottom := vTextRect.Top + vTextSize;
 
         if IsLeftAlign then
-          APainter.DrawText(AStyle, 'text', AFontName, vCurText, vTextRect, DT_LEFT)
+          APainter.DrawText(AStyle, AFontName, vCurText, vTextRect, DT_LEFT)
         else
-          APainter.DrawText(AStyle, 'text', AFontName, vCurText, vTextRect, DT_RIGHT);
+          APainter.DrawText(AStyle, AFontName, vCurText, vTextRect, DT_RIGHT);
       end;
     end;
   end
@@ -472,7 +475,7 @@ begin
       vTextRect.Left := vCurPosition - vTextSize / 2;
       vTextRect.Right := vTextRect.Left + vTextSize;
 
-      APainter.DrawText(AStyle, 'text', AFontName, vCurText, vTextRect, DT_CENTER);
+      APainter.DrawText(AStyle, AFontName, vCurText, vTextRect, DT_CENTER);
     end;
   end;
 end;

@@ -433,8 +433,10 @@ begin
 
   vAppDataDirectory := FConfiguration.CacheDir;
   FUserSettings := TIniSettings.Create(TPath.Combine(vAppDataDirectory, 'settings.ini'));
-  FLogger := TLogger.Create(TPath.Combine(vAppDataDirectory, 'log.txt'));
-  FDomainLogger := TLogger.Create(TPath.Combine(vAppDataDirectory, 'domain_log.txt'));
+  FLogger := TLogger.Create(Self, 'System logger');
+  FLogger.SetTarget(TPath.Combine(vAppDataDirectory, 'log.txt'));
+  FDomainLogger := TLogger.Create(Self, 'Domain logger');
+  FDomainLogger.SetTarget(TPath.Combine(vAppDataDirectory, 'domain_log.txt'));
   FScheduler := TScheduler.Create(Self, 60);
 
   FAppTitle := Translate('AppTitle', FConfiguration._Caption) + ' - ' + FConfiguration.Version;
@@ -1286,8 +1288,6 @@ begin
   FIsAlive := True;
 
   TDomainReadyProc(FConfiguration.DomainReadyProc)(Self);
-
-  NotifyLoadingProgress(100, '');
 end;
 
 procedure TDomain.SetLanguage(const Value: string);

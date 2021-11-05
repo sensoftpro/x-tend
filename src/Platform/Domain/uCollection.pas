@@ -797,17 +797,11 @@ begin
 end;
 
 function TCollection.InternalCreateEntity(const AID: Integer; const AIsNew: Boolean): TEntity;
-//var
-//  vNewStr: string;
 begin
   Result := FEntityClass.Create(FDomain, FContentDefinition);
   Result.SetID(AID);
   Result.IsNew := AIsNew;
-  //if AIsNew then
-  //  vNewStr := 'NEW '
-  //else
-  //  vNewStr := '';
-  //TDomain(FDomain).Logger.AddMessage('# Creating ' + vNewStr + FContentDefinition.Name + ': ' + IntToStr(AID));
+  //TDomain(FDomain).Logger.AddMessage('# Creating ' + IfThen(AIsNew, 'NEW ', '') + FContentDefinition.Name + ': ' + IntToStr(AID));
   InternalAdd(Result);
 end;
 

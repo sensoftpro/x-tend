@@ -108,6 +108,9 @@ type
     procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); override;
     function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
       const AView: TView; const AStyleName, AParams: string): TUIArea; override;
+    function CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject;
+      const AView: TView; const AStyleName, AParams: string): TUIArea; override;
+
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
     procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string); override;
@@ -201,36 +204,40 @@ begin
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
 end;
 
+function TWinVCLPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView; const AStyleName,
+  AParams: string): TUIArea;
+var
+  vParams, vViewName: string;
+  vCollectionAreaClass: TUIAreaClass;
+begin
+  vViewName := GetUrlCommand(AStyleName, AStyleName);
+  vParams := ExtractUrlParams(AStyleName);
+
+  vCollectionAreaClass := TUIAreaClass(GetUIClass(FName, uiCollection, vViewName));
+
+  Result := vCollectionAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
+end;
+
 function TWinVCLPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
   const AView: TView; const AStyleName, AParams: string): TUIArea;
 var
-  vPos: Integer;
   vParams, vViewName: string;
-  vFieldAreaClass: TVCLFieldAreaClass;
+  vFieldAreaClass: TUIAreaClass;
 begin
-  vViewName := AStyleName;
-  vParams := '';
-  vPos := Pos('?', AStyleName);
-  if vPos > 0 then
-  begin
-    if Length(AStyleName) - vPos >= 2 then
-      vParams := Copy(AStyleName, vPos + 1, Length(AStyleName) - vPos);
-    vViewName := Copy(AStyleName, 1, vPos - 1);
-  end;
+  vViewName := GetUrlCommand(AStyleName, AStyleName);
+  vParams := ExtractUrlParams(AStyleName);
 
   if AView.DefinitionKind = dkEntity then
-    vFieldAreaClass := TVCLFieldAreaClass(GetUIClass(FName, uiEntityEdit, vViewName))
+    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, uiEntityEdit, vViewName))
   else if ALayout is TPageControl then
-    vFieldAreaClass := TVCLFieldAreaClass(GetUIClass(FName,
-      ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), 'pages'))
+    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), 'pages'))
   else
-    vFieldAreaClass := TVCLFieldAreaClass(GetUIClass(FName,
-      ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), vViewName));
+    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), vViewName));
 
   if vParams = '' then
     vParams := AParams;
 
-  Result := vFieldAreaClass.Create(AParentArea, ALayout, AView, vParams);
+  Result := vFieldAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
 end;
 
 function TWinVCLPresenter.CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string): TObject;
@@ -279,7 +286,7 @@ begin
 
     vForm.DisableAlign;
     try
-      Result := TVCLArea.Create(AParent, AView, '', vForm);
+      Result := TVCLArea.Create(AParent, AView, '', True, vForm, nil, '');
     finally
       vForm.EnableAlign;
     end;
@@ -294,7 +301,7 @@ begin
 
     vForm.DisableAlign;
     try
-      Result := TVCLArea.Create(AParent, AView, '', vForm);
+      Result := TVCLArea.Create(AParent, AView, '', True, vForm, nil, '');
     finally
       vForm.EnableAlign;
     end;
@@ -325,7 +332,7 @@ begin
     vForm.BorderStyle := bsSingle;  // for layouted form this property will be changed when assigned cEditFormResizable flag in Tag
     vForm.DisableAlign;
     try
-      Result := TVCLArea.Create(AParent, AView, '', vForm);
+      Result := TVCLArea.Create(AParent, AView, '', True, vForm, nil, '');
       if Assigned(ACallback) and Assigned(vTimer) then
         ACallback(vTimer);
     finally
@@ -692,6 +699,7 @@ var
   vArea: TVCLArea absolute AArea;
   vView: TView;
   vForm: TForm;
+  vCaption: string;
 
   function ModalResultToDialogResult(const AModalResult: TModalResult): TDialogResult;
   begin
@@ -718,29 +726,36 @@ begin
     vForm.ShowHint := True;
     vView := vArea.View;
 
-    // Definition может быть от листового поля
-    if Assigned(vView.Definition) then
-    begin
-      if vForm.Caption = '' then
-      begin
-        if vView.DefinitionKind = dkObjectField then
-          vForm.Caption := TDomain(AInteractor.Domain).TranslateFieldDef(TFieldDef(vView.Definition))
-        else
-          vForm.Caption := TDomain(AInteractor.Domain).TranslateDefinition(TDefinition(vView.Definition));
+    vCaption := GetUrlParam(AOptions, 'Caption', '');
 
-        if Pos(AOptions, 'NoExtCaption') < 1 then
+    if vCaption = '' then
+    begin
+      // Definition может быть от листового поля
+      if Assigned(vView.Definition) then
+      begin
+        if vForm.Caption = '' then
         begin
-          if vView.DefinitionKind = dkAction then
-            vForm.Caption := 'Параметры: ' + vForm.Caption
-          else if vView.State > vsSelectOnly {and Assigned(vArea.Holder) - у параметров нет холдера} then
-            vForm.Caption := 'Редактирование: ' + vForm.Caption
+          if vView.DefinitionKind = dkObjectField then
+            vForm.Caption := TDomain(AInteractor.Domain).TranslateFieldDef(TFieldDef(vView.Definition))
           else
-            vForm.Caption := 'Просмотр: ' + vForm.Caption;
+            vForm.Caption := TDomain(AInteractor.Domain).TranslateDefinition(TDefinition(vView.Definition));
+
+          if Pos(AOptions, 'NoExtCaption') < 1 then
+          begin
+            if vView.DefinitionKind = dkAction then
+              vForm.Caption := 'Параметры: ' + vForm.Caption
+            else if vView.State > vsSelectOnly {and Assigned(vArea.Holder) - у параметров нет холдера} then
+              vForm.Caption := 'Редактирование: ' + vForm.Caption
+            else
+              vForm.Caption := 'Просмотр: ' + vForm.Caption;
+          end;
         end;
-      end;
+      end
+      else
+        vForm.Caption := TDomain(AInteractor.Domain).AppTitle;
     end
     else
-      vForm.Caption := TDomain(AInteractor.Domain).AppTitle;
+      vForm.Caption := vCaption;
 
     try
       Result := ModalResultToDialogResult(vForm.ShowModal);
@@ -1096,6 +1111,8 @@ begin
   end;
 
   DoOnAppStarted;
+
+  OnDomainLoadProgress(100, '');
 
   Application.Run;
 end;

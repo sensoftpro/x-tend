@@ -36,7 +36,7 @@ unit uScene;
 interface
 
 uses
-  Classes, SysUtils, Types, UITypes, Generics.Collections, uDrawStyles;
+  Classes, SysUtils, Types, UITypes, Generics.Collections, uModule, uDrawStyles;
 
 type
   TSceneObjectAnchor = (soaLeft, soaTop, soaRight, soaBottom);
@@ -183,20 +183,18 @@ type
       const ARect: TRectF; const AColor, AFocusColor: TAlphaColor; const AFactor: Double);
   end;
 
-  TScene = class
+  TScene = class(TBaseModule)
   private
-    FRoot: TSceneObject;
     [Weak] FFocusedObject: TSceneObject;
     [Weak] FHoveredObject: TSceneObject;
     FState: TSceneState;
     procedure SetFocusedObject(const Value: TSceneObject);
     procedure SetHoveredObject(const Value: TSceneObject);
     procedure Invalidate(const AState: TSceneState = ssDirty);
-    function MainStyle: TDrawStyle;
   protected
-    FCachedDrawContext: TDrawContext;
-    FDrawContext: TDrawContext;
+    FRoot: TSceneObject;
     FPainter: TPainter;
+    FDrawContainer: TObject;
     FLockCount: Integer;
     FMousePos: TPointF;
 
@@ -213,21 +211,25 @@ type
       WheelDelta: Integer; MousePos: TPoint; var Handled: Boolean);
     procedure OnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure OnKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure Render;
   protected
-    procedure DoCreateScene(const APlaceholder: TObject); virtual; abstract;
+    function DoCreateScene(const APlaceholder: TObject): TObject; virtual; abstract;
     procedure DoDestroyScene; virtual; abstract;
     procedure DoActivate; virtual;
-    procedure DoRender; virtual;
+    procedure DoRender(const ANeedFullRepaint: Boolean); virtual;
     procedure DoEnableResize(const AOn: Boolean); virtual; abstract;
     function GetSceneRect: TRectF; virtual; abstract;
     function GetClientPos: TPointF; virtual; abstract;
+    function CreatePainter(const AContainer: TObject): TPainter; virtual; abstract;
+    procedure UpdateContexts(const AWidth, AHeight: Single); virtual;
   public
-    constructor Create(const APlaceholder: TObject; const APainter: TPainter); virtual;
+    constructor Create(const APlaceholder: TObject); virtual;
     destructor Destroy; override;
 
     procedure BeginUpdate;
     procedure EndUpdate;
     procedure Repaint;
+    procedure FullRefresh;
     procedure SaveToFile(const AFileName: string; const AWaterMark: string = '');
     procedure Disable;
 
@@ -236,6 +238,8 @@ type
     property HoveredObject: TSceneObject read FHoveredObject write SetHoveredObject;
     property ClientRect: TRectF read GetSceneRect;
   end;
+
+  TSceneClass = class of TScene;
 
 implementation
 
@@ -538,7 +542,7 @@ begin
   FLockCount := FLockCount + 1;
 end;
 
-constructor TScene.Create(const APlaceholder: TObject; const APainter: TPainter);
+constructor TScene.Create(const APlaceholder: TObject);
 begin
   inherited Create;
 
@@ -549,11 +553,8 @@ begin
 
   FLockCount := 0;
 
-  FPainter := APainter;
-
-  FCachedDrawContext := FPainter.CreateDrawContext(1, 1);
-  FDrawContext := FPainter.CreateDrawContext(1, 1);
-  DoCreateScene(APlaceholder);
+  FDrawContainer := DoCreateScene(APlaceholder);
+  FPainter := CreatePainter(FDrawContainer);
 
   FRoot := TSceneObject.Create(Self, nil, GetSceneRect);
   FMousePos := PointF(-1, -1);
@@ -564,12 +565,11 @@ end;
 destructor TScene.Destroy;
 begin
   FState := ssDestroying;
+  FreeAndNil(FDrawContainer);
   FreeAndNil(FPainter);
 
   DoDestroyScene;
 
-  FreeAndNil(FCachedDrawContext);
-  FreeAndNil(FDrawContext);
   FFocusedObject := nil;
   FHoveredObject := nil;
   FreeAndNil(FRoot);
@@ -586,7 +586,13 @@ procedure TScene.EndUpdate;
 begin
   FLockCount := FLockCount - 1;
   if FLockCount = 0 then
-    DoRender;
+    Render;
+end;
+
+procedure TScene.FullRefresh;
+begin
+  Invalidate(ssDirty);
+  Repaint;
 end;
 
 procedure TScene.Invalidate(const AState: TSceneState = ssDirty);
@@ -595,40 +601,12 @@ begin
     FState := AState;
 end;
 
-function TScene.MainStyle: TDrawStyle;
-begin
-  if Assigned(FPainter) then
-    Result := FPainter.BaseStyle
-  else
-    Result := nil;
-end;
-
 procedure TScene.DoActivate;
 begin
 end;
 
-procedure TScene.DoRender;
-var
-  vNeedFullRepaint: Boolean;
+procedure TScene.DoRender(const ANeedFullRepaint: Boolean);
 begin
-  if not (FState in [ssUsed, ssDirty]) then
-    Exit;
-
-  vNeedFullRepaint := FState = ssDirty;
-
-  FState := ssNormal;
-
-  if vNeedFullRepaint then
-  begin
-    FPainter.Canvas := FCachedDrawContext.Canvas;
-    FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
-    //FCachedDrawContext.SaveToFile('static.bmp');
-  end;
-
-  FPainter.Canvas := FDrawContext.Canvas;
-  FPainter.DrawContext(FCachedDrawContext);
-  FRoot.RenderDynamic(FPainter, GetSceneRect);
-  //FCachedDrawContext.SaveToFile('dynamic.bmp');
 end;
 
 procedure TScene.OnDblClick(Sender: TObject);
@@ -651,7 +629,7 @@ begin
       vCurObject.HandleDblClick(vCurObject.SceneToClient(vClientPos), vHandled);
       vCurObject := vCurObject.Parent;
     until vHandled or not Assigned(vCurObject);
-    DoRender;
+    Render;
   end;
 end;
 
@@ -668,7 +646,7 @@ begin
       vCurObject.HandleKeyDown(Key, Shift, vHandled);
       vCurObject := vCurObject.Parent;
     until vHandled or not Assigned(vCurObject);
-    DoRender;
+    Render;
   end;
 end;
 
@@ -685,7 +663,7 @@ begin
       vCurObject.HandleKeyUp(Key, Shift, vHandled);
       vCurObject := vCurObject.Parent;
     until vHandled or not Assigned(vCurObject);
-    DoRender;
+    Render;
   end;
 end;
 
@@ -708,7 +686,7 @@ begin
       vCurObject.HandleMouseDown(Button, Shift, vCurObject.SceneToClient(vClientPos), vHandled);
       vCurObject := vCurObject.Parent;
     until vHandled or not Assigned(vCurObject);
-    DoRender;
+    Render;
   end;
 end;
 
@@ -752,7 +730,7 @@ begin
         vCurObject.HandleMouseMove(Shift, vCurObject.SceneToClient(FMousePos), vHandled);
         vCurObject := vCurObject.Parent;
       until vHandled or not Assigned(vCurObject);
-      DoRender;
+      Render;
     end;
   //end;
 end;
@@ -773,7 +751,7 @@ begin
       vCurObject.HandleMouseUp(Button, Shift, vCurObject.SceneToClient(vClientPos), vHandled);
       vCurObject := vCurObject.Parent;
     until vHandled or not Assigned(vCurObject);
-    DoRender;
+    Render;
   end;
 end;
 
@@ -798,7 +776,7 @@ begin
       vCurObject.HandleMouseWheel(Shift, WheelDelta, vCurObject.SceneToClient(vClientPos), Handled);
       vCurObject := vCurObject.Parent;
     until Handled or not Assigned(vCurObject);
-    DoRender;
+    Render;
   end;
 end;
 
@@ -812,7 +790,7 @@ begin
   else begin
     Invalidate(ssUsed);
     if FLockCount = 0 then
-      DoRender;
+      Render;
   end;
 end;
 
@@ -825,8 +803,8 @@ begin
     Exit;
 
   FState := ssNormal;
-  FCachedDrawContext.SetSize(vSceneRect.Width, vSceneRect.Height);
-  FDrawContext.SetSize(vSceneRect.Width, vSceneRect.Height);
+  FPainter.Context.SetSize(vSceneRect.Width, vSceneRect.Height);
+  UpdateContexts(vSceneRect.Width, vSceneRect.Height);
 
   BeginUpdate;
   try
@@ -838,25 +816,40 @@ begin
   end;
 end;
 
+procedure TScene.Render;
+var
+  vNeedFullRepaint: Boolean;
+begin
+  if not (FState in [ssUsed, ssDirty]) then
+    Exit;
+
+  vNeedFullRepaint := FState = ssDirty;
+
+  FState := ssNormal;
+
+  DoRender(vNeedFullRepaint);
+end;
+
 procedure TScene.Repaint;
 begin
   if FState = ssNormal then
     Invalidate;
   if (FState in [ssUsed, ssDirty]) and (FLockCount = 0) then
-    DoRender;
+    Render;
 end;
 
 procedure TScene.SaveToFile(const AFileName, AWaterMark: string);
-var
-  vStyle: TDrawStyle;
+//var
+//  vStyle: TDrawStyle;
 begin
   Repaint;
 
-  vStyle := MainStyle;
-  if (AWaterMark <> '') and Assigned(vStyle) then
-    FPainter.DrawText(MainStyle, '', 'watermark', AWaterMark, GetSceneRect, DT_CENTER or DT_VCENTER);
+  //vStyle := MainStyle;
+  //if (AWaterMark <> '') and Assigned(vStyle) then
+  //  FPainter.DrawText(MainStyle, '', 'watermark', AWaterMark, GetSceneRect, DT_CENTER or DT_VCENTER);
 
-  FDrawContext.SaveToFile(AFileName);
+  if Assigned(FPainter) and Assigned(FPainter.Context) then
+    FPainter.Context.SaveToFile(AFileName);
 end;
 
 procedure TScene.SetFocusedObject(const Value: TSceneObject);
@@ -873,7 +866,7 @@ begin
   if Assigned(FFocusedObject) then
     FFocusedObject.Focused := True;
 
-  DoRender;
+  Render;
 end;
 
 procedure TScene.SetHoveredObject(const Value: TSceneObject);
@@ -891,7 +884,11 @@ begin
   if Assigned(FHoveredObject) then
     FHoveredObject.Activate;
 
-  DoRender;
+  Render;
+end;
+
+procedure TScene.UpdateContexts(const AWidth, AHeight: Single);
+begin
 end;
 
 { TAliveRect }
@@ -912,6 +909,8 @@ begin
   begin
     FStyle.AddFillParams('normal', AColor);
     FStyle.AddFillParams('focused', AFocusColor);
+
+    FStyle.CreateDrawObjects(AScene.Painter);
   end;
 
   FFactor := AFactor;
@@ -1052,7 +1051,7 @@ begin
       end;
   end;
 
-  APainter.Canvas := FTileImage.Canvas;
+  APainter.SetContext(FTileImage);
   FChildren[0].RenderStatic(APainter, ARect, AMode);
 
   vTileRect := FTileRect;
@@ -1068,10 +1067,10 @@ begin
 
     vRect := FChildRects[i];
     OffsetRect(vRect, ARect.Left, ARect.Top);
-    if i = FHotIndex then
-      APainter.DrawImage(FTileImage.Image, vRect)
-    else
-      APainter.DrawImage(FTileImage.Image, vRect, 0.5);
+    //if i = FHotIndex then
+    //  APainter.DrawImage(FTileImage.Image, vRect)
+    //else
+    //  APainter.DrawImage(FTileImage.Image, vRect, 0.5);
   end;
 end;
 

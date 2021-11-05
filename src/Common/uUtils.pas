@@ -106,7 +106,9 @@ function JoinIfFilled(const s: string; const APrefix, APostfix: string): string;
 function MakeMethod(const ACode, AData: Pointer): TMethod;
 
 function GetUrlParam(const AUrl, AParamName: string; const ADefaultValue: string = ''): string;
-function GetUrlCommand(const AUrl: string): string;
+function GetUrlCommand(const AUrl: string; const ADefaultValue: string = ''): string;
+function ExtractUrlParams(const AUrl: string; const ADefaultValue: string = ''): string;
+
 function EncodeUrl(const AUrl: string): string;
 function DecodeUrl(const AUrl: string): string;
 
@@ -1120,7 +1122,7 @@ function GetUrlParamDefTerm(const AUrl, AParamName, AValueIfNone, ATerm: string)
 var
   vFrom, vTo: Integer;
 begin
-	vFrom := Pos(AParamName, AUrl);
+	vFrom := Pos(AnsiUpperCase(AParamName), AnsiUpperCase(AUrl));
 	if vFrom = 0 then
   begin
 		Result := AValueIfNone;
@@ -1132,7 +1134,7 @@ begin
 	if vTo = 0 then
 		vTo := Length(AUrl) + 1;
 
-	Result := Copy(AUrl, vFrom, vTo - vFrom );
+	Result := Copy(AUrl, vFrom, vTo - vFrom);
 end;
 
 function GetUrlParam(const AUrl, AParamName: string; const ADefaultValue: string = ''): string;
@@ -1140,14 +1142,25 @@ begin
 	Result := GetUrlParamDefTerm(AUrl, AParamName + '=', ADefaultValue, '&');
 end;
 
-function GetUrlCommand(const AUrl: string): string;
+function GetUrlCommand(const AUrl: string; const ADefaultValue: string = ''): string;
 var
   vUrl: string;
 begin
   vUrl := AUrl;
   if Pos('//', vUrl) = 0 then
     vUrl := '//' + vUrl;
-	Result := GetUrlParamDefTerm(vUrl, '//', '', '?');
+	Result := GetUrlParamDefTerm(vUrl, '//', ADefaultValue, '?');
+end;
+
+function ExtractUrlParams(const AUrl: string; const ADefaultValue: string = ''): string;
+var
+  vFrom: Integer;
+begin
+  vFrom := Pos('?', AUrl);
+  if vFrom = 0 then
+    Result := ''
+  else
+  	Result := Copy(AUrl, vFrom + 1, Length(AUrl) + 1);
 end;
 
 function EncodeUrl(const AUrl: string): string;

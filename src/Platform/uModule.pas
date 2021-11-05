@@ -36,7 +36,7 @@ unit uModule;
 interface
 
 uses
-  Classes, Generics.Collections, uFastClasses;
+  Classes, Generics.Collections;
 
 type
   TBaseModule = class;
@@ -49,7 +49,7 @@ type
 
   TBaseModule = class
   private
-    class var RegisteredModules: TObjectStringDictionary<TList<TModuleRec>>;
+    class var RegisteredModules: TObjectDictionary<string, TList<TModuleRec>>;
   public
     class procedure RegisterModule(const AType, AName: string; const AClass: TModuleClass);
     class function GetModuleClass(const AType, AName: string): TModuleClass;
@@ -83,8 +83,7 @@ var
   vModuleRec: TModuleRec;
 begin
   Result := nil;
-  vGroup := RegisteredModules.ObjectByName(AType.ToLowerInvariant);
-  if not Assigned(vGroup) then
+  if not RegisteredModules.TryGetValue(AType.ToLowerInvariant, vGroup) then
     Exit;
 
   for vModuleRec in vGroup do
@@ -103,8 +102,7 @@ var
   vModuleRec: TModuleRec;
 begin
   Result := TStringList.Create;
-  vGroup := RegisteredModules.ObjectByName(AType.ToLowerInvariant);
-  if Assigned(vGroup) then
+  if RegisteredModules.TryGetValue(AType.ToLowerInvariant, vGroup) then
     for vModuleRec in vGroup do
       Result.Add(vModuleRec.Name);
 end;
@@ -114,11 +112,10 @@ var
   vGroup: TList<TModuleRec>;
   vModuleRec: TModuleRec;
 begin
-  vGroup := RegisteredModules.ObjectByName(AType.ToLowerInvariant);
-  if not Assigned(vGroup) then
+  if not RegisteredModules.TryGetValue(AType.ToLowerInvariant, vGroup) then
   begin
     vGroup := TList<TModuleRec>.Create;
-    RegisteredModules.AddObject(AType.ToLowerInvariant, vGroup);
+    RegisteredModules.Add(AType.ToLowerInvariant, vGroup);
   end;
 
   vModuleRec.Name := AName.ToLowerInvariant;
@@ -143,7 +140,7 @@ end;
 
 initialization
 
-TBaseModule.RegisteredModules := TObjectStringDictionary<TList<TModuleRec>>.Create;
+TBaseModule.RegisteredModules := TObjectDictionary<string, TList<TModuleRec>>.Create([doOwnsValues]);
 
 finalization
 

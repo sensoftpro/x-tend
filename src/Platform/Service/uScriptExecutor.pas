@@ -907,7 +907,7 @@ begin
     begin
       FInProcess := False;
       if Assigned(FOnLogMessage) then
-        FOnLogMessage(FormatDateTime('hh:nn:ss.zzz', Now) + '  <<< Скрипт ' + vScriptName + ' завершён');
+        FOnLogMessage(FormatDateTime('hh:nn:ss.zzz', Now) + '  << Выполнено: ' + vScriptName);
       if Assigned(AFiber.OnScriptEnd) then
         AFiber.OnScriptEnd(AFiber);
     end);
@@ -940,7 +940,7 @@ end; }
 
 function TScriptExecutor.Prepare(const AScript: TEntity): TCodeBlock;
 begin
-  PrintText(nil, '>>> Старт выполнения скрипта: ' + AScript.DisplayName);
+  PrintText(nil, '>> Старт: ' + AScript.DisplayName);
 
   Result := TTextCodeBlock.Create(Self, nil, AScript['Name']);
   TTextCodeBlock(Result).ParseCode(AScript['Code']);
@@ -1251,7 +1251,7 @@ begin
   if Assigned(FStopTask) then
     Exit;
 
-  FStopTask := FTaskEngine.Execute('Script stopper', procedure(const ATask: TTaskHandle)
+  FTaskEngine.ExecuteManaged('Script stopper', procedure(const ATask: TTaskHandle)
     var
       vFibers: TList<TExecutionFiber>;
       vFiber: TExecutionFiber;
@@ -2461,7 +2461,7 @@ begin
   AddEnumeration<TParameterType>('ParameterTypes').AddDisplayNames(cParameterTypeCaptions);
 
   AddAction('ClearLog', 'Очистить журнал', 1006);
-  AddAction('StopAll', 'Остановить все скрипты', 1007);
+  AddAction('StopAll', 'Остановить', 1202);
 
   vActionDef := AddAction('StopScenario', 'Прекратить', 1003, ccHideInMenu);
   vActionDef.AddSimpleFieldDef('FiberID', 'fiber_id', 'Ид. скрипта', 0, 1, Null, fkInteger, '', '', vsHidden);

@@ -196,7 +196,8 @@ type
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
     procedure DoExecuteUIAction(const AView: TView); override;
   public
-    constructor Create(const AParent: TUIArea; const ALayout: TObject; const AView: TView; const AId: string);
+    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -279,7 +280,8 @@ type
   protected
     procedure DoExecuteUIAction(const AView: TView); override;
   public
-    constructor Create(const AParent: TUIArea; const ALayout: TObject; const AView: TView; const AId: string; const AParams: string);
+    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -338,7 +340,8 @@ type
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
     procedure DoExecuteUIAction(const AView: TView); override;
   public
-    constructor Create(const AParent: TUIArea; const ALayout: TObject; const AView: TView; const AId: string);
+    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -1179,7 +1182,8 @@ begin
   vMenuItem.Caption := TInteractor(Interactor).Translate('txtRecordCount', 'Записей') + ': ' + IntToStr(FAllData.Count);
 end;
 
-constructor TCollectionEditor.Create(const AParent: TUIArea; const ALayout: TObject; const AView: TView; const AId: string);
+constructor TCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+  const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
 var
   vDefinition: TDefinition;
   vView: TView;
@@ -1256,7 +1260,9 @@ begin
 //  FGrid.Levels.Add.GridView := FChartView;
   FGrid.Font.Size := 12;
 
-  inherited Create(AParent, AView, AId, FGrid);
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
+  SetControl(FGrid);
+  SetParent(AParent);
 
   // after inherited Create, Interactor must be initialized
   cxSetResourceString(@scxGridGroupByBoxCaption, TInteractor(Interactor).Translate('txtMoveColumnForGrouping',
@@ -2631,8 +2637,8 @@ begin
   vMenuItem.Caption := TInteractor(Interactor).Translate('txtRecordCount', 'Записей') + ': ' + IntToStr(FAllData.Count);
 end;
 
-constructor TPivotGrid.Create(const AParent: TUIArea; const ALayout: TObject; const AView: TView; const AId: string;
-  const AParams: string);
+constructor TPivotGrid.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+  const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
 var
   vPopupArea: TVCLArea;
   vPopupMenu: TPopupMenu;
@@ -2720,7 +2726,9 @@ begin
   cxSetResourceString(@scxPrefilterIsEmpty, '<Фильтр не задан>');
   cxSetResourceString(@scxPrefilterCustomizeButtonCaption, 'Фильтрация...');
 
-  inherited Create(AParent, AView, AId, FPivot);
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
+  SetControl(FPivot);
+  SetParent(AParent);
 
   FAllData := TEntityList(AView.DomainObject);
   FMasterDS := TPivotDataSource.Create;
@@ -2943,7 +2951,8 @@ begin
   end;
 end;
 
-constructor TTreeCollectionEditor.Create(const AParent: TUIArea; const ALayout: TObject; const AView: TView; const AId: string);
+constructor TTreeCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+  const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
 var
   vPopupArea: TVCLArea;
   vPopupMenu: TPopupMenu;
@@ -3007,7 +3016,9 @@ begin
 
   FTreeList.Font.Size := 12;
 
-  inherited Create(AParent, AView, AId, FTreeList);
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
+  SetControl(FTreeList);
+  SetParent(AParent);
 
   FAllData := TEntityList(FView.DomainObject);
 
@@ -3633,6 +3644,10 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'selector', TEntity
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'multiselect', TEntityListSelector2);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'mtm', TEntityListSelectorMTM);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'parameters', TParametersEditor);
+
+TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, '', TCollectionEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, 'Pivot', TPivotGrid);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, 'Tree', TTreeCollectionEditor);
 
 end.
 

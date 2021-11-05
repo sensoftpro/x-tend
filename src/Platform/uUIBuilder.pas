@@ -98,7 +98,6 @@ type
 
   TUIArea = class
   private
-    FUId: string;
     [Weak] FParent: TUIArea;
     [Weak] FHolder: TObject;
     FAreas: TList<TUIArea>;
@@ -117,6 +116,8 @@ type
     procedure SetEditMode(const ASession: TObject; const AParentHolder: TObject; const AIsEditMode: Boolean);
     procedure DisableContent;
   protected
+    FControl: TObject;
+    FCreateParams: TStrings;
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); virtual; abstract;
     procedure DoClose(const AModalResult: Integer); virtual; abstract;
     function DoCreateChildArea(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; virtual; abstract;
@@ -144,6 +145,7 @@ type
     [Weak] FUIBuilder: TUIBuilder;
     [Weak] FView: TView;
     FId: string;
+    FUId: string;
     FStyle: TUIStyle;
 
     function GetName: string; virtual;
@@ -163,7 +165,8 @@ type
 
     procedure DM_ViewChanged(var AMessage: TViewChangedMessage); message DM_VIEW_CHANGED;
   public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False);
+    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); virtual;
     destructor Destroy; override;
 
     // Полная очистка и удаление
@@ -518,6 +521,7 @@ var
   vDefaultCaption: string;
   vIsMainForm: Boolean;
   vParams: TStrings;
+  vOptions: string;
 
   function ExtractValueFromStrings(const AList: TStrings; const AKey: string; const ADefault: string = ''): string;
   begin
@@ -686,7 +690,16 @@ begin
 
   PrintHierarchy;
 
-  Result := TPresenter(TInteractor(FInteractor).Presenter).ShowUIArea(TInteractor(FInteractor), vAreaName, AOptions, vUIArea);
+  vOptions := AOptions;
+
+  if ACaption <> '' then
+  begin
+    if vOptions <> '' then
+      vOptions := vOptions + '&';
+    vOptions := vOptions + 'Caption=' + ACaption;
+  end;
+
+  Result := TPresenter(TInteractor(FInteractor).Presenter).ShowUIArea(TInteractor(FInteractor), vAreaName, vOptions, vUIArea);
   if Result > drNone then
     FCurrentArea := vLastCurrentArea;
 
@@ -880,13 +893,16 @@ begin
   DoClose(AModalResult);
 end;
 
-constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False);
+constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+  const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
 begin
   inherited Create;
 
   FId := AId;
   FUId := AId;
   FIsService := AIsService;
+  FControl := AControl;
+
   FAreas := TList<TUIArea>.Create;
   FStyle := TUIStyle.Create(Self);
   FHolder := nil;
@@ -1056,6 +1072,7 @@ end;
 
 destructor TUIArea.Destroy;
 begin
+  FreeAndNil(FCreateParams);
   FreeAndNil(FStyle);
   inherited Destroy;
 end;

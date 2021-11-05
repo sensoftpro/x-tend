@@ -832,7 +832,7 @@ begin
     vDomain.Logger.AddEnterMessage('SAVING ' + FEntity.ToString)
   else begin
     vDomain.Logger.AddMessage('SAVING ' + FEntity.ToString);
-    vDomain.Logger.DisableLogging;
+    vDomain.Logger.Enabled := False;;
   end;
   try
     try
@@ -872,7 +872,7 @@ begin
       if not vSkipLogging then
         vDomain.Logger.AddExitMessage('SAVED')
       else begin
-        vDomain.Logger.EnableLogging;
+        vDomain.Logger.Enabled := True;
         vDomain.Logger.AddMessage('SAVED');
       end;
     except
@@ -882,7 +882,7 @@ begin
         if not vSkipLogging then
           vDomain.Logger.AddExitMessage('Error while storing data: ' + E.Message)
         else begin
-          vDomain.Logger.EnableLogging;
+          vDomain.Logger.Enabled := True;
           vDomain.Logger.AddMessage('Error while storing data: ' + E.Message)
         end;
         Result := '';

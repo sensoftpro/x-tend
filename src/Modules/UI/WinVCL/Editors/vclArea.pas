@@ -74,7 +74,6 @@ type
     procedure ExplicitNavigate(Sender: TObject);
     procedure OnExecuteAction(Sender: TObject);
     procedure OnOpenCollection(Sender: TObject);
-    procedure SetControl(const AControl: TComponent);
     procedure OnEnter(Sender: TObject);
     procedure OnExit(Sender: TObject);
     procedure OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
@@ -104,6 +103,7 @@ type
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); override;
 
     function GetName: string; override;
+    procedure SetControl(const AControl: TComponent);
     procedure SetParent(const Value: TUIArea); override;
     procedure UnbindContent; override;
     procedure AssignFromLayout(const ALayout: TObject); override;
@@ -117,7 +117,8 @@ type
     procedure SetCaptionProperty(const ALayout: TObject); virtual;
     procedure RefillArea(const AKind: Word); virtual;
   public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AControl: TComponent);
+    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
     destructor Destroy; override;
 
     property Component: TComponent read FControl;
@@ -131,7 +132,6 @@ type
     procedure BeforeContextMenuShow(Sender: TObject);
   protected
     FFieldDef: TFieldDef;
-    FCreateParams: TStrings;
 
     procedure OnChange(Sender: TObject);
 
@@ -159,8 +159,8 @@ type
     procedure SetFieldEntity(const AEntity: TEntity);
     procedure SetFieldStream(const AStream: TStream);
   public
-    constructor Create(const AParent: TUIArea; const ALayout: TObject;
-      const AView: TView; const AParams: string); virtual;
+    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
     destructor Destroy; override;
 
     procedure Deinit;
@@ -240,7 +240,7 @@ begin
   vPanel.BevelOuter := bvNone;
   vPanel.Height := cServiceAreaHeight;
   vPanel.Align := alBottom;
-  vArea := TVCLArea.Create(Self, FView, '', vPanel);
+  vArea := TVCLArea.Create(Self, FView, '', True, vPanel);
   AddArea(vArea);
   FUIBuilder.ApplyLayout(vArea, FView, ALayoutName);
 end;
@@ -451,13 +451,18 @@ begin
     TWinControl(FControl).DisableAlign;
 end;
 
-constructor TVCLArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AControl: TComponent);
+constructor TVCLArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+  const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
 begin
   FNeedCreateCaption := True;
+  FCreateParams := nil;
+  if Length(AParams) > 0 then
+    FCreateParams := CreateDelimitedList(AParams, '&');
 
-  inherited Create(AParent, AView, AId, AId = '');
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
 
-  SetControl(AControl);
+  if AControl is TComponent then
+    SetControl(TComponent(AControl));
 
   if AControl is TControl then
     SetParent(AParent);
@@ -569,12 +574,12 @@ begin
     if vButtonDesc.View <> '' then
     begin
       vView := FUIBuilder.RootView.BuildView(vButtonDesc.View);
-      Result := TVCLArea.Create(Self, vView, vSourceBtn.Caption, vButton);
+      Result := TVCLArea.Create(Self, vView, vSourceBtn.Caption, False, vButton);
       Result.UId := vButtonDesc.Id;
       TVCLArea(Result).UpdateArea(dckViewStateChanged);
     end
     else
-      Result := TVCLArea.Create(Self, FView, vSourceBtn.Caption, vButton);
+      Result := TVCLArea.Create(Self, FView, vSourceBtn.Caption, False, vButton);
   finally
     vButtonDesc.Free;
   end;
@@ -624,12 +629,12 @@ begin
       else
         Assert(False, 'Ситуация пока не обрабатывается');
 
-      Result := TVCLArea.Create(Self, vView, AViewPath, vToolButton);
+      Result := TVCLArea.Create(Self, vView, AViewPath, False, vToolButton);
       Result.UId := vButtonDesc.Id;
       TVCLArea(Result).UpdateArea(dckViewStateChanged);
     end
     else
-      Result := TVCLArea.Create(Self, FView, AViewPath, vToolButton);
+      Result := TVCLArea.Create(Self, FView, AViewPath, False, vToolButton);
   finally
     vButtonDesc.Free;
   end;
@@ -699,13 +704,13 @@ begin
     vLabel.Transparent := True;
     vLabel.Properties.Alignment.Vert := TcxEditVertAlignment.taVCenter;
     vLabel.Style.TextColor := TPanel(ALayout).Font.Color;
-    vLabel.Style.TextStyle := [];
+    vLabel.Style.TextStyle := [fsUnderline];
     vLabel.Style.HotTrack := True;
     vLabel.StyleHot.TextColor := clBlue;
     vLabel.StyleHot.TextStyle := [fsUnderline];
     vLabel.OnClick := vOnClickHandler;
 
-    Result := TVCLArea.Create(Self, AView, vActionDef.Name, vLabel);
+    Result := TVCLArea.Create(Self, AView, vActionDef.Name, False, vLabel);
     if AParams <> '' then
       Result.AddParams(CreateDelimitedList(AParams, '&'));
 
@@ -793,7 +798,7 @@ begin
   else
     vButton.OnClick := vOnClickHandler;
 
-  Result := TVCLArea.Create(Self, AView, vActionDef.Name, vButton);
+  Result := TVCLArea.Create(Self, AView, vActionDef.Name, False, vButton);
   if AParams <> '' then
     Result.AddParams(CreateDelimitedList(AParams, '&'));
 end;
@@ -861,7 +866,7 @@ var
 
     vCaption := 'View=' + ADefinition.Name + '@WorkArea=WorkArea@Layout=' + vLayoutName;
 
-    Result := TVCLArea.Create(AParent, AView, vCaption, vDestItem);
+    Result := TVCLArea.Create(AParent, AView, vCaption, False, vDestItem);
     TVCLArea(Result).UpdateArea(dckViewStateChanged);
     AParent.AddArea(Result);
   end;
@@ -916,7 +921,7 @@ var
         else
           vDestItem.Caption := vCaption;
 
-        vChildArea := TVCLArea.Create(AParent, AParent.View, vSrcItem.Caption, vDestItem);
+        vChildArea := TVCLArea.Create(AParent, AParent.View, vSrcItem.Caption, False, vDestItem);
         if vId = 'Documents' then
         begin
           vDefinitions := TList<TDefinition>.Create;
@@ -967,7 +972,7 @@ var
           vDestItem.ImageIndex := GetImageID(vAction._ImageID);
           vDestItem.OnClick := OnExecuteAction;
 
-          vChildArea := TVCLArea.Create(AParent, vView, vCaption, vDestItem);
+          vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, vDestItem);
           TVCLArea(vChildArea).UpdateArea(dckViewStateChanged);
         end
         else if vView.DefinitionKind = dkCollection then
@@ -990,14 +995,14 @@ var
             vLayoutName := 'Collection';
           vCaption := 'View=' + vView.InitialName + '@WorkArea=WorkArea@Layout=' + vLayoutName;
 
-          vChildArea := TVCLArea.Create(AParent, vView, vCaption, vDestItem);
+          vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, vDestItem);
           TVCLArea(vChildArea).UpdateArea(dckViewStateChanged);
         end
         else begin
           vView.CleanView;
           vDestItem.Caption := vCaption;
           vDestItem.Enabled := False;
-          vChildArea := TVCLArea.Create(AParent, AParent.View, vCaption, vDestItem);
+          vChildArea := TVCLArea.Create(AParent, AParent.View, vCaption, False, vDestItem);
         end;
       end;
 
@@ -1061,7 +1066,7 @@ var
               if Assigned(vView.DomainObject) and TEntity(vView.DomainObject).FieldExists('IsChecked') then
                 vDestItem.AutoCheck := True;
 
-              vChildArea := TVCLArea.Create(AParent, vView, vCaption, vDestItem);
+              vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, vDestItem);
               vChildArea.UpdateArea(dckViewStateChanged);
               AParent.AddArea(vChildArea);
 
@@ -1097,7 +1102,7 @@ var
               vDestItem.ImageIndex := 31;
               vDestItem.OnClick := OnExecuteAction;
 
-              vChildArea := TVCLArea.Create(AParent, vView, vCaption, vDestItem);
+              vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, vDestItem);
               vChildArea.UpdateArea(dckViewStateChanged);
               AParent.AddArea(vChildArea);
 
@@ -1135,7 +1140,7 @@ var
         else
           vDestItem.Caption := vCaption;
 
-        vChildArea := TVCLArea.Create(AParent, AParent.View, vSrcItem.Caption, vDestItem);
+        vChildArea := TVCLArea.Create(AParent, AParent.View, vSrcItem.Caption, False, vDestItem);
         AParent.AddArea(vChildArea);
 
         ADestMenu.Add(vDestItem);
@@ -1181,7 +1186,7 @@ var
         if Assigned(vView.DomainObject) and TEntity(vView.DomainObject).FieldExists('IsChecked') then
           vDestItem.AutoCheck := True;
 
-        vChildArea := TVCLArea.Create(AParent, vView, vCaption, vDestItem);
+        vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, vDestItem);
         vChildArea.UpdateArea(dckViewStateChanged);
 
         AParent.AddArea(vChildArea);
@@ -1232,7 +1237,7 @@ var
       vButton.OnClick := OnExecuteAction;
 
       vView := FUIBuilder.RootView.BuildView(AViewName);
-      Result := TVCLArea.Create(AParent, vView, AViewName, vButton);
+      Result := TVCLArea.Create(AParent, vView, AViewName, False, vButton);
       TVCLArea(Result).UpdateArea(dckViewStateChanged);
     end
     else begin
@@ -1246,13 +1251,13 @@ var
 
         vView := FUIBuilder.RootView.BuildView(AViewName);
         Result := TVCLArea.Create(AParent, vView, 
-          'View=' + AViewName + '@WorkArea=WorkArea@Layout=Collection', vButton);
+          'View=' + AViewName + '@WorkArea=WorkArea@Layout=Collection', False, vButton);
         TVCLArea(Result).UpdateArea(dckViewStateChanged);     
       end
       else begin
         vButton.Caption := AViewName;
         vButton.Hint := vButton.Caption;
-        Result := TVCLArea.Create(AParent, AParent.View, AViewName, vButton);
+        Result := TVCLArea.Create(AParent, AParent.View, AViewName, False, vButton);
       end;
     end;
 
@@ -1272,7 +1277,7 @@ var
     vSeparator := vNavBar.AddItem(TdxBarSeparator);
     vBar.ItemLinks.Add(vSeparator);
 
-    Result := TVCLArea.Create(AParent, AParent.View, '-separator-', vSeparator);
+    Result := TVCLArea.Create(AParent, AParent.View, '-separator-', False, vSeparator);
     AParent.AddArea(Result);
   end;
 
@@ -1289,7 +1294,7 @@ var
     vSubGroup.Caption := ACaption;
     vBar.ItemLinks.Add(vSubGroup);
 
-    Result := TVCLArea.Create(AParent, AParent.View, ACaption, vSubGroup);
+    Result := TVCLArea.Create(AParent, AParent.View, ACaption, False, vSubGroup);
     AParent.AddArea(Result);
   end;
 
@@ -1353,7 +1358,7 @@ var
     vMainMenu := ANavBar.AddToolBar(True);
     vMainMenu.Images := TDragImageList(TInteractor(Interactor).Images[16]);
     SetupBar(vMainMenu);
-    vBarArea := TVCLArea.Create(AParent, AView, 'NavMainMenu', vMainMenu);
+    vBarArea := TVCLArea.Create(AParent, AView, 'NavMainMenu', False, vMainMenu);
     AParent.AddArea(vBarArea);
 
     vGroupArea := AddMenuGroup(vBarArea, TInteractor(Interactor).Translate('cptSystem', 'Система'));
@@ -1404,7 +1409,7 @@ var
   begin
     vToolBar := ANavBar.AddToolBar;
     SetupBar(vToolBar);
-    vBarArea := TVCLArea.Create(AParent, AView, 'NavToolBar', vToolBar);
+    vBarArea := TVCLArea.Create(AParent, AView, 'NavToolBar', False, vToolBar);
     AParent.AddArea(vBarArea);   
   
     vCfgImagesResolution := StrToIntDef(vDomain.Settings.GetValue('Core', 'CfgImagesResolution'), 32);
@@ -1424,7 +1429,7 @@ var
 
         vView := FUIBuilder.RootView.BuildView(vDefinition.Name);
         vButtonArea := TVCLArea.Create(vBarArea, vView,
-          'View=' + vDefinition.Name + '@WorkArea=WorkArea@Layout=Collection', vButton);
+          'View=' + vDefinition.Name + '@WorkArea=WorkArea@Layout=Collection', False, vButton);
         vButtonArea.UpdateArea(dckViewStateChanged);
         vBarArea.AddArea(vButtonArea);
 
@@ -1447,7 +1452,7 @@ var
   begin
     vNavigationBar := TdxBarManager.Create(nil); //<= TForm?
     vNavigationBar.CanCustomize := False;
-    Result := TVCLArea.Create(Self, AView, 'NavBar', vNavigationBar);
+    Result := TVCLArea.Create(Self, AView, 'NavBar', False, vNavigationBar);
     
     vNavigationBar.BeginUpdate;
     try
@@ -1500,7 +1505,7 @@ begin
 
     vLabel.Caption := vCaption;
 
-    Result := TVCLArea.Create(Self, AView, '', vLabel);
+    Result := TVCLArea.Create(Self, AView, '', False, vLabel);
   end
   else if ALayout is TImage then
   begin
@@ -1526,7 +1531,7 @@ begin
     vImage.Margins := vSourceImage.Margins;
     vImage.Properties.Center := False;
 
-    Result := TVCLArea.Create(Self, AView, '', vImage);
+    Result := TVCLArea.Create(Self, AView, '', False, vImage);
   end
   else if ALayout is TPageControl then
   begin
@@ -1546,7 +1551,7 @@ begin
     vPC.Anchors := vSourcePC.Anchors;
     vPC.Visible := vSourcePC.Visible;
 
-    Result := TVCLArea.Create(Self, AView, '', vPC);
+    Result := TVCLArea.Create(Self, AView, '', False, vPC);
   end
   else if ALayout is TTabSheet then
   begin
@@ -1559,7 +1564,7 @@ begin
       vForm.ShowHint := True;
       if AView.DefinitionKind in [dkCollection, dkAction, dkEntity] then
         TDragImageList(TInteractor(Interactor).Images[16]).GetIcon(GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
-      Result := TVCLArea.Create(Self, AView, vSourceTabSheet.Name, vForm);
+      Result := TVCLArea.Create(Self, AView, vSourceTabSheet.Name, False, vForm);
     end
     else begin
       vTab := TcxTabSheet.Create(FControl);
@@ -1570,7 +1575,7 @@ begin
       vTab.AllowCloseButton := not SameText(vSourceTabSheet.Name, vStartPageName);
       vTab.TabVisible := vSourceTabSheet.TabVisible;
 
-      Result := TVCLArea.Create(Self, AView, vSourceTabSheet.Name, vTab);
+      Result := TVCLArea.Create(Self, AView, vSourceTabSheet.Name, False, vTab);
 
       if vSourceTabSheet.Visible then
         TcxPageControl(FControl).ActivePage := vTab;
@@ -1586,7 +1591,7 @@ begin
     vToolBar.Font.Size := vSourceToolBar.Font.Size;
     vToolBar.List := vSourceToolBar.List;
 
-    Result := TVCLArea.Create(Self, AView, '', vToolBar);
+    Result := TVCLArea.Create(Self, AView, '', False, vToolBar);
 
     vResolution := StrToIntDef(TDomain(TInteractor(Interactor).Domain).Settings.GetValue('Core',
       'CfgImagesResolution'), 32);
@@ -1613,14 +1618,14 @@ begin
   begin
     vMenu := TMainMenu.Create(FControl);
     vMenu.Images := TDragImageList(TInteractor(Interactor).Images[16]);
-    Result := TVCLArea.Create(Self, AView, 'Menu', vMenu);
+    Result := TVCLArea.Create(Self, AView, 'Menu', False, vMenu);
     CopyMenuItems(Result, TMenu(ALayout).Items, vMenu.Items);
   end
   else if ALayout is TPopupMenu then
   begin
     vMenu := TPopupMenu.Create(FControl);
     vMenu.Images := TDragImageList(TInteractor(Interactor).Images[16]);
-    Result := TVCLArea.Create(Self, AView, 'Popup', vMenu);
+    Result := TVCLArea.Create(Self, AView, 'Popup', False, vMenu);
     CopyPopupMenuItems(Result, TMenu(ALayout).Items, vMenu.Items);
   end
   else if ALayout is TBitBtn then
@@ -1632,7 +1637,7 @@ begin
     vBevel.Align := vSourceBevel.Align;
     vBevel.Shape := vSourceBevel.Shape;
     vBevel.Style := vSourceBevel.Style;
-    Result := TVCLArea.Create(Self, AView, '-bevel-', vBevel);
+    Result := TVCLArea.Create(Self, AView, '-bevel-', False, vBevel);
   end
   else if ALayout is TSplitter then
   begin
@@ -1649,7 +1654,7 @@ begin
     //vSplitter.AllowHotZoneDrag := False;
     vSplitter.HotZone := TcxSimpleStyle.Create(vSplitter);
     vSplitter.SetBounds(vSourceSplitter.Left, vSourceSplitter.Top, vSourceSplitter.Width, vSourceSplitter.Height);
-    Result := TVCLArea.Create(Self, AView, '-splitter-', vSplitter);
+    Result := TVCLArea.Create(Self, AView, '-splitter-', False, vSplitter);
   end
   else if ALayout is TPanel then
   begin
@@ -1684,7 +1689,7 @@ begin
       vPC.Align := vSourcePanel.Align;
       vPC.Anchors := vSourcePanel.Anchors;
       vPC.Font.Assign(vSourcePanel.Font);
-      Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), vPC);
+      Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), False, vPC);
 
       // Здесь можно подкорректировать параметры
       if StrToBoolDef(vDomain.UserSettings.GetValue('Core', 'ShowStartPage'), True) then
@@ -1724,7 +1729,7 @@ begin
         vPanel.ParentColor := False;
         vPanel.ParentBackground := False;
       end;
-      Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), vPanel);
+      Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), False, vPanel);
     end;
 
     Result.AddParams(vParams);
@@ -1744,7 +1749,7 @@ begin
     if vSourceBox.BorderStyle = bsNone then
       vBox.BorderStyle := cxcbsNone;
     vBox.Anchors := vSourceBox.Anchors;
-    Result := TVCLArea.Create(Self, AView, '', vBox);
+    Result := TVCLArea.Create(Self, AView, '', False, vBox);
   end
   else if ALayout is TMemo then
   begin
@@ -1768,7 +1773,7 @@ begin
       vPanel.ParentColor := False;
       vPanel.ParentBackground := False;
     end;
-    Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), vPanel);
+    Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), False, vPanel);
   end
   else
     Assert(False, 'Класс [' + ALayout.ClassName + '] не поддерживается для создания лэйаутов');
@@ -1776,19 +1781,9 @@ end;
 
 function TVCLArea.DoCreateChildEditor(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
 var
-  vParams: TStrings;
   vStyleName: string;
 begin
-  vStyleName := '';
-  if AParams <> '' then
-  begin
-    vParams := CreateDelimitedList(AParams, '&');
-    try
-      vStyleName := vParams.Values['view'];
-    finally
-      vParams.Free;
-    end;
-  end;
+  vStyleName := GetUrlParam(AParams, 'view');
 
   if vStyleName = '' then
   begin
@@ -1806,21 +1801,34 @@ begin
   vPanel := TPanel.Create(nil);
   vPanel.BevelOuter := bvNone;
   vPanel.Align := alClient;
-  Result := TVCLArea.Create(Self, AView, 'empty', vPanel);
+  Result := TVCLArea.Create(Self, AView, 'empty', False, vPanel);
 end;
 
 function TVCLArea.DoCreateChildList(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
-var
+{var
   vLayout: TPanel absolute ALayout;
-  vCollectionViewType: string;
+  vCollectionViewType: string;}
+var
+  vStyleName: string;
 begin
-  vCollectionViewType := GetUrlParam(vLayout.Caption, 'CollectionViewType');
+  vStyleName := GetUrlParam(AParams, 'view');
+
+  if vStyleName = '' then
+  begin
+    if AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField] then
+      vStyleName := TFieldDef(AView.Definition).StyleName;
+  end;
+
+  Result := TPresenter(FUIBuilder.Presenter).CreateCollectionArea(Self, ALayout, AView, vStyleName, AParams);
+{  vCollectionViewType := GetUrlParam(vLayout.Caption, 'CollectionViewType');
   if SameText(vCollectionViewType, 'Tree') then
     Result := TTreeCollectionEditor.Create(Self, ALayout, AView, 'List')
   else if SameText(vCollectionViewType, 'Pivot') then
     Result := TPivotGrid.Create(Self, ALayout, AView, 'Pivot', AParams)
   else
-    Result := TCollectionEditor.Create(Self, ALayout, AView, 'List'{TDefinition(AView.Definition).Name});
+    Result := TCollectionEditor.Create(Self, ALayout, AView, 'List'
+    {TDefinition(AView.Definition).Name);}
+
 end;
 
 function TVCLArea.DoGetDescription: string;
@@ -2212,6 +2220,7 @@ begin
   end;
 
   FControl := AControl;
+
   if Assigned(FControl) then
   begin
     FControl.Tag := Integer(Self);
@@ -2351,17 +2360,17 @@ begin
     CheckMenuItems(vMenuItem);
 end;
 
-constructor TVCLFieldArea.Create(const AParent: TUIArea; const ALayout: TObject; const AView: TView; const AParams: string);
+constructor TVCLFieldArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+  const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
 var
   vPopupArea: TVCLArea;
   vPopupMenu: TPopupMenu;
 begin
   FFieldDef := TFieldDef(AView.Definition);
-  FCreateParams := nil;
-  if Length(AParams) > 0 then
-    FCreateParams := CreateDelimitedList(AParams, '&');
 
-  inherited Create(AParent, AView, FFieldDef.Name, nil);
+  FId := FFieldDef.Name;
+  FUId := FFieldDef.Name;
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
 
   DoCreateControl(ALayout);
 
@@ -2400,9 +2409,8 @@ end;
 
 destructor TVCLFieldArea.Destroy;
 begin
-  FreeAndNil(FCreateParams);
-
   DoBeforeFreeControl;
+
   if Assigned(FCaption) then
   begin
     FCaption.Parent := nil;

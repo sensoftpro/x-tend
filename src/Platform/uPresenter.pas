@@ -239,6 +239,8 @@ type
     procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); virtual;
     function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
       const AView: TView; const AStyleName, AParams: string): TUIArea; virtual;
+    function CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject;
+      const AView: TView; const AStyleName, AParams: string): TUIArea; virtual;
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; virtual;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual; abstract;
@@ -332,6 +334,12 @@ begin
   FProgressInfo := TProgressInfo.Create;
 end;
 
+function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView; const AStyleName,
+  AParams: string): TUIArea;
+begin
+  Result := nil;
+end;
+
 function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
   const AView: TView; const AStyleName, AParams: string): TUIArea;
 begin
@@ -422,10 +430,9 @@ begin
     '" in presenter: "' + APresenterName + '" classified as: ' + ClassName);
 end;
 
-class function TPresenter.GetUIClass(const APresenterName: string; const AItemType: TUIItemType;
-  const AViewName: string): TUIAreaClass;
+class function TPresenter.GetUIClass(const APresenterName: string; const AItemType: TUIItemType; const AViewName: string): TUIAreaClass;
 var
-  vTypeName: string;
+  vTypeName, vViewName: string;
   vClassesList: TObjectDictionary<string, TUIClassInfo>;
   vClassInfo: TUIClassInfo;
 begin
@@ -434,7 +441,9 @@ begin
     Exit;
 
   vTypeName := GetEnumName(TypeInfo(TUIItemType), Integer(AItemType));
-  if not vClassesList.TryGetValue(vTypeName + AViewName, vClassInfo) and (AViewName <> '') then
+  vViewName := AnsiLowerCase(AViewName);
+
+  if not vClassesList.TryGetValue(vTypeName + vViewName, vClassInfo) and (vViewName <> '') then
     if not vClassesList.TryGetValue(vTypeName, vClassInfo) then
       vClassInfo := nil;
 
@@ -442,7 +451,7 @@ begin
     Result := vClassInfo.FItemClass
   else
     Assert(False, 'UI Class not found for type: "' + vTypeName +
-    '", View Name: "' + AViewName + '" in UI: ' + ClassName);
+    '", View Name: "' + vViewName + '" in UI: ' + ClassName);
 end;
 
 function TPresenter.ItemTypeByFieldType(const AFieldKind: TFieldKind): TUIItemType;
@@ -501,23 +510,23 @@ end;
 class procedure TPresenter.RegisterUIClass(const APresenterName: string; const AItemType: TUIItemType;
   const AViewName: string; const AElementClass: TUIAreaClass);
 var
-  vTypeName: string;
+  vTypeName, vViewName: string;
   vClassesList: TObjectDictionary<string, TUIClassInfo>;
   vClassInfo: TUIClassInfo;
 begin
   vTypeName := GetEnumName(TypeInfo(TUIItemType), Integer(AItemType));
-
+  vViewName := AnsiLowerCase(AViewName);
   if not RegisteredUIClasses.TryGetValue(APresenterName, vClassesList) then
   begin
     vClassesList := TObjectDictionary<string, TUIClassInfo>.Create([doOwnsValues]);
     RegisteredUIClasses.Add(APresenterName, vClassesList);
   end
   else
-    Assert(not vClassesList.TryGetValue(vTypeName + AViewName, vClassInfo),
-      'UI Class already registered for type: "' + vTypeName + '", View Name: "' + AViewName + '"');
+    Assert(not vClassesList.TryGetValue(vTypeName + vViewName, vClassInfo),
+      'UI Class already registered for type: "' + vTypeName + '", View Name: "' + vViewName + '"');
 
-  vClassInfo := TUIClassInfo.Create(AItemType, AViewName, AElementClass);
-  vClassesList.Add(vTypeName + AViewName, vClassInfo);
+  vClassInfo := TUIClassInfo.Create(AItemType, vViewName, AElementClass);
+  vClassesList.Add(vTypeName + vViewName, vClassInfo);
 end;
 
 procedure TPresenter.Run(const AParameter: string = '');

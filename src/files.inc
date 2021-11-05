@@ -1,17 +1,22 @@
+  // Common platform structures
   uConsts in '..\..\Common\uConsts.pas',
   uUtils in '..\..\Common\uUtils.pas',
   uJSON in '..\..\Common\uJSON.pas',
+  uZIP in '..\..\Common\uZIP.pas',
   uFastClasses in '..\..\Common\uFastClasses.pas',
   uTensor in '..\..\Common\uTensor.pas',
   uModule in '..\..\Platform\uModule.pas',
   uTask in '..\..\Common\uTask.pas',
   uWebTask in '..\..\Common\uWebTask.pas',
-
   uComplexObject in '..\..\Platform\uComplexObject.pas',
   uProcessMediator in '..\..\Platform\Service\uProcessMediator.pas',
   uSettings in '..\..\Platform\uSettings.pas',
+  uChartData in '..\..\Common\Scene\uChartData.pas',
+  uChartUtils in '..\..\Common\Scene\uChartUtils.pas',
+  uSimpleChart in '..\..\Common\Scene\uSimpleChart.pas',
   uPlatform in '..\..\Platform\uPlatform.pas',
 
+  // Configuration
   uLocalizator in '..\..\Platform\Configuration\uLocalizator.pas',
   uQueryDef in '..\..\Platform\Configuration\uQueryDef.pas',
   uIcon in '..\..\Platform\Configuration\uIcon.pas',
@@ -22,8 +27,11 @@
   uConfiguration in '..\..\Platform\Configuration\uConfiguration.pas',
   uCodeConfiguration in '..\..\Platform\Configuration\uCodeConfiguration.pas',
 
+  // Domain runtime
   uScheduler in '..\..\Platform\Domain\uScheduler.pas',
   uTranslator in '..\..\Platform\Domain\uTranslator.pas',
+  uCodeParser in '..\..\Common\uCodeParser.pas',
+  uScriptExecutor in '..\..\Platform\Service\uScriptExecutor.pas',
   uQuery in '..\..\Platform\Domain\uQuery.pas',
   uReport in '..\..\Platform\Domain\uReport.pas',
   uDomainUtils in '..\..\Platform\Domain\uDomainUtils.pas',
@@ -36,14 +44,13 @@
   uCollection in '..\..\Platform\Domain\uCollection.pas',
   uDomain in '..\..\Platform\Domain\uDomain.pas',
 
+  // Domain modules
   uLogger in '..\..\Platform\Service\uLogger.pas',
   uStorage in '..\..\Platform\Service\uStorage.pas',
   uDrawStyles in '..\..\Common\uDrawStyles.pas',
+  uScene in '..\..\Common\Scene\uScene.pas',
   uView in '..\..\Platform\uView.pas',
   uUIBuilder in '..\..\Platform\uUIBuilder.pas',
   uInteractor in '..\..\Platform\uInteractor.pas',
   uPresenter in '..\..\Platform\uPresenter.pas',
   uScript in '..\..\Platform\uScript.pas',
-
-  uCodeParser in '..\..\common\uCodeParser.pas',
-  uScriptExecutor in '..\..\Platform\Service\uScriptExecutor.pas',

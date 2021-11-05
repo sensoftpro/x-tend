@@ -37,28 +37,73 @@ interface
 
 uses
   Windows, Messages, Classes, Graphics, Controls, ExtCtrls,
-  SysUtils, Types, UITypes, uScene;
+  SysUtils, Types, UITypes, uScene, uDrawStyles;
 
 type
   TMyPanel = class(TPanel)
+  private
+    FOnPaint: TNotifyEvent;
   protected
-    procedure WMEraseBkgnd(var Message: TWMEraseBkgnd); message WM_ERASEBKGND;
-    procedure WMGetDlgCode(var Message: TWMGetDlgCode); message WM_GETDLGCODE;
+    procedure WMEraseBkgnd(var Msg: TWMEraseBkgnd); message WM_ERASEBKGND;
+    procedure WMGetDlgCode(var Msg: TWMGetDlgCode); message WM_GETDLGCODE;
+    procedure WMPaint(var Msg: TWMPaint); message WM_PAINT;
   public
     property OnMouseWheel;
     property OnKeyDown;
     property OnKeyUp;
+    property OnPaint: TNotifyEvent read FOnPaint write FOnPaint;
+    property Canvas;
+  end;
+
+  TDrawContainer = class
+  private
+    FHWND: THandle;
+    FCanvas: TCanvas;
+    FWidth, FHeight: Integer;
+    function GetDC: THandle;
+  public
+    constructor Create(const AHWND: THandle; const ACanvas: TCanvas; const AWidth, AHeight: Single);
+    destructor Destroy; override;
+
+    property HWND: THandle read FHWND;
+    property Canvas: TCanvas read FCanvas;
+    property DC: THandle read GetDC;
+    property Width: Integer read FWidth;
+    property Height: Integer read FHeight;
+  end;
+
+  TWinDrawContext = class(TDrawContext)
+  private
+    FBitmap: TBitmap;
+    FCanvas: TCanvas;
+    function GetDC: THandle;
+  protected
+    procedure DoSetSize(const AWidth, AHeight: Single); override;
+  public
+    procedure SaveToFile(const AFileName: string); override;
+  public
+    constructor Create(const APainter: TPainter; const ACanvas: TCanvas; const AWidth, AHeight: Single);
+    destructor Destroy; override;
+
+    property Canvas: TCanvas read FCanvas;
+    property Handle: THandle read GetDC;
+  end;
+
+  TWinNinePatchImage = class(TNinePatchImage)
+  protected
+    function GetWidth: Integer; override;
+    function GetHeight: Integer; override;
+    function CutImage(const ALeft, ATop, AWidth, AHeight: Integer): TObject; override;
   end;
 
   TWinScene = class(TScene)
-  protected
+  private
     FPanel: TMyPanel;
-    FPaintArea: TPaintBox;
-
-    procedure DoCreateScene(const APlaceholder: TObject); override;
+    FContainer: TDrawContainer;
+  protected
+    function DoCreateScene(const APlaceholder: TObject): TObject; override;
     procedure DoDestroyScene; override;
     procedure DoActivate; override;
-    procedure DoRender; override;
     procedure DoEnableResize(const AOn: Boolean); override;
 
     function GetSceneRect: TRectF; override;
@@ -67,18 +112,118 @@ type
     property Panel: TMyPanel read FPanel;
   end;
 
+  TWinCanvasScene = class(TWinScene)
+  protected
+    FCachedDrawContext: TDrawContext;
+    FDrawContext: TDrawContext;
+  protected
+    procedure DoDestroyScene; override;
+    procedure DoRender(const ANeedFullRepaint: Boolean); override;
+    procedure UpdateContexts(const AWidth, AHeight: Single); override;
+  end;
+
 implementation
+
+uses
+  PngImage;
 
 { TMyPanel }
 
-procedure TMyPanel.WMEraseBkgnd(var Message: TWmEraseBkgnd);
+procedure TMyPanel.WMEraseBkgnd(var Msg: TWmEraseBkgnd);
 begin
-  Message.Result := 0;
+  Msg.Result := 0;
 end;
 
-procedure TMyPanel.WMGetDlgCode(var Message: TWMGetDlgCode);
+procedure TMyPanel.WMGetDlgCode(var Msg: TWMGetDlgCode);
 begin
-  Message.Result := DLGC_WANTARROWS;
+  Msg.Result := DLGC_WANTARROWS;
+end;
+
+procedure TMyPanel.WMPaint(var Msg: TWMPaint);
+var
+  PaintStruct: TPaintStruct;
+begin
+  BeginPaint(Handle, PaintStruct);
+  try
+    if Assigned(FOnPaint) then
+      FOnPaint(Self);
+  finally
+    EndPaint(Handle, PaintStruct);
+  end;
+end;
+
+//procedure TMyPanel.WMSize(var Msg: TWMSize);
+//begin
+
+//end;
+
+{ TWinNinePatchImage }
+
+function TWinNinePatchImage.CutImage(const ALeft, ATop, AWidth, AHeight: Integer): TObject;
+var
+  i: Integer;
+  vTempBmp: TBitmap;
+begin
+  if FImage is TPngImage then
+  begin
+    TPngImage(FImage).CreateAlpha;
+    Result := TPngImage.CreateBlank(COLOR_RGBALPHA, 8, AWidth, AHeight);
+    BitBlt(TPngImage(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
+      TPngImage(FImage).Canvas.Handle, ALeft, ATop, SRCCOPY);
+    for i := 0 to AHeight - 1 do
+      CopyMemory(TPngImage(Result).AlphaScanline[i],
+        PByte(Integer(TPngImage(FImage).AlphaScanline[i + ATop]) + ALeft), AWidth);
+  end
+  else if FImage is TBitmap then
+  begin
+    Result := TBitmap.Create;
+    TBitmap(Result).SetSize(AWidth, AHeight);
+    BitBlt(TBitmap(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
+      TBitmap(FImage).Canvas.Handle, ALeft, ATop, SRCCOPY);
+  end
+  else if FImage is TIcon then
+  begin
+    Result := TBitmap.Create;
+    TBitmap(Result).SetSize(AWidth, AHeight);
+    vTempBmp := TBitmap.Create;
+    vTempBmp.SetSize(GetWidth, GetHeight);
+    vTempBmp.Assign(TGraphic(FImage));
+    TBitmap(Result).PixelFormat := vTempBmp.PixelFormat;
+    TBitmap(Result).Transparent := vTempBmp.Transparent;
+    TBitmap(Result).TransparentColor := vTempBmp.TransparentColor;
+    TBitmap(Result).TransparentMode := vTempBmp.TransparentMode;
+    TBitmap(Result).AlphaFormat := vTempBmp.AlphaFormat;
+    BitBlt(TBitmap(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
+      vTempBmp.Canvas.Handle, ALeft, ATop, SRCCOPY);
+    FreeAndNil(vTempBmp);
+  end
+  {else if Source is TGIFImage then
+  begin
+    Result := TBitmap.Create;
+    Result.SetSize(AWidth, AHeight);
+    BitBlt(TBitmap(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
+      TGIFImage(Source).Bitmap.Canvas.Handle, ALeft, ATop, SRCCOPY);
+  end}
+  else begin // emf, wmf, jpeg, tiff
+    Result := TBitmap.Create;
+    TBitmap(Result).SetSize(AWidth, AHeight);
+    vTempBmp := TBitmap.Create;
+    vTempBmp.SetSize(GetWidth, GetHeight);
+    vTempBmp.Canvas.Draw(0, 0, TGraphic(FImage));
+    BitBlt(TBitmap(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
+      vTempBmp.Canvas.Handle, ALeft, ATop, SRCCOPY);
+    FreeAndNil(vTempBmp);
+  end;
+end;
+
+function TWinNinePatchImage.GetHeight: Integer;
+begin
+  Result := TGraphic(FImage).Height;
+end;
+
+function TWinNinePatchImage.GetWidth: Integer;
+begin
+  Result := TGraphic(FImage).Width;
 end;
 
 { TWinScene }
@@ -93,7 +238,7 @@ end;
 
 function TWinScene.GetSceneRect: TRectF;
 begin
-  Result := FPaintArea.ClientRect;
+  Result := FPanel.ClientRect;
 end;
 
 procedure TWinScene.DoActivate;
@@ -102,7 +247,7 @@ begin
     FPanel.SetFocus;
 end;
 
-procedure TWinScene.DoCreateScene(const APlaceholder: TObject);
+function TWinScene.DoCreateScene(const APlaceholder: TObject): TObject;
 var
   vControl: TWinControl absolute APlaceholder;
 begin
@@ -113,40 +258,36 @@ begin
   FPanel.Constraints.MinHeight := 100;
   FPanel.Parent := vControl;
 
-  // Для того, чтобы панель приняла нормальный размер
-  if Assigned(vControl) then
-    FDrawContext.SetSize(FPanel.ClientWidth, FPanel.ClientHeight);
-
   FPanel.ControlStyle := FPanel.ControlStyle + [csOpaque];
   FPanel.OnMouseWheel := OnMouseWheel;
   FPanel.OnKeyDown := OnKeyDown;
   FPanel.OnKeyUp := OnKeyUp;
+  FPanel.OnPaint := OnPaint;
+  FPanel.OnMouseDown := OnMouseDown;
+  FPanel.OnMouseUp := OnMouseUp;
+  FPanel.OnDblClick := OnDblClick;
+  FPanel.OnMouseMove := OnMouseMove;
+  FPanel.OnMouseLeave := OnMouseLeave;
+
   FPanel.DoubleBuffered := True;
   FPanel.TabStop := True;
 
-  FPaintArea := TPaintBox.Create(FPanel);
-  FPaintArea.Parent := FPanel;
-  FPaintArea.Align := alClient;
-  FPaintArea.OnPaint := OnPaint;
-  FPaintArea.OnMouseDown := OnMouseDown;
-  FPaintArea.OnMouseUp := OnMouseUp;
-  FPaintArea.OnDblClick := OnDblClick;
-  FPaintArea.OnMouseMove := OnMouseMove;
-  FPaintArea.OnMouseLeave := OnMouseLeave;
+  Result := TDrawContainer.Create(FPanel.Handle, FPanel.Canvas, FPanel.ClientWidth, FPanel.ClientHeight);
 end;
 
 procedure TWinScene.DoDestroyScene;
 begin
+  FreeAndNil(FContainer);
+
   FPanel.OnResize := nil;
   FPanel.OnMouseWheel := nil;
   FPanel.OnKeyDown := nil;
-  FPaintArea.OnPaint := nil;
-  FPaintArea.OnMouseDown := nil;
-  FPaintArea.OnMouseUp := nil;
-  FPaintArea.OnDblClick := nil;
-  FPaintArea.OnMouseMove := nil;
-  FPaintArea.OnMouseLeave := nil;
-  FPaintArea := nil;
+  FPanel.OnPaint := nil;
+  FPanel.OnMouseDown := nil;
+  FPanel.OnMouseUp := nil;
+  FPanel.OnDblClick := nil;
+  FPanel.OnMouseMove := nil;
+  FPanel.OnMouseLeave := nil;
   FPanel := nil;
 end;
 
@@ -158,12 +299,116 @@ begin
     FPanel.OnResize := nil;
 end;
 
-procedure TWinScene.DoRender;
-begin
-  inherited DoRender;
+{ TWinCanvasScene }
 
-  BitBlt(FPaintArea.Canvas.Handle, 0, 0, FDrawContext.Width, FDrawContext.Height,
-    TCanvas(FDrawContext.Canvas).Handle, 0, 0, SRCCOPY);
+procedure TWinCanvasScene.DoDestroyScene;
+begin
+  FreeAndNil(FDrawContext);
+  FreeAndNil(FCachedDrawContext);
+  inherited DoDestroyScene;
+end;
+
+procedure TWinCanvasScene.DoRender(const ANeedFullRepaint: Boolean);
+var
+  vContext: TDrawContext;
+begin
+  FPainter.BeginPaint;
+  try
+    if ANeedFullRepaint then
+    begin
+      vContext := FPainter.SetContext(FCachedDrawContext);
+      try
+        FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
+        //FCachedDrawContext.SaveToFile('static.bmp');
+      finally
+        FPainter.SetContext(vContext);
+      end;
+    end;
+
+    vContext := FPainter.SetContext(FDrawContext);
+    try
+      FPainter.DrawContext(FCachedDrawContext);
+      FRoot.RenderDynamic(FPainter, GetSceneRect);
+      //FDrawContext.SaveToFile('dynamic.bmp');
+    finally
+      FPainter.SetContext(vContext);
+    end;
+  finally
+    FPainter.EndPaint;
+  end;
+
+  FPainter.DrawContext(FDrawContext);
+end;
+
+procedure TWinCanvasScene.UpdateContexts(const AWidth, AHeight: Single);
+begin
+  FCachedDrawContext.SetSize(AWidth, AHeight);
+  FDrawContext.SetSize(AWidth, AHeight);
+end;
+
+{ TWinDrawContext }
+
+constructor TWinDrawContext.Create(const APainter: TPainter; const ACanvas: TCanvas; const AWidth, AHeight: Single);
+begin
+  if not Assigned(ACanvas) then
+  begin
+    FBitmap := TBitmap.Create;
+    FBitmap.PixelFormat := pf32bit;
+    FBitmap.SetSize(Round(AWidth), Round(AHeight));
+    FCanvas := FBitmap.Canvas;
+  end
+  else begin
+    FCanvas := ACanvas;
+    FBitmap := nil;
+  end;
+
+  inherited Create(AWidth, AHeight);
+end;
+
+destructor TWinDrawContext.Destroy;
+begin
+  FCanvas := nil;
+  FreeAndNil(FBitmap);
+  inherited Destroy;
+end;
+
+procedure TWinDrawContext.DoSetSize(const AWidth, AHeight: Single);
+begin
+  if Assigned(FBitmap) then
+    FBitmap.SetSize(Round(AWidth), Round(AHeight));
+end;
+
+function TWinDrawContext.GetDC: THandle;
+begin
+  Result := FCanvas.Handle;
+end;
+
+procedure TWinDrawContext.SaveToFile(const AFileName: string);
+begin
+  if Assigned(FBitmap) then
+    FBitmap.SaveToFile(AFileName);
+end;
+
+{ TDrawContainer }
+
+constructor TDrawContainer.Create(const AHWND: THandle; const ACanvas: TCanvas; const AWidth, AHeight: Single);
+begin
+  inherited Create;
+  FHWND := AHWND;
+  FCanvas := ACanvas;
+  FWidth := Round(AWidth);
+  FHeight := Round(AHeight);
+end;
+
+destructor TDrawContainer.Destroy;
+begin
+  FCanvas := nil;
+  inherited Destroy;
+end;
+
+function TDrawContainer.GetDC: THandle;
+begin
+  Result := FCanvas.Handle;
 end;
 
 end.

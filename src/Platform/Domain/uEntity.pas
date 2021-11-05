@@ -151,6 +151,7 @@ type
     FPassObject: TObject; // Объект для передачи дополнительной информации
   private
     procedure LoadFields(const AStorage: TStorage);
+    procedure ActivateField(const AFieldDef: TFieldDef);
   protected
     procedure InternalLoad(const AStorage: TStorage);
   private
@@ -162,8 +163,6 @@ type
 
     function CreateField(const AFieldDef: TFieldDef): TBaseField;
     function GetUIListenerCount: string;
-    procedure CalculateFieldViewState(const ASession: TObject; const AFieldDef: TFieldDef);
-    procedure CalculateFieldValue(const ASession: TObject; const AFieldDef: TFieldDef);
     procedure SetEnvironmentID(const Value: string);
   public
     procedure EnableField(const AField: TBaseField);
@@ -529,7 +528,14 @@ begin
       // Обновить FCalcUIState
       vSession := TDomain(FDomain).DomainSession;
       for vHandler in FFieldDef.FNotificationChains.UICalculations do
-        TReactionProcRef(vHandler)(vSession, nil, FieldName, FInstance, nil);
+      begin
+        TDomain(FDomain).LogEnter('>> UI reaction, ' + FFieldDef.FullName);
+        try
+          TReactionProcRef(vHandler)(vSession, nil, FieldName, FInstance, nil);
+        finally
+          TDomain(FDomain).LogExit('<< UI reaction, ' + FFieldDef.FullName);
+        end;
+      end;
     end;
     FUIState := GetMaxUIState;
   end;
@@ -662,6 +668,27 @@ end;
 
 { TEntity }
 
+procedure TEntity.ActivateField(const AFieldDef: TFieldDef);
+var
+  vSession: TUserSession;
+  vHandler: TProc;
+begin
+  vSession := TDomain(FDomain).DomainSession;
+
+  TDomain(FDomain).LogEnter('>> Activate field [' + AFieldDef.Name + '], entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
+  try
+    if AFieldDef.HasFlag(cCalculated) and AFieldDef.HasFlag(cNotSave) and Assigned(AFieldDef.FNotificationChains.Calculations) then
+      for vHandler in AFieldDef.FNotificationChains.Calculations do
+        TReactionProcRef(vHandler)(vSession, nil, '', Self, nil);
+
+    if Assigned(AFieldDef.FNotificationChains.UICalculations) then
+      for vHandler in AFieldDef.FNotificationChains.UICalculations do
+        TReactionProcRef(vHandler)(vSession, nil, '', Self, nil);
+  finally
+    TDomain(FDomain).LogExit('<< Activate field, entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
+  end;
+end;
+
 procedure TEntity.AddListener(const AFieldName: string; const AInstance: TEntity);
 begin
   FListeners.Add(TNamedEntity.Create(AFieldName, AInstance));
@@ -787,14 +814,9 @@ begin
 end;
 
 procedure TEntity.EnableField(const AField: TBaseField);
-var
-  vFieldDef: TFieldDef;
 begin
   AField.FEnabled := True;
-  vFieldDef := AField.FieldDef;
-  if vFieldDef.HasFlag(cCalculated) and vFieldDef.HasFlag(cNotSave) then
-    CalculateFieldValue(TDomain(FDomain).DomainSession, vFieldDef);
-  CalculateFieldViewState(TDomain(FDomain).DomainSession, vFieldDef);
+  ActivateField(AField.FieldDef);
 end;
 
 function TEntity.EntityState(const AFieldName: string = ''): TState;
@@ -1187,6 +1209,8 @@ begin
   if not TDomain(FDomain).IsAlive or FDeleted then
     Exit;
 
+  TDomain(FDomain).Log('%% Field changed: ' + AFieldName);
+
   UpdateViews(Self, AEntity, AFieldName, AChangeKind);
 
   if FListeners.Count > 0 then
@@ -1210,23 +1234,18 @@ end;
 
 procedure TEntity.SubscribeFields;
 var
-  vSession: TUserSession;
   vFieldDef: TFieldDef;
   vField: TBaseField;
 begin
-  vSession := TDomain(FDomain).DomainSession;
   for vField in FFieldList do
   begin
     vFieldDef := vField.FieldDef;
     if vFieldDef.Kind = fkObject then
       vField.AfterChanges(nil);
 
+    // TODO Performance: Сделать так, чтобы поля регистрировались для активации
     if not vFieldDef.HasFlag(cLazy) then
-    begin
-      if vFieldDef.HasFlag(cCalculated) and vFieldDef.HasFlag(cNotSave) then
-        CalculateFieldValue(vSession, vFieldDef);
-      CalculateFieldViewState(vSession, vFieldDef);
-    end;
+      ActivateField(vFieldDef);
   end;
 end;
 
@@ -1244,37 +1263,50 @@ var
   vFieldName: string;
 begin
   // Обработка рекуррентных действий над цепочками изменений
+  TDomain(FDomain).LogEnter('>> ProcessLinkedEntityChanged, entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
+  TDomain(FDomain).Log('%% Field: ' + AFieldName);
+  try
+    vFieldDef := FDefinition.FieldByName(AFieldName);
+    vPrevChain := IfThen(APrevChain = '', AFieldName, APrevChain + '.' + AFieldName);
 
-  vFieldDef := FDefinition.FieldByName(AFieldName);
-  vPrevChain := IfThen(APrevChain = '', AFieldName, APrevChain + '.' + AFieldName);
-
-  // 1. Калькуляции
-  if vFieldDef.FNotificationChains.TryGetReactions(APrevChain, FDefinition.Name, vHandlers) then
-  begin
-    if Assigned(AHolder) then
-      vSession := TUserSession(TChangeHolder(AHolder).Session)
-    else
-      vSession := TDomain(FDomain).DomainSession;
-    for vHandler in vHandlers do
-      TReactionProcRef(vHandler)(vSession, TChangeHolder(AHolder), vPrevChain, Self, AEntity);
-  end;
-
-  // 2. Передача по цепочке вычислений, без действий
-  if (FListeners.Count > 0) and vFieldDef.FNotificationChains.TryGetTransitFields(APrevChain, vTransitFields) then
-  begin
-    for i := FListeners.Count - 1 downto 0 do
+    // 1. Калькуляции
+    if vFieldDef.FNotificationChains.TryGetReactions(APrevChain, FDefinition.Name, vHandlers) then
     begin
-      if i >= FListeners.Count then
-        Continue;
-      vListener := FListeners[i].Entity;
-      if not vListener.Deleted then
+      if Assigned(AHolder) then
+        vSession := TUserSession(TChangeHolder(AHolder).Session)
+      else
+        vSession := TDomain(FDomain).DomainSession;
+      for vHandler in vHandlers do
       begin
-        vFieldName := FListeners[i].Name;
-        if Assigned(vTransitFields) then
-          if vTransitFields.Contains(vListener.Definition.FieldByName(vFieldName)) then
-            vListener.ProcessLinkedEntityChanged(AHolder, vFieldName, vPrevChain, Self);
+        TDomain(FDomain).LogEnter('>> Base calculation, ' + FDefinition.Name + ':' + AFieldName + ':' + APrevChain);
+        try
+          TReactionProcRef(vHandler)(vSession, TChangeHolder(AHolder), vPrevChain, Self, AEntity);
+        finally
+          TDomain(FDomain).LogExit('<< Base calculation, ' + FDefinition.Name + ':' + AFieldName + ':' + APrevChain);
+        end;
       end;
     end;
+
+    // 2. Передача по цепочке вычислений, без действий
+    if (FListeners.Count > 0) and vFieldDef.FNotificationChains.TryGetTransitFields(APrevChain, vTransitFields) then
+    begin
+      TDomain(FDomain).Log('%% Transition');
+      for i := FListeners.Count - 1 downto 0 do
+      begin
+        if i >= FListeners.Count then
+          Continue;
+        vListener := FListeners[i].Entity;
+        if not vListener.Deleted then
+        begin
+          vFieldName := FListeners[i].Name;
+          if Assigned(vTransitFields) then
+            if vTransitFields.Contains(vListener.Definition.FieldByName(vFieldName)) then
+              vListener.ProcessLinkedEntityChanged(AHolder, vFieldName, vPrevChain, Self);
+        end;
+      end;
+    end;
+  finally
+    TDomain(FDomain).LogExit('<< ProcessLinkedEntityChanged, entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
   end;
 end;
 
@@ -1567,26 +1599,6 @@ begin
 
   for i := vListeners.Count - 1 downto 0 do
     vListeners[i].Dispatch(vMessage);
-end;
-
-procedure TEntity.CalculateFieldValue(const ASession: TObject; const AFieldDef: TFieldDef);
-var
-  vSession: TUserSession absolute ASession;
-  vHandler: TProc;
-begin
-  if Assigned(AFieldDef.FNotificationChains.Calculations) then
-    for vHandler in AFieldDef.FNotificationChains.Calculations do
-      TReactionProcRef(vHandler)(vSession, nil, '', Self, nil);
-end;
-
-procedure TEntity.CalculateFieldViewState(const ASession: TObject; const AFieldDef: TFieldDef);
-var
-  vSession: TUserSession absolute ASession;
-  vHandler: TProc;
-begin
-  if Assigned(AFieldDef.FNotificationChains.UICalculations) then
-    for vHandler in AFieldDef.FNotificationChains.UICalculations do
-      TReactionProcRef(vHandler)(vSession, nil, '', Self, nil);
 end;
 
 function TEntity.Clone(const AHolder: TObject; const AIgnoreFields: string): TEntity;

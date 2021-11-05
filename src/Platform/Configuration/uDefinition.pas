@@ -917,8 +917,11 @@ function TDefinition.AddSimpleFieldDef(const AFieldName, AStorageName, ACaption:
   const AUIState: TViewState; const AFlags: Integer; const ADictionary: string;
   const ASearchType: TSearchType): TSimpleFieldDef;
 begin
-  if (AFieldKind = fkString) and VarIsNull(AMaxValue) then
-    Assert(False, 'Undefined field length');
+  if (AFieldKind = fkString) and (VarIsNull(AMaxValue) or (AMaxValue = 0)) then
+    Assert(False, 'Undefined length for field: ' + AFieldName);
+
+  if (AFieldKind = fkInteger) and (not VarIsNull(AMinValue)) and (not VarIsNull(AMaxValue)) and (AMinValue >= AMaxValue) then
+    Assert(False, 'Min value must be less than Max value for field: ' + AFieldName);
 
   Result := TSimpleFieldDef.Create(Self, AFieldKind, AFieldName, AStorageName,
     ACaption, AHint, AViewName, AMinValue, AMaxValue, ADefaultValue, AUIState, AFlags, ADictionary, ASearchType);

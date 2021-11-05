@@ -1,3 +1,5 @@
+
+  // UI: VCL DevExpress implementation
   uWinVCLPresenter in '..\..\Modules\UI\WinVCL\uWinVCLPresenter.pas',
   uWinScene in '..\..\Modules\UI\WinVCL\uWinScene.pas',
   vclArea in '..\..\Modules\UI\WinVCL\Editors\vclArea.pas',

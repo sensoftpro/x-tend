@@ -287,6 +287,12 @@ type
     procedure FillEditor; override;
   end;
 
+  TBoolImages = class (TVCLFieldArea)
+  protected
+    procedure DoCreateControl(const ALayout: TObject); override;
+    procedure FillEditor; override;
+  end;
+
   TColorEditor = class (TVCLFieldArea)
   private
     FBasePanel: TPanel;
@@ -414,7 +420,11 @@ begin
   with TcxSpinEdit(FControl).Properties do
   begin
     if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
+    begin
       MaxValue := TSimpleFieldDef(FFieldDef).MaxValue;
+      AssignedValues.MaxValue := True;
+    end;
+
     if not VarIsNull(TSimpleFieldDef(FFieldDef).MinValue) then
     begin
       MinValue := TSimpleFieldDef(FFieldDef).MinValue;
@@ -1711,6 +1721,7 @@ var
 begin
   inherited;
   i := FCreateParams.IndexOfName(FView.FieldValue);
+
   if i < 0 then Exit;
 
   i := StrToIntDef(FCreateParams.Values[FView.FieldValue], 0);
@@ -1871,13 +1882,14 @@ procedure TDEEditor.ToggleButtons;
 var
   i: Integer;
   vEdit: TcxEditCrack;
+  vVisible: Boolean;
 begin
   if FControl is TcxCustomEdit then
   begin
     vEdit := TcxEditCrack(FControl);
-    for i := 0 to TcxCustomEditProperties(vEdit.Properties).Buttons.Count - 1 do
-      TcxCustomEditProperties(vEdit.Properties).Buttons.Items[i].Visible :=
-        vEdit.Visible and vEdit.Enabled and (not vEdit.Properties.ReadOnly);
+    vVisible := vEdit.Visible and vEdit.Enabled and (not vEdit.Properties.ReadOnly);
+    for i := TcxCustomEditProperties(vEdit.Properties).Buttons.Count - 1 downto 0 do
+      TcxCustomEditProperties(vEdit.Properties).Buttons.Items[i].Visible := vVisible;
   end;
 end;
 
@@ -2139,6 +2151,9 @@ begin
     vPC.Properties.TabHeight := vSourcePC.TabHeight;
   end;
 
+  // Нужно прописывать родителя, чтобы создавать вложенные сцены
+  SetParent(Parent);
+
   for i := 0 to vSourcePC.PageCount - 1 do
   begin
     vSourceTab := vSourcePC.Pages[i];
@@ -2146,7 +2161,7 @@ begin
     vPage.Caption := vSourceTab.Caption;
     vPage.ImageIndex := vSourceTab.ImageIndex;
 
-    vChildArea := TVCLArea.Create(Self, FView.Parent, vSourceTab.Name, vPage);
+    vChildArea := TVCLArea.Create(Self, FView.Parent, vSourceTab.Name, False, vPage);
     AddArea(vChildArea);
     TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vSourceTab);
   end;
@@ -2463,6 +2478,39 @@ begin
   //TcxButton(FControl).OnClick := AHandler;
 end;
 
+{ TBoolImages }
+
+procedure TBoolImages.DoCreateControl(const ALayout: TObject);
+begin
+  inherited;
+  FControl := TImage.Create(nil);
+  TImage(FControl).Transparent := True;
+end;
+
+procedure TBoolImages.FillEditor;
+var
+  i, vImageSize: Integer;
+  vStream: TStream;
+begin
+  inherited;
+  i := FCreateParams.IndexOfName(FView.FieldValue);
+
+  if i < 0 then Exit;
+
+  vImageSize := 16;
+  if FCreateParams.IndexOfName('ImageSize') >= 0 then
+    vImageSize := StrToIntDef(FCreateParams.Values['ImageSize'], 16);
+
+  i := StrToIntDef(FCreateParams.Values[FView.FieldValue], 0);
+
+  vStream := TConfiguration(TInteractor(FView.Interactor).Configuration).Icons.IconByIndex(i, vImageSize);
+  if Assigned(vStream) then
+  begin
+    vStream.Position := 0;
+    TImage(FControl).Picture.LoadFromStream(vStream);
+  end;
+end;
+
 initialization
 
 RegisterClasses([TdxBevel, TcxLabel, TcxTreeList, TcxTreeListColumn]);
@@ -2506,6 +2554,7 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiCurrencyEdit, '', TDECurrency
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCurrencyEdit, 'info', TTextInfo);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, '', TDEBoolFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'imaged_action', TDEImagedAction);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'images', TBoolImages);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'pages', TDEPagesFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiColorEdit, '', TColorEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBLOBEdit, '', TDEBLOBEditor);

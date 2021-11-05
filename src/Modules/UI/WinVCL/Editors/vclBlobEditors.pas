@@ -70,12 +70,12 @@ end;
 procedure TFieldSceneArea.DoCreateControl(const ALayout: TObject);
 var
   vDomain: TDomain;
-  vPainterClass: TPainterClass;
+  vSceneClass: TSceneClass;
   vModuleName: string;
 begin
   vDomain := TDomain(FView.Domain);
-  vPainterClass := TPainterClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ChartPainter', 'Painting', vModuleName));
-  FScene := TWinScene.Create(nil, vPainterClass.Create(vDomain.Configuration.Icons));
+  vSceneClass := TSceneClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ChartPainter', 'Painting', vModuleName));
+  FScene := vSceneClass.Create(TVCLArea(Parent).Control);
   FControl := TWinScene(FScene).Panel;
 end;
 

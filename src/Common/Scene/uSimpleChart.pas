@@ -192,9 +192,8 @@ begin
   begin
     FStyle.AddFontParams('watermark', 'Tahoma', 10, TAlphaColorRec.Blue);
     FStyle.AddFillParams('background', TAlphaColorRec.Silver, AppendColor(TAlphaColorRec.Silver, $001E1E1E), gkVertical); // background
-    FStyle.AddStrokeParams('grid', TAlphaColorRec.Gray, 1, psDot); // grid
+    FStyle.AddStrokeParams('grid', MakeColor(TAlphaColorRec.Gray, 1{0.3}), 1, psDot); // grid
     FStyle.AddStrokeParams('axis', TAlphaColorRec.Gray, 2); // axis
-    FStyle.AddFillParams('text', TAlphaColorRec.Black);
     FStyle.AddFontParams('title', 'Tahoma', 12, TAlphaColorRec.Black); // Заголовок чарта
     FStyle.AddFontParams('x.tick', 'Tahoma', 10, TAlphaColorRec.Black); // значения по шкале X
     FStyle.AddFontParams('extra.tick', 'Tahoma', 8, TAlphaColorRec.Navy); // доп. значения по шкале X
@@ -317,7 +316,7 @@ begin
   if not SameValue(FMousePos.X, -1) and not SameValue(FMousePos.Y, -1) {and (FMoveMode <> mmSelect)} then
   begin
     APainter.DrawLine(FStyle, 'tick.line',
-      PointF(FMousePos.X, FChartRect.Top), PointF(FMousePos.X, FChartRect.Bottom));
+      PointF(FMousePos.X, FChartRect.Top), PointF(FMousePos.X, FChartRect.Bottom), True);
     DrawChannelInfo(APainter, FChartRect, FMousePos);
   end;
 end;
@@ -354,7 +353,7 @@ begin
 
   OffsetRect(vRect, vTextSize.cy / 4, 0);
 
-  APainter.DrawText(FStyle, '', 'info.text', vInfo, vRect, DT_LEFT);
+  APainter.DrawText(FStyle, 'info.text', vInfo, vRect, DT_LEFT);
 end;
 
 function TSimpleChart.DrawChart(const APainter: TPainter; const ARect: TRectF;
@@ -506,7 +505,7 @@ begin
     vTextRect := Result;
     vTextRect.Bottom := ARect.Bottom;
     vTextRect.Top := vTextRect.Bottom - vTextHeight;
-    APainter.DrawText(FStyle, 'text', 'x.title', GetXCaption, vTextRect, DT_CENTER);
+    APainter.DrawText(FStyle, 'x.title', GetXCaption, vTextRect, DT_CENTER);
   end;
 
   // Выводим подпись по оси Y
@@ -519,7 +518,7 @@ begin
     vTextRect.Top := vTextRect.Top + (vTextRect.Bottom - vTextRect.Top - vTextWidth) / 2;
     vTextRect.Bottom := vTextRect.Top + vTextWidth;
 
-    APainter.DrawText(FStyle, 'text', 'y.title', vYAxisName, vTextRect, 270);
+    APainter.DrawText(FStyle, 'y.title', vYAxisName, vTextRect, 270);
   end;
 
   DrawValues(APainter, Result, vViewportStart, vViewportWidth);
@@ -617,7 +616,7 @@ begin
   vRect.Right := vRect.Left + vMaxWidth;
 
   APainter.DrawRect(FStyle, 'tick.selected', '', vRect);
-  APainter.DrawText(FStyle, '', 'tick.selected', vValue, vRect, DT_CENTER or DT_VCENTER);
+  APainter.DrawText(FStyle, 'tick.selected', vValue, vRect, DT_CENTER or DT_VCENTER);
 end;
 
 function TSimpleChart.GetExtraScalesCount: Integer;
@@ -961,11 +960,11 @@ end;
 
 constructor TDataChart.Create(const AScene: TScene; const AParent: TSceneObject);
 begin
-  inherited Create(AScene, AParent);
-
-  FTensor := TTensor.Create([50 + Random(100)]);
+  FTensor := TTensor.Create([{50 + Random(100)}100]);
   FTensor.Fill(dfkRandom, 0, 1000);
   FTensor.MinMax(FMin, FMax);
+
+  inherited Create(AScene, AParent);
 end;
 
 destructor TDataChart.Destroy;
