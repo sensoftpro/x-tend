@@ -87,8 +87,10 @@ var
 implementation
 
 uses
-  Classes, SysUtils, IOUtils, uConsts, uCodeConfiguration, uProcessMediator, uScript, uUtils;
-
+{$IFDEF MSWINDOWS}
+  Windows,
+{$ENDIF}
+  Classes, SysUtils, IOUtils, SyncObjs, Threading, uConsts, uCodeConfiguration, uScript, uUtils;
 
 const
   cBrushStyleNames: array[TBrushStyle] of string = ('Сплошная', 'Нет заливки',
@@ -110,6 +112,31 @@ const
     'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь');
 
   cUserNames: array[TUserKind] of string = ('Гость', 'Система', 'Пользователь', 'Администратор');
+
+type
+  TOnDataReceivedEvent = procedure(const AData: string) of object;
+
+  TProcessMediator = class
+  private
+    FFileName: string;
+    FEventName: string;
+    FAlreadyExists: Boolean;
+  {$IFDEF MSWINDOWS}
+    FFileMapping: THandle;
+  {$ENDIF}
+    FBaseAddress: Pointer;
+    FEvent: TEvent;
+    FWaitingTask: ITask;
+    FOnDataReceived: TOnDataReceivedEvent;
+  public
+    constructor Create(const AUniqueName: string; const ADataSize: Integer = 255);
+    destructor Destroy; override;
+
+    function SendData(const AData: string): Boolean;
+
+    property AlreadyExists: Boolean read FAlreadyExists;
+    property OnDataReceived: TOnDataReceivedEvent read FOnDataReceived write FOnDataReceived;
+  end;
 
 { TPlatform }
 
@@ -420,6 +447,103 @@ end;
 function TPlatform.Translate(const AKey, ADefault: string): string;
 begin
   Result := FTranslator.Translate(AKey, ADefault);
+end;
+
+{ TProcessMediator }
+
+constructor TProcessMediator.Create(const AUniqueName: string; const ADataSize: Integer);
+begin
+  inherited Create;
+
+  FFileName := AUniqueName + '$File';
+  FEventName := AUniqueName + '$Event';
+
+{$IFDEF MSWINDOWS}
+  FFileMapping := OpenFileMapping(FILE_MAP_WRITE or FILE_MAP_READ, False, PChar(FFileName));
+  FAlreadyExists := FFileMapping <> 0;
+{$ELSE}
+  FAlreadyExists := False;
+{$ENDIF}
+
+  if not FAlreadyExists then
+  begin
+{$IFDEF MSWINDOWS}
+    FFileMapping := CreateFileMapping(INVALID_HANDLE_VALUE, nil, PAGE_READWRITE, 0, ADataSize, PChar(FFileName));
+    if FFileMapping = 0 then
+      FBaseAddress := nil
+    else
+      FBaseAddress := MapViewOfFile(FFileMapping, FILE_MAP_WRITE or FILE_MAP_READ, 0, 0, 0);
+{$ELSE}
+    FBaseAddress := nil;
+{$ENDIF}
+
+    FEvent := TEvent.Create(nil, False, False, FEventName);
+    FWaitingTask := TTask.Run(procedure
+      var
+        vWaitResult: TWaitResult;
+      begin
+        while TTask.CurrentTask.Status = TTaskStatus.Running do
+        begin
+          vWaitResult := FEvent.WaitFor;
+          if (vWaitResult = wrSignaled) and (TTask.CurrentTask.Status = TTaskStatus.Running) then
+          begin
+            if Assigned(FOnDataReceived) and Assigned(FBaseAddress) then
+              TThread.Synchronize(nil, procedure
+                begin
+                  FOnDataReceived(PChar(FBaseAddress));
+                end);
+          end
+          else
+            Break;
+        end;
+      end);
+  end
+  else begin
+{$IFDEF MSWINDOWS}
+    FBaseAddress := MapViewOfFile(FFileMapping, FILE_MAP_WRITE or FILE_MAP_READ, 0, 0, 0);
+{$ELSE}
+    FBaseAddress := nil;
+{$ENDIF}
+    FEvent := nil;
+    FWaitingTask := nil;
+  end;
+end;
+
+destructor TProcessMediator.Destroy;
+begin
+  if Assigned(FWaitingTask) then
+  begin
+    FWaitingTask.Cancel;
+    FWaitingTask := nil;
+  end;
+
+  if Assigned(FEvent) then
+    FEvent.SetEvent;
+  FreeAndNil(FEvent);
+
+{$IFDEF MSWINDOWS}
+  if Assigned(FBaseAddress) then
+    UnmapViewOfFile(FBaseAddress);
+  if FFileMapping <> 0 then
+    CloseHandle(FFileMapping);
+{$ENDIF}
+
+  inherited Destroy;
+end;
+
+function TProcessMediator.SendData(const AData: string): Boolean;
+begin
+  if not FAlreadyExists then
+    Exit(False);
+  FEvent := TEvent.Create(nil, False, False, FEventName);
+  Result := Assigned(FBaseAddress) and Assigned(FEvent);
+  if Result then
+  begin
+{$IFDEF MSWINDOWS}
+    StrPCopy(FBaseAddress, PChar(AData));
+{$ENDIF}
+    FEvent.SetEvent;
+  end;
 end;
 
 end.

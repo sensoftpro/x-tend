@@ -357,72 +357,11 @@ var
     OleCheck(ThisRenderTarget.CreateBitmapFromWicBitmap(vConverter, nil, Result));
   end;
 
-  procedure SaveBitmapToFile(const AFileName: string);
-  var
-    vFileExt: string;
-    vWICFormatGUID: TGUID;
-    vWICFactory: IWICImagingFactory2;
-    vFileStream: TFileStream;
-    vFileName: string;
-    vMemoryStream: TMemoryStream;
-    vStream: IWICStream;
-    vEncoder: IWICBitmapEncoder;
-    vFrameEncode: IWICBitmapFrameEncode;
-    vDeviceContext: ID2D1DeviceContext;
-    vDevice: ID2D1Device;
-    vImageEncoder: IWICImageEncoder;
-    vEncoderOptions: IPropertyBag2;
-    vParameters: TWICImageParameters;
-  begin
-    vFileName := AFileName;
-
-    vFileExt := TPath.GetExtension(vFileName);
-    if vFileExt = '.png' then
-      vWICFormatGUID := GUID_ContainerFormatPng
-    else if (vFileExt = '.jpg') or (vFileExt = '.jpeg') then
-      vWICFormatGUID := GUID_ContainerFormatJpeg
-    else if vFileExt = '.bmp' then
-      vWICFormatGUID := GUID_ContainerFormatBmp
-    else if vFileExt = '.ico' then
-      vWICFormatGUID := GUID_ContainerFormatIco
-    else if vFileExt = '.tiff' then
-      vWICFormatGUID := GUID_ContainerFormatTiff
-    else if vFileExt = '.gif' then
-      vWICFormatGUID := GUID_ContainerFormatGif
-    else if vFileExt = '.wmp' then
-      vWICFormatGUID := GUID_ContainerFormatWmp
-    else
-      Exit;
-
-    OleCheck(FImageFactory.CreateEncoder(vWICFormatGUID, nil, vEncoder));
-    OleCheck(FImageFactory.CreateStream(vStream));
-    OleCheck(vStream.InitializeFromFilename(PChar(vFileName), GENERIC_WRITE));
-
-    OleCheck(vEncoder.Initialize(vStream, WICBitmapNoCache));
-
-    // Create and initialize WIC Frame Encoder
-    OleCheck(vEncoder.CreateNewFrame(vFrameEncode, vEncoderOptions));
-    OleCheck(vFrameEncode.Initialize(nil));
-
-    // Retrieve D2D Device
-    vDeviceContext := ThisRenderTarget as ID2D1DeviceContext;
-    vDeviceContext.GetDevice(vDevice);
-
-    // Create IWICImageEncoder
-    //vWICFactory.CreateImageEncoder(vDevice, vImageEncoder);
-    OleCheck(vImageEncoder.WriteFrame(ThisRenderTarget as ID2D1Image, vFrameEncode, vParameters));
-    OleCheck(vFrameEncode.Commit);
-    OleCheck(vEncoder.Commit);
-
-    // Flush all memory buffers to the next-level storage object.
-    OleCheck(vStream.Commit(STGC_DEFAULT));
-  end;
 begin
   if not TFile.Exists(AImage.FileName) then
     Exit;
 
   vBitmap := LoadBitmapFromFile(AImage.FileName);
-  //SaveBitmapToFile('scene.png');
   vImage := TD2DImage.Create(vBitmap);
 
   if AImage.IsNinePatch then
@@ -1115,20 +1054,17 @@ procedure TD2DDrawContext.SaveToFile(const AFileName: string);
 var
   vFileExt: string;
   vWICFormatGUID: TGUID;
-  vWICFactory: IWICImagingFactory2;
-  vFileStream: TFileStream;
+  vWICFactory: IWICImagingFactory;
   vFileName: string;
-  vMemoryStream: TMemoryStream;
   vStream: IWICStream;
   vEncoder: IWICBitmapEncoder;
   vFrameEncode: IWICBitmapFrameEncode;
-  vDeviceContext: ID2D1DeviceContext;
-  vDevice: ID2D1Device;
-  vImageEncoder: IWICImageEncoder;
+  vWidth, vHeight: Cardinal;
+  vFormat: TGUID;
+  vBitmap: IWICBitmap;
   vEncoderOptions: IPropertyBag2;
-  vParameters: TWICImageParameters;
 begin
-  vFileName := ChangeFileExt(AFileName, '.png');
+  vFileName := AFileName;
 
   vFileExt := TPath.GetExtension(vFileName);
   if vFileExt = '.png' then
@@ -1148,33 +1084,32 @@ begin
   else
     Exit;
 
-  //CoInitializeEx(nil, COINIT_APARTMENTTHREADED or COINIT_DISABLE_OLE1DDE);
+  vWICFactory := TDirect2DPainter(FPainter).FImageFactory;
+  vFormat := GUID_WICPixelFormat32bppPBGRA;
 
-  OleCheck(CoCreateInstance(CLSID_WICImagingFactory2, nil, CLSCTX_INPROC_SERVER, IID_IWICImagingFactory2, vWICFactory));
-
-  //vWICFactory := TDirect2DPainter(FPainter).FImageFactory;
-
-  //vFileStream := TFileStream.Create(AFileName, fmOpenReadWrite or fmCreate, GENERIC_ALL);
-  //vMemoryStream := TMemoryStream.Create;
-  //vStream := TStreamAdapter.Create(vMemoryStream, soReference) as IStream;
   OleCheck(vWICFactory.CreateStream(vStream));
   OleCheck(vStream.InitializeFromFilename(PChar(vFileName), GENERIC_WRITE));
 
   // Create and initialize WIC Bitmap Encoder
   OleCheck(vWICFactory.CreateEncoder(vWICFormatGUID, nil, vEncoder));
+  // ERROR HERE!!! Not supported
   OleCheck(vEncoder.Initialize(vStream, WICBitmapNoCache));
 
   // Create and initialize WIC Frame Encoder
   OleCheck(vEncoder.CreateNewFrame(vFrameEncode, vEncoderOptions));
   OleCheck(vFrameEncode.Initialize(nil));
 
+  vFrameEncode.SetSize(vWidth, vHeight);
+  vFrameEncode.SetPixelFormat(vFormat);
+  vFrameEncode.WriteSource(vBitmap, nil);
+
   // Retrieve D2D Device
-  vDeviceContext := FRenderTarget as ID2D1DeviceContext;
-  vDeviceContext.GetDevice(vDevice);
+  //vDeviceContext := FRenderTarget as ID2D1DeviceContext;
+  //vDeviceContext.GetDevice(vDevice);
 
   // Create IWICImageEncoder
   //vWICFactory.CreateImageEncoder(vDevice, vImageEncoder);
-  OleCheck(vImageEncoder.WriteFrame(FBitmapTarget as ID2D1Image, vFrameEncode, vParameters));
+  //OleCheck(vImageEncoder.WriteFrame(FBitmapTarget as ID2D1Image, vFrameEncode, vParameters));
   OleCheck(vFrameEncode.Commit);
   OleCheck(vEncoder.Commit);
 

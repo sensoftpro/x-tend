@@ -285,6 +285,8 @@ begin
 
   // Отрисовываем дочерние объекты
   inherited DoRenderStatic(APainter, ARect, AMode);
+
+  APainter.DrawImage(FStyle, 'peak', RectF(200, 100, 450, 300), 0.7);
 end;
 
 procedure TSimpleChart.DoRenderDynamic(const APainter: TPainter; const ARect: TRectF);

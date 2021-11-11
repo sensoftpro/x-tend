@@ -46,11 +46,6 @@ uses
   Winapi.Wincodec,
   WinApi.DXGI;
 
-const
-  SID_IWICImagingFactory2 = '{7B816B45-1996-4476-B132-DE9E247C8AF0}';
-  IID_IWICImagingFactory2: TGUID = SID_IWICImagingFactory2;
-  {$EXTERNALSYM IID_IWICImagingFactory2}
-
 type
 //  // Represents a 3-by-2 matrix.
 //  // Delphi Note:
@@ -668,17 +663,6 @@ type
     colorSpace: D2D1_COLOR_SPACE;
   end;
   {$EXTERNALSYM D2D1_PRINT_CONTROL_PROPERTIES}
-
-  PWICImageParameters = ^TWICImageParameters;
-  TWICImageParameters = record
-    PixelFormat: D2D1_PIXEL_FORMAT;
-    DpiX: single;
-    DpiY: single;
-    Top: single;
-    Left: single;
-    PixelWidth: UINT32;
-    PixelHeight: UINT32;
-  end;
 
   // Interface ID2D1ColorContext
   // ===========================
@@ -3187,68 +3171,9 @@ type
   IID_ID2D1DeviceContext5 = ID2D1DeviceContext5;
   {$EXTERNALSYM IID_ID2D1DeviceContext5}
 
-  IWICImageEncoder = interface(IUnknown)
-    ['{04C75BF8-3CE1-473B-ACC5-3CC4F5E94999}']
-    function WriteFrame(pImage: ID2D1Image; pFrameEncode: IWICBitmapFrameEncode; const pImageParameters: TWICImageParameters): HResult; stdcall;
-    function WriteFrameThumbnail(pImage: ID2D1Image; pFrameEncode: IWICBitmapFrameEncode;
-      const pImageParameters: TWICImageParameters): HResult; stdcall;
-    function WriteThumbnail(pImage: ID2D1Image; pEncoder: IWICBitmapEncoder; const pImageParameters: TWICImageParameters): HResult; stdcall;
-  end;
-  {$EXTERNALSYM IWICImageEncoder}
-
-    IWICImagingFactory = interface(IUnknown)
-        ['{ec5ec8a9-c395-4314-9c77-54d7a935ff70}']
-        function CreateDecoderFromFilename(wzFilename: PWideChar; pguidVendor: PGUID; // const ?!?
-            dwDesiredAccess: DWORD; metadataOptions: WICDecodeOptions; out ppIDecoder: IWICBitmapDecoder): HResult; stdcall;
-        function CreateDecoderFromStream(pIStream: IStream; pguidVendor: PGUID; metadataOptions: WICDecodeOptions;
-            out ppIDecoder: IWICBitmapDecoder): HResult; stdcall;
-        function CreateDecoderFromFileHandle(hFile: Pointer; pguidVendor: PGUID; metadataOptions: WICDecodeOptions;
-            out ppIDecoder: IWICBitmapDecoder): HResult; stdcall;
-        function CreateComponentInfo(clsidComponent: TGUID; out ppIInfo: IWICComponentInfo): HResult; stdcall;
-        function CreateDecoder(const guidContainerFormat: TGUID; pguidVendor: PGUID; out ppIDecoder: IWICBitmapDecoder): HResult; stdcall;
-        function CreateEncoder(const guidContainerFormat: TGUID; pguidVendor: PGUID; out ppIEncoder: IWICBitmapEncoder): HResult; stdcall;
-        function CreatePalette(out ppIPalette: IWICPalette): HResult; stdcall;
-        function CreateFormatConverter(out ppIFormatConverter: IWICFormatConverter): HResult; stdcall;
-        function CreateBitmapScaler(out ppIBitmapScaler: IWICBitmapScaler): HResult; stdcall;
-        function CreateBitmapClipper(out ppIBitmapClipper: IWICBitmapClipper): HResult; stdcall;
-        function CreateBitmapFlipRotator(out ppIBitmapFlipRotator: IWICBitmapFlipRotator): HResult; stdcall;
-        function CreateStream(out ppIWICStream: IWICStream): HResult; stdcall;
-        function CreateColorContext(out ppIWICColorContext: IWICColorContext): HResult; stdcall;
-        function CreateColorTransformer(out ppIWICColorTransform: IWICColorTransform): HResult; stdcall;
-        function CreateBitmap(uiWidth: UINT; uiHeight: UINT; const pixelFormat: REFWICPixelFormatGUID;
-            option: WICBitmapCreateCacheOption; out ppIBitmap: IWICBitmap): HResult; stdcall;
-        function CreateBitmapFromSource(pIBitmapSource: IWICBitmapSource; option: WICBitmapCreateCacheOption;
-            out ppIBitmap: IWICBitmap): HResult; stdcall;
-        function CreateBitmapFromSourceRect(pIBitmapSource: IWICBitmapSource; x: UINT; y: UINT; Width: UINT;
-            Height: UINT; out ppIBitmap: IWICBitmap): HResult; stdcall;
-        function CreateBitmapFromMemory(uiWidth: UINT; uiHeight: UINT; const pixelFormat: REFWICPixelFormatGUID;
-            cbStride: UINT; cbBufferSize: UINT; pbBuffer: PBYTE; out ppIBitmap: IWICBitmap): HResult; stdcall;
-        function CreateBitmapFromHBITMAP(hBitmap: HBITMAP; hPalette: HPALETTE; options: WICBitmapAlphaChannelOption;
-            out ppIBitmap: IWICBitmap): HResult; stdcall;
-        function CreateBitmapFromHICON(hIcon: HICON; out ppIBitmap: IWICBitmap): HResult; stdcall;
-        function CreateComponentEnumerator(componentTypes: DWORD; options: DWORD; out ppIEnumUnknown: IEnumUnknown): HResult; stdcall;
-        function CreateFastMetadataEncoderFromDecoder(pIDecoder: IWICBitmapDecoder;
-            out ppIFastEncoder: IWICFastMetadataEncoder): HResult; stdcall;
-        function CreateFastMetadataEncoderFromFrameDecode(pIFrameDecoder: IWICBitmapFrameDecode;
-            out ppIFastEncoder: IWICFastMetadataEncoder): HResult; stdcall;
-        function CreateQueryWriter(guidMetadataFormat: TGUID; pguidVendor: PGUID;
-            out ppIQueryWriter: IWICMetadataQueryWriter): HResult; stdcall;
-        function CreateQueryWriterFromReader(pIQueryReader: IWICMetadataQueryReader; pguidVendor: PGUID;
-            out ppIQueryWriter: IWICMetadataQueryWriter): HResult; stdcall;
-    end;
-
-  { part of WinCodec.h, but cross reference problem }
-  IWICImagingFactory2 = interface(IWICImagingFactory)
-    ['{7B816B45-1996-4476-B132-DE9E247C8AF0}']
-    function CreateImageEncoder(pD2DDevice: ID2D1Device; out ppWICImageEncoder: IWICImageEncoder): HResult; stdcall;
-  end;
-  {$EXTERNALSYM IWICImagingFactory2}
-
 {$WARN BOUNDS_ERROR OFF}
 
 const
-    CLSID_WICImagingFactory2: TGUID = '{317d06e8-5f24-433d-bdf7-79ce68d8abc2}';
-
     { D2D1Effects.h }
     // Built in effect CLSIDs
     CLSID_D2D12DAffineTransform: TGUID = '{6AA97485-6354-4cfc-908C-E4A74F62C96C}';
