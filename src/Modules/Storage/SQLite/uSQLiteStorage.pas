@@ -318,16 +318,28 @@ end;
 function TSQLiteDBContext.GetParamValues: TVarRecArray;
 var
   vLen, vIdx, i: Integer;
+  vParam: TBaseParameter;
   vSimpleParameter: TSimpleParameter;
+  vBlobParameter: TBlobParameter;
 begin
   vLen := FKeyParameters.Count + FParameters.Count;
   SetLength(Result, vLen);
   vIdx := 0;
   for i := 0 to FParameters.Count - 1 do
   begin
-    vSimpleParameter := TSimpleParameter(FParameters[i]);
-    Result[vIdx].VType := vtVariant;
-    Result[vIdx].VVariant := @vSimpleParameter.Value;
+    vParam := FParameters[i];
+    if vParam.ParamKind = pkSimple then
+    begin
+      vSimpleParameter := TSimpleParameter(FParameters[i]);
+      Result[vIdx].VType := vtVariant;
+      Result[vIdx].VVariant := @vSimpleParameter.Value;
+    end else
+    if vParam.ParamKind = pkBlob then
+    begin
+      vBlobParameter := TBlobParameter(FParameters[i]);
+      Result[vIdx].VType := vtObject;
+      Result[vIdx].VObject := vBlobParameter.Value;
+    end;
     Inc(vIdx);
   end;
   for i := 0 to FKeyParameters.Count - 1 do

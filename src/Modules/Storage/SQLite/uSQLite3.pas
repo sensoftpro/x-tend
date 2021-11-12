@@ -1575,6 +1575,10 @@ var
   Rec: TSQLiteRecord;
   ArgType, ArrLen: Integer;
   ResData, ArrData: PByte;
+  Obj: TObject;
+  Stream: TStream;
+  Len: Integer;
+  BlobData: array of Byte;
 begin
   Result := False;
   FSQLiteResult.Clear;
@@ -1612,11 +1616,33 @@ begin
           vtWideString:     s := WideString(PWideChar(VWideString));
           vtUnicodeString:  s := WideString(PWideChar(VUnicodeString));
 
+          vtObject:
+            begin
+              Obj := VObject;
+              if (Obj <> nil) and (Obj.InheritsFrom(TStream)) then
+              begin
+                Stream := TStream(Obj);
+                Len := Stream.Size;
+                SetLength(BlobData, Len);
+                Stream.Position := 0;
+                Stream.Read(BlobData[0], Len);
+                sqlite3_bind_blob(stm, BindIdx, @BlobData[0], Len, nil);
+              end
+              else
+                sqlite3_bind_null(stm, BindIdx);
+            end;
+
           vtVariant:
             begin
               v := VVariant^;
               vt := VarType(v);
               case vt of
+                varEmpty,
+                varNull:
+                  begin
+                    sqlite3_bind_null(stm, BindIdx);
+                  end;
+
                 varSingle,
                 varDouble,
                 varDate:
