@@ -129,6 +129,7 @@ type
     function CreateChildLayoutedArea(const ALayout: TObject; const AView: TView;
       const AChildLayoutName: string; const AParams: string): TUIArea;
     function CreateChildArea(const AChildView: TView; const ALayout: TObject): TUIArea;
+    function AreaFromSender(const ASender: TObject): TUIArea; virtual;
 
     function GetAreaByView(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
     procedure Clear;
@@ -150,6 +151,7 @@ type
 
     function GetName: string; virtual;
     procedure SetParent(const Value: TUIArea); virtual;
+    procedure SetControl(const AControl: TObject); virtual;
     procedure AssignFromLayout(const ALayout: TObject); virtual;
     procedure ArrangeChildAreas; virtual;
     procedure SaveLayoutToFile(const AFileName: string); virtual;
@@ -840,6 +842,11 @@ begin
   Result := nil;
 end;
 
+function TUIArea.AreaFromSender(const ASender: TObject): TUIArea;
+begin
+  Result := nil;
+end;
+
 procedure TUIArea.ArrangeChildAreas;
 begin
 end;
@@ -903,6 +910,10 @@ begin
   FIsService := AIsService;
   FControl := AControl;
 
+  FCreateParams := nil;
+  if Length(AParams) > 0 then
+    FCreateParams := CreateDelimitedList(AParams, '&');
+
   FAreas := TList<TUIArea>.Create;
   FStyle := TUIStyle.Create(Self);
   FHolder := nil;
@@ -912,6 +923,7 @@ begin
   if not FIsService then
     TrySubscribeView;
 
+  SetControl(AControl);
   SetParent(AParent);
 end;
 
@@ -1337,6 +1349,11 @@ end;
 
 procedure TUIArea.SaveLayoutToFile(const AFileName: string);
 begin
+end;
+
+procedure TUIArea.SetControl(const AControl: TObject);
+begin
+  FControl := AControl;
 end;
 
 procedure TUIArea.SetEditMode(const ASession: TObject; const AParentHolder: TObject; const AIsEditMode: Boolean);

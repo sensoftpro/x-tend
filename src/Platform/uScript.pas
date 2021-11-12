@@ -1669,7 +1669,7 @@ begin
       else if AActionName = 'LoadDocument' then
       begin
         vFileName := vEntity['FullPathName'];
-        if TPresenter(AInteractor.Presenter).SelectFile(vFileName, '') then
+        if TPresenter(AInteractor.Presenter).ShowOpenDialog(vFileName, '', '', '', '') then
           TUserSession(AInteractor.Session).AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
             begin
               vEntity._SetFieldValue(AHolder, 'FullPathName', vFileName);

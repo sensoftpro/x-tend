@@ -244,6 +244,9 @@ begin
   end;
 end;
 
+type
+  TPresenterCrack = class(TPresenter);
+
 procedure TPlatform.Init;
 var
   vScripts: TStrings;
@@ -271,8 +274,13 @@ begin
   if FDomains.Count = 1 then
   begin
     FPresenter := CreatePresenter(FDomains[0].Settings);
+    // Ugly hack, rethink later
     if Assigned(FPresenter) then
-      FPresenter.SetDomain(FDomains[0]);
+    begin
+      FDomains[0].OnError := TPresenterCrack(FPresenter).OnDomainError;
+      FDomains[0].OnProgress := TPresenterCrack(FPresenter).OnDomainLoadProgress;
+      TPresenterCrack(FPresenter).FProgressInfo.Domain := FDomains[0];
+    end;
   end
   else
     FPresenter := CreatePresenter(FSettings);

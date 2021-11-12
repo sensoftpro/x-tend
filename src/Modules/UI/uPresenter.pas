@@ -214,11 +214,12 @@ type
     function DoSelectFile(var AFileName: string; const ADirectory: string = ''): Boolean; virtual;
     function DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean; virtual;
     function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; virtual;
-
-    procedure DoToggleUI(const AVisible: Boolean); virtual;
     procedure DoCloseAllPages(const AInteractor: TInteractor); virtual; abstract;
 
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; virtual; abstract;
+
+    procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string); virtual;
+    procedure OnDomainError(const ACaption, AText: string); virtual;
 
     function ActiveInteractor: TInteractor;
   public
@@ -237,35 +238,32 @@ type
       const AAreaName: string; const ACallback: TNotifyEvent = nil): TUIArea; virtual;
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; virtual;
     procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); virtual;
+
+    // Layouts operations
     function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
-      const AView: TView; const AStyleName, AParams: string): TUIArea; virtual;
+      const AView: TView; const AStyleName, AParams: string): TUIArea;
     function CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject;
-      const AView: TView; const AStyleName, AParams: string): TUIArea; virtual;
+      const AView: TView; const AStyleName, AParams: string): TUIArea;
+    procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
+    procedure EnumerateControls(const ALayout: TObject; const AControls: TList<TObject>);
+    procedure SetLayoutCaption(const ALayout: TObject; const ACaption: string);
+    function GetLayoutCaption(const ALayout: TObject): string;
+    function GetLayoutKind(const ALayout: TObject): TLayoutKind;
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; virtual;
-    procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual; abstract;
+    procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
     procedure CloseAllPages(const AInteractor: TInteractor);
-    procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string); virtual;
 
-    procedure EnumerateControls(const ALayout: TObject; const AControls: TList<TObject>); virtual; abstract;
     function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject; virtual; abstract;
-    procedure SetLayoutCaption(const ALayout: TObject; const ACaption: string); virtual; abstract;
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
-    function GetLayoutCaption(const ALayout: TObject): string; virtual; abstract;
-    function GetLayoutKind(const ALayout: TObject): TLayoutKind; virtual; abstract;
 
     procedure ShowMessage(const ACaption, AText: string; const AMessageType: TMessageType = msNone);
     function ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
     function ShowYesNoDialog(const ACaption, AText: string; const AWithCancel: Boolean = False): TDialogResult;
     function ShowOkCancelDialog(const ACaption, AText: string): TDialogResult;
     procedure OpenFile(const AFileName: string; const ADefaultApp: string = ''; const Await: Boolean = False);
-    function SelectFile(var AFileName: string; const ADirectory: string = ''): Boolean;
     function ShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean;
     function ShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean;
-
-    procedure ToggleUI(const AVisible: Boolean);
-
-    procedure SetDomain(const ADomain: TObject); virtual;
 
     function CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
     property OnAppStarted: TStartedEvent read FOnAppStarted write FOnAppStarted;
@@ -277,7 +275,8 @@ type
 implementation
 
 uses
-  IOUtils, SysUtils, TypInfo;
+  IOUtils, SysUtils, TypInfo, {>> Windows} Controls, StdCtrls, ExtCtrls, ComCtrls, Menus, {Windows <<}
+  uDefinition, uUtils;
 
 { TPresenter }
 
@@ -287,6 +286,10 @@ begin
     Result := FInteractors[0]
   else
     Result := nil;
+end;
+
+procedure TPresenter.ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement);
+begin
 end;
 
 procedure TPresenter.Authorize(const AAccount: TObject; const AUrl: string;
@@ -336,14 +339,38 @@ end;
 
 function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView; const AStyleName,
   AParams: string): TUIArea;
+var
+  vParams, vViewName: string;
+  vCollectionAreaClass: TUIAreaClass;
 begin
-  Result := nil;
+  vViewName := GetUrlCommand(AStyleName, AStyleName);
+  vParams := ExtractUrlParams(AStyleName);
+
+  vCollectionAreaClass := TUIAreaClass(GetUIClass(FName, uiCollection, vViewName));
+
+  Result := vCollectionAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
 end;
 
 function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
   const AView: TView; const AStyleName, AParams: string): TUIArea;
+var
+  vParams, vViewName: string;
+  vFieldAreaClass: TUIAreaClass;
 begin
-  Result := nil;
+  vViewName := GetUrlCommand(AStyleName, AStyleName);
+  vParams := ExtractUrlParams(AStyleName);
+
+  if AView.DefinitionKind = dkEntity then
+    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, uiEntityEdit, vViewName))
+  else if ALayout is TPageControl then
+    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), 'pages'))
+  else
+    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), vViewName));
+
+  if vParams = '' then
+    vParams := AParams;
+
+  Result := vFieldAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
 end;
 
 function TPresenter.CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
@@ -413,8 +440,45 @@ procedure TPresenter.DoStop;
 begin
 end;
 
-procedure TPresenter.DoToggleUI(const AVisible: Boolean);
+procedure TPresenter.EnumerateControls(const ALayout: TObject; const AControls: TList<TObject>);
+var
+  vParentControl: TWinControl;
+  i: Integer;
 begin
+  if not (ALayout is TWinControl) then
+    Exit;
+  if TWinControl(ALayout).ControlCount <= 0 then
+    Exit;
+
+  vParentControl := TWinControl(ALayout);
+  for i := 0 to vParentControl.ComponentCount - 1 do
+    if vParentControl.Components[i] is TMenu then
+      AControls.Add(vParentControl.Components[i]);
+
+  for i := 0 to vParentControl.ControlCount - 1 do
+    AControls.Add(vParentControl.Controls[i]);
+end;
+
+function TPresenter.GetLayoutCaption(const ALayout: TObject): string;
+begin
+  if ALayout is TPageControl then
+    Result := TPageControl(ALayout).Hint
+  else
+    Result := TPanel(ALayout).Caption;
+end;
+
+function TPresenter.GetLayoutKind(const ALayout: TObject): TLayoutKind;
+begin
+  if ALayout is TPanel then
+    Result := lkPanel
+  else if ALayout is TTabSheet then
+    Result := lkPage
+  else if ALayout is TPageControl then
+    Result := lkPages
+  else if ALayout is TMemo then
+    Result := lkMemo
+  else
+    Result := lkFrame;
 end;
 
 class function TPresenter.GetPageClass(const APresenterName, APageName: string): TClass;
@@ -487,6 +551,14 @@ begin
   FInteractors.Remove(AInteractor);
 end;
 
+procedure TPresenter.OnDomainError(const ACaption, AText: string);
+begin
+end;
+
+procedure TPresenter.OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
+begin
+end;
+
 procedure TPresenter.OpenFile(const AFileName: string; const ADefaultApp: string = ''; const Await: Boolean = False);
 begin
   DoOpenFile(AFileName, ADefaultApp, Await);
@@ -534,14 +606,9 @@ begin
   DoRun(AParameter);
 end;
 
-function TPresenter.SelectFile(var AFileName: string; const ADirectory: string): Boolean;
+procedure TPresenter.SetLayoutCaption(const ALayout: TObject; const ACaption: string);
 begin
-  Result := DoSelectFile(AFileName, ADirectory);
-end;
-
-procedure TPresenter.SetDomain(const ADomain: TObject);
-begin
-  FProgressInfo.Domain := ADomain;
+  TPanel(ALayout).Caption := ACaption;
 end;
 
 function TPresenter.ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
@@ -551,6 +618,8 @@ end;
 
 procedure TPresenter.ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
 begin
+  if Assigned(AInteractor) then
+    AInteractor.UIBuilder.Navigate(nil, ATargetAreaName, ALayoutName);
 end;
 
 procedure TPresenter.ShowMessage(const ACaption, AText: string; const AMessageType: TMessageType = msNone);
@@ -596,11 +665,6 @@ end;
 procedure TPresenter.Stop;
 begin
   DoStop;
-end;
-
-procedure TPresenter.ToggleUI(const AVisible: Boolean);
-begin
-  DoToggleUI(AVisible);
 end;
 
 { TUIClassInfo }

@@ -84,8 +84,8 @@ type
     function GetControl: TControl;
     procedure SetLabelPosition(const Value: TLabelPosition);
     procedure OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
+    function GetComponent: TComponent;
   protected
-    FControl: TComponent;
     FPopupMenu: TPopupMenu;
     FNeedCreateCaption: Boolean;
     procedure PlaceLabel;
@@ -95,6 +95,7 @@ type
     function DoCreateChildList(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
     function DoCreateChildEditor(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
     function DoCreateChildEmptyArea(const AView: TView): TUIArea; override;
+    function AreaFromSender(const ASender: TObject): TUIArea; override;
     procedure AppendServiceArea(const ALayoutName: string); override;
     procedure BeginUpdate; override;
     procedure EndUpdate; override;
@@ -103,7 +104,7 @@ type
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); override;
 
     function GetName: string; override;
-    procedure SetControl(const AControl: TComponent);
+    procedure SetControl(const AControl: TObject); override;
     procedure SetParent(const Value: TUIArea); override;
     procedure UnbindContent; override;
     procedure AssignFromLayout(const ALayout: TObject); override;
@@ -121,7 +122,7 @@ type
       const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
     destructor Destroy; override;
 
-    property Component: TComponent read FControl;
+    property Component: TComponent read GetComponent;
     property Control: TControl read GetControl;
     property LabelPosition: TLabelPosition read FLabelPosition write SetLabelPosition;
   end;
@@ -243,6 +244,14 @@ begin
   vArea := TVCLArea.Create(Self, FView, '', True, vPanel);
   AddArea(vArea);
   FUIBuilder.ApplyLayout(vArea, FView, ALayoutName);
+end;
+
+function TVCLArea.AreaFromSender(const ASender: TObject): TUIArea;
+begin
+  if Assigned(ASender) and (ASender is TComponent) then
+    Result := TUIArea(TComponent(ASender).Tag)
+  else
+    Result := nil;
 end;
 
 procedure TVCLArea.ArrangeChildAreas;
@@ -455,17 +464,11 @@ constructor TVCLArea.Create(const AParent: TUIArea; const AView: TView; const AI
   const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
 begin
   FNeedCreateCaption := True;
-  FCreateParams := nil;
-  if Length(AParams) > 0 then
-    FCreateParams := CreateDelimitedList(AParams, '&');
+
+  if not Assigned(AControl) then
+    FNeedCreateCaption := True;
 
   inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
-
-  if AControl is TComponent then
-    SetControl(TComponent(AControl));
-
-  if AControl is TControl then
-    SetParent(AParent);
 end;
 
 function TVCLArea.CreateButtonDesc(const AText: string): TButtonDesc;
@@ -1567,7 +1570,7 @@ begin
       Result := TVCLArea.Create(Self, AView, vSourceTabSheet.Name, False, vForm);
     end
     else begin
-      vTab := TcxTabSheet.Create(FControl);
+      vTab := TcxTabSheet.Create(Component);
       vTab.Caption := vSourceTabSheet.Caption;
       vTab.ImageIndex := vSourceTabSheet.ImageIndex;
 
@@ -1616,14 +1619,14 @@ begin
     Result := CreateChildToolButton(Self, vSourceToolButton.Caption)
   else if ALayout is TMainMenu then
   begin
-    vMenu := TMainMenu.Create(FControl);
+    vMenu := TMainMenu.Create(Component);
     vMenu.Images := TDragImageList(TInteractor(Interactor).Images[16]);
     Result := TVCLArea.Create(Self, AView, 'Menu', False, vMenu);
     CopyMenuItems(Result, TMenu(ALayout).Items, vMenu.Items);
   end
   else if ALayout is TPopupMenu then
   begin
-    vMenu := TPopupMenu.Create(FControl);
+    vMenu := TPopupMenu.Create(Component);
     vMenu.Images := TDragImageList(TInteractor(Interactor).Images[16]);
     Result := TVCLArea.Create(Self, AView, 'Popup', False, vMenu);
     CopyPopupMenuItems(Result, TMenu(ALayout).Items, vMenu.Items);
@@ -1908,6 +1911,11 @@ begin
   end;
 end;
 
+function TVCLArea.GetComponent: TComponent;
+begin
+  Result := TComponent(FControl)
+end;
+
 function TVCLArea.GetControl: TControl;
 begin
   if FControl is TControl then
@@ -2158,7 +2166,7 @@ begin
   if Assigned(FPopupMenu) then
     FreeAndNil(FPopupMenu);
 
-  vControl := FControl;
+  vControl := Component;
   inherited Destroy;
 
   if not Assigned(vControl) then
@@ -2207,11 +2215,14 @@ begin
   end;
 end;
 
-procedure TVCLArea.SetControl(const AControl: TComponent);
+procedure TVCLArea.SetControl(const AControl: TObject);
 begin
+  if not (AControl is TComponent) then
+    Exit;
+
   if Assigned(FControl) then
   begin
-    FControl.Tag := 0;
+    TCrackedControl(FControl).Tag := 0;
     if FControl is TWinControl then
     begin
       TCrackedControl(FControl).OnEnter := nil;
@@ -2219,11 +2230,11 @@ begin
     end;
   end;
 
-  FControl := AControl;
+  inherited SetControl(AControl);
 
   if Assigned(FControl) then
   begin
-    FControl.Tag := Integer(Self);
+    TCrackedControl(FControl).Tag := Integer(Self);
     if FControl is TWinControl then
     begin
       TCrackedControl(FControl).OnEnter := OnEnter;
@@ -2237,8 +2248,7 @@ end;
 
 procedure TVCLArea.SetLabelPosition(const Value: TLabelPosition);
 begin
-  FLabelPosition := Value;
-  PlaceLabel;
+
 end;
 
 procedure TVCLArea.SetParent(const Value: TUIArea);
@@ -2398,8 +2408,8 @@ begin
 
   AfterParentChanged;
 
-  if Assigned(FControl) then
-    FControl.Name := FFieldDef.Name;
+  if Assigned(Component) then
+    Component.Name := FFieldDef.Name;
 end;
 
 procedure TVCLFieldArea.Deinit;

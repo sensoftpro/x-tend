@@ -2157,7 +2157,7 @@ begin
   for i := 0 to vSourcePC.PageCount - 1 do
   begin
     vSourceTab := vSourcePC.Pages[i];
-    vPage := TcxTabSheet.Create(FControl);
+    vPage := TcxTabSheet.Create(Control);
     vPage.Caption := vSourceTab.Caption;
     vPage.ImageIndex := vSourceTab.ImageIndex;
 

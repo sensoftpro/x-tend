@@ -52,8 +52,8 @@ type
   private
     function InternalMessageBox(const AText, ACaption: string; Flags: Longint; ALangID: Word): Integer;
     procedure LoadImages(const AInteractor: TInteractor; const AImageList: TDragImageList; const AResolution: Integer);
-    procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
-    procedure OnDomainError(const ACaption, AText: string);
+    procedure DoToggleUI(const AVisible: Boolean); // Rethink
+    procedure DoTrayIconClick(Sender: TObject);
   private
     FRowStyle: TObject;
     FLongOperationCount: Integer;
@@ -65,14 +65,12 @@ type
     FStartForm: TStartFm;
     [Weak] FDebugForm: TDebugFm;
     [Weak] FSplashForm: TSplashFm;
-    procedure DoFinalize;
     function ShowLoginForm(const AAppTitle: string; var ALoginName, APass{, ARFID}: string): Boolean;
     procedure DoChildFormClose(Sender: TObject; var Action: TCloseAction);
     procedure DoChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure DoMainFormClose(Sender: TObject; var Action: TCloseAction);
     procedure DoAuthFormNavigated(ASender: TObject; const pDisp: IDispatch; const URL: OleVariant);
     procedure DoAuthFormClose(Sender: TObject; var Action: TCloseAction);
-    procedure DoTrayIconClick(Sender: TObject);
     procedure DoDebugFormClose(Sender: TObject; var Action: TCloseAction);
     procedure OnShortCut(var Msg: TWMKey; var Handled: Boolean);
     function MessageTypeToMBFlags(const AMessageType: TMessageType): Integer;
@@ -88,12 +86,12 @@ type
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); override;
     function DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult; override;
     procedure DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False); override;
-    function DoSelectFile(var AFileName: string; const ADirectory: string = ''): Boolean; override;
     function DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean; override;
     function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; override;
-
-    procedure DoToggleUI(const AVisible: Boolean); override;
     procedure DoCloseAllPages(const AInteractor: TInteractor); override;
+
+    procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string); override;
+    procedure OnDomainError(const ACaption, AText: string); override;
 
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; override;
   public
@@ -106,28 +104,17 @@ type
       const AAreaName: string; const ACallback: TNotifyEvent = nil): TUIArea; override;
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
     procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); override;
-    function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
-      const AView: TView; const AStyleName, AParams: string): TUIArea; override;
-    function CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject;
-      const AView: TView; const AStyleName, AParams: string): TUIArea; override;
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
-    procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string); override;
 
-    procedure EnumerateControls(const ALayout: TObject; const AControls: TList<TObject>); override;
     function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject; override;
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
-    procedure SetLayoutCaption(const ALayout: TObject; const ACaption: string); override;
-    function GetLayoutCaption(const ALayout: TObject): string; override;
-    function GetLayoutKind(const ALayout: TObject): TLayoutKind; override;
 
     function GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
 
     procedure LongOperationStarted;
     procedure LongOperationEnded;
-
-    procedure SetDomain(const ADomain: TObject); override;
 
     property RowStyle: TObject read FRowStyle;
   end;
@@ -202,42 +189,6 @@ begin
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue(AName, 'ShowSplash'), False)
   else
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
-end;
-
-function TWinVCLPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView; const AStyleName,
-  AParams: string): TUIArea;
-var
-  vParams, vViewName: string;
-  vCollectionAreaClass: TUIAreaClass;
-begin
-  vViewName := GetUrlCommand(AStyleName, AStyleName);
-  vParams := ExtractUrlParams(AStyleName);
-
-  vCollectionAreaClass := TUIAreaClass(GetUIClass(FName, uiCollection, vViewName));
-
-  Result := vCollectionAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
-end;
-
-function TWinVCLPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
-  const AView: TView; const AStyleName, AParams: string): TUIArea;
-var
-  vParams, vViewName: string;
-  vFieldAreaClass: TUIAreaClass;
-begin
-  vViewName := GetUrlCommand(AStyleName, AStyleName);
-  vParams := ExtractUrlParams(AStyleName);
-
-  if AView.DefinitionKind = dkEntity then
-    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, uiEntityEdit, vViewName))
-  else if ALayout is TPageControl then
-    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), 'pages'))
-  else
-    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), vViewName));
-
-  if vParams = '' then
-    vParams := AParams;
-
-  Result := vFieldAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
 end;
 
 function TWinVCLPresenter.CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string): TObject;
@@ -347,8 +298,6 @@ destructor TWinVCLPresenter.Destroy;
 begin
   FreeAndNil(FRowStyle);
   FreeAndNil(FSplashForm);
-
-  DoFinalize;
 
   inherited Destroy;
 end;
@@ -501,11 +450,6 @@ begin
   end;
 end;
 
-procedure TWinVCLPresenter.DoFinalize;
-begin
-
-end;
-
 function TWinVCLPresenter.DoLogin(const ADomain: TObject): TInteractor;
 var
   vDomain: TDomain absolute ADomain;
@@ -596,12 +540,6 @@ begin
   Application.Title := cPlatformTitle;
   if Assigned(FDebugForm) then
     FDebugForm.RemoveInteractor(AInteractor);
-end;
-
-procedure TWinVCLPresenter.ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
-begin
-  if Assigned(AInteractor) then
-    AInteractor.UIBuilder.Navigate(nil, ATargetAreaName, ALayoutName);
 end;
 
 function TWinVCLPresenter.ShowLoginForm(const AAppTitle: string; var ALoginName, APass{, ARFID}: string): Boolean;
@@ -1117,25 +1055,6 @@ begin
   Application.Run;
 end;
 
-function TWinVCLPresenter.DoSelectFile(var AFileName: string; const ADirectory: string = ''): Boolean;
-var
-  vOpenDialog: TOpenDialog;
-begin
-  vOpenDialog := TOpenDialog.Create(nil);
-  if ADirectory <> '' then
-    vOpenDialog.InitialDir := ADirectory
-  else if AFileName <> '' then
-    vOpenDialog.InitialDir := ExtractFilePath(AFileName);
-
-  try
-    Result := vOpenDialog.Execute;
-    if Result then
-      AFileName := vOpenDialog.FileName;
-  finally
-    vOpenDialog.Free;
-  end;
-end;
-
 function TWinVCLPresenter.DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
 var
   vRes: Integer;
@@ -1261,148 +1180,11 @@ begin
     FTrayIcon.BalloonTitle := 'My Program';
     FTrayIcon.BalloonHint := 'Version';
   end;
-
-  (*
-
-__fastcall TMainForm::TMainForm(TComponent* Owner)
-    : TForm(Owner)
-{
-  TrayIcon->Hint = "Сообщение ABS";
-  TrayIcon->AnimateInterval = 200;
-
-  TrayIcon->BalloonTitle = "Восстановить окно.";
-  TrayIcon->BalloonHint =
-    "Дважды щелкните значок на панели задач, чтобы восстановить окно.";
-  TrayIcon->BalloonFlags = bfInfo;
-}
-//---------------------------------------------------------------------------
-void __fastcall TMainForm::ApplicationEventsMinimize(TObject *Sender)
-{
-    TrayIcon->Visible=true;
-    Application->Minimize();
-    ShowWindow(Application->Handle, SW_HIDE);
-}
-//---------------------------------------------------------------------------
-void __fastcall TMainForm::N1Click(TObject *Sender)
-{
-  TrayIcon->Visible = false;
-  Show();
-  WindowState = wsNormal;
-  Application->BringToFront();
-}
-//---------------------------------------------------------------------------
-void __fastcall TMainForm::FormResize(TObject *Sender)
-{
-  if (WindowState == wsMinimized)
-        {
-    Application->ShowMainForm = false;
-    ShowWindow(Handle,SW_HIDE);
-    ShowWindow(Application->Handle,SW_HIDE);
-    TrayIcon->Visible = true;
-        }
-}
-//---------------------------------------------------------------------------
-
-void __fastcall TMainForm::N2Click(TObject *Sender)
-{
-Application->Terminate();
-}
-//---------------------------------------------------------------------------
-
-void __fastcall TMainForm::FormActivate(TObject *Sender)
-{
-  WindowState = wsMinimized;
-
-  TrayIcon->Visible = true;
-  TrayIcon->Animate = true;
-  ShowWindow(Application->Handle, SW_HIDE);
-
-}
-//---------------------------------------------------------------------------
-void __fastcall TMainForm::TrayIconDblClick(TObject *Sender)
-{
-  TrayIcon->Visible = false;
-  Show();
-  WindowState = wsNormal;
-  Application->BringToFront();
-}
-//---------------------------------------------------------------------------
-
-void __fastcall TMainForm::FormCloseQuery(TObject *Sender, bool &CanClose)
-{
-  CanClose = false;
-  ShowWindow(Application->Handle, SW_HIDE);
-  WindowState = wsMinimized;
-
-  TrayIcon->Visible = true;
-  TrayIcon->Animate = true;
-  TrayIcon->ShowBalloonHint();
-}
-
-  *)
 end;
 
 procedure TWinVCLPresenter.DoTrayIconClick(Sender: TObject);
 begin
   DoToggleUI(True);
-end;
-
-procedure TWinVCLPresenter.EnumerateControls(const ALayout: TObject; const AControls: TList<TObject>);
-var
-  vParentControl: TWinControl;
-  i: Integer;
-begin
-  if not (ALayout is TWinControl) then
-    Exit;
-  if TWinControl(ALayout).ControlCount <= 0 then
-    Exit;
-
-  vParentControl := TWinControl(ALayout);
-  {for i := 0 to vParentControl.ControlCount - 1 do
-    if (vParentControl.Controls[i] is TWinControl) then
-      AControls.Add(vParentControl.Controls[i]);
-
-  AControls.Sort(TComparer<TObject>.Construct(function(const Left, Right: TObject): Integer
-    begin
-      Result := TWinControl(Left).TabOrder - TWinControl(Right).TabOrder;
-    end));
-
-  for i := vParentControl.ControlCount - 1 downto 0 do
-    if not (vParentControl.Controls[i] is TWinControl) then
-      AControls.Insert(0, vParentControl.Controls[i]);
-
-  for i := 0 to vParentControl.ComponentCount - 1 do
-    if vParentControl.Components[i] is TMenu then
-      AControls.Insert(0, vParentControl.Components[i]);}
-
-  for i := 0 to vParentControl.ComponentCount - 1 do
-    if vParentControl.Components[i] is TMenu then
-      AControls.Add(vParentControl.Components[i]);
-
-  for i := 0 to vParentControl.ControlCount - 1 do
-    AControls.Add(vParentControl.Controls[i]);
-end;
-
-function TWinVCLPresenter.GetLayoutCaption(const ALayout: TObject): string;
-begin
-  if ALayout is TPageControl then
-    Result := TPageControl(ALayout).Hint
-  else
-    Result := TPanel(ALayout).Caption;
-end;
-
-function TWinVCLPresenter.GetLayoutKind(const ALayout: TObject): TLayoutKind;
-begin
-  if ALayout is TPanel then
-    Result := lkPanel
-  else if ALayout is TTabSheet then
-    Result := lkPage
-  else if ALayout is TPageControl then
-    Result := lkPages
-  else if ALayout is TMemo then
-    Result := lkMemo
-  else
-    Result := lkFrame;
 end;
 
 function TWinVCLPresenter.GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
@@ -1490,18 +1272,6 @@ var
 begin
   p := @Application.MainForm;
   Pointer(p^) := AForm;
-end;
-
-procedure TWinVCLPresenter.SetDomain(const ADomain: TObject);
-begin
-  inherited SetDomain(ADomain);
-  TDomain(ADomain).OnError := OnDomainError;
-  TDomain(ADomain).OnProgress := OnDomainLoadProgress;
-end;
-
-procedure TWinVCLPresenter.SetLayoutCaption(const ALayout: TObject; const ACaption: string);
-begin
-  TPanel(ALayout).Caption := ACaption;
 end;
 
 initialization
