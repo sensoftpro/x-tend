@@ -694,7 +694,7 @@ begin
   vRes := GetActiveDataset;
   if vRes = nil then Exit;
 
-  v := vRes[0, ATag];
+  v := vRes[vRes.CurrentRow, ATag];
   if VarIsNull(v) then
     Exit;
 
