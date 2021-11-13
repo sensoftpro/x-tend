@@ -72,18 +72,14 @@ type
     function CreateButtonDesc(const AText: string): TButtonDesc;
     // Выполнение действий (Actions и переходы)
     procedure ExplicitNavigate(Sender: TObject);
-    procedure OnExecuteAction(Sender: TObject);
-    procedure OnOpenCollection(Sender: TObject);
-    procedure OnEnter(Sender: TObject);
-    procedure OnExit(Sender: TObject);
     procedure OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
     procedure OnActionMenuSelected(Sender: TObject);
     function GetNavigableCollections: TList<TDefinition>;
     function CreateChildToolButton(const AParent: TUIArea; const AViewPath: string): TUIArea;
     function CreateChildButton(const AParent: TUIArea; const ASourceBtn: TWinControl): TUIArea;
-    function GetControl: TControl;
     procedure SetLabelPosition(const Value: TLabelPosition);
     procedure OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
+    function GetControl: TControl;
     function GetComponent: TComponent;
   protected
     FPopupMenu: TPopupMenu;
@@ -92,9 +88,6 @@ type
     procedure DoClose(const AModalResult: Integer); override;
     function DoCreateChildArea(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
     function DoCreateChildAction(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
-    function DoCreateChildList(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
-    function DoCreateChildEditor(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
-    function DoCreateChildEmptyArea(const AView: TView): TUIArea; override;
     function AreaFromSender(const ASender: TObject): TUIArea; override;
     procedure AppendServiceArea(const ALayoutName: string); override;
     procedure BeginUpdate; override;
@@ -116,7 +109,7 @@ type
     function DoGetDescription: string; override;
 
     procedure SetCaptionProperty(const ALayout: TObject); virtual;
-    procedure RefillArea(const AKind: Word); virtual;
+    procedure RefillArea(const AKind: Word); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
       const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
@@ -138,8 +131,6 @@ type
 
     // Not implemented here
     procedure FillEditor; virtual;
-    procedure DoCreateControl(const ALayout: TObject); virtual;
-    procedure AfterParentChanged; virtual;
     procedure DoBeforeFreeControl; virtual;
     procedure DoDeinit; virtual;
     procedure DoOnChange; virtual;
@@ -1782,58 +1773,6 @@ begin
     Assert(False, 'Класс [' + ALayout.ClassName + '] не поддерживается для создания лэйаутов');
 end;
 
-function TVCLArea.DoCreateChildEditor(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
-var
-  vStyleName: string;
-begin
-  vStyleName := GetUrlParam(AParams, 'view');
-
-  if vStyleName = '' then
-  begin
-    if AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField] then
-      vStyleName := TFieldDef(AView.Definition).StyleName;
-  end;
-
-  Result := TPresenter(FUIBuilder.Presenter).CreateFieldArea(Self, ALayout, AView, vStyleName, AParams);
-end;
-
-function TVCLArea.DoCreateChildEmptyArea(const AView: TView): TUIArea;
-var
-  vPanel: TPanel;
-begin
-  vPanel := TPanel.Create(nil);
-  vPanel.BevelOuter := bvNone;
-  vPanel.Align := alClient;
-  Result := TVCLArea.Create(Self, AView, 'empty', False, vPanel);
-end;
-
-function TVCLArea.DoCreateChildList(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
-{var
-  vLayout: TPanel absolute ALayout;
-  vCollectionViewType: string;}
-var
-  vStyleName: string;
-begin
-  vStyleName := GetUrlParam(AParams, 'view');
-
-  if vStyleName = '' then
-  begin
-    if AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField] then
-      vStyleName := TFieldDef(AView.Definition).StyleName;
-  end;
-
-  Result := TPresenter(FUIBuilder.Presenter).CreateCollectionArea(Self, ALayout, AView, vStyleName, AParams);
-{  vCollectionViewType := GetUrlParam(vLayout.Caption, 'CollectionViewType');
-  if SameText(vCollectionViewType, 'Tree') then
-    Result := TTreeCollectionEditor.Create(Self, ALayout, AView, 'List')
-  else if SameText(vCollectionViewType, 'Pivot') then
-    Result := TPivotGrid.Create(Self, ALayout, AView, 'Pivot', AParams)
-  else
-    Result := TCollectionEditor.Create(Self, ALayout, AView, 'List'
-    {TDefinition(AView.Definition).Name);}
-
-end;
-
 function TVCLArea.DoGetDescription: string;
 begin
   Result := inherited DoGetDescription;
@@ -2011,59 +1950,6 @@ begin
   Action := caFree;
 end;
 
-procedure TVCLArea.OnEnter(Sender: TObject);
-var
-  vArea: TUIArea;
-begin
-  vArea := TUIArea(TWinControl(Sender).Tag);
-  if Assigned(FUIBuilder) then
-  begin
-    FUIBuilder.ActiveArea := vArea;
-    FUIBuilder.PrintHierarchy;
-  end;
-end;
-
-procedure TVCLArea.OnExecuteAction(Sender: TObject);
-var
-  vArea: TUIArea;
-begin
-  vArea := TUIArea(TComponent(Sender).Tag);
-  if not Assigned(vArea) then
-    Exit;
-
-  FUIBuilder.LastArea := vArea;
-
-  if Assigned(vArea.View) then
-    vArea.ExecuteUIAction(vArea.View);
-end;
-
-procedure TVCLArea.OnExit(Sender: TObject);
-begin
-  if Assigned(FUIBuilder) then
-    FUIBuilder.ActiveArea := nil;
-end;
-
-procedure TVCLArea.OnOpenCollection(Sender: TObject);
-var
-  vArea: TUIArea;
-  vView: TView;
-  vLayout: string;
-  vWorkArea: string;
-begin
-  vArea := TVCLArea(TWinControl(Sender).Tag);
-  vView := vArea.View;
-
-  FUIBuilder.LastArea := vArea;
-  vLayout := vView.QueryParameter('ContentLayout', 'Collection');
-  vWorkArea := vView.QueryParameter('ContentWorkArea', 'WorkArea');
-  if vArea.QueryParameter('ContentWorkArea', '') <> '' then
-    vWorkArea := vArea.QueryParameter('ContentWorkArea', '');
-  if vArea.QueryParameter('ContentLayout', '') <> '' then
-    vLayout := vArea.QueryParameter('ContentLayout', '');
-
-  FUIBuilder.Navigate(vView, vWorkArea, vLayout);
-end;
-
 procedure TVCLArea.OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
 var
   vPC: TcxPageControl;
@@ -2123,30 +2009,8 @@ begin
 end;
 
 procedure TVCLArea.RefillArea(const AKind: Word);
-var
-  vEntity: TEntity;
 begin
-  if FView.DefinitionKind = dkEntity then
-  begin
-    if AKind = dckViewStateChanged then
-    begin
-
-    end
-    else begin
-      vEntity := TEntity(FView.DomainObject);
-      Clear;
-      if Assigned(vEntity) then
-        if QueryParameter('view') <> '' then
-          //CreateEntityArea(AParentArea, ALayout, AView, QueryParameter('view')): TUIArea;
-        else if QueryParameter('childLayout') <> '' then
-          FUIBuilder.ApplyLayout(Self, FView, Trim(QueryParameter('childLayout')))
-        else
-          FUIBuilder.ApplyLayout(Self, FView, vEntity.Definition.Name + 'EditForm');
-    end;
-  end
-  else if FView.DefinitionKind = dkCollection then
-  begin
-  end;
+  inherited RefillArea(AKind);
 
   if Assigned(FCaption) then
     FCaption.Visible := FShowCaption and (FView.State > vsHidden);
@@ -2329,10 +2193,6 @@ end;
 
 { TVCLFieldArea }
 
-procedure TVCLFieldArea.AfterParentChanged;
-begin
-end;
-
 procedure TVCLFieldArea.BeforeContextMenuShow(Sender: TObject);
 var
   vMenu: TPopupMenu;
@@ -2380,9 +2240,8 @@ begin
 
   FId := FFieldDef.Name;
   FUId := FFieldDef.Name;
-  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
 
-  DoCreateControl(ALayout);
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
 
   Assert(Assigned(FControl), 'Не создан контрол для ' + FFieldDef.Name);
 
@@ -2399,14 +2258,8 @@ begin
     end;
   end;
 
-  SetControl(FControl);
-
-  SetParent(AParent);
-
   // Нужно делать после задания родителя, так как надпись использует родительский шрифт
   CreateCaption(FFieldDef);
-
-  AfterParentChanged;
 
   if Assigned(Component) then
     Component.Name := FFieldDef.Name;
@@ -2431,10 +2284,6 @@ begin
 end;
 
 procedure TVCLFieldArea.DoBeforeFreeControl;
-begin
-end;
-
-procedure TVCLFieldArea.DoCreateControl(const ALayout: TObject);
 begin
 end;
 

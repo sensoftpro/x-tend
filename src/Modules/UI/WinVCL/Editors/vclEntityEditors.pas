@@ -39,7 +39,7 @@ uses
   Classes, Generics.Collections, StdCtrls, ExtCtrls, ActnList, Controls, Types,
   cxTL, cxLabel, cxTextEdit, cxEdit, cxMaskEdit, cxDropDownEdit, cxButtons, cxVGrid,
 
-  Buttons, vclArea, vclPopupForm, uView, uEntity, uEntityList, uDefinition;
+  Buttons, vclArea, vclPopupForm, uUIBuilder, uView, uEntity, uEntityList, uDefinition;
 
 type
   TVCLEntitySelector = class (TVCLFieldArea)
@@ -50,7 +50,7 @@ type
     procedure CBOnInitPopup(Sender: TObject);
     function GetDisabledBorderStyle: TcxEditBorderStyle;
   protected
-    procedure DoCreateControl(const ALayout: TObject); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
@@ -82,8 +82,7 @@ type
   protected
     procedure DoAdd(const ACollectionIndex: Integer);
     procedure DoEdit;
-    procedure DoCreateControl(const ALayout: TObject); override;
-    procedure AfterParentChanged; override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     procedure SetFocused(const Value: Boolean); override;
@@ -96,7 +95,7 @@ type
     FEntities: TEntityList;
     procedure FillList;
   protected
-    procedure DoCreateControl(const ALayout: TObject); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
@@ -120,7 +119,7 @@ type
     procedure DoOnFocusedNodeChanged(Sender: TcxCustomTreeList; APrevFocusedNode, AFocusedNode: TcxTreeListNode);
     procedure Reload;
   protected
-    procedure DoCreateControl(const ALayout: TObject); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
   end;
@@ -139,8 +138,7 @@ type
     procedure OnFieldChange(Sender: TObject);
     procedure FreeEditors;
   protected
-    procedure DoCreateControl(const ALayout: TObject); override;
-    procedure AfterParentChanged; override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure DoDisableContent; override;
     procedure FillEditor; override;
@@ -201,9 +199,13 @@ begin
   FreeAndNil(FTextEdit);
 end;
 
-procedure TVCLEntityFieldEditor.DoCreateControl(const ALayout: TObject);
+function TVCLEntityFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
+var
+  vDefinitions: TList<TDefinition>;
+  i: Integer;
+  vMenuItem: TMenuItem;
+  vDefinition: TDefinition;
 begin
-  inherited;
   if Assigned(FSelectPopup) then
   begin
     FSelectPopup.Free;
@@ -241,27 +243,10 @@ begin
   FTextEdit.TabStop := False;
   FTextEdit.Style.Color := clBtnFace;
 
-  FControl := FBasePanel;
-end;
+  Result := FBasePanel;
 
-procedure TVCLEntityFieldEditor.DoDeinit;
-begin
-  inherited;
-  FSelectButton.Text := '';
-  FSelectButton.Enabled := False;
-  FbtnAdd.Visible := True; // todo: create option
-end;
+  SetParent(AParent);
 
-type
-  TWinControlAccess = class (TWinControl);
-
-procedure TVCLEntityFieldEditor.AfterParentChanged;
-var
-  vDefinitions: TList<TDefinition>;
-  i: Integer;
-  vMenuItem: TMenuItem;
-  vDefinition: TDefinition;
-begin
   FbtnAdd := TcxButton.Create(nil);
   FbtnAdd.Parent := FBasePanel;
   FbtnAdd.Caption := TInteractor(FView.Interactor).Translate('cptAddEntity', 'Добавить');
@@ -304,6 +289,17 @@ begin
     FbtnAdd.Width := FbtnAdd.Height;
   end;
 end;
+
+procedure TVCLEntityFieldEditor.DoDeinit;
+begin
+  inherited;
+  FSelectButton.Text := '';
+  FSelectButton.Enabled := False;
+  FbtnAdd.Visible := True; // todo: create option
+end;
+
+type
+  TWinControlAccess = class (TWinControl);
 
 procedure TVCLEntityFieldEditor.OnActionMenuSelected(Sender: TObject);
 var
@@ -552,9 +548,8 @@ begin
   FreeAndNil(FEntities);
 end;
 
-procedure TListEntityFieldEditor.DoCreateControl(const ALayout: TObject);
+function TListEntityFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 begin
-  inherited;
   FGrid := TcxTreeList.Create(nil);
   FGrid.OnDblClick := OnDblClick;
   FGrid.OnFocusedNodeChanged := DoOnFocusedNodeChanged;
@@ -568,7 +563,7 @@ begin
   FGrid.OptionsData.Editing := False;
   FGrid.OptionsSelection.CellSelect := False;
 
-  FControl := FGrid;
+  Result := FGrid;
 end;
 
 procedure TListEntityFieldEditor.DoOnFocusedNodeChanged(Sender: TcxCustomTreeList; APrevFocusedNode,
@@ -715,17 +710,16 @@ begin
   FreeAndNil(FEntities);
 end;
 
-procedure TVCLEntitySelector.DoCreateControl(const ALayout: TObject);
+function TVCLEntitySelector.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 var
   vInteractor: TInteractor;
 begin
-  inherited;
   vInteractor := TInteractor(FView.Interactor);
   FEntities := TEntityList.Create(vInteractor.Domain, vInteractor.Session);
 
-  FControl := TcxComboBox.Create(nil);
-  TcxComboBox(FControl).Properties.DropDownListStyle := lsFixedList;
-  TcxComboBox(FControl).Properties.OnInitPopup := CBOnInitPopup;
+  Result := TcxComboBox.Create(nil);
+  TcxComboBox(Result).Properties.DropDownListStyle := lsFixedList;
+  TcxComboBox(Result).Properties.OnInitPopup := CBOnInitPopup;
 
   if Assigned(ALayout) then
     FFlat := (TPanel(ALayout).BevelOuter = bvNone) and (TPanel(ALayout).BevelInner = bvNone)
@@ -811,14 +805,6 @@ begin
 end;
 
 { TEntityFieldListEditor }
-
-procedure TEntityFieldListEditor.AfterParentChanged;
-begin
-  if Assigned(FCreateParams) then
-    FEditor.OptionsView.RowHeaderWidth := StrToIntDef(FCreateParams.Values['headerWidth'], 150)
-  else
-    FEditor.OptionsView.RowHeaderWidth := 150;
-end;
 
 procedure TEntityFieldListEditor.CleanChildViews;
 var
@@ -933,18 +919,22 @@ begin
   FreeAndNil(FChildViews);
 end;
 
-procedure TEntityFieldListEditor.DoCreateControl(const ALayout: TObject);
+function TEntityFieldListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 begin
-  inherited;
-
   FEditor := TcxVerticalGrid.Create(nil);
   FEditor.OptionsView.ShowEditButtons := ecsbFocused;
   FEditor.OptionsView.PaintStyle := psDelphi;
   FEditor.BorderStyle := cxcbsNone;
 
-  FControl := FEditor;
+  Result := FEditor;
+  SetParent(AParent);
 
   FChildViews := TList<TView>.Create;
+
+  if Assigned(FCreateParams) then
+    FEditor.OptionsView.RowHeaderWidth := StrToIntDef(FCreateParams.Values['headerWidth'], 150)
+  else
+    FEditor.OptionsView.RowHeaderWidth := 150;
 end;
 
 procedure TEntityFieldListEditor.DoDisableContent;
@@ -1143,14 +1133,13 @@ begin
   FreeAndNil(FEntities);
 end;
 
-procedure TRadioEntitySelector.DoCreateControl(const ALayout: TObject);
+function TRadioEntitySelector.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 begin
-  inherited;
-  FControl := TcxRadioGroup.Create(nil);
-  TcxRadioGroup(FControl).Transparent := True;
-  TcxRadioGroup(FControl).Style.BorderStyle := ebsNone;
-  TcxRadioGroup(FControl).Name := 'radio';
-  TcxRadioGroup(FControl).Caption := '';
+  Result := TcxRadioGroup.Create(nil);
+  TcxRadioGroup(Result).Transparent := True;
+  TcxRadioGroup(Result).Style.BorderStyle := ebsNone;
+  TcxRadioGroup(Result).Name := 'radio';
+  TcxRadioGroup(Result).Caption := '';
   FNeedCreateCaption := False;
 
   FEntities := TEntityList.Create(TInteractor(FView.Interactor).Domain, TInteractor(FView.Interactor).Session);

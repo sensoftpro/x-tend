@@ -53,7 +53,7 @@ type
     FEntityList: TEntityList;
     procedure OnWinControlKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   protected
-    procedure DoCreateControl(const ALayout: TObject); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -68,7 +68,7 @@ type
     FEntityList: TEntityList;
     procedure OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
   protected
-    procedure DoCreateControl(const ALayout: TObject); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -85,7 +85,7 @@ type
     procedure FillList;
     procedure OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
   protected
-    procedure DoCreateControl(const ALayout: TObject); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -103,7 +103,7 @@ type
     procedure AddRow(const AName: string; const AValue: Variant; const AType: TEntity);
     procedure OnValueChanged(Sender: TObject);
   protected
-    procedure DoCreateControl(const ALayout: TObject); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -229,7 +229,7 @@ type
     procedure DoOnHeaderClick(Sender: TObject);
     procedure LoadColumnWidths;
   protected
-    procedure DoCreateControl(const ALayout: TObject); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoBeforeFreeControl; override;
     function GetLayoutPositionCount: Integer; override;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
@@ -241,7 +241,7 @@ type
     procedure OnSelectionChanged(Sender: TObject);
     procedure OnDblClick(Sender: TObject);
   protected
-    procedure DoCreateControl(const ALayout: TObject); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -778,13 +778,13 @@ begin
   FreeAndNil(FListBox);
 end;
 
-procedure TEntityListSelector.DoCreateControl(const ALayout: TObject);
+function TEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 begin
   inherited;
   FListBox := TCheckListBox.Create(nil);
   FEntityList := nil;
-  FControl := FListBox;
   FListBox.OnKeyDown := OnWinControlKeyDown;
+  Result := FListBox;
 end;
 
 procedure TEntityListSelector.DoOnChange;
@@ -877,12 +877,11 @@ begin
   FreeAndNil(FListBox);
 end;
 
-procedure TEntityListSelector2.DoCreateControl(const ALayout: TObject);
+function TEntityListSelector2.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 begin
-  inherited;
   FListBox := TcxCheckListBox.Create(nil);
   FEntityList := nil;
-  FControl := FListBox;
+  Result := FListBox;
 end;
 
 procedure TEntityListSelector2.DoOnChange;
@@ -965,10 +964,8 @@ begin
   inherited;
 end;
 
-procedure TListEditor.DoCreateControl(const ALayout: TObject);
+function TListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 begin
-  inherited;
-
   FList := TcxTreeList.Create(nil);
   FList.OnSelectionChanged := OnSelectionChanged;
   FList.OnDblClick := OnDblClick;
@@ -989,7 +986,8 @@ begin
   FList.OptionsData.Editing := False;
   FList.OptionsSelection.CellSelect := False;
   FList.Font.Size := 10;
-  FControl := FList;
+
+  Result := FList;
 end;
 
 procedure TListEditor.FillEditor;
@@ -2162,13 +2160,12 @@ begin
   FreeAndNil(FHeaderStyle);
 end;
 
-procedure TColumnListEditor.DoCreateControl(const ALayout: TObject);
+function TColumnListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 var
   vFields: string;
   vPopupArea: TVCLArea;
   vPopupMenu: TPopupMenu;
 begin
-  inherited;
   FBGStyle := TcxStyle.Create(nil);
   FHeaderStyle := TcxStyle.Create(nil);
 
@@ -2245,7 +2242,7 @@ begin
   CreateColumnsFromModel(vFields);
   LoadColumnWidths;
 
-  FControl := FGrid;
+  Result := FGrid;
 end;
 
 procedure TColumnListEditor.DoOnColumnPosChanged(Sender: TcxGridTableView; AColumn: TcxGridColumn);
@@ -2457,15 +2454,16 @@ begin
   inherited;
 end;
 
-procedure TParametersEditor.DoCreateControl(const ALayout: TObject);
+function TParametersEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 begin
   inherited;
 
   FGrid := TcxVerticalGrid.Create(nil);
   FGrid.Width := 400;
-  FControl := FGrid;
 
   FParams := TList<TEntity>.Create;
+
+  Result := FGrid;
 end;
 
 procedure TParametersEditor.FillEditor;
@@ -3442,7 +3440,7 @@ begin
   FreeAndNil(FListBox);
 end;
 
-procedure TEntityListSelectorMTM.DoCreateControl(const ALayout: TObject);
+function TEntityListSelectorMTM.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 var
   vListFieldDef: TListFieldDef;
   vTransitFieldName: string;
@@ -3451,7 +3449,6 @@ var
 begin
   inherited;
   FListBox := TcxCheckListBox.Create(nil);
-  FControl := FListBox;
 
   Assert(FView.Definition is TListFieldDef, 'FView.Definition не является TListFieldDef');
   vListFieldDef := TListFieldDef(FView.Definition);
@@ -3471,6 +3468,8 @@ begin
   TDomain(Domain).GetEntityList(FView.Session, FTransitField._ContentDefinition, FEntityList, '');
 
   FListBox.OnClickCheck := OnClickCheck;
+
+  Result := FListBox;
 end;
 
 procedure TEntityListSelectorMTM.DoOnChange;

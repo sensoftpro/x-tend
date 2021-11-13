@@ -88,6 +88,10 @@ uses
   DebugInfoForm in '..\..\Modules\UI\WinVCL\Forms\DebugInfoForm.pas' {DebugFm},
   SplashForm in '..\..\Modules\UI\WinVCL\Forms\SplashForm.pas' {SplashFm},
 
+  uSampleArea in '..\..\Modules\UI\uSampleArea.pas',
+  uSamplePresenter in '..\..\Modules\UI\uSamplePresenter.pas',
+
+
   // Storage: OLEDB
   ADOX_TLB in '..\..\Modules\Storage\OLEDB\ADOX_TLB.pas',
   uDBConnector in '..\..\Modules\Storage\OLEDB\uDBConnector.pas',

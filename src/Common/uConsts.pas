@@ -215,7 +215,8 @@ type
     ckGreaterThan, ckLessThan, ckPartOf, ckContains, ckCrosses);
 
   TUIItemType = (uiTextEdit, uiBoolEdit, uiEntityEdit, uiIntegerEdit, uiEnumEdit, uiFlagEdit,
-    uiFloatEdit, uiDateEdit, uiCurrencyEdit, uiListEdit, uiBLOBEdit, uiComplexEdit, uiColorEdit, uiCollection);
+    uiFloatEdit, uiDateEdit, uiCurrencyEdit, uiListEdit, uiBLOBEdit, uiComplexEdit, uiColorEdit,
+    uiAction, uiCollection);
 
   TRelationPower = (rpWeak, rpStrong);
 

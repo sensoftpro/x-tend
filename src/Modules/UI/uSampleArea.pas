@@ -44,19 +44,10 @@ type
   private
     FOriginLeft, FOriginTop: Integer;  // for correct order during alignment
     FIsForm: Boolean;
-
-    procedure OnActionMenuSelected(Sender: TObject);
-    procedure OnEnter(Sender: TObject);
-    procedure OnExit(Sender: TObject);
-    procedure OnExecuteAction(Sender: TObject);
-    procedure OnOpenCollection(Sender: TObject);
   protected
     procedure DoClose(const AModalResult: Integer); override;
     function DoCreateChildArea(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
     function DoCreateChildAction(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
-    function DoCreateChildList(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
-    function DoCreateChildEditor(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
-    function DoCreateChildEmptyArea(const AView: TView): TUIArea; override;
     function AreaFromSender(const ASender: TObject): TUIArea; override;
     procedure AppendServiceArea(const ALayoutName: string); override;
     procedure BeginUpdate; override;
@@ -75,7 +66,9 @@ type
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
     procedure SetViewState(const AValue: TViewState); override;
 
-    procedure RefillArea(const AKind: Word); virtual;
+    procedure RefillArea(const AKind: Word); override;
+
+    procedure OnActionMenuSelected(Sender: TObject);
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
       const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
@@ -90,8 +83,7 @@ type
 
     // Not implemented here
     procedure FillEditor; virtual;
-    procedure DoCreateControl(const ALayout: TObject); virtual;
-    procedure AfterParentChanged; virtual;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoBeforeFreeControl; virtual;
     procedure DoDeinit; virtual;
     procedure DoOnChange; virtual;
@@ -123,36 +115,6 @@ uses
 type
   TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string): Boolean of object;
   TCrackedControl = class(TWinControl) end;
-
-  TLayoutParam = class
-    Name: string;
-    Value: Variant;
-    constructor Create(const AName: string);
-  end;
-
-  TUILayout = class
-  private
-    FParams: TList;
-    FParent: TUILayout;
-    FChildLayouts: TList;
-    FName: string;
-    FType: string;
-    FLevel: Integer;
-    procedure Clear;
-    procedure FillLayoutParams(const ALayout: TUILayout; const AComponent: TComponent);
-    procedure GenerateDFMText(const AText: TStrings; const ALevel: Integer);
-    procedure GeneratePASText(const AText: TStrings);
-    function FindChild(const AName: string): TUILayout;
-    function ParamByName(const AName: string): TLayoutParam;
-    function CreateChild: TUILayout;
-    function GenerateUniqueName(const AComponent: TComponent): string;
-  public
-    constructor Create;
-    destructor Destroy; override;
-
-    procedure Build(const ASampleArea: TSampleArea);
-    procedure SaveToDFM(const AFileName: string);
-  end;
 
 const
   cServiceAreaHeight = 44;
@@ -237,13 +199,13 @@ var
   vActionDef: TDefinition;
   vDefinitions: TList<TDefinition>;
   i: Integer;
-  vDefinition: TDefinition;
+  //vDefinition: TDefinition;
   vOnClickHandler: TNotifyEvent;
-  vImageID: Integer;
+  //vImageID: Integer;
   vParams: TStrings;
-  vImageSize: Integer;
-  vComposition: string;
-  vViewStyle: string;
+  //vImageSize: Integer;
+  //vComposition: string;
+  //vViewStyle: string;
 begin
   if AView.DefinitionKind = dkCollection then
     vOnClickHandler := OnOpenCollection
@@ -254,9 +216,9 @@ begin
 
   vParams := CreateDelimitedList(AParams, '&');
   try
-    vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
-    vComposition := Trim(vParams.Values['Composition']);
-    vViewStyle := Trim(vParams.Values['ViewStyle']);
+    //vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
+    //vComposition := Trim(vParams.Values['Composition']);
+    //vViewStyle := Trim(vParams.Values['ViewStyle']);
   finally
     FreeAndNil(vParams);
   end;
@@ -272,7 +234,7 @@ begin
       // Создать меню для выбора вариантов, и заполнить его
       for i := 0 to vDefinitions.Count - 1 do
       begin
-        vDefinition := TDefinition(vDefinitions[i]);
+        //vDefinition := TDefinition(vDefinitions[i]);
         //vMenuItem := TMenuItem.Create(nil);
         //vMenuItem.Caption := GetTranslation(vDefinition);
         //vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
@@ -452,44 +414,6 @@ begin
     Assert(False, 'Класс [' + ALayout.ClassName + '] не поддерживается для создания лэйаутов');
 end;
 
-function TSampleArea.DoCreateChildEditor(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
-var
-  vStyleName: string;
-begin
-  vStyleName := GetUrlParam(AParams, 'view');
-
-  if vStyleName = '' then
-  begin
-    if AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField] then
-      vStyleName := TFieldDef(AView.Definition).StyleName;
-  end;
-
-  Result := TPresenter(FUIBuilder.Presenter).CreateFieldArea(Self, ALayout, AView, vStyleName, AParams);
-end;
-
-function TSampleArea.DoCreateChildEmptyArea(const AView: TView): TUIArea;
-var
-  vNewControl: TObject;
-begin
-  vNewControl := TObject.Create; // << Создать область
-  Result := TSampleArea.Create(Self, AView, 'empty', False, vNewControl);
-end;
-
-function TSampleArea.DoCreateChildList(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
-var
-  vStyleName: string;
-begin
-  vStyleName := GetUrlParam(AParams, 'view');
-
-  if vStyleName = '' then
-  begin
-    if AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField] then
-      vStyleName := TFieldDef(AView.Definition).StyleName;
-  end;
-
-  Result := TPresenter(FUIBuilder.Presenter).CreateCollectionArea(Self, ALayout, AView, vStyleName, AParams);
-end;
-
 procedure TSampleArea.EndUpdate;
 begin
   // Разблокировать перерисовку области, выполнить её
@@ -518,59 +442,6 @@ begin
   vArea.ExecuteUIAction(vArea.View);
 end;
 
-procedure TSampleArea.OnEnter(Sender: TObject);
-var
-  vArea: TUIArea;
-begin
-  vArea := AreaFromSender(Sender);
-  if Assigned(FUIBuilder) then
-  begin
-    FUIBuilder.ActiveArea := vArea;
-    FUIBuilder.PrintHierarchy;
-  end;
-end;
-
-procedure TSampleArea.OnExecuteAction(Sender: TObject);
-var
-  vArea: TUIArea;
-begin
-  vArea := AreaFromSender(Sender);
-  if not Assigned(vArea) then
-    Exit;
-
-  FUIBuilder.LastArea := vArea;
-
-  if Assigned(vArea.View) then
-    vArea.ExecuteUIAction(vArea.View);
-end;
-
-procedure TSampleArea.OnExit(Sender: TObject);
-begin
-  if Assigned(FUIBuilder) then
-    FUIBuilder.ActiveArea := nil;
-end;
-
-procedure TSampleArea.OnOpenCollection(Sender: TObject);
-var
-  vArea: TUIArea;
-  vView: TView;
-  vLayout: string;
-  vWorkArea: string;
-begin
-  vArea := AreaFromSender(Sender);
-  vView := vArea.View;
-
-  FUIBuilder.LastArea := vArea;
-  vLayout := vView.QueryParameter('ContentLayout', 'Collection');
-  vWorkArea := vView.QueryParameter('ContentWorkArea', 'WorkArea');
-  if vArea.QueryParameter('ContentWorkArea', '') <> '' then
-    vWorkArea := vArea.QueryParameter('ContentWorkArea', '');
-  if vArea.QueryParameter('ContentLayout', '') <> '' then
-    vLayout := vArea.QueryParameter('ContentLayout', '');
-
-  FUIBuilder.Navigate(vView, vWorkArea, vLayout);
-end;
-
 procedure TSampleArea.PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer);
 begin
   // Поместить нативный контрол в область
@@ -579,30 +450,9 @@ begin
 end;
 
 procedure TSampleArea.RefillArea(const AKind: Word);
-var
-  vEntity: TEntity;
 begin
-  if FView.DefinitionKind = dkEntity then
-  begin
-    if AKind = dckViewStateChanged then
-    begin
-
-    end
-    else begin
-      vEntity := TEntity(FView.DomainObject);
-      Clear;
-      if Assigned(vEntity) then
-        if QueryParameter('view') <> '' then
-          //CreateEntityArea(AParentArea, ALayout, AView, QueryParameter('view')): TUIArea;
-        else if QueryParameter('childLayout') <> '' then
-          FUIBuilder.ApplyLayout(Self, FView, Trim(QueryParameter('childLayout')))
-        else
-          FUIBuilder.ApplyLayout(Self, FView, vEntity.Definition.Name + 'EditForm');
-    end;
-  end
-  else if FView.DefinitionKind = dkCollection then
-  begin
-  end;
+  inherited RefillArea(AKind);
+  // Обновить прочие элементы
 end;
 
 destructor TSampleArea.Destroy;
@@ -650,53 +500,23 @@ procedure TSampleArea.UpdateArea(const AKind: Word; const AParameter: TEntity = 
 begin
   RefillArea(AKind);
 
-  if not Assigned(FControl) then
-    Exit;
-
-  if not FIsForm then
-  begin
-    //if (FControl is TWinControl) and Assigned(TWinControl(FControl)) then
-    //  TWinControl(FControl).Parent.DisableAlign;
-
-    try
-      SetViewState(FView.State);
-
-      // Если не сделать проверку, при изменениях отображение начинает "плыть"
-      // НЕ РАБОТАЕТ! Перемаргивает при навигации по гриду
-      {if (FControl is TcxButton) and (TcxButton(FControl).Align <> alNone) then
-      begin
-        // restore origin values to correct alignment order
-        if Control.Left <> FOriginLeft then
-          Control.Left := FOriginLeft;
-        if Control.Top <> FOriginTop then
-          Control.Top := FOriginTop;
-      end;}
-    finally
-      //if (FControl is TWinControl) and Assigned(TWinControl(FControl)) then
-      //  TWinControl(FControl).Parent.EnableAlign;
-    end;
-  end;
+  if Assigned(FControl) and not FIsForm then
+    SetViewState(FView.State);
 end;
 
 { TSampleFieldArea }
-
-procedure TSampleFieldArea.AfterParentChanged;
-begin
-end;
 
 constructor TSampleFieldArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
   const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
 var
   vPopupArea: TSampleArea;
-  vPopupMenu: TPopupMenu;
 begin
   FFieldDef := TFieldDef(AView.Definition);
 
   FId := FFieldDef.Name;
   FUId := FFieldDef.Name;
-  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
 
-  DoCreateControl(ALayout);
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
 
   Assert(Assigned(FControl), 'Не создан контрол для ' + FFieldDef.Name);
 
@@ -711,14 +531,7 @@ begin
     end;
   end;
 
-  SetControl(FControl);
-
-  SetParent(AParent);
-
-  // Нужно делать после задания родителя, так как надпись использует родительский шрифт
   CreateCaption(FFieldDef);
-
-  AfterParentChanged;
 end;
 
 procedure TSampleFieldArea.Deinit;
@@ -736,8 +549,10 @@ procedure TSampleFieldArea.DoBeforeFreeControl;
 begin
 end;
 
-procedure TSampleFieldArea.DoCreateControl(const ALayout: TObject);
+function TSampleFieldArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 begin
+  Result := inherited DoCreateControl(AParent, ALayout);
+  // Создать и инициализировать редактор или контрол для поля
 end;
 
 procedure TSampleFieldArea.DoDeinit;

@@ -36,13 +36,13 @@ unit vclBlobEditors;
 interface
 
 uses
-  vclArea, uScene, uSimpleChart;
+  uUIBuilder, vclArea, uScene, uSimpleChart;
 
 type
   TFieldSceneArea = class(TVCLFieldArea)
   protected
     FScene: TScene;
-    procedure DoCreateControl(const ALayout: TObject); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
     procedure DoDisableContent; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
@@ -52,7 +52,7 @@ type
   TFieldChartArea = class(TFieldSceneArea)
   protected
     FChart: TSimpleChart;
-    procedure DoCreateControl(const ALayout: TObject); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
   end;
 
 implementation
@@ -67,7 +67,7 @@ begin
   FScene.Free;
 end;
 
-procedure TFieldSceneArea.DoCreateControl(const ALayout: TObject);
+function TFieldSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 var
   vDomain: TDomain;
   vSceneClass: TSceneClass;
@@ -76,7 +76,7 @@ begin
   vDomain := TDomain(FView.Domain);
   vSceneClass := TSceneClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ChartPainter', 'Painting', vModuleName));
   FScene := vSceneClass.Create(TVCLArea(Parent).Control);
-  FControl := TWinScene(FScene).Panel;
+  Result := TWinScene(FScene).Panel;
 end;
 
 procedure TFieldSceneArea.DoDisableContent;
@@ -100,9 +100,9 @@ end;
 
 { TFieldChartArea }
 
-procedure TFieldChartArea.DoCreateControl(const ALayout: TObject);
+function TFieldChartArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
 begin
-  inherited DoCreateControl(ALayout);
+  Result := inherited DoCreateControl(AParent, ALayout);
   FId := 'Chart';
   FChart := TDataChart.Create(FScene, nil);
 end;

@@ -242,6 +242,8 @@ type
     // Layouts operations
     function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
       const AView: TView; const AStyleName, AParams: string): TUIArea;
+    function CreateActionArea(const AParentArea: TUIArea; const ALayout: TObject;
+      const AView: TView; const AStyleName, AParams: string): TUIArea;
     function CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject;
       const AView: TView; const AStyleName, AParams: string): TUIArea;
     procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
@@ -335,6 +337,20 @@ begin
   FCommonIcons.Load(TPath.Combine(GetPlatformDir, 'res' + PathDelim + 'Styles' + PathDelim + vStyleName));
   FInteractors := TObjectList<TInteractor>.Create;
   FProgressInfo := TProgressInfo.Create;
+end;
+
+function TPresenter.CreateActionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView;
+  const AStyleName, AParams: string): TUIArea;
+var
+  vParams, vViewName: string;
+  vActionAreaClass: TUIAreaClass;
+begin
+  vViewName := GetUrlCommand(AStyleName, AStyleName);
+  vParams := ExtractUrlParams(AStyleName);
+
+  vActionAreaClass := TUIAreaClass(GetUIClass(FName, uiAction, vViewName));
+
+  Result := vActionAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
 end;
 
 function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView; const AStyleName,
