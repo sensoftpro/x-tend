@@ -156,7 +156,7 @@ type
     function GetName: string; virtual;
     procedure SetParent(const Value: TUIArea); virtual;
     procedure SetControl(const AControl: TObject); virtual;
-    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; virtual;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); virtual;
     procedure AssignFromLayout(const ALayout: TObject); virtual;
     procedure ArrangeChildAreas; virtual;
     procedure SaveLayoutToFile(const AFileName: string); virtual;
@@ -907,10 +907,9 @@ begin
   if not FIsService then
     TrySubscribeView;
 
-  if Assigned(AControl) then
-    SetControl(AControl)
-  else
-    SetControl(DoCreateControl(AParent, ALayout));
+  if not Assigned(AControl) then
+    DoCreateControl(AParent, ALayout);
+  SetControl(FControl);
   SetParent(AParent);
 end;
 
@@ -1145,9 +1144,9 @@ begin
   Result := TPresenter(FUIBuilder.Presenter).CreateCollectionArea(Self, ALayout, AView, vStyleName, AParams);
 end;
 
-function TUIArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
+procedure TUIArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
-  Result := nil;
+  FControl := nil;
 end;
 
 procedure TUIArea.DoDisableContent;

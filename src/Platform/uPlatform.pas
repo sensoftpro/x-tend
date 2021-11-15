@@ -175,7 +175,10 @@ begin
   AddEnums;
 
   FLocalizator := TLocalizator.Create(TPath.Combine(GetPlatformDir + PathDelim + 'res', 'translations'), TPath.Combine(GetPlatformDir, 'settings.ini'));
-  vLanguage := ASettings.GetValue('Core', 'Language', '');
+  if Assigned(ASettings) then
+    vLanguage := ASettings.GetValue('Core', 'Language', '')
+  else
+    vLanguage := '';
   FTranslator := TTranslator.Create(FLocalizator, vLanguage);
 
   _Platform := Self;

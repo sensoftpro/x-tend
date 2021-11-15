@@ -42,7 +42,7 @@ type
   TFieldSceneArea = class(TVCLFieldArea)
   protected
     FScene: TScene;
-    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure DoDisableContent; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
@@ -52,7 +52,7 @@ type
   TFieldChartArea = class(TFieldSceneArea)
   protected
     FChart: TSimpleChart;
-    function DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject; override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
   end;
 
 implementation
@@ -67,7 +67,7 @@ begin
   FScene.Free;
 end;
 
-function TFieldSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
+procedure TFieldSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vDomain: TDomain;
   vSceneClass: TSceneClass;
@@ -75,8 +75,8 @@ var
 begin
   vDomain := TDomain(FView.Domain);
   vSceneClass := TSceneClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ChartPainter', 'Painting', vModuleName));
-  FScene := vSceneClass.Create(TVCLArea(Parent).Control);
-  Result := TWinScene(FScene).Panel;
+  FScene := vSceneClass.Create(TVCLArea(AParent).Control);
+  FControl := TWinScene(FScene).Panel;
 end;
 
 procedure TFieldSceneArea.DoDisableContent;
@@ -100,9 +100,9 @@ end;
 
 { TFieldChartArea }
 
-function TFieldChartArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject): TObject;
+procedure TFieldChartArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
-  Result := inherited DoCreateControl(AParent, ALayout);
+  inherited DoCreateControl(AParent, ALayout);
   FId := 'Chart';
   FChart := TDataChart.Create(FScene, nil);
 end;

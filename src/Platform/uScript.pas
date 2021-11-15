@@ -1137,6 +1137,8 @@ begin
       Result := vsDisabled
     else if AView.Parent.State <= vsSelectOnly then
       Result := vsHidden
+    else if TEntity(AContext).IsNew then
+      Result := vsDisabled
     else
       Result := AView.Parent.State;
   end

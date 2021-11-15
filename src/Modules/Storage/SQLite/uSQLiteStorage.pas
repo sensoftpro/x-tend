@@ -52,6 +52,7 @@ type
     function BuildUpdateQuery: string;
     function BuildDeleteQuery: string;
     function GetParamValues: TVarRecArray;
+    function GetKeyParamValues: TVarRecArray;
   public
     constructor Create(const AStorage: TStorage; const ATableName: string);
     destructor Destroy; override;
@@ -286,7 +287,10 @@ begin
 
   Assert(Length(vSQLText) > 0, 'Invalid query for data storing');
 
-  ASQLite.DBQuery(vSQLText, GetParamValues);
+  if ASaveAction = esaDelete then
+    ASQLite.DBQuery(vSQLText, GetKeyParamValues)
+  else
+    ASQLite.DBQuery(vSQLText, GetParamValues);
 end;
 
 constructor TSQLiteDBContext.Create(const AStorage: TStorage; const ATableName: string);
@@ -313,6 +317,20 @@ begin
   FStorage := nil;
 
   inherited Destroy;
+end;
+
+function TSQLiteDBContext.GetKeyParamValues: TVarRecArray;
+var
+  i: Integer;
+  vSimpleParameter: TSimpleParameter;
+begin
+  SetLength(Result, FKeyParameters.Count);
+  for i := 0 to FKeyParameters.Count - 1 do
+  begin
+    vSimpleParameter := TSimpleParameter(FKeyParameters[i]);
+    Result[i].VType := vtVariant;
+    Result[i].VVariant := @vSimpleParameter.Value;
+  end;
 end;
 
 function TSQLiteDBContext.GetParamValues: TVarRecArray;

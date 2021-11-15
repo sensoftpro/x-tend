@@ -107,9 +107,9 @@ type
     procedure SetViewState(const AValue: TViewState); override;
     procedure CreateCaption(const AFieldDef: TFieldDef); override;
     function DoGetDescription: string; override;
+    procedure RefillArea(const AKind: Word); override;
 
     procedure SetCaptionProperty(const ALayout: TObject); virtual;
-    procedure RefillArea(const AKind: Word); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
       const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
@@ -673,6 +673,7 @@ var
   vImageSize: Integer;
   vComposition: string;
   vViewStyle: string;
+  vOverriddenCaption: string;
 begin
   if AView.DefinitionKind = dkCollection then
     vOnClickHandler := OnOpenCollection
@@ -686,6 +687,7 @@ begin
     vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
     vComposition := Trim(vParams.Values['Composition']);
     vViewStyle := Trim(vParams.Values['ViewStyle']);
+    vOverriddenCaption := Trim(vParams.Values['Caption']);
   finally
     FreeAndNil(vParams);
   end;
@@ -693,7 +695,10 @@ begin
   if vViewStyle = 'link' then
   begin
     vLabel := TcxLabel.Create(nil);
-    vLabel.Caption := GetTranslation(vActionDef);
+    if vOverriddenCaption = '' then
+      vLabel.Caption := GetTranslation(vActionDef)
+    else
+      vLabel.Caption := vOverriddenCaption;
     vLabel.Cursor := crHandPoint;
     vLabel.Transparent := True;
     vLabel.Properties.Alignment.Vert := TcxEditVertAlignment.taVCenter;
@@ -2112,7 +2117,8 @@ end;
 
 procedure TVCLArea.SetLabelPosition(const Value: TLabelPosition);
 begin
-
+  FLabelPosition := Value;
+  PlaceLabel;
 end;
 
 procedure TVCLArea.SetParent(const Value: TUIArea);
