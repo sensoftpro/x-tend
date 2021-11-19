@@ -6,6 +6,9 @@
         <Projects Include="Environment\Painting\Painters.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="C:\Users\Programmer\Downloads\skia4delphi-main\Samples\Basic\VCL\Skia4Delphi_Basic_VCL.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -23,14 +26,23 @@
     <Target Name="Painters:Make">
         <MSBuild Projects="Environment\Painting\Painters.dproj" Targets="Make"/>
     </Target>
+    <Target Name="Skia4Delphi_Basic_VCL">
+        <MSBuild Projects="C:\Users\Programmer\Downloads\skia4delphi-main\Samples\Basic\VCL\Skia4Delphi_Basic_VCL.dproj"/>
+    </Target>
+    <Target Name="Skia4Delphi_Basic_VCL:Clean">
+        <MSBuild Projects="C:\Users\Programmer\Downloads\skia4delphi-main\Samples\Basic\VCL\Skia4Delphi_Basic_VCL.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Skia4Delphi_Basic_VCL:Make">
+        <MSBuild Projects="C:\Users\Programmer\Downloads\skia4delphi-main\Samples\Basic\VCL\Skia4Delphi_Basic_VCL.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Painters"/>
+        <CallTarget Targets="Painters;Skia4Delphi_Basic_VCL"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Painters:Clean"/>
+        <CallTarget Targets="Painters:Clean;Skia4Delphi_Basic_VCL:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Painters:Make"/>
+        <CallTarget Targets="Painters:Make;Skia4Delphi_Basic_VCL:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

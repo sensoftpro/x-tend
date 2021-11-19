@@ -16,8 +16,12 @@ uses
 {$I ..\..\Modules\Drawing\GDIPlus\files.inc}
 {$I ..\..\Modules\Drawing\Direct2D\files.inc}
 
-  uMainForm in 'uMainForm.pas' {fmMain};
+  Skia.Api in '..\..\Modules\Drawing\Skia\Skia.Api.pas',
+  Skia in '..\..\Modules\Drawing\Skia\Skia.pas',
+  Skia.Vcl in '..\..\Modules\Drawing\Skia\Skia.Vcl.pas',
+  uSkiaPainter in '..\..\Modules\Drawing\Skia\uSkiaPainter.pas',
 
+  uMainForm in 'uMainForm.pas' {fmMain};
 {$R *.res}
 
 begin

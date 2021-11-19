@@ -40,19 +40,24 @@ uses
   SysUtils, Types, UITypes, uScene, uDrawStyles;
 
 type
-  TMyPanel = class(TPanel)
-  private
-    FOnPaint: TNotifyEvent;
+  TLightPanel = class(TPanel)
   protected
     procedure WMEraseBkgnd(var Msg: TWMEraseBkgnd); message WM_ERASEBKGND;
     procedure WMGetDlgCode(var Msg: TWMGetDlgCode); message WM_GETDLGCODE;
-    procedure WMPaint(var Msg: TWMPaint); message WM_PAINT;
   public
     property OnMouseWheel;
     property OnKeyDown;
     property OnKeyUp;
-    property OnPaint: TNotifyEvent read FOnPaint write FOnPaint;
     property Canvas;
+  end;
+
+  TMyPanel = class(TLightPanel)
+  private
+    FOnPaint: TNotifyEvent;
+  protected
+    procedure WMPaint(var Msg: TWMPaint); message WM_PAINT;
+  public
+    property OnPaint: TNotifyEvent read FOnPaint write FOnPaint;
   end;
 
   TDrawContainer = class
@@ -101,10 +106,10 @@ type
     FPanel: TMyPanel;
     FContainer: TDrawContainer;
   protected
-    function DoCreateScene(const APlaceholder: TObject): TObject; override;
+    function DoCreateScene(const APlaceholder: TObject): TPainter; override;
     procedure DoDestroyScene; override;
     procedure DoActivate; override;
-    procedure DoEnableResize(const AOn: Boolean); override;
+    procedure SetEnabled(const AValue: Boolean); override;
 
     function GetSceneRect: TRectF; override;
     function GetClientPos: TPointF; override;
@@ -127,17 +132,19 @@ implementation
 uses
   PngImage;
 
-{ TMyPanel }
+{ TLightPanel }
 
-procedure TMyPanel.WMEraseBkgnd(var Msg: TWmEraseBkgnd);
+procedure TLightPanel.WMEraseBkgnd(var Msg: TWMEraseBkgnd);
 begin
   Msg.Result := 0;
 end;
 
-procedure TMyPanel.WMGetDlgCode(var Msg: TWMGetDlgCode);
+procedure TLightPanel.WMGetDlgCode(var Msg: TWMGetDlgCode);
 begin
   Msg.Result := DLGC_WANTARROWS;
 end;
+
+{ TMyPanel }
 
 procedure TMyPanel.WMPaint(var Msg: TWMPaint);
 var
@@ -151,11 +158,6 @@ begin
     EndPaint(Handle, PaintStruct);
   end;
 end;
-
-//procedure TMyPanel.WMSize(var Msg: TWMSize);
-//begin
-
-//end;
 
 { TWinNinePatchImage }
 
@@ -241,15 +243,31 @@ begin
   Result := FPanel.ClientRect;
 end;
 
+procedure TWinScene.SetEnabled(const AValue: Boolean);
+begin
+  inherited SetEnabled(AValue);
+
+  if AValue then
+  begin
+    FPanel.OnResize := OnResize;
+    FPanel.OnPaint := OnPaint;
+  end
+  else begin
+    FPanel.OnResize := nil;
+    FPanel.OnPaint := nil;
+  end;
+end;
+
 procedure TWinScene.DoActivate;
 begin
   if not FPanel.Focused then
     FPanel.SetFocus;
 end;
 
-function TWinScene.DoCreateScene(const APlaceholder: TObject): TObject;
+function TWinScene.DoCreateScene(const APlaceholder: TObject): TPainter;
 var
   vControl: TWinControl absolute APlaceholder;
+  vContainer: TDrawContainer;
 begin
   FPanel := TMyPanel.Create(vControl);
   FPanel.BevelOuter := bvNone;
@@ -262,7 +280,7 @@ begin
   FPanel.OnMouseWheel := OnMouseWheel;
   FPanel.OnKeyDown := OnKeyDown;
   FPanel.OnKeyUp := OnKeyUp;
-  FPanel.OnPaint := OnPaint;
+
   FPanel.OnMouseDown := OnMouseDown;
   FPanel.OnMouseUp := OnMouseUp;
   FPanel.OnDblClick := OnDblClick;
@@ -272,7 +290,12 @@ begin
   FPanel.DoubleBuffered := True;
   FPanel.TabStop := True;
 
-  Result := TDrawContainer.Create(FPanel.Handle, FPanel.Canvas, FPanel.ClientWidth, FPanel.ClientHeight);
+  vContainer := TDrawContainer.Create(FPanel.Handle, FPanel.Canvas, FPanel.ClientWidth, FPanel.ClientHeight);
+  try
+    Result := CreatePainter(vContainer);
+  finally
+    FreeAndNil(vContainer);
+  end;
 end;
 
 procedure TWinScene.DoDestroyScene;
@@ -281,6 +304,7 @@ begin
 
   FPanel.OnResize := nil;
   FPanel.OnMouseWheel := nil;
+  FPanel.OnKeyUp := nil;
   FPanel.OnKeyDown := nil;
   FPanel.OnPaint := nil;
   FPanel.OnMouseDown := nil;
@@ -289,14 +313,6 @@ begin
   FPanel.OnMouseMove := nil;
   FPanel.OnMouseLeave := nil;
   FPanel := nil;
-end;
-
-procedure TWinScene.DoEnableResize(const AOn: Boolean);
-begin
-  if AOn then
-    FPanel.OnResize := OnResize
-  else
-    FPanel.OnResize := nil;
 end;
 
 { TWinCanvasScene }

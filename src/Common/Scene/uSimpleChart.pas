@@ -222,6 +222,7 @@ begin
     FStyle.AddFontParams('geometry', 'Tahoma', 7, TAlphaColorRec.Maroon);
     FStyle.AddStrokeParams('nuclide', TAlphaColorRec.Deeppink, 1);
     FStyle.AddFillParams('nuclide', MakeColor(TAlphaColorRec.Deeppink, 0.5));
+    FStyle.AddFillParams('_nuclide', TAlphaColorRec.Deeppink);
     FStyle.AddFontParams('nuclide', 'Tahoma', 8, TAlphaColorRec.Deeppink);
     FStyle.AddFontParams('yield', 'Tahoma', 7, TAlphaColorRec.Deeppink);
 
@@ -287,6 +288,8 @@ begin
   inherited DoRenderStatic(APainter, ARect, AMode);
 
   APainter.DrawImage(FStyle, 'peak', RectF(200, 100, 450, 300), 0.7);
+  APainter.DrawEllipse(FStyle, '_nuclide', 'peak', RectF(500, 100, 650, 200));
+  APainter.DrawPie(FStyle, '_nuclide', 'peak', RectF(100, 350, 350, 420), 360, 320);
 end;
 
 procedure TSimpleChart.DoRenderDynamic(const APainter: TPainter; const ARect: TRectF);

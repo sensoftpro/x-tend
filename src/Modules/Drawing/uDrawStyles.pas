@@ -338,6 +338,10 @@ type
 
   TPainterClass = class of TPainter;
 
+type
+  PPointFArray = ^TPointFArray;
+  TPointFArray = array[0..0] of TPointF;
+
 implementation
 
 uses

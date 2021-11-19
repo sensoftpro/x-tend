@@ -187,16 +187,15 @@ type
   private
     [Weak] FFocusedObject: TSceneObject;
     [Weak] FHoveredObject: TSceneObject;
-    FState: TSceneState;
+    FEnabled: Boolean;
     procedure SetFocusedObject(const Value: TSceneObject);
     procedure SetHoveredObject(const Value: TSceneObject);
-    procedure Invalidate(const AState: TSceneState = ssDirty);
   protected
     FRoot: TSceneObject;
     FPainter: TPainter;
-    FDrawContainer: TObject;
     FLockCount: Integer;
     FMousePos: TPointF;
+    FState: TSceneState;
 
     procedure OnResize(Sender: TObject);
     procedure OnPaint(Sender: TObject);
@@ -212,12 +211,13 @@ type
     procedure OnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure OnKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure Render;
+    procedure Invalidate(const AState: TSceneState = ssDirty);
   protected
-    function DoCreateScene(const APlaceholder: TObject): TObject; virtual; abstract;
+    function DoCreateScene(const APlaceholder: TObject): TPainter; virtual; abstract;
     procedure DoDestroyScene; virtual; abstract;
     procedure DoActivate; virtual;
     procedure DoRender(const ANeedFullRepaint: Boolean); virtual;
-    procedure DoEnableResize(const AOn: Boolean); virtual; abstract;
+    procedure SetEnabled(const AValue: Boolean); virtual;
     function GetSceneRect: TRectF; virtual; abstract;
     function GetClientPos: TPointF; virtual; abstract;
     function CreatePainter(const AContainer: TObject): TPainter; virtual; abstract;
@@ -231,11 +231,13 @@ type
     procedure Repaint;
     procedure FullRefresh;
     procedure SaveToFile(const AFileName: string; const AWaterMark: string = '');
-    procedure Disable;
+    //procedure Enable;
+    //procedure Disable;
 
     property Painter: TPainter read FPainter;
     property FocusedObject: TSceneObject read FFocusedObject write SetFocusedObject;
     property HoveredObject: TSceneObject read FHoveredObject write SetHoveredObject;
+    property Enabled: Boolean read FEnabled write SetEnabled;
     property ClientRect: TRectF read GetSceneRect;
   end;
 
@@ -547,25 +549,25 @@ begin
   inherited Create;
 
   FState := ssCreating;
+  FEnabled := False;
 
   FFocusedObject := nil;
   FHoveredObject := nil;
 
   FLockCount := 0;
 
-  FDrawContainer := DoCreateScene(APlaceholder);
-  FPainter := CreatePainter(FDrawContainer);
+  FPainter := DoCreateScene(APlaceholder);
 
   FRoot := TSceneObject.Create(Self, nil, GetSceneRect);
   FMousePos := PointF(-1, -1);
 
-  //FState := ssNormal;
+  Enabled := True;
+  FState := ssDirty;
 end;
 
 destructor TScene.Destroy;
 begin
   FState := ssDestroying;
-  FreeAndNil(FDrawContainer);
   FreeAndNil(FPainter);
 
   DoDestroyScene;
@@ -575,11 +577,6 @@ begin
   FreeAndNil(FRoot);
 
   inherited Destroy;
-end;
-
-procedure TScene.Disable;
-begin
-  DoEnableResize(False);
 end;
 
 procedure TScene.EndUpdate;
@@ -782,16 +779,16 @@ end;
 
 procedure TScene.OnPaint(Sender: TObject);
 begin
-  if FState = ssCreating then
-  begin
-    DoEnableResize(True);
-    OnResize(Sender);
-  end
-  else begin
+  //if FState = ssCreating then
+  //begin
+  //  SetEnabled(True);
+  //  OnResize(Sender);
+  //end
+  //else begin
     Invalidate(ssUsed);
     if FLockCount = 0 then
       Render;
-  end;
+  //end;
 end;
 
 procedure TScene.OnResize(Sender: TObject);
@@ -850,6 +847,11 @@ begin
 
   if Assigned(FPainter) and Assigned(FPainter.Context) then
     FPainter.Context.SaveToFile(AFileName);
+end;
+
+procedure TScene.SetEnabled(const AValue: Boolean);
+begin
+  FEnabled := AValue;
 end;
 
 procedure TScene.SetFocusedObject(const Value: TSceneObject);

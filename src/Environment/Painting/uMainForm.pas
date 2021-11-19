@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, uWinScene, uSimpleChart, Vcl.StdCtrls, uDrawStyles, Vcl.ExtCtrls, Direct2D, D2D1, uScene, Vcl.ExtDlgs;
+  Dialogs, uWinScene, uSimpleChart, Vcl.StdCtrls, uDrawStyles, Vcl.ExtCtrls, uScene, Vcl.ExtDlgs;
 
 type
   TfmMain = class(TForm)
@@ -15,14 +15,13 @@ type
     btnMeasure: TButton;
     lblFPS: TLabel;
     btnSave: TButton;
-    Label1: TLabel;
     sdgSave: TSavePictureDialog;
     procedure FormDestroy(Sender: TObject);
     procedure btnCreateClick(Sender: TObject);
     procedure btnMeasureClick(Sender: TObject);
     procedure btnSaveClick(Sender: TObject);
   private
-    FScene: TWinScene;
+    FScene: TScene;
     FChart: TSimpleChart;
     FAliveRect: TAliveRect;
     procedure Measure;
@@ -36,7 +35,7 @@ var
 implementation
 
 uses
-  UITypes, Types, uVCLPainter, uGDIPlusPainter, uDirect2DPainter;
+  UITypes, Types, uVCLPainter, uGDIPlusPainter, uDirect2DPainter, uSkiaPainter;
 
 {$R *.dfm}
 
@@ -51,11 +50,6 @@ begin
     Result.PixelFormat := APixelFormat;
 end;
 
-function MakeD2DColor(const AColor: Cardinal): TD2D1ColorF;
-begin
-  Result := D2D1ColorF(Byte(AColor shr 16), Byte(AColor shr 8), Byte(AColor), Byte(AColor shr 24));
-end;
-
 procedure TfmMain.btnCreateClick(Sender: TObject);
 begin
   if Assigned(FScene) then
@@ -65,6 +59,7 @@ begin
     0: FScene := TVCLScene.Create(pnlChart);
     1: FScene := TGDIPlusScene.Create(pnlChart);
     2: FScene := TDirect2DScene.Create(pnlChart);
+    3: FScene := TSkiaScene.Create(pnlChart);
   else
     FScene := nil;
   end;
@@ -77,14 +72,6 @@ end;
 procedure TfmMain.btnMeasureClick(Sender: TObject);
 begin
   Measure;
-end;
-
-type
-  TCustomControlCrack = class(TCustomControl);
-
-function GetCanvas(const AControl: TCustomControl): TCanvas;
-begin
-  Result := TCustomControlCrack(AControl).Canvas;
 end;
 
 procedure TfmMain.btnSaveClick(Sender: TObject);

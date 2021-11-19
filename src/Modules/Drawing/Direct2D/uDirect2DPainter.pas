@@ -184,10 +184,6 @@ implementation
 uses
   StrUtils, SysUtils, IOUtils, Math, ComObj, ActiveX, uModule, DxgiFormat;
 
-type
-  PPointFArray = ^TPointFArray;
-  TPointFArray = array[0..0] of TPointF;
-
 function MakeD2DPointU(const x, y: Cardinal): TD2D1Point2U;
 begin
   Result.x := x;
@@ -341,7 +337,7 @@ var
     //vResult := FImageFactory.CreateDecoderFromFilename(PChar(AImage.FileName), nil,
     //  GENERIC_READ, WICDecodeMetadataCacheOnLoad, vDecoder);
 
-    OleCheck(FImageFactory.CreateDecoder(GUID_ContainerFormatPng, nil, vDecoder));
+    OleCheck(FImageFactory.CreateDecoder(GUID_ContainerFormatPng, TGUID.Empty, vDecoder));
     OleCheck(FImageFactory.CreateStream(vStream));
     OleCheck(vStream.InitializeFromFilename(PChar(AFileName), GENERIC_READ));
 
@@ -1091,7 +1087,7 @@ begin
   OleCheck(vStream.InitializeFromFilename(PChar(vFileName), GENERIC_WRITE));
 
   // Create and initialize WIC Bitmap Encoder
-  OleCheck(vWICFactory.CreateEncoder(vWICFormatGUID, nil, vEncoder));
+  OleCheck(vWICFactory.CreateEncoder(vWICFormatGUID, TGUID.Empty, vEncoder));
   // ERROR HERE!!! Not supported
   OleCheck(vEncoder.Initialize(vStream, WICBitmapNoCache));
 

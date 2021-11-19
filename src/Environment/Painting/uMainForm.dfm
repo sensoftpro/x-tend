@@ -34,31 +34,18 @@ object fmMain: TfmMain
       Font.Style = []
       ParentFont = False
     end
-    object Label1: TLabel
-      Left = 359
-      Top = 27
-      Width = 70
-      Height = 16
-      Caption = '0123456789'
-      Font.Charset = ANSI_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -13
-      Font.Name = 'Tahoma'
-      Font.Style = []
-      Font.Quality = fqClearType
-      ParentFont = False
-    end
     object rgrPainter: TRadioGroup
       Left = 12
       Top = 8
-      Width = 329
+      Width = 397
       Height = 45
       Caption = #1054#1090#1088#1080#1089#1086#1074#1082#1072
-      Columns = 3
+      Columns = 4
       Items.Strings = (
         'GDI'
         'GDI+'
-        'DirectX')
+        'DirectX'
+        'Skia')
       TabOrder = 0
       WordWrap = True
     end

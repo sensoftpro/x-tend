@@ -102,6 +102,10 @@
         <DCCReference Include="..\..\Modules\Drawing\uDrawStyles.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\uScene.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\uWinScene.pas"/>
+        <DCCReference Include="..\..\Modules\Drawing\Skia\Skia.Api.pas"/>
+        <DCCReference Include="..\..\Modules\Drawing\Skia\Skia.pas"/>
+        <DCCReference Include="..\..\Modules\Drawing\Skia\Skia.Vcl.pas"/>
+        <DCCReference Include="..\..\Modules\Drawing\Skia\uSkiaPainter.pas"/>
         <DCCReference Include="uMainForm.pas">
             <Form>fmMain</Form>
         </DCCReference>
@@ -134,7 +138,7 @@
                 <Platform value="Win32">True</Platform>
             </Platforms>
             <Deployment Version="3">
-                <DeployFile LocalName="..\,,\bin\Painters.exe" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="..\..\..\bin\Painters.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>Painters.exe</RemoteName>
                         <Overwrite>true</Overwrite>
