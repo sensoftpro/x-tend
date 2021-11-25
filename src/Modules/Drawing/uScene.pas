@@ -230,9 +230,7 @@ type
     procedure EndUpdate;
     procedure Repaint;
     procedure FullRefresh;
-    procedure SaveToFile(const AFileName: string; const AWaterMark: string = '');
-    //procedure Enable;
-    //procedure Disable;
+    procedure SaveToFile(const AFileName: string; const AWaterMark: string = ''); virtual;
 
     property Painter: TPainter read FPainter;
     property FocusedObject: TSceneObject read FFocusedObject write SetFocusedObject;
@@ -779,16 +777,9 @@ end;
 
 procedure TScene.OnPaint(Sender: TObject);
 begin
-  //if FState = ssCreating then
-  //begin
-  //  SetEnabled(True);
-  //  OnResize(Sender);
-  //end
-  //else begin
-    Invalidate(ssUsed);
-    if FLockCount = 0 then
-      Render;
-  //end;
+  Invalidate(ssUsed);
+  if FLockCount = 0 then
+    Render;
 end;
 
 procedure TScene.OnResize(Sender: TObject);

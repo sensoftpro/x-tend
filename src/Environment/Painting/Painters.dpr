@@ -18,7 +18,6 @@ uses
 
   Skia.Api in '..\..\Modules\Drawing\Skia\Skia.Api.pas',
   Skia in '..\..\Modules\Drawing\Skia\Skia.pas',
-  Skia.Vcl in '..\..\Modules\Drawing\Skia\Skia.Vcl.pas',
   uSkiaPainter in '..\..\Modules\Drawing\Skia\uSkiaPainter.pas',
 
   uMainForm in 'uMainForm.pas' {fmMain};

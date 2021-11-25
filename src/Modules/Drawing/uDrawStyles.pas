@@ -289,7 +289,7 @@ type
     procedure CreatePen(const AStroke: TStylePen); virtual; abstract;
     procedure CreateFont(const AFont: TStyleFont); virtual; abstract;
     procedure CreateImage(const AImage: TStyleImage); virtual; abstract;
-    function CreateDrawContext(const AWidth, AHeight: Single): TDrawContext; virtual; abstract;
+    function CreateDrawContext(const AWidth, AHeight: Single): TDrawContext; virtual;
 
     procedure DrawCircle(const AStyle: TDrawStyle; const AFillName, AStrokeName: string;
       const ACenterPoint: TPointF; const ARadius: Single; const AColor: Cardinal = 0);
@@ -914,6 +914,11 @@ constructor TPainter.Create(const AContainer: TObject);
 begin
   inherited Create;
   FDrawStyles := TDrawStyles.Create;
+end;
+
+function TPainter.CreateDrawContext(const AWidth, AHeight: Single): TDrawContext;
+begin
+  Result := nil;
 end;
 
 destructor TPainter.Destroy;

@@ -36,7 +36,7 @@ unit uSkiaPainter;
 interface
 
 uses
-  Windows, Types, Classes, ExtCtrls, Skia, Skia.VCL, uScene, uWinScene, uDrawStyles, uConsts;
+  Windows, Graphics, Types, Classes, ExtCtrls, Skia, uScene, uWinScene, uDrawStyles, uConsts;
 
 type
   TSkiaPen = class
@@ -88,7 +88,7 @@ type
     FPath: ISkPath;
   public
     constructor Create;
-    destructor Destroy;
+    destructor Destroy; override;
 
     property Path: ISkPath read FPath;
   end;
@@ -100,18 +100,10 @@ type
     function CutImage(const ALeft, ATop, AWidth, AHeight: Integer): TObject; override;
   end;
 
-  TSkiaDrawContext = class(TDrawContext)
-  protected
-    procedure DoSetSize(const AWidth, AHeight: Single); override;
-  public
-    procedure SaveToFile(const AFileName: string); override;
-  end;
-
   TSkiaPainter = class(TPainter)
   private
+    FSurface: ISkSurface;
     FCanvas: ISkCanvas;
-
-    procedure SetCanvas(const ACanvas: ISkCanvas);
   protected
     procedure DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF); override;
     procedure DoDrawPie(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF;
@@ -141,21 +133,20 @@ type
     procedure CreateFont(const AFont: TStyleFont); override;
     procedure CreateImage(const AImage: TStyleImage); override;
     function CreateDrawContext(const AWidth, AHeight: Single): TDrawContext; override;
-
-    function SetContext(const AContext: TDrawContext): TDrawContext; override;
-
-    procedure BeginPaint; override;
-    procedure EndPaint; override;
   end;
 
   TSkiaScene = class(TScene)
   private
-    FPanel: TLightPanel;
-    FPaintBox: TSkPaintBox;
+    FPanel: TMyPanel;
     FContainer: TDrawContainer;
-    FStaticContext: TSkiaDrawContext;
-    procedure OnDraw(ASender: TObject; const ACanvas: ISkCanvas;
-      const ADest: TRectF; const AOpacity: Single);
+
+    FDrawBufferDC: HDC;
+    FSurface: ISkSurface;
+    FDrawBuffer: HBITMAP;
+    FStaticImage: ISkImage;
+
+    procedure CreateBuffer(const AMemDC: HDC; out ABuffer: HBITMAP; out AData: Pointer; out AStride: Integer);
+    procedure DeleteBuffers;
   protected
     function DoCreateScene(const APlaceholder: TObject): TPainter; override;
     procedure DoDestroyScene; override;
@@ -169,6 +160,8 @@ type
     procedure DoRender(const ANeedFullRepaint: Boolean); override;
     procedure UpdateContexts(const AWidth, AHeight: Single); override;
     function CreatePainter(const AContainer: TObject): TPainter; override;
+  public
+    procedure SaveToFile(const AFileName: string; const AWaterMark: string = ''); override;
   end;
 
 implementation
@@ -178,18 +171,12 @@ uses
 
 { TSkiaPainter }
 
-procedure TSkiaPainter.BeginPaint;
-begin
-end;
-
 constructor TSkiaPainter.Create(const AContainer: TObject);
 var
   vContainer: TDrawContainer absolute AContainer;
 begin
   inherited Create(AContainer);
-
-  FContext := TSkiaDrawContext.Create(vContainer.Width, vContainer.Height);
-  FCanvas := nil;
+  FContext := TDrawContext.Create(0, 0);
 end;
 
 procedure TSkiaPainter.CreateBrush(const AFill: TStyleBrush);
@@ -197,7 +184,7 @@ var
   vBrush: ISkPaint;
 begin
   vBrush := TSkPaint.Create;
-  //vBrush.AntiAlias := True;
+  vBrush.AntiAlias := True;
   vBrush.Style := TSkPaintStyle.Fill;
   vBrush.Color := AFill.Color;
 
@@ -221,7 +208,7 @@ end;
 
 function TSkiaPainter.CreateDrawContext(const AWidth, AHeight: Single): TDrawContext;
 begin
-  Result := TSkiaDrawContext.Create(AWidth, AHeight);
+  Result := nil;
 end;
 
 procedure TSkiaPainter.CreateFont(const AFont: TStyleFont);
@@ -247,10 +234,10 @@ begin
   // Создать описатель шрифта и, при необходимости, кисть для его отрисовки
   vTypeface := TSkTypeface.MakeFromName(AFont.Family, vStyle);
   vFont := TSkFont.Create(vTypeface, AFont.Size * 96 / 72);
-  vFont.Edging := TSkFontEdging.Alias;
+  //vFont.Edging := TSkFontEdging.AntiAlias;
 
   vBrush := TSkPaint.Create;
-  //vBrush.AntiAlias := True;
+  vBrush.AntiAlias := True;
   vBrush.Style := TSkPaintStyle.Fill;
   vBrush.Color := AFont.Color;
 
@@ -290,7 +277,7 @@ begin
   vPaint.StrokeWidth := AStroke.Width;
   vPaint.StrokeJoin := TSkStrokeJoin.Miter;
   vPaint.StrokeCap := TSkStrokeCap.Butt;
-  //vPaint.AntiAlias := True;
+  vPaint.AntiAlias := True;
   vPaint.Color := AStroke.Color;
 
   if AStroke.Style in [psDash..psDashDotDot] then
@@ -349,7 +336,6 @@ end;
 
 procedure TSkiaPainter.DoDrawContext(const AContext: TDrawContext);
 begin
-
 end;
 
 procedure TSkiaPainter.DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF);
@@ -543,48 +529,28 @@ end;
 procedure TSkiaPainter.DoInvertRect(const ARect: TRectF);
 var
   vBrush: ISkPaint;
+  vImage: ISkImage;
 const
-  vMatrix: TSkColorMatrix = (-1, 1, 1, 0, 0,   1, -1, 1, 0, 0,   1, 1, -1, 0, 0,   0, 0, 0, 1, 0);
+  vMatrix: TSkColorMatrix = (-1, 0, 0, 0, 1,   0, -1, 0, 0, 1,   0, 0, -1, 0, 1,   0, 0, 0, 1, 0);
 begin
-  //FCanvas.DrawColor($FF00FF00, TSkBlendMode.Eor);
-
   vBrush := TSkPaint.Create;
-  vBrush.Style := TSkPaintStyle.Fill;
-  vBrush.Color := $FF000000;
   vBrush.ColorFilter := TSkColorFilter.MakeMatrix(vMatrix);
-  FCanvas.Save;
-  try
-    FCanvas.ClipRect(ARect);
-    FCanvas.DrawPaint(vBrush);
-  finally
-    vBrush := nil;
-    FCanvas.Restore;
-  end;
-end;
-
-procedure TSkiaPainter.EndPaint;
-begin
+  vImage := FSurface.MakeImageSnapshot(ARect.Round);
+  FCanvas.DrawImage(vImage, ARect.Left, ARect.Top, vBrush);
 end;
 
 function TSkiaPainter.GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF;
 var
   vMetrics: TSkFontMetrics;
+  vTextRect: TRectF;
 begin
   vMetrics := TSkiaFont(AFont.NativeObject).Metrics;
-  Result.cx := TSkiaFont(AFont.NativeObject).Font.MeasureText(AText);
+  Result.cx := TSkiaFont(AFont.NativeObject).Font.MeasureText(AText, vTextRect);
   Result.cy := vMetrics.Descent + vMetrics.CapHeight; // AFont.Size * 96 / 72;
 
-  //FCanvas.Text
-end;
-
-procedure TSkiaPainter.SetCanvas(const ACanvas: ISkCanvas);
-begin
-  FCanvas := ACanvas;
-end;
-
-function TSkiaPainter.SetContext(const AContext: TDrawContext): TDrawContext;
-begin
-  Result := inherited SetContext(AContext);
+  //Result.cx := TSkiaFont(AFont.NativeObject).Font.MeasureText(AText, vTextRect);
+  //Result.cx := vTextRect.Width;
+  //Result.cy := vTextRect.Height;
 end;
 
 { TSkiaNinePatchImage }
@@ -609,12 +575,50 @@ end;
 
 { TSkiaScene }
 
-function TSkiaScene.CreatePainter(const AContainer: TObject): TPainter;
+procedure TSkiaScene.CreateBuffer(const AMemDC: HDC; out ABuffer: HBITMAP; out AData: Pointer; out AStride: Integer);
+const
+  ColorMasks: array[0..2] of DWORD = ($00FF0000, $0000FF00, $000000FF);
 var
-  vContainer: TDrawContainer absolute AContainer;
+  LBitmapInfo: PBitmapInfo;
+begin
+  AStride := BytesPerScanline(FPanel.Width, 32, 32);
+  GetMem(LBitmapInfo, SizeOf(TBitmapInfoHeader) + SizeOf(ColorMasks));
+  try
+    LBitmapInfo.bmiHeader := Default(TBitmapInfoHeader);
+    LBitmapInfo.bmiHeader.biSize        := SizeOf(TBitmapInfoHeader);
+    LBitmapInfo.bmiHeader.biWidth       := FPanel.Width;
+    LBitmapInfo.bmiHeader.biHeight      := -FPanel.Height;
+    LBitmapInfo.bmiHeader.biPlanes      := 1;
+    LBitmapInfo.bmiHeader.biBitCount    := 32;
+    LBitmapInfo.bmiHeader.biCompression := BI_BITFIELDS;
+    LBitmapInfo.bmiHeader.biSizeImage   := AStride * FPanel.Height;
+    Move(ColorMasks[0], LBitmapInfo.bmiColors[0], SizeOf(ColorMasks));
+    ABuffer := CreateDIBSection(AMemDC, LBitmapInfo^, DIB_RGB_COLORS, AData, 0, 0);
+    if ABuffer <> 0 then
+      GdiFlush;
+  finally
+    FreeMem(LBitmapInfo);
+  end;
+end;
+
+function TSkiaScene.CreatePainter(const AContainer: TObject): TPainter;
 begin
   Result := TSkiaPainter.Create(AContainer);
-  FStaticContext := TSkiaDrawContext(Result.CreateDrawContext(vContainer.Width, vContainer.Height));
+end;
+
+procedure TSkiaScene.DeleteBuffers;
+begin
+  if FDrawBuffer <> 0 then
+  begin
+    DeleteObject(FDrawBuffer);
+    FDrawBuffer := 0;
+  end;
+
+  if FDrawBufferDC <> 0 then
+  begin
+    DeleteDC(FDrawBufferDC);
+    FDrawBufferDC := 0;
+  end;
 end;
 
 procedure TSkiaScene.DoActivate;
@@ -628,31 +632,27 @@ var
   vControl: TWinControl absolute APlaceholder;
   vContainer: TDrawContainer;
 begin
-  FPanel := TLightPanel.Create(vControl);
+  FDrawBufferDC := 0;
+
+  FPanel := TMyPanel.Create(vControl);
   FPanel.BevelOuter := bvNone;
   FPanel.Align := alClient;
   FPanel.Constraints.MinWidth := 200;
   FPanel.Constraints.MinHeight := 100;
   FPanel.Parent := vControl;
 
-  FPaintBox := TSkPaintBox.Create(FPanel);
-  FPaintBox.Parent := FPanel;
-  FPaintBox.Align := alClient;
-
   FPanel.ControlStyle := FPanel.ControlStyle + [csOpaque];
   FPanel.OnMouseWheel := OnMouseWheel;
   FPanel.OnKeyDown := OnKeyDown;
   FPanel.OnKeyUp := OnKeyUp;
 
-  FPaintBox.Width := FPanel.ClientWidth;
-  FPaintBox.Height := FPanel.ClientHeight;
+  FPanel.OnMouseDown := OnMouseDown;
+  FPanel.OnMouseUp := OnMouseUp;
+  FPanel.OnDblClick := OnDblClick;
+  FPanel.OnMouseMove := OnMouseMove;
+  FPanel.OnMouseLeave := OnMouseLeave;
 
-  FPaintBox.OnMouseDown := OnMouseDown;
-  FPaintBox.OnMouseUp := OnMouseUp;
-  FPaintBox.OnDblClick := OnDblClick;
-  FPaintBox.OnMouseMove := OnMouseMove;
-  FPaintBox.OnMouseLeave := OnMouseLeave;
-
+  FPanel.DoubleBuffered := True;
   FPanel.TabStop := True;
 
   vContainer := TDrawContainer.Create(FPanel.Handle, FPanel.Canvas, FPanel.ClientWidth, FPanel.ClientHeight);
@@ -671,31 +671,57 @@ begin
   FPanel.OnMouseWheel := nil;
   FPanel.OnKeyUp := nil;
   FPanel.OnKeyDown := nil;
+  FPanel.OnPaint := nil;
+  FPanel.OnMouseDown := nil;
+  FPanel.OnMouseUp := nil;
+  FPanel.OnDblClick := nil;
+  FPanel.OnMouseMove := nil;
+  FPanel.OnMouseLeave := nil;
 
-  FPaintBox.OnDraw := nil;
-  FPaintBox.OnMouseDown := nil;
-  FPaintBox.OnMouseUp := nil;
-  FPaintBox.OnDblClick := nil;
-  FPaintBox.OnMouseMove := nil;
-  FPaintBox.OnMouseLeave := nil;
-
-  FPaintBox := nil;
   FPanel := nil;
 
-  FreeAndNil(FStaticContext);
+  DeleteBuffers;
 end;
 
 procedure TSkiaScene.DoRender(const ANeedFullRepaint: Boolean);
+var
+  vOldObj: HGDIOBJ;
+  vDrawBufferData: Pointer;
+  vDrawBufferStride: Integer;
 begin
-  if FState = ssCreating then
+  if FDrawBufferDC = 0 then
   begin
-    Enabled := True;
-    OnResize(FPanel);
-  end
-  else begin
-    Invalidate(ssUsed);
-    if FLockCount = 0 then
-      FPaintBox.Redraw;
+    FDrawBufferDC := CreateCompatibleDC(0);
+    if FDrawBufferDC = 0 then
+      Exit;
+  end;
+
+  if FDrawBuffer = 0 then
+  begin
+    CreateBuffer(FDrawBufferDC, FDrawBuffer, vDrawBufferData, vDrawBufferStride);
+    FSurface := TSkSurface.MakeRasterDirect(TSkImageInfo.Create(FPanel.Width, FPanel.Height), vDrawBufferData, vDrawBufferStride);
+    TSkiaPainter(FPainter).FSurface := FSurface;
+    TSkiaPainter(FPainter).FCanvas := FSurface.Canvas;
+  end;
+
+  if ANeedFullRepaint or not Assigned(FStaticImage) then
+  begin
+    FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
+    //FStaticImage := FSurface.MakeImageSnapshot;
+  end;
+  //else
+    //FSurface.Canvas.DrawImage(FStaticImage, 0, 0);
+
+
+  //FSurface.Canvas.Save;
+  vOldObj := SelectObject(FDrawBufferDC, FDrawBuffer);
+  try
+    FRoot.RenderDynamic(FPainter, GetSceneRect);
+    BitBlt(FPanel.Canvas.Handle, 0, 0, FPanel.Width, FPanel.Height, FDrawBufferDC, 0, 0, SRCCOPY)
+  finally
+    if vOldObj <> 0 then
+      SelectObject(FDrawBufferDC, vOldObj);
+    //FSurface.Canvas.Restore;
   end;
 end;
 
@@ -712,43 +738,13 @@ begin
   Result := FPanel.ClientRect;
 end;
 
-procedure TSkiaScene.OnDraw(ASender: TObject; const ACanvas: ISkCanvas; const ADest: TRectF; const AOpacity: Single);
-var
-  vOldContext: TDrawContext;
-  vNeedFullRepaint: Boolean;
+procedure TSkiaScene.SaveToFile(const AFileName, AWaterMark: string);
 begin
-  if not (FState in [ssUsed, ssDirty]) then
-    Exit;
+  DoRender(True);
 
-  vNeedFullRepaint := FState = ssDirty;
-
-  FState := ssNormal;
-
-  TSkiaPainter(FPainter).SetCanvas(ACanvas);
-
-  //if vNeedFullRepaint then
-  //begin
-    // Отрисовываем редко изменяемое содержимое в статический буфер
-    //vOldContext := FPainter.SetContext(FStaticContext);
-    //try
-      FPainter.BeginPaint;
-      try
-        FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
-      finally
-        FPainter.EndPaint;
-      end;
-    //finally
-    //  FPainter.SetContext(vOldContext);
-    //end;
-  //end;
-
-  FPainter.BeginPaint;
-  try
-    //FPainter.DrawContext(FStaticContext);
-    FRoot.RenderDynamic(FPainter, GetSceneRect);
-  finally
-    FPainter.EndPaint;
-  end;
+  TFile.WriteAllBytes(AFileName, FStaticImage.EncodeToBytes(TSkEncodedImageFormat.PNG));
+  //TFile.WriteAllBytes('output.webp', GetImage.EncodeToBytes(TSkEncodedImageFormat.WEBP, 80));
+  //TFile.WriteAllBytes('output.jpg', GetImage.EncodeToBytes(TSkEncodedImageFormat.JPEG, 80));
 end;
 
 procedure TSkiaScene.SetEnabled(const AValue: Boolean);
@@ -758,29 +754,17 @@ begin
   if AValue then
   begin
     FPanel.OnResize := OnResize;
-    FPaintBox.OnDraw := OnDraw;
+    FPanel.OnPaint := OnPaint;
   end
   else begin
     FPanel.OnResize := nil;
-    FPaintBox.OnDraw := nil;
+    FPanel.OnPaint := nil;
   end;
 end;
 
 procedure TSkiaScene.UpdateContexts(const AWidth, AHeight: Single);
 begin
-  FStaticContext.SetSize(AWidth, AHeight);
-end;
-
-{ TSkiaDrawContext }
-
-procedure TSkiaDrawContext.DoSetSize(const AWidth, AHeight: Single);
-begin
-  // Отреагировать на изменение размера, установить нужные внутренние размеры контекста
-end;
-
-procedure TSkiaDrawContext.SaveToFile(const AFileName: string);
-begin
-
+  DeleteBuffers;
 end;
 
 { TSkiaBrush }
