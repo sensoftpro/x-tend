@@ -2426,14 +2426,6 @@ begin
   vParameters.CreateDefaultEntity(AHolder, 61, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
     [Integer(vCommand), 'DestField', ptString, '', False, '']);
 
-  vCommand := vCommands.CreateDefaultEntity(AHolder, 36, 'Name', ['CHECK_INTENSITY']);
-  vParameters.CreateDefaultEntity(AHolder, 62, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'CheckObject', ptObject, '', False, '']);
-
-  vCommand := vCommands.CreateDefaultEntity(AHolder, 37, 'Name', ['CHECK_BACKGROUND']);
-  vParameters.CreateDefaultEntity(AHolder, 63, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'CheckObject', ptObject, '', False, '']);
-
   vCommand := vCommands.CreateDefaultEntity(AHolder, 40, 'Name', ['ADD_LIST_ENTITY']);
   vParameters.CreateDefaultEntity(AHolder, 70, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
     [Integer(vCommand), 'Result', ptObject, '', True, '']);

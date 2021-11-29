@@ -364,7 +364,7 @@ begin
 
   vCollectionAreaClass := TUIAreaClass(GetUIClass(FName, uiCollection, vViewName));
 
-  Result := vCollectionAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
+  Result := vCollectionAreaClass.Create(AParentArea, AView, 'List', False, nil, ALayout, vParams);
 end;
 
 function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
@@ -479,6 +479,12 @@ function TPresenter.GetLayoutCaption(const ALayout: TObject): string;
 begin
   if ALayout is TPageControl then
     Result := TPageControl(ALayout).Hint
+  else if ALayout is TMemo then
+  begin
+    TMemo(ALayout).WordWrap := False;
+    TMemo(ALayout).WantReturns := False;
+    Result := TMemo(ALayout).Lines.Text;
+  end
   else
     Result := TPanel(ALayout).Caption;
 end;

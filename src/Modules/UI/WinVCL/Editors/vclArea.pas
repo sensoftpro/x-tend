@@ -166,9 +166,9 @@ implementation
 uses
   Forms, Messages, Types, Graphics, Math, SysUtils, StrUtils, ComCtrls, Buttons,
   Generics.Defaults, cxGraphics, dxGDIPlusClasses, cxLabel, cxImage, cxEdit, cxTextEdit, cxPC, dxBar,
-  cxLookAndFeels, cxButtons, cxScrollBox, cxControls, cxSplitter, dxActivityIndicator,
+  cxLookAndFeels, cxButtons, cxScrollBox, cxControls, cxSplitter,
 
-  uDomain, uPresenter, uConfiguration, uSession, uInteractor, uUtils, vclListEditors,
+  uDomain, uPresenter, uConfiguration, uSession, uInteractor, uUtils,
   vclSimpleEditors, uEntityList, uDomainUtils;
 
 type
@@ -391,10 +391,6 @@ begin
       TcxCustomEdit(FControl).Style.Font.Assign(vPanel.Font)
     else
       TCrackedControl(FControl).Font.Assign(vPanel.Font);
-
-    if (FControl is TdxActivityIndicator) and not vPanel.ParentFont and (vPanel.Font.Color <> clWindowText) then
-      TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(FControl).Properties).DotColor :=
-        TAlphaColorRec.Alpha or TAlphaColor(TColorRec.ColorToRGB(vPanel.Font.Color));
 
     Control.Anchors := vPanel.Anchors;
     Control.Align := vPanel.Align;
@@ -673,7 +669,7 @@ var
   vImageSize: Integer;
   vComposition: string;
   vViewStyle: string;
-  vOverriddenCaption: string;
+  vOverriddenCaption, vOverriddenHint: string;
 begin
   if AView.DefinitionKind = dkCollection then
     vOnClickHandler := OnOpenCollection
@@ -688,6 +684,7 @@ begin
     vComposition := Trim(vParams.Values['Composition']);
     vViewStyle := Trim(vParams.Values['ViewStyle']);
     vOverriddenCaption := Trim(vParams.Values['Caption']);
+    vOverriddenHint := Trim(vParams.Values['Hint']);
   finally
     FreeAndNil(vParams);
   end;
@@ -695,10 +692,12 @@ begin
   if vViewStyle = 'link' then
   begin
     vLabel := TcxLabel.Create(nil);
-    if vOverriddenCaption = '' then
-      vLabel.Caption := GetTranslation(vActionDef)
-    else
+    vLabel.Caption := GetTranslation(vActionDef);
+    vLabel.Hint := vLabel.Caption;
+    if Length(vOverriddenCaption) > 0 then
       vLabel.Caption := vOverriddenCaption;
+    if Length(vOverriddenHint) > 0 then
+      vLabel.Hint := vOverriddenHint;
     vLabel.Cursor := crHandPoint;
     vLabel.Transparent := True;
     vLabel.Properties.Alignment.Vert := TcxEditVertAlignment.taVCenter;
@@ -728,29 +727,31 @@ begin
     vButton.SpeedButtonOptions.CanBeFocused := False;
   end;
 
-  vButton.Hint := GetTranslation(vActionDef);
+  vButton.Caption := GetTranslation(vActionDef);
+  vButton.Hint := vButton.Caption;
+  if Length(vOverriddenCaption) > 0 then
+    vButton.Caption := vOverriddenCaption;
+  if Length(vOverriddenHint) > 0 then
+    vButton.Hint := vOverriddenHint;
+
   if (vButton.OptionsImage.Images.Count + 1 >= vImageID) and (vImageID > 0) then
   begin
     if vComposition = '' then
     begin
       if TPanel(ALayout).ShowHint then
-      begin
-        vButton.PaintStyle := bpsDefault;
-        vButton.Caption := vButton.Hint;
-      end
+        vButton.PaintStyle := bpsDefault
       else
         vButton.PaintStyle := bpsGlyph;
     end
     else if vComposition = 'TextOnly' then
     begin
       vButton.PaintStyle := bpsCaption;
-      vButton.Caption := vButton.Hint;
     end
     else if vComposition = 'ImageOnly' then
       vButton.PaintStyle := bpsGlyph
-    else begin
+    else
+    begin
       vButton.PaintStyle := bpsDefault;
-      vButton.Caption := vButton.Hint;
       if vComposition = 'ImageRight' then
         vButton.Layout := TButtonLayout.blGlyphRight
       else if vComposition = 'ImageTop' then
@@ -762,9 +763,9 @@ begin
     end;
     vButton.OptionsImage.ImageIndex := vImageID;
   end
-  else begin
+  else
+  begin
     vButton.PaintStyle := bpsCaption;
-    vButton.Caption := vButton.Hint;
     vButton.WordWrap := True;
   end;
 
@@ -780,6 +781,8 @@ begin
         vDefinition := TDefinition(vDefinitions[i]);
         vMenuItem := TMenuItem.Create(nil);
         vMenuItem.Caption := GetTranslation(vDefinition);
+        if Length(vOverriddenCaption) > 0 then
+          vMenuItem.Caption := vOverriddenCaption;
         vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
         vMenuItem.Tag := Integer(vButton);
         vMenuItem.OnClick := OnActionMenuSelected;
@@ -1952,7 +1955,7 @@ begin
     //FUIBuilder.LastArea := nil;
   end;
 
-  Action := caFree;
+  Action := caNone;
 end;
 
 procedure TVCLArea.OnPCCanClose(Sender: TObject; var ACanClose: Boolean);

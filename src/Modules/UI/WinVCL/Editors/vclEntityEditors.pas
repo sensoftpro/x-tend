@@ -129,11 +129,12 @@ type
     FEditor: TcxVerticalGrid;
     FDomainObject: TEntity;
     FChildViews: TList<TView>;
+    FDisplayFields: TStringList;
     procedure CleanChildViews;
     function CreateEditRow(const ARootEntity: TEntity; const AFieldDef: TFieldDef;
       const AViewPath: string; const AOverriddenCaption: string = ''): TcxEditorRow;
     function CreateCategoryRow(const ARootEntity: TEntity; const AFieldDef: TFieldDef): TcxCategoryRow;
-    procedure CreateRowsFromModel(const ARootEntity: TEntity; const ARootRow: TcxCustomRow;
+    procedure CreateRows(const ARootEntity: TEntity; const ARootRow: TcxCustomRow;
       const AViewPath: string; const ARootEntityIndex: Integer = -1);
     procedure OnFieldChange(Sender: TObject);
     procedure FreeEditors;
@@ -877,7 +878,7 @@ begin
 
 end;
 
-procedure TEntityFieldListEditor.CreateRowsFromModel(const ARootEntity: TEntity; const ARootRow: TcxCustomRow;
+procedure TEntityFieldListEditor.CreateRows(const ARootEntity: TEntity; const ARootRow: TcxCustomRow;
   const AViewPath: string; const ARootEntityIndex: Integer = -1);
 var
   vFieldDef: TFieldDef;
@@ -889,6 +890,11 @@ begin
 
   for vFieldDef in ARootEntity.Definition.Fields do
   begin
+    if Assigned(FDisplayFields) then
+    begin
+      if FDisplayFields.IndexOf(vFieldDef.Name) < 0 then Continue;
+    end;
+
     if vFieldDef.Kind = fkList then
     begin
       vListField := TListField(ARootEntity.FieldByName(vFieldDef.Name));
@@ -897,7 +903,7 @@ begin
         vCategory := CreateCategoryRow(ARootEntity, vFieldDef);
         vCategory.Parent := ARootRow;
         for i := 0 to vListField.Count - 1 do
-          CreateRowsFromModel(vListField[i], vCategory, vFieldDef.Name + '/' + IntToStr(i) + '/', i);
+          CreateRows(vListField[i], vCategory, vFieldDef.Name + '/' + IntToStr(i) + '/', i);
       end;
     end
     else
@@ -912,7 +918,7 @@ end;
 procedure TEntityFieldListEditor.DoBeforeFreeControl;
 begin
   inherited;
-
+  FreeAndNil(FDisplayFields);
   FreeEditors;
   FreeAndNil(FChildViews);
 end;
@@ -932,6 +938,14 @@ begin
     FEditor.OptionsView.RowHeaderWidth := StrToIntDef(FCreateParams.Values['headerWidth'], 150)
   else
     FEditor.OptionsView.RowHeaderWidth := 150;
+
+  if FCreateParams.IndexOfName('Fields') > 0 then
+  begin
+    FDisplayFields := TStringList.Create;
+    FDisplayFields.StrictDelimiter := True;
+    FDisplayFields.Delimiter := ',';
+    FDisplayFields.DelimitedText := FCreateParams.Values['Fields'];
+  end;
 end;
 
 procedure TEntityFieldListEditor.DoDisableContent;
@@ -955,7 +969,7 @@ begin
   try
     FDomainObject := TEntity(FView.DomainObject);
     FreeEditors;
-    CreateRowsFromModel(FDomainObject, nil, '');
+    CreateRows(FDomainObject, nil, '');
 
     vInteractor := TInteractor(FView.Interactor);
     for i := 0 to FEditor.Rows.Count - 1 do

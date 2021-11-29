@@ -266,8 +266,8 @@ object EditForm: TEditForm
     end
   end
   object GridPopup: TPopupMenu
-    Left = 396
-    Top = 172
+    Left = 428
+    Top = 164
     object Add1: TMenuItem
       Caption = '$/Add'
     end

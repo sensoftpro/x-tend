@@ -60,6 +60,7 @@ type
     FImages: TObjectDictionary<string, TStream>;
     FIconIndices: TList<Integer>;
     FSplashImage: TStream;
+    FSplashFileName: string;
     procedure AddIcon(const AFullFileName: string);
     procedure AddImage(const AFullFileName: string);
   public
@@ -71,6 +72,7 @@ type
     function ImageByName(const AName: string): TStream;
 
     property Splash: TStream read FSplashImage;
+    property SplashFileName: string read FSplashFileName;
     property IconIndices: TList<Integer> read FIconIndices;
   end;
 
@@ -143,6 +145,7 @@ begin
   FItems := TObjectDictionary<Integer, TIconList>.Create([doOwnsValues]);
   FImages := TObjectDictionary<string, TStream>.Create([doOwnsValues]);
   FSplashImage := nil;
+  FSplashFileName := '';
 end;
 
 destructor TIcons.Destroy;
@@ -185,7 +188,8 @@ begin
     if Assigned(FSplashImage) then
       FreeAndNil(FSplashImage);
     FSplashImage := TMemoryStream.Create;
-    TMemoryStream(FSplashImage).LoadFromFile(TPath.Combine(ADirectory, 'splash.jpg'));
+    FSplashFileName := TPath.Combine(ADirectory, 'splash.jpg');
+    TMemoryStream(FSplashImage).LoadFromFile(FSplashFileName);
   end;
 
   vDirectory := TPath.Combine(ADirectory, 'icons');

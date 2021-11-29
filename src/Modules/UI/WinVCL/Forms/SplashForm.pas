@@ -82,7 +82,13 @@ begin
   if Assigned(vSplashImage) then
   begin
     vSplashImage.Position := 0;
-    Image1.Picture.LoadFromStream(vSplashImage);
+    try
+      // BUG: Если в проекте нет модуля, использующего FastReport, падает с ошибкой Unsupported Stream format
+      Image1.Picture.LoadFromStream(vSplashImage);
+    except
+      if ADomain.Configuration.Icons.SplashFileName <> '' then
+        Image1.Picture.LoadFromFile(ADomain.Configuration.Icons.SplashFileName);
+    end;
   end;
 end;
 

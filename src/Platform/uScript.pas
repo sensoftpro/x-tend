@@ -451,6 +451,8 @@ begin
   AddAction('Open', 'Открыть', 30, ccContextAction);
   AddAction('Refresh', 'Обновить список', 5);
   AddAction('Save', 'Сохранить', 6);
+  AddAction('SaveAs', 'Сохранить как', 6);
+
   AddAction('View', 'Просмотр', 8, ccContextAction);
   AddAction('Show', 'Показать', 8, ccContextAction);
   AddAction('Close', 'Закрыть', 4);
@@ -1137,8 +1139,6 @@ begin
       Result := vsDisabled
     else if AView.Parent.State <= vsSelectOnly then
       Result := vsHidden
-    else if TEntity(AContext).IsNew then
-      Result := vsDisabled
     else
       Result := AView.Parent.State;
   end

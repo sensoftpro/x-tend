@@ -313,6 +313,7 @@ type
   protected
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
+    procedure AssignFromLayout(const ALayout: TObject); override;
   end;
 
   // определённый по времени процесс
@@ -338,7 +339,7 @@ uses
   Forms, ComCtrls, Math, DateUtils, Messages, cxBlobEdit, cxImage, dxGDIPlusClasses, cxMaskEdit, cxMRUEdit,
   dxActivityIndicator, cxLookAndFeels, cxProgressBar, dxBreadcrumbEdit, cxCustomListBox, cxCheckListBox, {CPort,}
 
-  uConfiguration, uDomain, uInteractor, uPresenter, uCollection, uEntity, uConsts, uUtils;
+  uConfiguration, uDomain, uInteractor, uPresenter, uCollection, uEntity, uConsts, uUtils, UITypes;
 
 { TTextInfo }
 
@@ -1686,7 +1687,22 @@ begin
     FText.Properties.OnChange := AHandler;
 end;
 
+type
+  TCrackedControl = class(TWinControl) end;
+
 { TSpinner }
+
+procedure TSpinner.AssignFromLayout(const ALayout: TObject);
+var
+  vPanel: TCrackedControl absolute ALayout;
+begin
+  inherited;
+
+  if (ALayout is TPanel) or (ALayout is TMemo) then
+    if (FControl is TdxActivityIndicator) and not vPanel.ParentFont and (vPanel.Font.Color <> clWindowText) then
+      TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(FControl).Properties).DotColor :=
+        TAlphaColorRec.Alpha or TAlphaColor(TColorRec.ColorToRGB(vPanel.Font.Color));
+end;
 
 procedure TSpinner.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
@@ -2518,6 +2534,10 @@ begin
   begin
     vStream.Position := 0;
     TImage(FControl).Picture.LoadFromStream(vStream);
+    if FView.FieldValue then
+      TImage(FControl).Hint := FCreateParams.Values['trueHint']
+    else
+      TImage(FControl).Hint := FCreateParams.Values['falseHint'];
   end;
 end;
 

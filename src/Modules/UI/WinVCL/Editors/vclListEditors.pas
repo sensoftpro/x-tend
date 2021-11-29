@@ -2640,6 +2640,7 @@ var
   vPopupMenu: TPopupMenu;
 begin
   FPivot := TcxPivotGrid.Create(nil);
+  FId := 'Pivot';
 
   if ALayout is TPanel then
     FPivot.Align := TPanel(ALayout).Align

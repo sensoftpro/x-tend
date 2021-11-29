@@ -25,6 +25,7 @@ object SplashFm: TSplashFm
     Width = 400
     Height = 300
     Align = alClient
+    Proportional = True
     ExplicitHeight = 281
   end
   object lblName: TLabel

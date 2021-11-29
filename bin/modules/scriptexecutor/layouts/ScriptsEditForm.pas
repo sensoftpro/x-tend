@@ -7,9 +7,9 @@ uses
 
 type
   TForm = class(TFrame)
-    Panel2: TPanel;
-    Panel3: TPanel;
-    Panel4: TPanel;
+    Variables: TPanel;
+    Methods: TPanel;
+    SelectedMethod: TPanel;
     Panel5: TPanel;
     PageControl1: TPageControl;
     TabSheet1: TTabSheet;
@@ -17,7 +17,13 @@ type
     TabSheet2: TTabSheet;
     Panel6: TPanel;
     Panel7: TPanel;
-    Panel8: TPanel;
+    ident: TPanel;
+    pnlTop: TPanel;
+    pnlLeft: TPanel;
+    pnlClient: TPanel;
+    Splitter1: TSplitter;
+    Splitter2: TSplitter;
+    Splitter3: TSplitter;
   end;
 
 implementation

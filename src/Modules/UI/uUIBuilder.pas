@@ -1072,6 +1072,7 @@ destructor TUIArea.Destroy;
 begin
   FreeAndNil(FCreateParams);
   FreeAndNil(FStyle);
+  FControl := nil;
   inherited Destroy;
 end;
 
