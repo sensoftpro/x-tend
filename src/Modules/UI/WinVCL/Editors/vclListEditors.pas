@@ -44,7 +44,7 @@ uses
   cxTL, cxGrid, cxGridTableView, cxCustomData, cxGridLevel, cxGridCustomTableView, cxGridChartView, cxStyles,
   cxVGrid, cxCalendar, cxCheckBox, cxGraphics, cxControls, cxLookAndFeels, cxContainer,
   cxEdit, cxTextEdit, cxMaskEdit, cxDropDownEdit, cxSpinEdit, cxInplaceContainer, cxCustomPivotGrid, cxPivotGrid,
-  cxExportPivotGridLink, cxTLData;
+  cxExportPivotGridLink, cxTLData, cxButtonEdit, cxEditRepositoryItems;
 
 type
   TEntityListSelector = class (TVCLFieldArea)
@@ -171,6 +171,7 @@ type
     FLayoutExists: Boolean;
     FGroupFieldName: string;
     FColorFieldName: string;
+    FEditRepository: TcxEditRepository;
     procedure DoOnCompare(ADataController: TcxCustomDataController; ARecordIndex1, ARecordIndex2, AItemIndex: Integer;
       const V1, V2: Variant; var Compare: Integer);
     procedure DoOnTableViewDblClick(Sender: TObject);
@@ -192,6 +193,9 @@ type
     function IsMatchToFilter(const AEntity: TEntity): Boolean;
     function GetSearchType: TSearchType;
     procedure ExportToExcel;
+    procedure CreateColumnForAction(const AActionDef: TActionDef; const AFieldName: string);
+    procedure CreateBtnPropertiesForAction(const AActionDef: TActionDef);
+    procedure OnActionGetProperties(Sender: TcxCustomGridTableItem; ARecord: TcxCustomGridRecord; var AProperties: TcxCustomEditProperties);
   protected
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
     procedure DoExecuteUIAction(const AView: TView); override;
@@ -348,7 +352,7 @@ type
 implementation
 
 uses
-  TypInfo, Windows, SysUtils, Messages, Math, Variants, DateUtils, Dialogs, Menus, ShellApi, IOUtils,
+  TypInfo, Windows, SysUtils, Messages, Math, Variants, DateUtils, Dialogs, Menus, ShellApi, IOUtils, StrUtils,
 
   uWinVCLPresenter, uObjectField, uInteractor, uEnumeration, uSession, uChangeManager,
   uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings,
@@ -529,7 +533,9 @@ begin
       end;
     end;
 
-    if vEntity.IsService or vEntity.IsNew then
+    if vEntity.IsService then
+      vStyle.TextColor := clNavy
+    else if vEntity.IsNew then
       vStyle.TextColor := clSilver
     else if (AItem.Name = 'TotalAmount') and (vEntity['TotalAmount'] < 0) then
       vStyle.TextColor := clRed;
@@ -1138,6 +1144,8 @@ begin
 
   vSortColumn := FMasterTableView.Columns[AItemIndex];
   vColumnBinding := TColumnBinding(vSortColumn.DataBinding.Data);
+  if not Assigned(vColumnBinding) then Exit;
+  
   Compare := CompareEntities(FMasterDS.Data[ARecordIndex1], FMasterDS.Data[ARecordIndex2],
     vColumnBinding.FieldDef, vColumnBinding.FieldName);
 end;
@@ -1188,20 +1196,21 @@ var
   vColumn: TcxGridColumn;
   vPopupArea: TVCLArea;
   vPopupMenu: TPopupMenu;
+  vParams: TStrings;
   vFields: string;
 begin
   FBGStyle := TcxStyle.Create(nil);
   FHeaderStyle := TcxStyle.Create(nil);
-
+  FEditRepository := TcxEditRepository.Create(nil);
   FMasterDS := TUserDataSource.Create;
 
   FMasterTableView := TcxGridTableView.Create(nil);
   FMasterTableView.DataController.OnCompare := DoOnCompare;
-  FMasterTableView.OptionsData.Editing := False;
+//  FMasterTableView.OptionsData.Editing := False;
   FMasterTableView.OptionsData.Deleting := False;
   FMasterTableView.OptionsData.Inserting := False;
   FMasterTableView.OptionsCustomize.ColumnsQuickCustomization := True;
-  FMasterTableView.OptionsSelection.CellSelect := False;
+//  FMasterTableView.OptionsSelection.CellSelect := False;
   FMasterTableView.OptionsSelection.MultiSelect := True;
   FMasterTableView.OptionsSelection.HideSelection := True;
 
@@ -1272,7 +1281,16 @@ begin
 
   EnableColumnParamsChangeHandlers(False);
 
-  vFields := AParent.QueryParameter('fields');
+  vParams := CreateDelimitedList(AParams, '&');
+  try
+    vFields := vParams.Values['fields'];
+  finally
+    FreeAndNil(vParams);
+  end;
+
+  if vFields = '' then
+    vFields := AParent.QueryParameter('fields');
+
   CreateColumnsFromModel(vFields);
   LoadColumnWidths;
 
@@ -1309,6 +1327,7 @@ procedure TCollectionEditor.CreateColumnsFromModel(const AFields: string = '');
 var
   i: Integer;
   vFieldDef: TFieldDef;
+  vActionDef: TActionDef;
   vWidth: Integer;
   vAggType: TAggregationKind;
   vMainDefinition: TDefinition;
@@ -1343,13 +1362,19 @@ begin
         begin
           vFieldName := vFields[i];
           vFieldDef := vMainDefinition.ExtractFieldDef(vFieldName);
-          if not Assigned(vFieldDef) then
-            Continue;
+          if Assigned(vFieldDef) then
+          begin
+            vWidth := TWinVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
+            vAggType := TDefinition(vFieldDef.Definition).Reductions.ReductionForField(vFieldName);
 
-          vWidth := TWinVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
-          vAggType := TDefinition(vFieldDef.Definition).Reductions.ReductionForField(vFieldName);
-
-          CreateColumn(vFieldDef, vFieldName, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
+            CreateColumn(vFieldDef, vFieldName, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
+          end
+          else
+          begin
+            vActionDef := vMainDefinition.ActionByName(vFieldName);
+            if Assigned(vActionDef) then
+              CreateColumnForAction(vActionDef, vFieldName);
+          end;
         end;
       finally
         vFields.Free;
@@ -1374,6 +1399,7 @@ begin
   FreeAndNil(FMasterDS);
   FreeAndNil(FBGStyle);
   FreeAndNil(FHeaderStyle);
+  FreeAndNil(FEditRepository);
 
   inherited Destroy;
 end;
@@ -1614,7 +1640,9 @@ begin
       if vStyleName = 'progress' then
       begin
         vCol.PropertiesClass := TcxProgressBarProperties;
-        TcxProgressBarProperties(vCol.Properties).BarStyle := cxbsAnimation;
+        //TcxProgressBarProperties(vCol.Properties).BarStyle := cxbsAnimation;
+        //TcxProgressBarProperties(vCol.Properties).SolidTextColor := True;
+        TcxProgressBarProperties(vCol.Properties).Max := TSimpleFieldDef(AFieldDef).MaxValue;
       end
       else
       begin
@@ -1635,7 +1663,10 @@ begin
       if AFieldDef.StyleName = 'time' then
         vCol.PropertiesClassName := 'TcxTimeEditProperties'
       else
-        vCol.PropertiesClass := TcxDateEditProperties  // need for Excel export
+      begin
+        vCol.PropertiesClass := TcxDateEditProperties;  // need for Excel export
+        TcxDateEditProperties(vCol.Properties).DisplayFormat := GetUrlParam(AFieldDef.StyleName, 'format');
+      end;
     end
     else if AFieldDef.Kind = fkBoolean then
     begin
@@ -1659,9 +1690,13 @@ begin
       end;
     end;
 
-
     vCol.SortOrder := TcxDataSortOrder(ASortOrder);
     vCol.Styles.OnGetContentStyle := OnGetContentStyle;
+    if Assigned(vCol.Properties) then
+      vCol.Properties.ReadOnly := True;
+      
+    vCol.Options.Editing := False;
+
   end
   else
   begin
@@ -1678,6 +1713,56 @@ begin
   end;
 
   ShowFooter(vCol, AAgg);
+end;
+
+procedure TCollectionEditor.CreateBtnPropertiesForAction(const AActionDef: TActionDef);
+var
+  vEditRepositoryButtonItem: TcxEditRepositoryButtonItem;
+  vBtn: TcxEditButton;  
+  procedure CreateProps(const AEnabled: Boolean; const APostfix: string);
+  begin
+    vEditRepositoryButtonItem := TcxEditRepositoryButtonItem(FEditRepository.CreateItem(TcxEditRepositoryButtonItem));
+    vEditRepositoryButtonItem.Name := AActionDef.Name + APostfix;
+    vEditRepositoryButtonItem.Properties.ViewStyle := vsButtonsAutoWidth;
+    vEditRepositoryButtonItem.Properties.Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
+    vBtn := vEditRepositoryButtonItem.Properties.Buttons[0];
+    vBtn.Kind := bkGlyph;
+    vBtn.ImageIndex := GetImageID(AActionDef._ImageID);
+    vBtn.Hint := AActionDef._Caption; 
+    vBtn.Enabled := AEnabled;
+  end;
+begin
+  CreateProps(True, 'Enabled');
+  CreateProps(False, 'Disabled');
+end;
+
+procedure TCollectionEditor.CreateColumnForAction(const AActionDef: TActionDef; const AFieldName: string);
+var
+  vCol: TcxGridColumn;
+begin
+  vCol := FMasterTableView.CreateColumn;
+  vCol.Name := AFieldName;
+  vCol.Caption := '';
+  vCol.OnGetProperties := OnActionGetProperties;
+  vCol.Options.Editing := True;
+  vCol.Options.ShowEditButtons := isebAlways; 
+  vCol.DataBinding.Data := AActionDef;
+  CreateBtnPropertiesForAction(AActionDef);
+end;
+
+procedure TCollectionEditor.OnActionGetProperties(Sender: TcxCustomGridTableItem; ARecord: TcxCustomGridRecord; var AProperties: TcxCustomEditProperties);
+var
+  vCol: TcxGridColumn;
+  vActionDef: TActionDef;
+  vEditRepositoryItem: TcxEditRepositoryItem;
+  vBtnEnabled: Boolean;
+begin
+  vCol := TcxGridColumn(Sender);
+  vActionDef := TActionDef(vCol.DataBinding.Data);
+  vBtnEnabled := ARecord.Index mod 2 = 0;  // todo: здесь рассчитать доступность кнопки
+  vEditRepositoryItem := FEditRepository.ItemByName(vActionDef.Name + IfThen(vBtnEnabled, 'Enabled', 'Disabled'));
+  if Assigned(vEditRepositoryItem) then
+    AProperties := vEditRepositoryItem.Properties;
 end;
 
 procedure TCollectionEditor.OnGetContentStyle(Sender: TcxCustomGridTableView;
@@ -1909,7 +1994,10 @@ begin
       if not Assigned(vEntity) then
         Exit;
 
+      if (AItemHandle = nil) or (not (TObject(AItemHandle) is TColumnBinding)) then Exit;
+        
       vColumnBinding := TColumnBinding(AItemHandle);
+      
       vFieldDef := vColumnBinding.FieldDef;
       vFieldName := vColumnBinding.FieldName;
 
@@ -2038,7 +2126,8 @@ begin
       if vStyleName = 'progress' then
       begin
         vCol.PropertiesClass := TcxProgressBarProperties;
-        TcxProgressBarProperties(vCol.Properties).BarStyle := cxbsAnimation;
+        //TcxProgressBarProperties(vCol.Properties).BarStyle := cxbsAnimation;
+        TcxProgressBarProperties(vCol.Properties).Max := TSimpleFieldDef(AFieldDef).MaxValue;
       end
       else
       begin
@@ -2059,7 +2148,10 @@ begin
       if AFieldDef.StyleName = 'time' then
         vCol.PropertiesClassName := 'TcxTimeEditProperties'
       else
-        vCol.PropertiesClass := TcxDateEditProperties  // need for Excel export
+      begin
+        vCol.PropertiesClass := TcxDateEditProperties;  // need for Excel export
+        TcxDateEditProperties(vCol.Properties).DisplayFormat := GetUrlParam(AFieldDef.StyleName, 'format');
+      end;
     end
     else if AFieldDef.Kind = fkBoolean then
       vCol.PropertiesClassName := 'TcxCheckBoxProperties'
@@ -2164,6 +2256,7 @@ var
   vFields: string;
   vPopupArea: TVCLArea;
   vPopupMenu: TPopupMenu;
+  vListField: TListField;
 begin
   FBGStyle := TcxStyle.Create(nil);
   FHeaderStyle := TcxStyle.Create(nil);
@@ -2179,6 +2272,9 @@ begin
   FMasterTableView.OptionsSelection.CellSelect := False;
   FMasterTableView.OptionsSelection.MultiSelect := True;
   FMasterTableView.OptionsView.GroupByBox := False;
+  vListField := AParent.View.ExtractListField;
+  if Assigned(vListField) and (vListField.SortType <> estUserSort) then
+    FMasterTableView.OptionsCustomize.ColumnSorting := False;
 
   //FMasterTableView.OptionsView.Header := TObjectFieldDef(FFieldDef).SortType <> estSortByOrder;
   if StrToBoolDef(TDomain(TInteractor(FView.Interactor).Domain).UserSettings.GetValue('Core', 'MouseMultiSelectInGrids'), True) then
@@ -2410,6 +2506,9 @@ begin
       FMasterTableView.DataController.ClearSelection;
       FMasterTableView.DataController.FocusedRecordIndex := -1;
     end;
+
+    if (FAllData.Count > 0) and (FAllData.Selection.Count = 0) then
+      FAllData.SelectEntity(FAllData[0]);
    // TODO Разобраться
    // if not FLayoutExists then
    //   FMasterTableView.ApplyBestFit;

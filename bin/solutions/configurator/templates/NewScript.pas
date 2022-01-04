@@ -25,7 +25,7 @@ type
 implementation
 
 uses
-  SysUtils, DateUtils, StrUtils, Variants, uDomain, uUtils;
+  SysUtils, DateUtils, StrUtils, Variants, uDefinition, uDomain, uUtils;
 
 const
   cAdminID = 1;

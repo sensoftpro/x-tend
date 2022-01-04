@@ -193,6 +193,7 @@ type
     FOnAppStarted: TStartedEvent;
   protected
     FName: string;
+    FCursorType: TCursorType;
     FProgressInfo: TProgressInfo;
     FInteractors: TObjectList<TInteractor>;
     FCommonIcons: TIcons;
@@ -201,6 +202,7 @@ type
     function ItemTypeByFieldType(const AFieldKind: TFieldKind): TUIItemType;
 
     procedure DoRun(const AParameter: string); virtual;
+    procedure DoUnfreeze; virtual;
     procedure DoStop; virtual;
 
     function DoLogin(const ADomain: TObject): TInteractor; virtual;
@@ -214,18 +216,22 @@ type
     function DoSelectFile(var AFileName: string; const ADirectory: string = ''): Boolean; virtual;
     function DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean; virtual;
     function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; virtual;
+    procedure DoSetCursor(const ACursorType: TCursorType); virtual;
     procedure DoCloseAllPages(const AInteractor: TInteractor); virtual; abstract;
 
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; virtual; abstract;
 
     procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string); virtual;
     procedure OnDomainError(const ACaption, AText: string); virtual;
+    procedure StoreUILayout(const AInteractor: TInteractor); virtual;
+    procedure RestoreUILayout(const AInteractor: TInteractor); virtual;
 
     function ActiveInteractor: TInteractor;
   public
     constructor Create(const AName: string; const ASettings: TSettings); virtual;
     destructor Destroy; override;
     procedure Run(const AParameter: string = '');
+    procedure Unfreeze;
     procedure Stop;
 
     function Login(const ADomain: TObject): TInteractor;
@@ -256,8 +262,12 @@ type
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
     procedure CloseAllPages(const AInteractor: TInteractor);
 
+    procedure LongOperationStarted; virtual;
+    procedure LongOperationEnded; virtual;
+
     function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject; virtual; abstract;
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
+    procedure SetCursor(const ACursorType: TCursorType);
 
     procedure ShowMessage(const ACaption, AText: string; const AMessageType: TMessageType = msNone);
     function ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
@@ -332,6 +342,7 @@ begin
   inherited Create;
 
   FName := AName;
+  FCursorType := crtDefault;
   vStyleName := ASettings.GetValue('Core', 'Style', 'default');
   FCommonIcons := TIcons.Create;
   FCommonIcons.Load(TPath.Combine(GetPlatformDir, 'res' + PathDelim + 'Styles' + PathDelim + vStyleName));
@@ -356,15 +367,15 @@ end;
 function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView; const AStyleName,
   AParams: string): TUIArea;
 var
-  vParams, vViewName: string;
+  //vParams, vViewName: string;
   vCollectionAreaClass: TUIAreaClass;
 begin
-  vViewName := GetUrlCommand(AStyleName, AStyleName);
-  vParams := ExtractUrlParams(AStyleName);
+  //vViewName := GetUrlCommand(AStyleName, AStyleName);
+  //vParams := ExtractUrlParams(AStyleName);
 
-  vCollectionAreaClass := TUIAreaClass(GetUIClass(FName, uiCollection, vViewName));
+  vCollectionAreaClass := TUIAreaClass(GetUIClass(FName, uiCollection, AStyleName));
 
-  Result := vCollectionAreaClass.Create(AParentArea, AView, 'List', False, nil, ALayout, vParams);
+  Result := vCollectionAreaClass.Create(AParentArea, AView, 'List', False, nil, ALayout, AParams);
 end;
 
 function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
@@ -423,7 +434,11 @@ begin
 end;
 
 procedure TPresenter.DoOnAppStarted;
+var
+  i: Integer;
 begin
+  for i := 0 to FInteractors.Count - 1 do
+    RestoreUILayout(FInteractors[i]);
   if Assigned(FOnAppStarted) then
     FOnAppStarted;
 end;
@@ -441,6 +456,10 @@ begin
   Result := False;
 end;
 
+procedure TPresenter.DoSetCursor(const ACursorType: TCursorType);
+begin
+end;
+
 function TPresenter.DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt,
   ADefaultDir: string): Boolean;
 begin
@@ -453,6 +472,10 @@ begin
 end;
 
 procedure TPresenter.DoStop;
+begin
+end;
+
+procedure TPresenter.DoUnfreeze;
 begin
 end;
 
@@ -573,6 +596,14 @@ begin
   FInteractors.Remove(AInteractor);
 end;
 
+procedure TPresenter.LongOperationEnded;
+begin
+end;
+
+procedure TPresenter.LongOperationStarted;
+begin
+end;
+
 procedure TPresenter.OnDomainError(const ACaption, AText: string);
 begin
 end;
@@ -623,9 +654,21 @@ begin
   vClassesList.Add(vTypeName + vViewName, vClassInfo);
 end;
 
+procedure TPresenter.RestoreUILayout(const AInteractor: TInteractor);
+begin
+end;
+
 procedure TPresenter.Run(const AParameter: string = '');
 begin
   DoRun(AParameter);
+end;
+
+procedure TPresenter.SetCursor(const ACursorType: TCursorType);
+begin
+  if FCursorType = ACursorType then
+    Exit;
+  FCursorType := ACursorType;
+  DoSetCursor(FCursorType);
 end;
 
 procedure TPresenter.SetLayoutCaption(const ALayout: TObject; const ACaption: string);
@@ -687,6 +730,15 @@ end;
 procedure TPresenter.Stop;
 begin
   DoStop;
+end;
+
+procedure TPresenter.StoreUILayout(const AInteractor: TInteractor);
+begin
+end;
+
+procedure TPresenter.Unfreeze;
+begin
+  DoUnfreeze;
 end;
 
 { TUIClassInfo }

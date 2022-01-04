@@ -46,6 +46,7 @@ type
     FClearPen: TPen;
     FClearBrush: TBrush;
     FBlendBitmap: TBitmap;
+    FClippedRegion: HRGN;
     function PPointFToPoints(const APoints: PPointF; const ACount: Integer): TPointArray;
     procedure InternalFillRect(const AFill: TStyleBrush; const ARect: TRect);
     function CorrectColor(const AColor: Cardinal): TColor;
@@ -64,6 +65,7 @@ type
     procedure DoDrawText(const AFont: TStyleFont; const AText: string; const ARect: TRectF;
       const AOptions: Cardinal; const AAngle: Single); override;
     function GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF; override;
+    procedure DoClipRect(const ARect: TRectF); override;
     procedure DoInvertRect(const ARect: TRectF); override;
     procedure DoDrawImage(const AImage: TObject; const ARect: TRectF; const AOpacity: Single); override;
     procedure DoDrawContext(const AContext: TDrawContext); override;
@@ -94,6 +96,23 @@ uses
 
 { TVCLPainter }
 
+procedure TVCLPainter.DoClipRect(const ARect: TRectF);
+var
+  vRect: TRect;
+begin
+  vRect := ARect.Round;
+
+  if FClippedRegion > 0 then
+    DeleteObject(HRGN(FClippedRegion));
+
+  if not vRect.IsEmpty then
+    FClippedRegion := CreateRectRgn(vRect.Left, vRect.Top, vRect.Right, vRect.Bottom)
+  else
+    FClippedRegion := HRGN(nil);
+
+  SelectClipRgn(ThisCanvas.Handle, FClippedRegion);
+end;
+
 procedure TVCLPainter.DoColorizeBrush(const AFill: TStyleBrush; const AColor: Cardinal);
 begin
   TBrush(AFill.NativeObject).Color := CorrectColor(AColor);
@@ -121,6 +140,7 @@ begin
   inherited Create(AContainer);
 
   FContext := TWinDrawContext.Create(Self, vContainer.Canvas, vContainer.Width, vContainer.Height);
+  FClippedRegion := 0;
 
   FClearPen := TPen.Create;
   FClearPen.Style := Graphics.psClear;
@@ -176,6 +196,13 @@ begin
     vFont.Orientation := 900
   else
     vFont.Orientation := 0;
+
+  case AFont.Quality of
+    rqLow: vFont.Quality := fqNonAntialiased;
+    rqHigh: vFont.Quality := fqAntialiased;
+  else
+    vFont.Quality := fqDefault;
+  end;
 
   AFont.NativeObject := vFont;
 end;

@@ -55,6 +55,7 @@ const
 
 type
   TGradientKind = (gkNone, gkHorizontal, gkVertical);
+  TRenderQuality = (rqLow, rqNormal, rqHigh);
 
   TPainter = class;
 
@@ -86,15 +87,18 @@ type
     FInitialStrokeWidth: Single;
     FStrokeWidth: Single;
     FStrokeStyle: TPenStyle;
+    FQuality: TRenderQuality;
   public
     constructor Create(const AName: string; const AColor: Cardinal = $FF000000;
-      const AWidth: Single = 1.0; const AStyle: TPenStyle = psSolid);
+      const AWidth: Single = 1.0; const AStyle: TPenStyle = psSolid;
+      const AQuality: TRenderQuality = rqNormal);
 
     procedure ApplyZoom(const AZoom: Single);
     procedure RestoreZoom;
 
     property Width: Single read FStrokeWidth;
     property Style: TPenStyle read FStrokeStyle;
+    property Quality: TRenderQuality read FQuality;
   end;
 
   TStyleBrush = class(TColoredStyleObject)
@@ -121,9 +125,11 @@ type
     FInitialFontSize: Single;
     FFontSize: Single;
     FFontAngle: Single;
+    FQuality: TRenderQuality;
   public
     constructor Create(const AName: string; const AFamily: string = 'Tahoma'; const ASize: Single = 20.0;
-      const AColor: Cardinal = $FF000000; const AStyle: Integer = FontStyleRegular; const AAngle: Single = 0);
+      const AColor: Cardinal = $FF000000; const AStyle: Integer = FontStyleRegular; const AAngle: Single = 0;
+      const AQuality: TRenderQuality = rqNormal);
 
     procedure ApplyZoom(const AZoom: Single);
     procedure RestoreZoom;
@@ -132,6 +138,7 @@ type
     property Style: Integer read FFontStyle;
     property Size: Single read FFontSize;
     property Angle: Single read FFontAngle;
+    property Quality: TRenderQuality read FQuality;
   end;
 
   TStyleImage = class(TStyleObject)
@@ -168,13 +175,15 @@ type
     function Save: TJSONObject;
 
     function AddStrokeParams(const AName: string; const AColor: Cardinal = $FF000000;
-      const AWidth: Single = 1.0; const AStyle: TPenStyle = psSolid): TStylePen;
+      const AWidth: Single = 1.0; const AStyle: TPenStyle = psSolid;
+      const AQuality: TRenderQuality = rqNormal): TStylePen;
     function AddFillParams(const AName: string; const AColor: Cardinal = $FF000000;
       const ABackColor: Cardinal = $FFFFFFFF; const AGradientKind: TGradientKind = gkNone;
       const AStyle: TBrushStyle = bsSolid): TStyleBrush;
     function AddFontParams(const AName: string; const AFamily: string = 'Tahoma';
       const ASize: Single = 20.0; const AColor: Cardinal = $FF000000;
-      const AStyle: Integer = FontStyleRegular; const AAngle: Single = 0 {0..360}): TStyleFont;
+      const AStyle: Integer = FontStyleRegular; const AAngle: Single = 0 {0..360};
+      const AQuality: TRenderQuality = rqNormal): TStyleFont;
     function AddImageParams(const AName: string; const AFileName: string;
       const ATransparent: Boolean = False): TStyleImage;
     procedure CreateDrawObjects(const APainter: TObject);
@@ -275,6 +284,7 @@ type
       const AOptions: Cardinal; const AAngle: Single); virtual; abstract;
     function GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF; virtual; abstract;
     procedure DoInvertRect(const ARect: TRectF); virtual; abstract;
+    procedure DoClipRect(const ARect: TRectF); virtual; abstract;
     procedure DoDrawImage(const AImage: TObject; const ARect: TRectF; const AOpacity: Single); virtual; abstract;
     procedure DoDrawContext(const AContext: TDrawContext); virtual; abstract;
 
@@ -319,6 +329,7 @@ type
     function TextHeight(const AStyle: TDrawStyle; const AFontName: string; const AText: string): Single;
     function TextExtents(const AStyle: TDrawStyle; const AFontName: string; const AText: string): TSizeF;
     procedure InvertRect(const ARect: TRectF);
+    procedure ClipRect(const ARect: TRectF);
 
     procedure DrawImage(const AStyle: TDrawStyle; const AImageName: string; const ARect: TRectF; const AOpacity: Single = 1.0); overload;
     procedure DrawImage(const AImage: TObject; const ARect: TRectF; const AOpacity: Single = 1.0); overload;
@@ -661,10 +672,10 @@ begin
 end;
 
 function TDrawStyle.AddFontParams(const AName: string; const AFamily: string; const ASize: Single;
-  const AColor: Cardinal; const AStyle: Integer; const AAngle: Single): TStyleFont;
+  const AColor: Cardinal; const AStyle: Integer; const AAngle: Single; const AQuality: TRenderQuality): TStyleFont;
 begin
   Assert(not FFonts.ContainsKey(AName), 'Объект с таким именем уже есть');
-  Result := TStyleFont.Create(AName, AFamily, ASize, AColor, AStyle, AAngle);
+  Result := TStyleFont.Create(AName, AFamily, ASize, AColor, AStyle, AAngle, AQuality);
   FFonts.Add(AName, Result);
 end;
 
@@ -676,10 +687,10 @@ begin
 end;
 
 function TDrawStyle.AddStrokeParams(const AName: string; const AColor: Cardinal;
-  const AWidth: Single; const AStyle: TPenStyle): TStylePen;
+  const AWidth: Single; const AStyle: TPenStyle; const AQuality: TRenderQuality): TStylePen;
 begin
   Assert(not FPens.ContainsKey(AName), 'Объект с таким именем уже есть');
-  Result := TStylePen.Create(AName, AColor, AWidth, AStyle);
+  Result := TStylePen.Create(AName, AColor, AWidth, AStyle, AQuality);
   FPens.Add(AName, Result);
 end;
 
@@ -690,12 +701,14 @@ begin
   FStrokeWidth := FStrokeWidth * AZoom;
 end;
 
-constructor TStylePen.Create(const AName: string; const AColor: Cardinal; const AWidth: Single; const AStyle: TPenStyle);
+constructor TStylePen.Create(const AName: string; const AColor: Cardinal; const AWidth: Single;
+  const AStyle: TPenStyle; const AQuality: TRenderQuality);
 begin
   inherited Create(AName, AColor);
   FInitialStrokeWidth := AWidth;
   FStrokeWidth := AWidth;
   FStrokeStyle := AStyle;
+  FQuality := AQuality;
 end;
 
 procedure TStylePen.RestoreZoom;
@@ -737,7 +750,7 @@ begin
 end;
 
 constructor TStyleFont.Create(const AName: string; const AFamily: string; const ASize: Single;
-  const AColor: Cardinal; const AStyle: Integer; const AAngle: Single);
+  const AColor: Cardinal; const AStyle: Integer; const AAngle: Single; const AQuality: TRenderQuality);
 begin
   inherited Create(AName, AColor);
   FFontFamily := AFamily;
@@ -745,6 +758,7 @@ begin
   FFontSize := ASize;
   FFontStyle := AStyle;
   FFontAngle := AAngle;
+  FQuality := AQuality;
 end;
 
 procedure TStyleFont.RestoreZoom;
@@ -882,6 +896,12 @@ end;
 
 procedure TPainter.BeginPaint;
 begin
+end;
+
+procedure TPainter.ClipRect(const ARect: TRectF);
+begin
+  if Assigned(FContext) then
+    DoClipRect(ARect);
 end;
 
 function TPainter.Colorize(const AStyleObject: TColoredStyleObject; const AColor: Cardinal): Cardinal;

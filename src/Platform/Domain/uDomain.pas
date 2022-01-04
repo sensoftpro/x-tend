@@ -208,7 +208,7 @@ type
 implementation
 
 uses
-  Types, SysUtils, StrUtils, IOUtils, Math, RegularExpressions, Variants, IniFiles,
+  Types, SysUtils, StrUtils, IOUtils, Math, Variants, IniFiles,
   uPlatform, uQueryDef, uQuery, uMigration, uUtils;
 
 type

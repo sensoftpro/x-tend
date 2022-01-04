@@ -260,7 +260,7 @@ end;
 
 procedure TWinScene.DoActivate;
 begin
-  if not FPanel.Focused then
+  if (not FPanel.Focused) and FPanel.CanFocus then
     FPanel.SetFocus;
 end;
 

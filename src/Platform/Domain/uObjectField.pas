@@ -773,9 +773,28 @@ begin
 end;
 
 procedure TListField.AddToList(const AHolder: TObject; const AEntity: TEntity);
+var
+  vQuery: TQueryExecutor;
+  vSession: TObject;
 begin
   if Contains(AEntity) then
     Exit;
+
+  if TListFieldDef(FFieldDef).Filter <> '' then
+  begin
+    vQuery := TQueryExecutor.Create(TListFieldDef(FFieldDef).QueryDef);
+    try
+      if Assigned(AHolder) then
+        vSession := TChangeHolder(AHolder).Session
+      else
+        vSession := nil;
+
+      if not vQuery.IsMatch(vSession, AEntity) then
+        Exit;
+    finally
+      FreeAndNil(vQuery);
+    end;
+  end;
 
   FList.Add(AEntity);
   FDict.Add(AEntity, '');

@@ -230,6 +230,7 @@ type
     procedure EndUpdate;
     procedure Repaint;
     procedure FullRefresh;
+    procedure Activate;
     procedure SaveToFile(const AFileName: string; const AWaterMark: string = ''); virtual;
 
     property Painter: TPainter read FPainter;
@@ -536,6 +537,13 @@ begin
 end;
 
 { TScene }
+
+procedure TScene.Activate;
+begin
+  DoActivate;
+  if Assigned(FRoot) and (FRoot.Children.Count > 0) then
+    SetFocusedObject(FRoot.Children[0]);
+end;
 
 procedure TScene.BeginUpdate;
 begin

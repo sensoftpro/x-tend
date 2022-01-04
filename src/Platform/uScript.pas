@@ -494,6 +494,7 @@ begin
   AddAction('ShowSettings', 'Настройки', 29);
   AddAction('ShowOptions', 'Опции', -1);
   AddAction('LoadChanges', 'Загрузить изменения', -1);
+  AddAction('ArrangeMozaic', 'Мозаикой', 33);
   AddAction('ArrangeCascade', 'Каскадом', 15);
   AddAction('ArrangeVert', 'Вертикально', 17);
   AddAction('ArrangeHorz', 'Горизонтально', 16);
@@ -1507,6 +1508,11 @@ begin
   else if AActionName = 'ActualizeData' then
   begin
     ActualizeData(AInteractor.Domain);
+    Exit;
+  end
+  else if AActionName = 'ArrangeMozaic' then
+  begin
+    TPresenter(AInteractor.Presenter).ArrangePages(AInteractor, waMozaic);
     Exit;
   end
   else if AActionName = 'ArrangeCascade' then

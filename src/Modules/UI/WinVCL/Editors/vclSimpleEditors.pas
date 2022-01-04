@@ -347,6 +347,7 @@ procedure TTextInfo.DoCreateControl(const AParent: TUIArea; const ALayout: TObje
 begin
   FControl := TcxLabel.Create(nil);
   TcxLabel(FControl).Transparent := True;
+  TcxLabel(FControl).Properties.WordWrap := True;
 end;
 
 procedure TTextInfo.FillEditor;
@@ -2252,6 +2253,7 @@ procedure TProgress.DoCreateControl(const AParent: TUIArea; const ALayout: TObje
 begin
   FControl := TcxProgressBar.Create(nil);
   TcxProgressBar(FControl).AutoSize := TPanel(ALayout).ShowCaption;
+  TcxProgressBar(FControl).Properties.SolidTextColor := True;
   TcxProgressBar(FControl).Properties.ShowText := TPanel(ALayout).ShowCaption;
   FNeedCreateCaption := False;
   TcxProgressBar(FControl).Properties.Max := TSimpleFieldDef(FFieldDef).MaxValue;

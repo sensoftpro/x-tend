@@ -36,7 +36,7 @@ unit vclArea;
 interface
 
 uses
-  Windows, Classes, Generics.Collections, Controls, StdCtrls, ExtCtrls, Menus, UITypes, uConsts, uUIBuilder,
+  Windows, Classes, Forms, Messages, Generics.Collections, Controls, StdCtrls, ExtCtrls, Menus, UITypes, uConsts, uUIBuilder,
   uDefinition, uEntity, uView;
 
 type
@@ -93,6 +93,7 @@ type
     procedure BeginUpdate; override;
     procedure EndUpdate; override;
     procedure DoActivate(const AAreaState: string = ''); override;
+    procedure DoAfterChildAreasCreated; override;
   protected
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); override;
 
@@ -126,6 +127,7 @@ type
     procedure BeforeContextMenuShow(Sender: TObject);
   protected
     FFieldDef: TFieldDef;
+    FDefinitionName: string;
 
     procedure OnChange(Sender: TObject);
 
@@ -161,10 +163,18 @@ type
     property LayoutPositionCount: Integer read GetLayoutPositionCount;
   end;
 
+  TMDIForm = class(TForm)
+  private
+    procedure OnFormShow(Sender: TObject);
+  public
+    constructor Create(AOwner: TComponent); override;
+  end;
+  {$R MDIForm.dfm}
+
 implementation
 
 uses
-  Forms, Messages, Types, Graphics, Math, SysUtils, StrUtils, ComCtrls, Buttons,
+  Types, Graphics, Math, SysUtils, StrUtils, ComCtrls, Buttons,
   Generics.Defaults, cxGraphics, dxGDIPlusClasses, cxLabel, cxImage, cxEdit, cxTextEdit, cxPC, dxBar,
   cxLookAndFeels, cxButtons, cxScrollBox, cxControls, cxSplitter,
 
@@ -205,8 +215,20 @@ type
     procedure SaveToDFM(const AFileName: string);
   end;
 
+  TMDIChild = class(TForm)
+    procedure CreateWindowHandle(const Params: TCreateParams); override;
+  end;
+  {$R MDIChild.dfm}
+
 const
   cServiceAreaHeight = 44;
+  cPCNavigatorFlag = 1;
+
+procedure TMDIChild.CreateWindowHandle(const Params: TCreateParams);
+begin
+  inherited CreateWindowHandle(Params);
+//  SetWindowLong(Handle, GWL_EXSTYLE, WS_EX_TOOLWINDOW);
+end;
 
 procedure LockControl(const AWinControl: TWinControl; const ALock: Boolean);
 begin
@@ -357,6 +379,8 @@ begin
         vForm.BorderStyle := bsSizeable;
         vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
       end;
+      if (vFrame.Tag and cMainFormPositionDesign) > 0 then
+        vForm.Position := poDesigned;
 
       if vForm.WindowState = wsNormal then
       begin
@@ -369,6 +393,7 @@ begin
 
       if vFrame.Hint <> '' then
         vForm.Caption := vFrame.Hint;
+      vForm.Color := vFrame.Color;
     end
     else begin
       vForm.BorderStyle := bsSizeable;
@@ -641,6 +666,28 @@ begin
   end;
 end;
 
+procedure TVCLArea.DoAfterChildAreasCreated;
+var
+  i: Integer;
+  function FindControlForSplitter(const ASplitter: TcxSplitter): TControl;
+  var
+    c: Integer;
+  begin
+    Result := nil;
+    for c := 0 to Count - 1 do
+      if (Areas[c].Control <> ASplitter) and (Areas[c].Control is TControl) and (TControl(Areas[c].Control).Align = ASplitter.Align) then
+      begin
+        Result := TControl(Areas[c].Control);
+        Break;
+      end;
+  end;
+begin
+  // прицепляем сплиттер к своему контролу, чтобы не отлипал в некоторых случаях, обрабатываем только простой случай: сплиттер с таким размещением один в текущей области
+  for i := 0 to Count - 1 do
+    if Areas[i].Control is TcxSplitter then
+      TcxSplitter(Areas[i].Control).Control := FindControlForSplitter(TcxSplitter(Areas[i].Control));
+end;
+
 procedure TVCLArea.DoClose(const AModalResult: Integer);
 begin
   if FIsForm then
@@ -702,9 +749,9 @@ begin
     vLabel.Transparent := True;
     vLabel.Properties.Alignment.Vert := TcxEditVertAlignment.taVCenter;
     vLabel.Style.TextColor := TPanel(ALayout).Font.Color;
-    vLabel.Style.TextStyle := [fsUnderline];
+    //vLabel.Style.TextStyle := [fsUnderline];
     vLabel.Style.HotTrack := True;
-    vLabel.StyleHot.TextColor := clBlue;
+    //vLabel.StyleHot.TextColor := clBlue;
     vLabel.StyleHot.TextStyle := [fsUnderline];
     vLabel.OnClick := vOnClickHandler;
 
@@ -1544,14 +1591,26 @@ begin
     vPC.Left := vSourcePC.Left;
     vPC.Top := vSourcePC.Top;
     vPC.Properties.TabPosition := TcxTabPosition(vSourcePC.TabPosition);
-    vPC.Properties.Options := vPC.Properties.Options + [pcoTopToBottomText];
-    vPC.LookAndFeel.NativeStyle := False;
-    vPC.LookAndFeel.Kind := lfUltraFlat;
     vPC.Properties.TabHeight := vSourcePC.TabHeight;
+    vPC.Properties.TabWidth := vSourcePC.TabWidth;
     vPC.Font.Size := vSourcePC.Font.Size;
     vPC.Align := vSourcePC.Align;
+    vPC.AlignWithMargins := vSourcePC.AlignWithMargins;
+    vPC.Margins := vSourcePC.Margins;
     vPC.Anchors := vSourcePC.Anchors;
     vPC.Visible := vSourcePC.Visible;
+    if (vSourcePC.Tag and cPCNavigatorFlag) > 0 then
+    begin
+      vPC.Properties.Rotate := True;
+      vPC.Properties.Images := TDragImageList(TInteractor(Interactor).Images[32]);
+      vPC.Properties.TabCaptionAlignment := taLeftJustify;
+    end
+    else
+    begin
+      vPC.Properties.Options := vPC.Properties.Options + [pcoTopToBottomText];
+      vPC.LookAndFeel.NativeStyle := False;
+      vPC.LookAndFeel.Kind := lfUltraFlat;
+    end;
 
     Result := TVCLArea.Create(Self, AView, '', False, vPC);
   end
@@ -1559,7 +1618,7 @@ begin
   begin
     if (TInteractor(AView.Interactor).Layout = 'mdi') and (vSourceTabSheet.Tag = 11) then
     begin
-      vForm := TForm.Create(nil);
+      vForm := TMDIChild.Create(nil);
       vForm.Caption := vSourceTabSheet.Caption;
       vForm.FormStyle := fsMDIChild;
       vForm.OnClose := OnCloseMDIForm;
@@ -1571,7 +1630,7 @@ begin
     else begin
       vTab := TcxTabSheet.Create(Component);
       vTab.Caption := vSourceTabSheet.Caption;
-      vTab.ImageIndex := vSourceTabSheet.ImageIndex;
+      vTab.ImageIndex := GetImageID(vSourceTabSheet.ImageIndex);
 
       vStartPageName := TDomain(FView.Domain).Settings.GetValue('Core', 'StartPage', '');
       vTab.AllowCloseButton := not SameText(vSourceTabSheet.Name, vStartPageName);
@@ -1592,6 +1651,8 @@ begin
     vToolBar.AutoSize := vSourceToolBar.AutoSize;
     vToolBar.Font.Size := vSourceToolBar.Font.Size;
     vToolBar.List := vSourceToolBar.List;
+    vToolBar.Transparent := vSourceToolBar.Transparent;
+    vToolBar.Color := vSourceToolBar.Color;
 
     Result := TVCLArea.Create(Self, AView, '', False, vToolBar);
 
@@ -1656,6 +1717,9 @@ begin
     //vSplitter.AllowHotZoneDrag := False;
     vSplitter.HotZone := TcxSimpleStyle.Create(vSplitter);
     vSplitter.SetBounds(vSourceSplitter.Left, vSourceSplitter.Top, vSourceSplitter.Width, vSourceSplitter.Height);
+    vSplitter.Color := vSourceSplitter.Color;
+    vSplitter.ParentColor := False;
+    vSplitter.NativeBackground := False;
     Result := TVCLArea.Create(Self, AView, '-splitter-', False, vSplitter);
   end
   else if ALayout is TPanel then
@@ -2245,14 +2309,22 @@ var
   vPopupArea: TVCLArea;
   vPopupMenu: TPopupMenu;
 begin
-  FFieldDef := TFieldDef(AView.Definition);
+  if AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField] then
+  begin
+    FFieldDef := TFieldDef(AView.Definition);
+    FDefinitionName := FFieldDef.Name;
+  end
+  else begin
+    FFieldDef := nil;
+    FDefinitionName := TDefinition(AView.Definition).Name;
+  end;
 
-  FId := FFieldDef.Name;
-  FUId := FFieldDef.Name;
+  FId := FDefinitionName;
+  FUId := FDefinitionName;
 
   inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
 
-  Assert(Assigned(FControl), 'Не создан контрол для ' + FFieldDef.Name);
+  Assert(Assigned(FControl), 'Не создан контрол для ' + FDefinitionName);
 
   // Установка контекстного меню
   if Assigned(ALayout) and (ALayout is TPanel) and Assigned(TPanel(ALayout).PopupMenu)
@@ -2271,7 +2343,7 @@ begin
   CreateCaption(FFieldDef);
 
   if Assigned(Component) then
-    Component.Name := FFieldDef.Name;
+    Component.Name := FDefinitionName;
 end;
 
 procedure TVCLFieldArea.Deinit;
@@ -2335,7 +2407,7 @@ end;
 
 function TVCLFieldArea.GetName: string;
 begin
-  Result := FFieldDef.Name;
+  Result := FDefinitionName;
 end;
 
 procedure TVCLFieldArea.OnChange(Sender: TObject);
@@ -2343,7 +2415,7 @@ var
   vEntity: TEntity;
 begin
   vEntity := TEntity(FView.ParentDomainObject);
-  if not TCanChangeFieldFunc(TDomain(FView.Domain).Configuration.CanChangeFieldFunc)(FView, vEntity, FFieldDef.Name) then
+  if not TCanChangeFieldFunc(TDomain(FView.Domain).Configuration.CanChangeFieldFunc)(FView, vEntity, FDefinitionName) then
   begin
     RefillArea(dckFieldChanged);
     Exit;
@@ -2657,6 +2729,38 @@ begin
   finally
     vFile.Free;
   end;
+end;
+
+{ TMDIForm }
+
+constructor TMDIForm.Create(AOwner: TComponent);
+begin
+  inherited;
+  FormStyle := fsMDIForm;
+  OnShow := OnFormShow;
+end;
+
+function ClientWindowProc(Wnd: HWND; Msg: Cardinal; wparam, lparam: Integer ): Integer; stdcall;
+var
+  f: Pointer;
+begin
+  f := Pointer(GetWindowLong(Wnd, GWL_USERDATA));
+  case msg of
+    WM_NCCALCSIZE:
+      if (GetWindowLong(Wnd, GWL_STYLE ) and (WS_HSCROLL or WS_VSCROLL)) <> 0 then
+        SetWindowLong(Wnd, GWL_STYLE, GetWindowLong(Wnd, GWL_STYLE) and not (WS_HSCROLL or WS_VSCROLL));
+  end;
+  Result := CallWindowProc(f, Wnd, Msg, wparam, lparam);
+end;
+
+procedure TMDIForm.OnFormShow(Sender: TObject);
+begin
+  if ClientHandle = 0 then Exit;
+
+  if GetWindowLong( ClientHandle, GWL_USERDATA ) <> 0 then
+    Exit;  {cannot subclass client window, userdata already in use}
+
+  SetWindowLong(ClientHandle, GWL_USERDATA, SetWindowLong(ClientHandle, GWL_WNDPROC, Integer(@ClientWindowProc)));
 end;
 
 initialization

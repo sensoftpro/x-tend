@@ -284,7 +284,9 @@ begin
 
   if ACriteria is TParamCriteria then
   begin
-    if not FParameters.TryGetValue(vParamCriteria.ParamName, vValue) then
+    if (vParamCriteria.ParamName = '@') and (AFieldKind = fkObject) then
+      Result := Integer(AValue) = 0
+    else if not FParameters.TryGetValue(vParamCriteria.ParamName, vValue) then
     begin
       vField := AEntity.FieldByName(vParamCriteria.ParamName);
       if Assigned(vField) then

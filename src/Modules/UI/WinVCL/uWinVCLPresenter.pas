@@ -59,6 +59,7 @@ type
     FLongOperationCount: Integer;
     FPrevCursor: TCursor;
     FNeedShowSplash: Boolean;
+    procedure ArrangeMozaic(const AMDIForm: TForm);
   protected
     //FOnRFIDRead: TRFIDReadEvent;
     FTrayIcon: TTrayIcon;
@@ -73,9 +74,11 @@ type
     procedure DoAuthFormClose(Sender: TObject; var Action: TCloseAction);
     procedure DoDebugFormClose(Sender: TObject; var Action: TCloseAction);
     procedure OnShortCut(var Msg: TWMKey; var Handled: Boolean);
+    procedure DoOnFormShow(Sender: TObject);
     function MessageTypeToMBFlags(const AMessageType: TMessageType): Integer;
   protected
     procedure DoRun(const AParameter: string); override;
+    procedure DoUnfreeze; override;
     procedure DoStop; override;
 
     function DoLogin(const ADomain: TObject): TInteractor; override;
@@ -88,12 +91,15 @@ type
     procedure DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False); override;
     function DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean; override;
     function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; override;
+    procedure DoSetCursor(const ACursorType: TCursorType); override;
     procedure DoCloseAllPages(const AInteractor: TInteractor); override;
 
     procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string); override;
     procedure OnDomainError(const ACaption, AText: string); override;
 
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; override;
+    procedure StoreUILayout(const AInteractor: TInteractor); override;
+    procedure RestoreUILayout(const AInteractor: TInteractor); override;
   public
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
@@ -113,8 +119,8 @@ type
 
     function GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
 
-    procedure LongOperationStarted;
-    procedure LongOperationEnded;
+    procedure LongOperationStarted; override;
+    procedure LongOperationEnded; override;
 
     property RowStyle: TObject read FRowStyle;
   end;
@@ -134,6 +140,63 @@ type
 
 { TWinVCLPresenter }
 
+procedure TWinVCLPresenter.ArrangeMozaic(const AMDIForm: TForm);
+var
+  i, j: Integer;
+  vClientRect: TRect;
+  vTotalForms: Integer;
+  vColCount: Integer;
+  vMap: array of Integer;
+  vRow: Integer;
+  vTotal: Integer;
+const
+  cColumnCounts: array[1..30] of Integer = (1,2,2,2,2, 3,3,4,3,3, 3,4,4,4,5, 4,4,4,4,5, 5,5,5,6,5, 5,5,5,5,6);
+
+  procedure LayoutForm(const ACol, ARow, AMainWidth, AMainHeight: Integer; const AForm: TForm);
+  begin
+    AForm.Width := AMainWidth div vColCount;
+    AForm.Height := AMainHeight div vMap[ACol];
+    AForm.Left := ACol * AForm.Width;
+    AForm.Top := ARow * AForm.Height;
+  end;
+begin
+  vTotalForms := AMDIForm.MDIChildCount;
+  if vTotalForms <= 0 then
+    Exit;
+
+  // Формируем карту расположения окон
+  if vTotalForms > 30 then
+    vColCount := Floor(Sqrt(vTotalForms))
+  else
+    vColCount := cColumnCounts[vTotalForms];
+
+  SetLength(vMap, vColCount);
+  for i := 0 to vColCount - 1 do
+    vMap[i] := vTotalForms div vColCount;
+  for i := vColCount - vTotalForms mod vColCount to vColCount - 1 do
+    vMap[i] := vMap[i] + 1;
+
+  try
+    GetClientRect(AMDIForm.ClientHandle, vClientRect);
+    for i := 0 to AMDIForm.MDIChildCount - 1 do
+    begin
+      vTotal := 0;
+      for j := 0 to vColCount - 1 do
+      begin
+        vTotal := vTotal + vMap[j];
+        if i < vTotal then
+        begin
+          vRow := (i - (vTotal - vMap[j])) mod vMap[j];
+          LayoutForm(j, vRow, vClientRect.Width, vClientRect.Height, AMDIForm.MDIChildren[i]);
+          Break;
+        end;
+      end;
+    end;
+  finally
+    SetLength(vMap, 0);
+  end;
+end;
+
 procedure TWinVCLPresenter.ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement);
 var
   vForm: TForm;
@@ -143,7 +206,8 @@ begin
 
   vForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).Control);
   case AArrangeKind of
-    waCascade: vForm.Cascade;
+    waCascade:
+      vForm.Cascade;
     waTileHorz:
       begin
         vForm.TileMode := tbHorizontal;
@@ -154,6 +218,8 @@ begin
         vForm.TileMode := tbVertical;
         vForm.Tile;
       end;
+    waMozaic:
+      ArrangeMozaic(vForm);
   end;
 end;
 
@@ -221,49 +287,30 @@ var
   vForm: TForm;
   vTimer: TTimer;
 begin
+  Result := nil; vTimer := nil; vForm := nil;
+
   if AAreaName = '' then
   begin
-    Application.CreateForm(TForm, vForm);
-
-    if (AInteractor.Layout = 'mdi') then
-      vForm.FormStyle := fsMDIForm
+    if AInteractor.Layout = 'mdi' then
+      Application.CreateForm(TMDIForm, vForm)
     else
-      vForm.FormStyle := fsNormal;
+      Application.CreateForm(TForm, vForm);
 
     vForm.OnClose := DoMainFormClose;
     vForm.Position := poScreenCenter;
-    vForm.ShowHint := True;
     vForm.Caption := TDomain(AInteractor.Domain).AppTitle + ' (' + TUserSession(AInteractor.Session).CurrentUserName + ')';
-
-    vForm.DisableAlign;
-    try
-      Result := TVCLArea.Create(AParent, AView, '', True, vForm, nil, '');
-    finally
-      vForm.EnableAlign;
-    end;
   end
   // второстепенная автономная форма
   else if AAreaName = 'float' then
   begin
     vForm := TForm.Create(nil);
-    vForm.ShowHint := True;
     vForm.Position := poMainFormCenter;
     vForm.Font.Size := 12;
-
-    vForm.DisableAlign;
-    try
-      Result := TVCLArea.Create(AParent, AView, '', True, vForm, nil, '');
-    finally
-      vForm.EnableAlign;
-    end;
   end
   // дочерняя модальная форма
-  else if AAreaName = 'child' then
+  else if (AAreaName = 'child') or (AAreaName = 'modal') then
   begin
     vForm := TForm.Create(nil);
-    vForm.ShowHint := True;
-
-    vTimer := nil;
 
     if Assigned(ACallback) then
     begin
@@ -272,7 +319,8 @@ begin
       vTimer.Enabled := False;
       vTimer.OnTimer := ACallback;
     end
-    else begin
+    else
+    begin
       vForm.OnClose := DoChildFormClose;
       vForm.OnKeyDown := DoChildFormKeyDown;
       vForm.KeyPreview := True;
@@ -281,17 +329,21 @@ begin
     vForm.Position := poMainFormCenter;
     vForm.Font.Size := 12;
     vForm.BorderStyle := bsSingle;  // for layouted form this property will be changed when assigned cEditFormResizable flag in Tag
-    vForm.DisableAlign;
-    try
-      Result := TVCLArea.Create(AParent, AView, '', True, vForm, nil, '');
-      if Assigned(ACallback) and Assigned(vTimer) then
-        ACallback(vTimer);
-    finally
-      vForm.EnableAlign;
-    end;
-  end
-  else
-    Result := nil;
+  end;
+
+  if vForm = nil then Exit;
+
+  vForm.ShowHint := True;
+  vForm.DisableAlign;
+  vForm.OnShow := DoOnFormShow;
+  try
+    Result := TVCLArea.Create(AParent, AView, '', True, vForm, nil, '');
+
+    if Assigned(ACallback) and Assigned(vTimer) then
+      ACallback(vTimer);
+  finally
+    vForm.EnableAlign;
+  end;
 end;
 
 destructor TWinVCLPresenter.Destroy;
@@ -658,7 +710,7 @@ begin
     vForm := TForm(vArea.Control);
     vForm.Show;
   end
-  else if AAreaName = 'child' then
+  else if (AAreaName = 'child') or (AAreaName = 'modal') then
   begin
     vForm := TForm(vArea.Control);
     vForm.ShowHint := True;
@@ -704,6 +756,75 @@ begin
       vForm.Free;
     end;
   end;
+end;
+
+procedure TWinVCLPresenter.StoreUILayout(const AInteractor: TInteractor);
+var
+//  i: Integer;
+  vMainForm: TForm;
+  vLayoutStr: string;
+
+  procedure SaveForm(const AForm: TForm; const AName: string);
+  begin
+    vLayoutStr := IntToStr(AForm.Left) + ';' + IntToStr(AForm.Top) + ';' + IntToStr(AForm.Width) + ';' + IntToStr(AForm.Height) + ';' + IntToStr(Ord(AForm.WindowState));
+    TDomain(AInteractor.Domain).UserSettings.SetValue(AName, 'Layout', vLayoutStr);
+  end;
+begin
+  vMainForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).Control);
+  if not Assigned(vMainForm) or (vMainForm.Position <> poDesigned) then Exit;
+
+  SaveForm(vMainForm, 'MainForm');
+
+{  if AInteractor.Layout = 'mdi' then
+  begin
+    if vMainForm.FormStyle = fsMDIForm then
+      for i := vMainForm.MDIChildCount - 1 downto 0 do
+      begin
+        vForm := vMainForm.MDIChildren[i];
+        SaveForm(vForm, 'mdi_' + vForm.Name);
+      end;
+  end;   }
+end;
+
+procedure TWinVCLPresenter.RestoreUILayout(const AInteractor: TInteractor);
+var
+  vMainForm: TForm;
+
+  procedure LoadForm(const AForm: TForm; const AName: string);
+  var
+    vLayoutStr: string;
+    vValues: TStrings;
+  begin
+    vLayoutStr := TDomain(AInteractor.Domain).UserSettings.GetValue(AName, 'Layout');
+    if Length(vLayoutStr) = 0 then Exit;
+
+    vValues := CreateDelimitedList(vLayoutStr, ';');
+    try
+      if vValues.Count <> 5 then Exit;
+
+      AForm.Left := StrToIntdef(vValues[0], 100);
+      AForm.Top := StrToIntdef(vValues[1], 100);
+      AForm.Width := StrToIntdef(vValues[2], 1280);
+      AForm.Height := StrToIntdef(vValues[3], 960);
+      if TWindowState(StrToIntdef(vValues[4], 0)) = wsMaximized then
+        AForm.WindowState := wsMaximized;
+    finally
+      FreeAndNil(vValues);
+    end;
+  end;
+begin
+  vMainForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).Control);
+  if (not Assigned(vMainForm)) or (vMainForm.Position <> poDesigned) then Exit;
+
+  LoadForm(vMainForm, 'MainForm');
+
+ { if (AInteractor.Layout <> 'mdi') or (vMainForm.FormStyle <> fsMDIForm) then Exit;
+
+  for
+  begin
+
+
+  end; }
 end;
 
 procedure DeleteIECache;
@@ -848,7 +969,7 @@ var
     vEntity: TEntity;
     vSimilar: TEntity;
   begin
-    if vView.DefinitionKind <> dkEntity then
+    if not (vView.DefinitionKind in [dkEntity, dkAction]) then
       Exit;
 
     vEntity := TEntity(vView.DomainObject);
@@ -993,6 +1114,16 @@ begin
   end;
 end;
 
+procedure TWinVCLPresenter.DoOnFormShow(Sender: TObject);
+var
+  vForm: TForm;
+  vArea: TUIArea;
+begin
+  vForm := TForm(Sender);
+  vArea := TUIArea(vForm.Tag);
+  vArea.Activate('');
+end;
+
 procedure TWinVCLPresenter.DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False);
 var
   vExecResult: Cardinal;
@@ -1015,6 +1146,7 @@ begin
 
   if vResult then
   begin
+    StoreUILayout(vInteractor);
     if Assigned(vInteractor) then
       Logout(vInteractor);
     Action := caFree;
@@ -1053,6 +1185,11 @@ begin
   OnDomainLoadProgress(100, '');
 
   Application.Run;
+end;
+
+procedure TWinVCLPresenter.DoSetCursor(const ACursorType: TCursorType);
+begin
+  Screen.Cursor := cCursors[ACursorType];
 end;
 
 function TWinVCLPresenter.DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
@@ -1185,6 +1322,11 @@ end;
 procedure TWinVCLPresenter.DoTrayIconClick(Sender: TObject);
 begin
   DoToggleUI(True);
+end;
+
+procedure TWinVCLPresenter.DoUnfreeze;
+begin
+  Application.ProcessMessages;
 end;
 
 function TWinVCLPresenter.GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;

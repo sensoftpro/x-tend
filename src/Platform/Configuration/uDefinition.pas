@@ -342,7 +342,6 @@ type
     function GetDefaultDefinitionName: string;
     function GetContentDefinitionsText: string;
     function GetDefaultTypeID: Integer;
-    procedure RecalculateQueries;
   protected
     FNullString: string;
     FHiddenFieldsText: string;
@@ -352,6 +351,7 @@ type
     FSelectiveFields: TStrings;
     function DefinitionsToText(const ADefinitions: TList<TDefinition>): string;
     procedure AddExclusiveCondition(const AQuery: TStrings); virtual;
+    procedure RecalculateQueries; virtual;
   public
     constructor Create(const AOwner: TDefinition; const AFieldKind: TFieldKind;
       const AFieldName, AStorageName, ACaption, AHint, ANullString,
@@ -374,6 +374,7 @@ type
 
     property ContentDefinitionName: string read FContentDefinitionName;
     property _ContentDefinition: TDefinition read FContentDefinition;
+    property Filter: string read FFilter;
     property ContentDefinitions: TList<TDefinition> read GetContentDefinitions;
     property ContentDefinitionsText: string read GetContentDefinitionsText;
     property DefaultDefinitionName: string read GetDefaultDefinitionName;
@@ -413,6 +414,7 @@ type
     FContentQueryDef: TQueryDef;
   protected
     procedure AddExclusiveCondition(const AQuery: TStrings); override;
+    procedure RecalculateQueries; override;
   public
     constructor Create(const AOwner: TDefinition;
       const AFieldName, AMasterFieldName, ACaption, AHint, ANullString, AContentTypeName: string;
@@ -2422,6 +2424,19 @@ destructor TListFieldDef.Destroy;
 begin
   FreeAndNil(FContentQueryDef);
   inherited Destroy;
+end;
+
+procedure TListFieldDef.RecalculateQueries;
+var
+  vQueryString: string;
+begin
+  inherited RecalculateQueries;
+
+  FreeAndNil(FContentQueryDef);
+  vQueryString := FMasterFieldName + '=*';
+  if FFilter <> '' then
+    vQueryString := '&(' + vQueryString + ',' + FFilter + ')';
+  FContentQueryDef := TQueryDef.Create('', vQueryString);
 end;
 
 { TComplexClassDef }

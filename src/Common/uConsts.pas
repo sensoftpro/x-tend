@@ -95,6 +95,7 @@ const
   // UI
   LAYOUT_DFM_EXT = '.dfm';
   cEditFormResizable = 1;
+  cMainFormPositionDesign = 2;
 
 const
   // флаги полей и сущностей
@@ -193,7 +194,7 @@ type
 
   TPacketType = (ptUpdate, ptFull);
 
-  TWindowArrangement = (waNone, waCascade, waTileHorz, waTileVert);
+  TWindowArrangement = (waNone, waCascade, waTileHorz, waTileVert, waMozaic);
 
   TValidateStatus = (vsValid, vsInvalid, vsRequiredIsNull);
   TEntitySortType = (estUserSort, estSortByID, estSortByName,
@@ -244,6 +245,9 @@ type
 
   TDialogResult = (drNone, drOk, drCancel, drYes, drNo);
   TDialogResultSet = set of TDialogResult;
+
+  TCursorType = (crtDefault, crtNone, crtArrow, crtCross, crtWESize, crtNSSize, crtHourGlass,
+    crtDrag, crtNoDrop, crtHSplit, crtVSplit, crtMultiDrag, crtHelp, crtHandPoint);
 
   TMessageType = (msNone, msInfo, msQuestion, msWarning, msError);
 
@@ -318,6 +322,8 @@ const
     ('Caption', 'EmptyValue', 'Prefix', 'Hint');
   cCommitKindNames: array[TCommitKind] of string =
     ('При изменении', 'При выходе', 'При сохранении');
+  cCursors: array[TCursorType] of TCursor = (crDefault, crNone, crArrow, crCross, crSizeWE, crSizeNS,
+    crHourGlass, crDrag, crNoDrop, crHSplit, crVSplit, crMultiDrag, crHelp, crHandPoint);
 
 const
   cMSAccessConnectionString: string =

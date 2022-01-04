@@ -485,11 +485,18 @@ begin
 end;
 
 function VarToInt(const AValue: Variant; const ANullValue: Integer): Integer;
+var
+  vValue: Int64;
 begin
   if VarIsNull(AValue) or not VarIsOrdinal(AValue) then
     Result := ANullValue
   else
-    Result := Integer(AValue);
+  begin
+    vValue := AValue;
+    if vValue > MaxInt then // todo: пока обрезаем по максимуму, потом нужно сделать полноценную поддержку Int64
+      vValue := MaxInt;
+    Result := Integer(vValue);
+  end;
 end;
 
 function VarToString(const AValue: Variant; const ANullValue: string): string;

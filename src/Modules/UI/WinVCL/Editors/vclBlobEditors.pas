@@ -42,6 +42,7 @@ type
   TFieldSceneArea = class(TVCLFieldArea)
   protected
     FScene: TScene;
+    procedure DoActivate(const AAreaState: string = ''); override;
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure DoDisableContent; override;
     procedure DoBeforeFreeControl; override;
@@ -62,6 +63,12 @@ uses
 
 { TFieldSceneArea }
 
+procedure TFieldSceneArea.DoActivate(const AAreaState: string);
+begin
+  inherited;
+  FScene.Activate;
+end;
+
 procedure TFieldSceneArea.DoBeforeFreeControl;
 begin
   FScene.Free;
@@ -81,7 +88,7 @@ end;
 
 procedure TFieldSceneArea.DoDisableContent;
 begin
-  FScene.Disable;
+  FScene.Enabled := False;
 end;
 
 procedure TFieldSceneArea.FillEditor;

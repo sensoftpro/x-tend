@@ -73,6 +73,7 @@ function IsTextMultiEqual(const APattern, AText: string): Boolean;
 function EscapeFileName(const AInput: string): string;
 
 function BuildStorageName(const AName: string): string;
+function SanitizeFileName(const AFileName: string): string;
 
 function NewGUID: TGUID;
 function GenerateUID: string;
@@ -82,6 +83,7 @@ function FindAnyClass(const AClassName: string): TClass;
 
 function CreateDelimitedList(const ADelimitedText: string; const ADelimiter: Char = ';'): TStrings;
 function GetFileSize(const AFileName: string): Int64;
+function GetFileCreateTime(const AFileName: string): TDateTime;
 function MD5Hash(const s: string): string;
 function MD5HashFromFile(const AFileName: string): string;
 function UrlEncode(const s: string; const InQueryString: Boolean): string;
@@ -112,10 +114,15 @@ function ExtractUrlParams(const AUrl: string; const ADefaultValue: string = ''):
 function EncodeUrl(const AUrl: string): string;
 function DecodeUrl(const AUrl: string): string;
 
+function IpToStr(const AIp): string;
+procedure StrToIp(const AIpStr: string; const AIp);
+function BinToHex(const ABin: array of Byte): string;
+procedure HexToBin(const AHex: string; const ABuf);
+
 implementation
 
 uses
-  Math, Variants, SysUtils, RTTI, RegularExpressions, ZLib, NetEncoding, Hash, XMLDoc, StrUtils, IdURI;
+  Math, Variants, SysUtils, RTTI, RegularExpressions, ZLib, NetEncoding, Hash, XMLDoc, StrUtils, IdURI, Windows, IOUtils;
 
 function MakeMethod(const ACode, AData: Pointer): TMethod;
 begin
@@ -331,7 +338,12 @@ begin
     Result := vSearchRec.Size
   else
     Result := -1;
-  FindClose(vSearchRec);
+  SysUtils.FindClose(vSearchRec);
+end;
+
+function GetFileCreateTime(const AFileName: string): TDateTime;
+begin
+  Result := TFile.GetLastWriteTime(AFileName);
 end;
 
 function CreateDelimitedList(const ADelimitedText: string; const ADelimiter: Char = ';'): TStrings;
@@ -448,6 +460,11 @@ begin
   if (Result <> '') and (Result[Length(Result)] <> '_') then
     Result := Result + '_';
   Result := Result + vBuffer;
+end;
+
+function SanitizeFileName(const AFileName: string): string;
+begin
+  Result := AFileName;
 end;
 
 function EscapeFileName(const AInput: string): string;
@@ -1171,6 +1188,51 @@ end;
 function DecodeUrl(const AUrl: string): string;
 begin
   Result := TIdURI.URLDecode(AUrl);
+end;
+
+function IpToStr(const AIp): string;
+var
+  i: Integer;
+begin
+  Result := IntToStr(PByteArray(@AIp)[0]);
+  for i := 1 to 3 do
+    Result := Result + '.' + IntToStr(PByteArray(@AIp)[i]);
+end;
+
+procedure StrToIp(const AIpStr: string; const AIp);
+var
+  vList: TStringList;
+begin
+  vList := TStringList.Create;
+	vList.Delimiter := '.';
+	vList.DelimitedText := AIpStr;
+	PByteArray(@AIp)[0] := StrToIntDef(vList[0], 0);
+	PByteArray(@AIp)[1] := StrToIntDef(vList[1], 0);
+	PByteArray(@AIp)[2] := StrToIntDef(vList[2], 0);
+	PByteArray(@AIp)[3] := StrToIntDef(vList[3], 0);
+	FreeAndNil(vList);
+end;
+
+function BinToHex(const ABin: array of Byte): string;
+const
+  cHexSymbols = '0123456789ABCDEF';
+var
+  i: Integer;
+begin
+  SetLength(Result, 2*Length(ABin));
+  for i :=  0 to Length(ABin)-1 do
+  begin
+    Result[1 + 2*i + 0] := cHexSymbols[1 + ABin[i] shr 4];
+    Result[1 + 2*i + 1] := cHexSymbols[1 + ABin[i] and $0F];
+  end;
+end;
+
+procedure HexToBin(const AHex: string; const ABuf);
+var
+  i: Integer;
+begin
+  for i := 0 to (Length(AHex) - 1) div 2 do
+    PByteArray(@ABuf)[i] := StrToIntDef('$' + AHex.Substring(i * 2, 2), 0);
 end;
 
 end.

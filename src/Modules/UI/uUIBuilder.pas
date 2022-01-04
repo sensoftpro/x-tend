@@ -115,6 +115,7 @@ type
     procedure InternalGetAreasByID(const AList: TUIAreaList; const AId: string);
     procedure SetEditMode(const ASession: TObject; const AParentHolder: TObject; const AIsEditMode: Boolean);
     procedure DisableContent;
+    procedure AfterChildAreasCreated;
   protected
     FControl: TObject;
     FCreateParams: TStrings;
@@ -129,6 +130,7 @@ type
       const AChildLayoutName: string; const AParams: string): TUIArea;
     function CreateChildArea(const AChildView: TView; const ALayout: TObject): TUIArea;
     function AreaFromSender(const ASender: TObject): TUIArea; virtual;
+    procedure DoAfterChildAreasCreated; virtual;
 
     function GetAreaByView(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
     procedure Clear;
@@ -193,6 +195,7 @@ type
     procedure SetHolder(const AHolder: TObject);
     function QueryParameter(const AName: string; const ADefaultValue: string = ''): string;
 
+    property Control: TObject read FControl;
     property Count: Integer read GetCount;
     property Areas[const AIndex: Integer]: TUIArea read GetArea; default;
     property Parent: TUIArea read FParent;
@@ -338,6 +341,8 @@ begin
     TPresenter(FPresenter).EnumerateControls(ALayout, vControls);
     for vControl in vControls do
       AArea.CreateChildArea(AArea.View, vControl);
+
+    AArea.AfterChildAreasCreated;
   finally
     FreeAndNil(vControls);
   end;
@@ -495,6 +500,7 @@ function TUIBuilder.Navigate(const AView: TView; const AAreaName, ALayoutName: s
 var
   vLayoutName: string;
   vAreaName: string;
+  vViewName: string;
   vLastCurrentArea: TUIArea;
   vUIArea: TUIArea;
   vTabArea: TUIArea;
@@ -532,7 +538,8 @@ begin
   if ALayoutName <> '' then
     vLayoutName := ALayoutName
   else begin
-    Assert(AView.DefinitionKind in [dkEntity, dkAction, dkObjectField, dkCollection], 'Показываем непонятно что');
+    if not (AView.DefinitionKind in [dkEntity, dkAction, dkObjectField, dkCollection]) then
+      Assert(AView.DefinitionKind in [dkEntity, dkAction, dkObjectField, dkCollection], 'Показываем непонятно что');
     vEntity := TEntity(AView.DomainObject);
     if Assigned(vEntity) then
       vLayoutName := vEntity.Definition.Name + 'EditForm';
@@ -693,8 +700,11 @@ begin
   begin
     vParams := CreateDelimitedList(FDefaultParams, '&');
     try
-      Navigate(FRootView.BuildView(ExtractValueFromStrings(vParams, 'View')), 'WorkArea',
-        ExtractValueFromStrings(vParams, 'Layout'), '', nil, nil, ExtractValueFromStrings(vParams, 'Caption'));
+      vViewName := ExtractValueFromStrings(vParams, 'View');
+      vLayoutName := ExtractValueFromStrings(vParams, 'Layout');
+      if (vViewName <> '') or (vLayoutName <> '') then
+        Navigate(FRootView.BuildView(vViewName), 'WorkArea',
+          vLayoutName, '', nil, nil, ExtractValueFromStrings(vParams, 'Caption'));
     finally
       FreeAndNil(vParams);
       FDefaultParams := '';
@@ -775,7 +785,11 @@ end;
 { TUIArea }
 
 procedure TUIArea.Activate(const AAreaState: string);
+var
+  vArea: TUIArea;
 begin
+  for vArea in FAreas do
+    vArea.Activate('');
   DoActivate(AAreaState);
 end;
 
@@ -793,11 +807,16 @@ begin
   FParams := AParams;
 end;
 
+procedure TUIArea.AfterChildAreasCreated;
+begin
+  DoAfterChildAreasCreated;
+end;
+
 function TUIArea.AreaById(const AId: string; const ARecoursive: Boolean = True): TUIArea;
 var
   i: Integer;
 begin
-  if (AId = '') or (AId = 'child') then
+  if (AId = '') or (AId = 'child') or (AId = 'modal') then
   begin
     Result := nil;
     Exit;
@@ -1109,6 +1128,10 @@ begin
 end;
 
 procedure TUIArea.DoActivate(const AAreaState: string = '');
+begin
+end;
+
+procedure TUIArea.DoAfterChildAreasCreated;
 begin
 end;
 
