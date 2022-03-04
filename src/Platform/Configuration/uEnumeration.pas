@@ -91,6 +91,7 @@ type
     property Items[const AID: Integer]: TEnumItem read GetItem;
 
     function GetEnumerator: TEnumerator<TEnumItem>;
+    function GetItemByDisplayText(const AName: string): TEnumItem;
 
     property Name: string read FName;
   end;
@@ -188,6 +189,19 @@ end;
 function TEnumeration.GetItem(const AID: Integer): TEnumItem;
 begin
   Result := FItems[AID];
+end;
+
+function TEnumeration.GetItemByDisplayText(const AName: string): TEnumItem;
+var
+  i: Integer;
+begin
+  Result := nil;
+  for i := 0 to FItems.Count - 1 do
+    if SameText(FItems[i].DisplayText, AName) then
+    begin
+      Result := FItems[i];
+      Break;
+    end;
 end;
 
 { TEnumItem }

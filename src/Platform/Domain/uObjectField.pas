@@ -138,7 +138,8 @@ type
     destructor Destroy; override;
 
     // Управление списком сущностей на уровне GUI
-    function AddListEntity(const AHolder: TObject; const ACollectionName: string): TEntity;
+    function AddListEntity(const AHolder: TObject; const ACollectionName: string;
+      const AFieldNames: string; const AValues: array of Variant): TEntity;
     procedure LinkListEntity(const AHolder: TObject; const AEntity: TEntity);
     procedure UnlinkListEntity(const AHolder: TObject; const AEntity: TEntity);
     procedure RemoveListEntity(const AHolder: TObject; const AEntity: TEntity);
@@ -170,7 +171,7 @@ type
 implementation
 
 uses
-  SysUtils, Variants, uDomain, uCollection, uDomainUtils, uQueryDef, uQuery, uEntityList, uChangeManager, uUtils;
+  SysUtils, Variants, Math, uDomain, uCollection, uDomainUtils, uQueryDef, uQuery, uEntityList, uChangeManager, uUtils;
 
 { TObjectField }
 
@@ -356,6 +357,8 @@ end;
 procedure TEntityField.DoSetValue(const AValue: Variant);
 begin
   FEntity := EntityFromVariant(AValue);
+  if Assigned(FEntity) then
+    FCollectionID := FEntity.Definition.ID;
 end;
 
 procedure TEntityField.GetAllEntitiesForSelect(const ASession, AList: TObject);
@@ -394,7 +397,8 @@ function TEntityField.GetEntity: TEntity;
 begin
   if not FLoaded then
   begin
-    FEntity := RestoreEntity(FCollectionID, FEntityID);
+    if not Assigned(FEntity) then
+      FEntity := RestoreEntity(FCollectionID, FEntityID);
     FLoaded := True;
   end;
   Result := FEntity;
@@ -481,17 +485,32 @@ end;
 
 { TListField }
 
-function TListField.AddListEntity(const AHolder: TObject; const ACollectionName: string): TEntity;
+function TListField.AddListEntity(const AHolder: TObject; const ACollectionName: string;
+  const AFieldNames: string; const AValues: array of Variant): TEntity;
 var
   vCollectionName: string;
+  vItem: TEntity;
+  vMaxOrder: Integer;
 begin
   if ACollectionName = '' then
     vCollectionName := TListFieldDef(FFieldDef).ContentDefinitionName
   else
     vCollectionName := ACollectionName;
 
-  Result := TDomain(FDomain).CreateNewEntity(vCollectionName, TChangeHolder(AHolder), cNewID, Self);
+  Result := TDomain(FDomain)[vCollectionName]._CreateNewEntity(TChangeHolder(AHolder), cNewID, AFieldNames, AValues, Self, False);
+
+  // Установка правильного порядка вставки
+  if (SortType = estSortByOrder) and Result.FieldExists('Order') then
+  begin
+    vMaxOrder := -1;
+    for vItem in FList do
+      if Assigned(vItem) then
+        vMaxOrder := Max(vMaxOrder, vItem['Order']);
+    Result._SetFieldValue(AHolder, 'Order', vMaxOrder + 1);
+  end;
+
   LinkListEntity(AHolder, Result);
+  TEntityCreationProc(TDomain(FDomain).Configuration.AfterEntityCreationProc)(TChangeHolder(AHolder), nil, Result);
 end;
 
 constructor TListField.Create(const AInstance: TEntity; const AFieldDef: TFieldDef);

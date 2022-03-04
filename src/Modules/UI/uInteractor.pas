@@ -65,6 +65,7 @@ type
     function ShowEntityEditor(const AView: TView; const AChangeHolder: TObject; const ALayoutName: string = ''): Boolean;
     function AtomicEditEntity(const AGetViewFunc: TGetViewFunc; const AParentHolder: TObject; const ALayoutName: string = ''): Boolean; overload;
     function AtomicEditEntity(const AView: TView; const AParentHolder: TObject; const ALayoutName: string = ''): Boolean; overload;
+    function AtomicEditEntity(const AEntity: TObject; const AParentHolder: TObject; const ALayoutName: string = ''): Boolean; overload;
     function AtomicEditParams(const AView: TView; const ALayoutName: string = ''): Boolean;
     function EditParams(const AEntity: TObject; const ALayoutName: string = ''): Boolean;
     procedure ViewEntity(const AView: TView; const ALayoutName: string = '');
@@ -132,6 +133,17 @@ begin
   Result := AtomicEditEntity(function(const AHolder: TObject): TView
     begin
       Result := AView;
+    end, AParentHolder, ALayoutName);
+end;
+
+function TInteractor.AtomicEditEntity(const AEntity, AParentHolder: TObject; const ALayoutName: string): Boolean;
+begin
+  if not Assigned(AEntity) then
+    Exit(False);
+
+  Result := AtomicEditEntity(function(const AHolder: TObject): TView
+    begin
+      Result := GetViewOfEntity(TEntity(AEntity));
     end, AParentHolder, ALayoutName);
 end;
 

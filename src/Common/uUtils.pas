@@ -91,7 +91,9 @@ function UrlEncode(const s: string; const InQueryString: Boolean): string;
 function Transliterate(const s: string): string;
 
 function CalcInnerColor(const AStartColor, AEndColor: Cardinal; const APercentage: Double): Cardinal;
-function ColorToAlphaColor(const AColor: TColor; const ATransparency: Double): Cardinal;
+function ColorToAlphaColor(const AColor: TColor; const ATransparency: Double = 0): Cardinal;
+// -1 - к черному, +1 - к белому
+function DimColor(const AColor: Cardinal; const APercent: Double = 0): Cardinal;
 
 // XML utils
 function FindNode(const AParentNode: IXMLNode; const ANodeName: string): IXMLNode;
@@ -118,6 +120,11 @@ function IpToStr(const AIp): string;
 procedure StrToIp(const AIpStr: string; const AIp);
 function BinToHex(const ABin: array of Byte): string;
 procedure HexToBin(const AHex: string; const ABuf);
+
+function CeilTo(const AValue: Double; const ADigit: Integer = -2): Double;
+function FloorTo(const AValue: Double; const ADigit: Integer = -2): Double;
+function FormatTo(const AValue: Double; const ADigit: Integer = -2; const AUseStrictFormat: Boolean = False): string;
+function FormatAsBitString(const AValue: Cardinal; const ASize: Byte = 32): string;
 
 implementation
 
@@ -267,6 +274,25 @@ begin
   vResColor.B := vColor shr 16 and $FF;
   vResColor.G := vColor shr 8 and $FF;
   vResColor.R := vColor and $FF;
+  Result := vResColor.Color;
+end;
+
+function DimColor(const AColor: Cardinal; const APercent: Double = 0): Cardinal;
+var
+  vResColor: TAlphaColorRec;
+begin
+  vResColor.Color := AColor;
+  if APercent > 0 then
+  begin
+    vResColor.B := Round(Min(255, vResColor.B + (255 - vResColor.B) * APercent));
+    vResColor.G := Round(Min(255, vResColor.G + (255 - vResColor.G) * APercent));
+    vResColor.R := Round(Min(255, vResColor.R + (255 - vResColor.R) * APercent));
+  end
+  else begin
+    vResColor.B := Round(Max(0, vResColor.B + vResColor.B * APercent));
+    vResColor.G := Round(Max(0, vResColor.G + vResColor.G * APercent));
+    vResColor.R := Round(Max(0, vResColor.R + vResColor.R * APercent));
+  end;
   Result := vResColor.Color;
 end;
 
@@ -1124,15 +1150,18 @@ begin
   if Length(vPattern) = 0 then Exit;
 
   vParts := TStringList.Create;
-  vParts.Delimiter := ' ';
-  vParts.DelimitedText := APattern;
-  for c := 0 to vParts.Count - 1 do
-    if Pos(vParts[c], AText) = 0 then
-    begin
-      Result := False;
-      Break;
-    end;
-  vParts.Free;
+  try
+    vParts.Delimiter := ' ';
+    vParts.DelimitedText := APattern;
+    for c := 0 to vParts.Count - 1 do
+      if Pos(vParts[c], AText) = 0 then
+      begin
+        Result := False;
+        Break;
+      end;
+  finally
+    vParts.Free;
+  end;
 end;
 
 function GetUrlParamDefTerm(const AUrl, AParamName, AValueIfNone, ATerm: string): string;
@@ -1204,13 +1233,16 @@ var
   vList: TStringList;
 begin
   vList := TStringList.Create;
-	vList.Delimiter := '.';
-	vList.DelimitedText := AIpStr;
-	PByteArray(@AIp)[0] := StrToIntDef(vList[0], 0);
-	PByteArray(@AIp)[1] := StrToIntDef(vList[1], 0);
-	PByteArray(@AIp)[2] := StrToIntDef(vList[2], 0);
-	PByteArray(@AIp)[3] := StrToIntDef(vList[3], 0);
-	FreeAndNil(vList);
+  try
+    vList.Delimiter := '.';
+    vList.DelimitedText := AIpStr;
+    PByteArray(@AIp)[0] := StrToIntDef(vList[0], 0);
+    PByteArray(@AIp)[1] := StrToIntDef(vList[1], 0);
+    PByteArray(@AIp)[2] := StrToIntDef(vList[2], 0);
+    PByteArray(@AIp)[3] := StrToIntDef(vList[3], 0);
+  finally
+    FreeAndNil(vList);
+  end;
 end;
 
 function BinToHex(const ABin: array of Byte): string;
@@ -1233,6 +1265,59 @@ var
 begin
   for i := 0 to (Length(AHex) - 1) div 2 do
     PByteArray(@ABuf)[i] := StrToIntDef('$' + AHex.Substring(i * 2, 2), 0);
+end;
+
+function CeilTo(const AValue: Double; const ADigit: Integer = -2): Double;
+var
+  vFactor: Double;
+begin
+  vFactor := IntPower(10.0, ADigit);
+  if AValue < 0 then
+    Result := Ceil(AValue / vFactor) * vFactor
+  else
+    Result := Ceil(AValue / vFactor) * vFactor;
+end;
+
+function FloorTo(const AValue: Double; const ADigit: Integer = -2): Double;
+var
+  vFactor: Double;
+begin
+  vFactor := IntPower(10.0, ADigit);
+  if AValue < 0 then
+    Result := Floor(AValue / vFactor) * vFactor
+  else
+    Result := Floor(AValue / vFactor) * vFactor;
+end;
+
+function FormatTo(const AValue: Double; const ADigit: Integer; const AUseStrictFormat: Boolean): string;
+const
+  cWeakFormats: array[1..10] of string = ('0.#', '0.##', '0.###', '0.####', '0.#####', '0.######',
+    '0.#######', '0.########', '0.#########', '0.##########');
+  cStrictFormats: array[1..10] of string = ('0.0', '0.00', '0.000', '0.0000', '0.00000', '0.000000',
+    '0.0000000', '0.00000000', '0.000000000', '0.0000000000');
+begin
+  if ADigit >= 0 then
+    Result := IntToStr(Round(RoundTo(AValue, ADigit)))
+  else if AUseStrictFormat then
+    Result := FormatFloat(cStrictFormats[-ADigit], AValue)
+  else
+    Result := FormatFloat(cWeakFormats[-ADigit], AValue);
+end;
+
+function FormatAsBitString(const AValue: Cardinal; const ASize: Byte = 32): string;
+var
+  vMask: Cardinal;
+  i: Integer;
+begin
+  Result := '';
+  for i := 0 to ASize - 1 do
+  begin
+    vMask := 1 shl i;
+    if AValue and vMask = vMask then
+      Result := '1' + Result
+    else
+      Result := '0' + Result;
+  end;
 end;
 
 end.

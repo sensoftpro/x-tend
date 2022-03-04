@@ -42,7 +42,6 @@ uses
 
 type
   TOptionsFm = class(TForm)
-    chbShowStartPage: TCheckBox;
     lblLanguage: TLabel;
     btnEditDictionaries: TButton;
     lbxLanguages: TListBox;
@@ -88,10 +87,10 @@ begin
   with vForm do
   begin
     Init(AInteractor);
-    chbShowStartPage.Checked := StrToBoolDef(vSettings.GetValue('Core', 'ShowStartPage'), True);
+    //chbShowStartPage.Checked := StrToBoolDef(vSettings.GetValue('Core', 'ShowStartPage'), True);
     chbShowHorzLinesInGrids.Checked := StrToBoolDef(vSettings.GetValue('Core', 'ShowHorzLines'), True);
     chbShowBordersForDisabled.Checked := StrToBoolDef(vSettings.GetValue('Core', 'ShowBordersForDisabled'), True);
-    chbMouseMultiSelectInGrids.Checked := StrToBoolDef(vSettings.GetValue('Core', 'MouseMultiSelectInGrids'), True);
+    chbMouseMultiSelectInGrids.Checked := StrToBoolDef(vSettings.GetValue('Core', 'MouseMultiSelectInGrids'), False);
     chbMarkRequiredFields.Checked := StrToBoolDef(vSettings.GetValue('Core', 'MarkRequiredFields'), True);
 
     lbxLanguages.Items.Clear;
@@ -102,7 +101,7 @@ begin
     Result := vForm.ShowModal = mrOk;
     if Result then
     begin
-      vSettings.SetValue('Core', 'ShowStartPage', IfThen(chbShowStartPage.Checked, '1', '0'));
+      //vSettings.SetValue('Core', 'ShowStartPage', IfThen(chbShowStartPage.Checked, '1', '0'));
       vSettings.SetValue('Core', 'ShowHorzLines', IfThen(chbShowHorzLinesInGrids.Checked, '1', '0'));
       vSettings.SetValue('Core', 'ShowBordersForDisabled', IfThen(chbShowBordersForDisabled.Checked, '1', '0'));
       vSettings.SetValue('Core', 'MouseMultiSelectInGrids', IfThen(chbMouseMultiSelectInGrids.Checked, '1', '0'));
@@ -121,8 +120,8 @@ begin
   lblLanguage.Caption := FInteractor.Translate('@' + Self.ClassName + '.lblLanguages@Caption', 'Языки приложения');
   btnAddLanguage.Caption := FInteractor.Translate('@' + Self.ClassName + '.btnAddLanguage@Caption', 'Добавить язык');
   btnEditDictionaries.Caption := FInteractor.Translate('@' + Self.ClassName + '.btnEditDictionaries@Caption', 'Редактировать словари');
-  chbShowStartPage.Caption := FInteractor.Translate('@' + Self.ClassName + '.chbShowStartPage@Caption',
-    'Показывать стартовую страницу при запуске приложения');
+  //chbShowStartPage.Caption := FInteractor.Translate('@' + Self.ClassName + '.chbShowStartPage@Caption',
+  //  'Показывать стартовую страницу при запуске приложения');
   chbShowHorzLinesInGrids.Caption := FInteractor.Translate('@' + Self.ClassName + '.chbShowHorzLinesInGrids@Caption',
     'Показывать горизонтальные линии в таблицах');
   chbShowBordersForDisabled.Caption := FInteractor.Translate('@' + Self.ClassName + '.chbShowBordersForDisabled@Caption',

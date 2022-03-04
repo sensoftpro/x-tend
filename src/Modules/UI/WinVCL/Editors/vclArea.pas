@@ -36,8 +36,8 @@ unit vclArea;
 interface
 
 uses
-  Windows, Classes, Forms, Messages, Generics.Collections, Controls, StdCtrls, ExtCtrls, Menus, UITypes, uConsts, uUIBuilder,
-  uDefinition, uEntity, uView;
+  Windows, Classes, Forms, Messages, Generics.Collections, Controls, StdCtrls, ExtCtrls, Menus, UITypes, SysUtils,
+  uConsts, uUIBuilder, uDefinition, uEntity, uView;
 
 type
   TButtonDesc = class
@@ -69,6 +69,7 @@ type
     FCaption: TLabel;
     FIsForm: Boolean;
     FIsAutoReleased: Boolean;
+    FOnClose: TProc;
     function CreateButtonDesc(const AText: string): TButtonDesc;
     // Выполнение действий (Actions и переходы)
     procedure ExplicitNavigate(Sender: TObject);
@@ -92,7 +93,7 @@ type
     procedure AppendServiceArea(const ALayoutName: string); override;
     procedure BeginUpdate; override;
     procedure EndUpdate; override;
-    procedure DoActivate(const AAreaState: string = ''); override;
+    procedure DoActivate(const AUrlParams: string); override;
     procedure DoAfterChildAreasCreated; override;
   protected
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); override;
@@ -118,6 +119,7 @@ type
 
     property Component: TComponent read GetComponent;
     property Control: TControl read GetControl;
+    property OnClose: TProc read FOnClose write FOnClose;
     property LabelPosition: TLabelPosition read FLabelPosition write SetLabelPosition;
   end;
 
@@ -137,6 +139,7 @@ type
     procedure DoDeinit; virtual;
     procedure DoOnChange; virtual;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); virtual;
+    function GetNewValue: Variant; virtual;
 
     // Partially implemented, can be overriden in descendants
     function GetLayoutPositionCount: Integer; virtual;
@@ -163,26 +166,18 @@ type
     property LayoutPositionCount: Integer read GetLayoutPositionCount;
   end;
 
-  TMDIForm = class(TForm)
-  private
-    procedure OnFormShow(Sender: TObject);
-  public
-    constructor Create(AOwner: TComponent); override;
-  end;
-  {$R MDIForm.dfm}
-
 implementation
 
 uses
-  Types, Graphics, Math, SysUtils, StrUtils, ComCtrls, Buttons,
-  Generics.Defaults, cxGraphics, dxGDIPlusClasses, cxLabel, cxImage, cxEdit, cxTextEdit, cxPC, dxBar,
+  Types, Graphics, Math, StrUtils, ComCtrls, Buttons,
+  Generics.Defaults, Variants, cxGraphics, dxGDIPlusClasses, cxLabel, cxImage, cxEdit, cxTextEdit, cxPC, dxBar,
   cxLookAndFeels, cxButtons, cxScrollBox, cxControls, cxSplitter,
 
   uDomain, uPresenter, uConfiguration, uSession, uInteractor, uUtils,
   vclSimpleEditors, uEntityList, uDomainUtils;
 
 type
-  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string): Boolean of object;
+  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
   TCrackedControl = class(TWinControl) end;
 
   TLayoutParam = class
@@ -215,20 +210,9 @@ type
     procedure SaveToDFM(const AFileName: string);
   end;
 
-  TMDIChild = class(TForm)
-    procedure CreateWindowHandle(const Params: TCreateParams); override;
-  end;
-  {$R MDIChild.dfm}
-
 const
   cServiceAreaHeight = 44;
   cPCNavigatorFlag = 1;
-
-procedure TMDIChild.CreateWindowHandle(const Params: TCreateParams);
-begin
-  inherited CreateWindowHandle(Params);
-//  SetWindowLong(Handle, GWL_EXSTYLE, WS_EX_TOOLWINDOW);
-end;
 
 procedure LockControl(const AWinControl: TWinControl; const ALock: Boolean);
 begin
@@ -256,7 +240,7 @@ begin
   vPanel.Align := alBottom;
   vArea := TVCLArea.Create(Self, FView, '', True, vPanel);
   AddArea(vArea);
-  FUIBuilder.ApplyLayout(vArea, FView, ALayoutName);
+  FUIBuilder.ApplyLayout(vArea, FView, ALayoutName, '');
 end;
 
 function TVCLArea.AreaFromSender(const ASender: TObject): TUIArea;
@@ -382,14 +366,20 @@ begin
       if (vFrame.Tag and cMainFormPositionDesign) > 0 then
         vForm.Position := poDesigned;
 
-      if vForm.WindowState = wsNormal then
+      if (vForm.WindowState = wsNormal) then
       begin
-        vForm.ClientWidth := vFrame.ClientWidth;
-        if FView.DefinitionKind = dkDomain then
-          vForm.ClientHeight := vFrame.ClientHeight
-        else
-          vForm.ClientHeight := vFrame.ClientHeight + cServiceAreaHeight;
+        if vForm.FormStyle <> fsMDIChild then
+        begin
+          vForm.ClientWidth := vFrame.ClientWidth;
+          if FView.DefinitionKind = dkDomain then
+            vForm.ClientHeight := vFrame.ClientHeight
+          else
+            vForm.ClientHeight := vFrame.ClientHeight + cServiceAreaHeight;
+        end;
       end;
+
+      vForm.Constraints.MinHeight := vFrame.Constraints.MinHeight;
+      vForm.Constraints.MinWidth := vFrame.Constraints.MinWidth;
 
       if vFrame.Hint <> '' then
         vForm.Caption := vFrame.Hint;
@@ -655,13 +645,22 @@ begin
   end;
 end;
 
-procedure TVCLArea.DoActivate(const AAreaState: string = '');
+procedure TVCLArea.DoActivate(const AUrlParams: string);
+var
+  vChangeTab: Boolean;
 begin
-  if FControl is TcxTabSheet then
-    TcxPageControl(Control.Parent).Properties.ActivePage := TcxTabSheet(FControl)
+  if (FControl is TcxTabSheet) then
+  begin
+    vChangeTab := SameText(GetUrlParam(AUrlParams, 'TabActivationOption', ''), 'ChangeTab');
+    if Assigned(Parent.CreateParams) and (Parent.CreateParams.IndexOfName('TabActivationOption') >= 0) and
+      (not SameText(Parent.CreateParams.Values['TabActivationOption'], 'ChangeTab')) then
+      vChangeTab := False;
+    if vChangeTab then
+      TcxPageControl(Control.Parent).Properties.ActivePage := TcxTabSheet(FControl);
+  end
   else if (FControl is TForm) and (TForm(FControl).FormStyle = fsMDIChild) then
   begin
-    if SameText(AAreaState, 'Max') then
+    if SameText(GetUrlParam(AUrlParams, 'State'), 'Max') then
       TForm(FControl).WindowState := wsMaximized;
   end;
 end;
@@ -728,6 +727,7 @@ begin
   vParams := CreateDelimitedList(AParams, '&');
   try
     vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
+    vImageID := StrToIntDef(vParams.Values['ImageID'], vActionDef._ImageID);
     vComposition := Trim(vParams.Values['Composition']);
     vViewStyle := Trim(vParams.Values['ViewStyle']);
     vOverriddenCaption := Trim(vParams.Values['Caption']);
@@ -765,7 +765,8 @@ begin
   vButton := TcxButton.Create(nil);
 
   vButton.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[vImageSize]);
-  vImageID := GetImageID(vActionDef._ImageID);
+
+  vImageID := GetImageID(vImageID);
 
   if (TPanel(ALayout).BevelOuter = bvNone) and (TPanel(ALayout).BevelInner = bvNone)
     and (TPanel(ALayout).BevelKind = TBevelKind.bkNone)
@@ -1004,11 +1005,19 @@ var
           end;
         end
         else if vId = 'Windows' then
-        begin
           vDestItem.Visible := TInteractor(Interactor).Layout = 'mdi';
-        end;
 
         CopyMenuItems(vChildArea, vSrcItem, vDestItem);
+
+        if (vId = 'Windows') and vDestItem.Visible and Assigned(TVCLArea(AParent.Parent).Control) then
+        begin
+          if TVCLArea(AParent.Parent).Control is TForm then
+          begin
+            vForm := TForm(TVCLArea(AParent.Parent).Control);
+            if vForm.FormStyle = fsMDIForm then
+              vForm.WindowMenu := vDestItem;
+          end;
+        end;
       end
       else begin
         vView := FUIBuilder.RootView.BuildView(vCaption);
@@ -1618,8 +1627,9 @@ begin
   begin
     if (TInteractor(AView.Interactor).Layout = 'mdi') and (vSourceTabSheet.Tag = 11) then
     begin
-      vForm := TMDIChild.Create(nil);
+      vForm := TForm.Create(nil);
       vForm.Caption := vSourceTabSheet.Caption;
+      vForm.Position := poDefault;
       vForm.FormStyle := fsMDIChild;
       vForm.OnClose := OnCloseMDIForm;
       vForm.ShowHint := True;
@@ -1795,7 +1805,7 @@ begin
         vPanel.ParentColor := False;
         vPanel.ParentBackground := False;
       end;
-      Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), False, vPanel);
+      Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), False, vPanel, nil, AParams);
     end;
 
     Result.AddParams(vParams);
@@ -2092,6 +2102,8 @@ destructor TVCLArea.Destroy;
 var
   vControl: TComponent;
 begin
+  FOnClose := nil;
+
   if Assigned(FCaption) then
   begin
     FCaption.Parent := nil;
@@ -2334,7 +2346,8 @@ begin
     if Assigned(vPopupArea) then
     begin
       vPopupMenu := TPopupMenu(vPopupArea.Component);
-      vPopupMenu.OnPopup := BeforeContextMenuShow;
+      if not Assigned(vPopupMenu.OnPopup) then
+        vPopupMenu.OnPopup := BeforeContextMenuShow;
       TCrackedControl(Control).PopupMenu := vPopupMenu;
     end;
   end;
@@ -2410,12 +2423,17 @@ begin
   Result := FDefinitionName;
 end;
 
+function TVCLFieldArea.GetNewValue: Variant;
+begin
+  Result := Null;
+end;
+
 procedure TVCLFieldArea.OnChange(Sender: TObject);
 var
   vEntity: TEntity;
 begin
   vEntity := TEntity(FView.ParentDomainObject);
-  if not TCanChangeFieldFunc(TDomain(FView.Domain).Configuration.CanChangeFieldFunc)(FView, vEntity, FDefinitionName) then
+  if not TCanChangeFieldFunc(TDomain(FView.Domain).Configuration.CanChangeFieldFunc)(FView, vEntity, FDefinitionName, GetNewValue) then
   begin
     RefillArea(dckFieldChanged);
     Exit;
@@ -2554,7 +2572,8 @@ procedure TUILayout.Build(const AVCLArea: TVCLArea);
   var
     i: Integer;
   begin
-    ALayout.FillLayoutParams(ALayout,  AVCLArea.Control);
+    if Assigned(AVCLArea.Control) then
+      ALayout.FillLayoutParams(ALayout, AVCLArea.Control);
     for i := 0 to AVCLArea.Count - 1 do
       Process(ALayout.CreateChild, TVCLArea(AVCLArea[i]));
   end;
@@ -2729,38 +2748,6 @@ begin
   finally
     vFile.Free;
   end;
-end;
-
-{ TMDIForm }
-
-constructor TMDIForm.Create(AOwner: TComponent);
-begin
-  inherited;
-  FormStyle := fsMDIForm;
-  OnShow := OnFormShow;
-end;
-
-function ClientWindowProc(Wnd: HWND; Msg: Cardinal; wparam, lparam: Integer ): Integer; stdcall;
-var
-  f: Pointer;
-begin
-  f := Pointer(GetWindowLong(Wnd, GWL_USERDATA));
-  case msg of
-    WM_NCCALCSIZE:
-      if (GetWindowLong(Wnd, GWL_STYLE ) and (WS_HSCROLL or WS_VSCROLL)) <> 0 then
-        SetWindowLong(Wnd, GWL_STYLE, GetWindowLong(Wnd, GWL_STYLE) and not (WS_HSCROLL or WS_VSCROLL));
-  end;
-  Result := CallWindowProc(f, Wnd, Msg, wparam, lparam);
-end;
-
-procedure TMDIForm.OnFormShow(Sender: TObject);
-begin
-  if ClientHandle = 0 then Exit;
-
-  if GetWindowLong( ClientHandle, GWL_USERDATA ) <> 0 then
-    Exit;  {cannot subclass client window, userdata already in use}
-
-  SetWindowLong(ClientHandle, GWL_USERDATA, SetWindowLong(ClientHandle, GWL_WNDPROC, Integer(@ClientWindowProc)));
 end;
 
 initialization

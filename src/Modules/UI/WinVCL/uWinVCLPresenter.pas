@@ -56,8 +56,6 @@ type
     procedure DoTrayIconClick(Sender: TObject);
   private
     FRowStyle: TObject;
-    FLongOperationCount: Integer;
-    FPrevCursor: TCursor;
     FNeedShowSplash: Boolean;
     procedure ArrangeMozaic(const AMDIForm: TForm);
   protected
@@ -69,6 +67,7 @@ type
     function ShowLoginForm(const AAppTitle: string; var ALoginName, APass{, ARFID}: string): Boolean;
     procedure DoChildFormClose(Sender: TObject; var Action: TCloseAction);
     procedure DoChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure DoFloatFormClose(Sender: TObject; var Action: TCloseAction);
     procedure DoMainFormClose(Sender: TObject; var Action: TCloseAction);
     procedure DoAuthFormNavigated(ASender: TObject; const pDisp: IDispatch; const URL: OleVariant);
     procedure DoAuthFormClose(Sender: TObject; var Action: TCloseAction);
@@ -106,8 +105,8 @@ type
 
     procedure SetAsMainForm(const AForm: TForm);
 
-    function CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
-      const AAreaName: string; const ACallback: TNotifyEvent = nil): TUIArea; override;
+    function CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView; const AAreaName: string;
+      const ACallback: TNotifyEvent = nil; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; override;
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
     procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); override;
 
@@ -118,9 +117,6 @@ type
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
 
     function GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
-
-    procedure LongOperationStarted; override;
-    procedure LongOperationEnded; override;
 
     property RowStyle: TObject read FRowStyle;
   end;
@@ -248,7 +244,7 @@ end;
 constructor TWinVCLPresenter.Create(const AName: string; const ASettings: TSettings);
 begin
   inherited Create(AName, ASettings);
-  FLongOperationCount := 0;
+
   FRowStyle := TcxStyle.Create(nil);
 
   if ASettings.KeyExists(AName, 'ShowSplash') then
@@ -281,20 +277,22 @@ begin
   FreeAndNil(vParams);
 end;
 
-function TWinVCLPresenter.CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea;
-  const AView: TView; const AAreaName: string; const ACallback: TNotifyEvent = nil): TUIArea;
+function TWinVCLPresenter.CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
+  const AAreaName: string; const ACallback: TNotifyEvent = nil; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea;
 var
   vForm: TForm;
   vTimer: TTimer;
+  i: Integer;
+  vArea: TUIArea;
 begin
   Result := nil; vTimer := nil; vForm := nil;
 
   if AAreaName = '' then
   begin
+    Application.CreateForm(TForm, vForm);
+
     if AInteractor.Layout = 'mdi' then
-      Application.CreateForm(TMDIForm, vForm)
-    else
-      Application.CreateForm(TForm, vForm);
+      vForm.FormStyle := fsMDIForm;
 
     vForm.OnClose := DoMainFormClose;
     vForm.Position := poScreenCenter;
@@ -303,9 +301,18 @@ begin
   // второстепенная автономная форма
   else if AAreaName = 'float' then
   begin
+    for i := 0 to AParent.Count - 1 do
+    begin
+      vArea := AParent.Areas[i];
+      if (vArea.View = AView) and (TVCLArea(vArea).Control is TForm) then
+        Exit(vArea);
+    end;
+
     vForm := TForm.Create(nil);
+    vForm.OnClose := DoFloatFormClose;
     vForm.Position := poMainFormCenter;
     vForm.Font.Size := 12;
+    vForm.Caption := ACaption;
   end
   // дочерняя модальная форма
   else if (AAreaName = 'child') or (AAreaName = 'modal') then
@@ -335,9 +342,12 @@ begin
 
   vForm.ShowHint := True;
   vForm.DisableAlign;
+  Assert(not Assigned(vForm.OnShow), 'vForm.OnShow already assigned');
   vForm.OnShow := DoOnFormShow;
   try
     Result := TVCLArea.Create(AParent, AView, '', True, vForm, nil, '');
+    if Assigned(AOnClose) then
+      TVCLArea(Result).OnClose := AOnClose;
 
     if Assigned(ACallback) and Assigned(vTimer) then
       ACallback(vTimer);
@@ -365,6 +375,42 @@ procedure TWinVCLPresenter.DoDebugFormClose(Sender: TObject; var Action: TCloseA
 begin
   Action := caFree;
   FDebugForm := nil;
+end;
+
+procedure TWinVCLPresenter.DoFloatFormClose(Sender: TObject; var Action: TCloseAction);
+var
+  vForm: TForm;
+  vArea: TUIArea;
+  vView: TView;
+  vCloseView: TView;
+  vInteractor: TInteractor;
+  vCanBeClosed: Boolean;
+begin
+  vForm := TForm(Sender);
+  vArea := TUIArea(vForm.Tag);
+  vView := vArea.View;
+  vCloseView := vView.BuildView('Close');
+  vInteractor := TInteractor(vArea.Interactor);
+
+  vCanBeClosed := not (Assigned(vCloseView) and (TCheckActionFlagsFunc(TConfiguration(vInteractor.Configuration).
+    CheckActionFlagsFunc)(vCloseView) <> vsFullAccess));
+
+  if vCanBeClosed then
+  begin
+    if Assigned(TVCLArea(vArea).OnClose) then
+      TVCLArea(vArea).OnClose();
+
+    // Возможно, нужно сбросить CurrentArea у UIBuilder-а в vArea.Parent
+
+    vArea.SetHolder(nil);
+    if Assigned(vArea.Parent) then
+      vArea.Parent.RemoveArea(vArea);
+
+    vInteractor.PrintHierarchy;
+    Action := caFree;
+  end
+  else
+    Action := caNone;
 end;
 
 procedure TWinVCLPresenter.LoadImages(const AInteractor: TInteractor;
@@ -409,7 +455,10 @@ var
         vImage.LoadFromStream(vStream);
         vBitmap := vImage.GetAsBitmap;
         try
-          AImageList.Add(vBitmap, nil);
+          if AImageList is TcxImageList then
+            TcxImageList(AImageList).AddBitmap(vBitmap, nil, clnone, True, True)
+          else
+            AImageList.Add(vBitmap, nil);
         finally
           if vIndex = 0 then
             vPlaceholder := vBitmap
@@ -730,11 +779,11 @@ begin
           else
             vForm.Caption := TDomain(AInteractor.Domain).TranslateDefinition(TDefinition(vView.Definition));
 
-          if Pos(AOptions, 'NoExtCaption') < 1 then
+          if (Pos(AOptions, 'NoExtCaption') < 1) and (AAreaName = 'child') then
           begin
             if vView.DefinitionKind = dkAction then
               vForm.Caption := 'Параметры: ' + vForm.Caption
-            else if vView.State > vsSelectOnly {and Assigned(vArea.Holder) - у параметров нет холдера} then
+            else if vView.State >= vsSelectOnly {and Assigned(vArea.Holder) - у параметров нет холдера} then
               vForm.Caption := 'Редактирование: ' + vForm.Caption
             else
               vForm.Caption := 'Просмотр: ' + vForm.Caption;
@@ -817,14 +866,6 @@ begin
   if (not Assigned(vMainForm)) or (vMainForm.Position <> poDesigned) then Exit;
 
   LoadForm(vMainForm, 'MainForm');
-
- { if (AInteractor.Layout <> 'mdi') or (vMainForm.FormStyle <> fsMDIForm) then Exit;
-
-  for
-  begin
-
-
-  end; }
 end;
 
 procedure DeleteIECache;
@@ -935,6 +976,8 @@ var
   vView: TView;
   vHolder: TChangeHolder;
   vRes: TDialogResult;
+  vChildArea: TVCLArea;
+  i: Integer;
 
   function GetUnfilledRequiredFields(const AArea: TUIArea; var AFields: string): Boolean;
   var
@@ -969,7 +1012,7 @@ var
     vEntity: TEntity;
     vSimilar: TEntity;
   begin
-    if not (vView.DefinitionKind in [dkEntity, dkAction]) then
+    if not (vView.DefinitionKind in [dkObjectField, dkEntity, dkAction]) then
       Exit;
 
     vEntity := TEntity(vView.DomainObject);
@@ -998,9 +1041,20 @@ var
 begin
   vForm := TForm(Sender);
   vArea := TUIArea(vForm.Tag);
-  vHolder := TChangeHolder(vArea.Holder);
+  vHolder := TChangeHolder(vArea.ThisHolder);//(vArea.Holder);
   vView := vArea.View;
   vInteractor := TInteractor(vArea.Interactor);
+
+  for i := 0 to vArea.Count - 1 do
+  begin
+    vChildArea := TVCLArea(vArea[i]);
+    if vChildArea.Control is TForm then
+    begin
+      vInteractor.ShowMessage('Невозможно закрыть окно, так как есть другие программные окна, зависящие от него', msWarning);
+      Action := caNone;
+      Exit;
+    end;
+  end;
 
   if vForm.ModalResult = mrOk then
     DoValidation
@@ -1049,7 +1103,11 @@ begin
       if not Assigned(vView) then
         vView := vFormArea.View.ViewByName('Cancel');
       if Assigned(vView) then
-        vFormArea.ExecuteUIAction(vView);
+        vFormArea.ExecuteUIAction(vView)
+      else begin
+        vForm.ModalResult := mrCancel;
+        vForm.Close;
+      end;
     end
     else
       vForm.Close;
@@ -1114,12 +1172,29 @@ begin
   end;
 end;
 
+function ClientWindowProc(Wnd: HWND; Msg: Cardinal; wparam, lparam: Integer ): Integer; stdcall;
+var
+  f: Pointer;
+begin
+  f := Pointer(GetWindowLong(Wnd, GWL_USERDATA));
+  case msg of
+    WM_NCCALCSIZE:
+      if (GetWindowLong(Wnd, GWL_STYLE ) and (WS_HSCROLL or WS_VSCROLL)) <> 0 then
+        SetWindowLong(Wnd, GWL_STYLE, GetWindowLong(Wnd, GWL_STYLE) and not (WS_HSCROLL or WS_VSCROLL));
+  end;
+  Result := CallWindowProc(f, Wnd, Msg, wparam, lparam);
+end;
+
 procedure TWinVCLPresenter.DoOnFormShow(Sender: TObject);
 var
   vForm: TForm;
   vArea: TUIArea;
 begin
   vForm := TForm(Sender);
+  if (vForm.FormStyle = fsMDIForm) and (vForm.ClientHandle > 0) and
+     (GetWindowLong(vForm.ClientHandle, GWL_USERDATA ) = 0 {cannot subclass client window, userdata already in use}) then
+    SetWindowLong(vForm.ClientHandle, GWL_USERDATA, SetWindowLong(vForm.ClientHandle, GWL_WNDPROC, Integer(@ClientWindowProc)));
+
   vArea := TUIArea(vForm.Tag);
   vArea.Activate('');
 end;
@@ -1287,7 +1362,7 @@ begin
   if Assigned(FStartForm) then
     FStartForm.Deinit;
 
-  Application.Terminate;
+  //Application.Terminate;
 end;
 
 procedure TWinVCLPresenter.DoToggleUI(const AVisible: Boolean);
@@ -1382,23 +1457,6 @@ begin
     SetActiveWindow(ActiveWindow);
     RestoreFocusState(FocusState);
   end;
-end;
-
-procedure TWinVCLPresenter.LongOperationEnded;
-begin
-  Dec(FLongOperationCount);
-  if FLongOperationCount = 0 then
-    Screen.Cursor := FPrevCursor;
-end;
-
-procedure TWinVCLPresenter.LongOperationStarted;
-begin
-  if FLongOperationCount = 0 then
-  begin
-    FPrevCursor := Screen.Cursor;
-    Screen.Cursor := crHourGlass;
-  end;
-  Inc(FLongOperationCount);
 end;
 
 procedure TWinVCLPresenter.SetApplicationUI(const AAppTitle, AIconName: string);

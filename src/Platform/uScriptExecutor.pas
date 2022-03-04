@@ -562,7 +562,7 @@ var
   i: Integer;
   vParamDefs: TListField;
   vParamDef: TEntity;
-  vNewParameter: TEntity;
+  //vNewParameter: TEntity;
 begin
   vList := TListField(AEntity.FieldByName('Parameters'));
   for i := vList.Count - 1 downto 0 do
@@ -573,13 +573,13 @@ begin
   begin
     vParamDef := TEntity(vParamDefs[i]);
     if TParameterType(vParamDef['Type']) = ptCommand then
-      vNewParameter := TEntity(vList.AddListEntity(AHolder, 'CommandParameterValues'))
+      {vNewParameter := }TEntity(vList.AddListEntity(AHolder, 'CommandParameterValues', 'ParameterDefinition', [Integer(vParamDef)]))
     else begin
-      vNewParameter := TEntity(vList.AddListEntity(AHolder, 'SimpleParameterValues'));
-      vNewParameter._SetFieldValue(AHolder, 'Value', vParamDef['DefaultValue']);
+      {vNewParameter := }TEntity(vList.AddListEntity(AHolder, 'SimpleParameterValues', 'ParameterDefinition;Value', [Integer(vParamDef), vParamDef['DefaultValue']]));
+      //vNewParameter._SetFieldValue(AHolder, 'Value', vParamDef['DefaultValue']);
     end;
 
-    vNewParameter._SetFieldEntity(AHolder, 'ParameterDefinition', vParamDef);
+    //vNewParameter._SetFieldEntity(AHolder, 'ParameterDefinition', vParamDef);
   end;
 end;
 
@@ -835,7 +835,7 @@ begin
       if Assigned(vListField) then
         AFiber.Session.AtomicModification(ATask, function(const AHolder: TChangeHolder): Boolean
           begin
-            vObject := vListField.AddListEntity(AHolder, '');
+            vObject := vListField.AddListEntity(AHolder, '', '', []);
             Result := True;
           end);
     end;

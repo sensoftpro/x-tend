@@ -15,9 +15,9 @@ type
     function GetFullText(const AEntity: TEntity; var AHandled: Boolean): string; override;
     function DoCheckActionFlags(const AView: TView; const AActionName: string;
       const AContext: TObject; const AParams: TEntity): TViewState; override;
-    function CheckCanChangeField(const AView: TView; const AEntity: TEntity;
-      const AFieldName: string; var AHandled: Boolean): Boolean; override;
-    procedure DoAfterEntityCreation(const AHolder: TChangeHolder; const AEntity: TEntity); override;
+    function CheckCanChangeField(const AView: TView; const AEntity: TEntity; const AFieldName: string;
+      const ANewValue: Variant; var AHandled: Boolean): Boolean; override;
+    procedure DoAfterEntityCreation(const AHolder: TChangeHolder; const AOwnerContext: TObject; const AEntity: TEntity); override;
     function DoExecuteAction(const AView: TView; const AActionName: string;
       const AContext: TObject; const AParams: TEntity; const AParentHolder: TChangeHolder): Boolean; override;
   end;
@@ -54,12 +54,13 @@ end;
 { TNewApplicationScript }
 
 function TNewApplicationScript.CheckCanChangeField(const AView: TView; const AEntity: TEntity;
-  const AFieldName: string; var AHandled: Boolean): Boolean;
+  const AFieldName: string; const ANewValue: Variant; var AHandled: Boolean): Boolean;
 begin
   Result := True;
 end;
 
-procedure TNewApplicationScript.DoAfterEntityCreation(const AHolder: TChangeHolder; const AEntity: TEntity);
+procedure TNewApplicationScript.DoAfterEntityCreation(const AHolder: TChangeHolder;
+  const AOwnerContext: TObject; const AEntity: TEntity);
 var
   vCollectionName: string;
 begin
@@ -67,7 +68,7 @@ begin
   vCollectionName := AEntity.CollectionName;
   if vCollectionName = cUnknownName then
   else
-    inherited DoAfterEntityCreation(AHolder, AEntity);
+    inherited DoAfterEntityCreation(AHolder, AOwnerContext, AEntity);
 end;
 
 function TNewApplicationScript.DoCheckActionFlags(const AView: TView; const AActionName: string;

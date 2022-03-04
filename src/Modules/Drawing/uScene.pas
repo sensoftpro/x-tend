@@ -221,6 +221,7 @@ type
     function GetSceneRect: TRectF; virtual; abstract;
     function GetClientPos: TPointF; virtual; abstract;
     function CreatePainter(const AContainer: TObject): TPainter; virtual; abstract;
+    function GetImageContext: TDrawContext; virtual;
     procedure UpdateContexts(const AWidth, AHeight: Single); virtual;
   public
     constructor Create(const APlaceholder: TObject); virtual;
@@ -598,6 +599,11 @@ begin
   Repaint;
 end;
 
+function TScene.GetImageContext: TDrawContext;
+begin
+  Result := nil;
+end;
+
 procedure TScene.Invalidate(const AState: TSceneState = ssDirty);
 begin
   if FState in [ssNormal, ssUsed] then
@@ -835,17 +841,15 @@ begin
 end;
 
 procedure TScene.SaveToFile(const AFileName, AWaterMark: string);
-//var
-//  vStyle: TDrawStyle;
+var
+  vImageContext: TDrawContext;
 begin
-  Repaint;
-
-  //vStyle := MainStyle;
-  //if (AWaterMark <> '') and Assigned(vStyle) then
-  //  FPainter.DrawText(MainStyle, '', 'watermark', AWaterMark, GetSceneRect, DT_CENTER or DT_VCENTER);
-
-  if Assigned(FPainter) and Assigned(FPainter.Context) then
-    FPainter.Context.SaveToFile(AFileName);
+  vImageContext := GetImageContext;
+  if Assigned(vImageContext) then
+  begin
+    Repaint;
+    vImageContext.SaveToFile(AFileName);
+  end;
 end;
 
 procedure TScene.SetEnabled(const AValue: Boolean);

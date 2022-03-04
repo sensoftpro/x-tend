@@ -71,7 +71,8 @@ type
     procedure DM_DomainChanged(var AMessage: TDomainChangedMessage); message DM_DOMAIN_CHANGED;
   public
     // New methods for UI handling
-    function AddEntity(const AHolder: TChangeHolder; const ACollectionName: string): TEntity;
+    function AddEntity(const AHolder: TChangeHolder; const ACollectionName: string;
+      const AFieldNames: string; const AValues: array of Variant): TEntity;
     ///todo Заглушка, нужно будет удалить, когда список начнет обрабатывать уведомления от модели
     procedure CheckAndAdd(const AEntity: TEntity);
     procedure _Remove(const AEntity: TEntity);
@@ -142,13 +143,14 @@ begin
     FList.Add(AEntity);
 end;
 
-function TEntityList.AddEntity(const AHolder: TChangeHolder; const ACollectionName: string): TEntity;
+function TEntityList.AddEntity(const AHolder: TChangeHolder; const ACollectionName: string;
+  const AFieldNames: string; const AValues: array of Variant): TEntity;
 begin
   Result := nil;
   case FFillerKind of
-    lfkSelector: Result := TDomain(FDomain)[ACollectionName].CreateNewEntity(AHolder, cNewID, TBaseField(FFiller));
-    lfkList: Result := TEntity(TListField(FFiller).AddListEntity(AHolder, ACollectionName));
-    lfkDefinition: Result := TDomain(FDomain)[ACollectionName].CreateNewEntity(AHolder);
+    lfkSelector: Result := TDomain(FDomain)[ACollectionName]._CreateNewEntity(AHolder, cNewID, AFieldNames, AValues, TBaseField(FFiller));
+    lfkList: Result := TEntity(TListField(FFiller).AddListEntity(AHolder, ACollectionName, AFieldNames, AValues));
+    lfkDefinition: Result := TDomain(FDomain)[ACollectionName]._CreateNewEntity(AHolder, cNewID, AFieldNames, AValues);
   else
     Assert(Assigned(Result), 'Unknown component filled this list');
   end;

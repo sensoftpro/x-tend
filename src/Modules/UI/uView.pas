@@ -103,6 +103,7 @@ type
     function ExtractEntityField: TEntityField;
     function GetField: TBaseField; inline;
 
+    procedure LoadActionState(const AEntity: TEntity);
     procedure StoreActionState(const AField: TBaseField);
 
     procedure SetFieldValue(const AHolder: TObject; const AValue: Variant);
@@ -136,6 +137,9 @@ type
     property State: TViewState read FState write FState;
   end;
 
+type
+  TCheckActionFlagsFunc = function(const AView: TView): TViewState of object;
+
 implementation
 
 uses
@@ -143,7 +147,6 @@ uses
   uSession, uEntityList, uCollection, uSimpleField, uChangeManager, uEnumeration, uSettings, uJSON;
 
 type
-  TCheckActionFlagsFunc = function(const AView: TView): TViewState of object;
   TExecuteActionFunc = function(const AView: TView; const AParentHolder: TChangeHolder): Boolean of object;
 
 const
@@ -279,6 +282,8 @@ var
   begin
     if not Assigned(AEntity) then
       Result := '???'
+    else if not Assigned(TEntity(AEntity).Collection) then
+      Result := TEntity(AEntity).CollectionName
     else
       Result := AEntity.ToString;
   end;
@@ -342,7 +347,11 @@ begin
   if Assigned(FDomainObject) then
   begin
     if FDefinitionKind = dkAction then
-      FreeAndNil(TEntity(FDomainObject))
+    begin
+      if Assigned(TEntity(FDomainObject)) then
+        TEntity(FDomainObject).UnsubscribeFields;
+      FreeAndNil(TEntity(FDomainObject));
+    end
     else if FDefinitionKind in [dkCollection, dkListField] then
       FreeAndNil(TEntityList(FDomainObject))
     else
@@ -633,13 +642,7 @@ var
   vParentDefinition: TObject;
   vParentObject: TEntity;
   vInteractor: TInteractor;
-  vSettings: TSettings;
-  vSectionName: string;
-  vValues: TStrings;
-  vField: TBaseField;
   vPostfix: string;
-  jFieldValue: TJSONObject;
-  i: Integer;
 
   function GetParentFieldDefinition(const ABaseDefinition: TObject; const AEntity: TEntity): TDefinition;
   begin
@@ -795,37 +798,12 @@ begin
     if TActionDef(FDefinition).Fields.Count > 0 then
     begin
       FDomainObject := TEntity.Create(vInteractor.Domain, TActionDef(FDefinition));
-      vSettings := TDomain(FDomain).UserSettings;
-      vSectionName := 'Defaults$' + FFullName;
-      if vSettings.SectionExists(vSectionName) then
-      begin
-        vValues := TStringList.Create;
-        try
-          vSettings.ReadSection(vSectionName, vValues);
-          for i := 0 to vValues.Count - 1 do
-          begin
-            if not TEntity(FDomainObject).FieldExists(vValues.Names[i]) then
-            begin
-              vSettings.DeleteKey(vSectionName, vValues.Names[i]);
-              Continue;
-            end;
 
-            vField := TEntity(FDomainObject).FieldByName(vValues.Names[i]);
-            if vField.FieldDef.HasFlag(cNotSave) then
-              Continue;
+      LoadActionState(TEntity(FDomainObject));
 
-            jFieldValue := TJSONObject.LoadFromText(vValues.ValueFromIndex[i]);
-            try
-              vField.SetFromJSON(jFieldValue, True);
-            finally
-              FreeAndNil(jFieldValue);
-            end;
-          end;
-        finally
-          FreeAndNil(vValues);
-        end;
-      end;
       TEntity(FDomainObject).SubscribeFields;
+
+      TEntityCreationProc(TDomain(FDomain).Configuration.AfterEntityCreationProc)(nil, vParentObject, TEntity(FDomainObject));
     end;
     SubscribeDomainObject;
   end
@@ -882,7 +860,7 @@ begin
     Exit;
   end;
 
-  if FParent.DefinitionKind <> dkEntity then
+  if not (FParent.DefinitionKind in [dkAction, dkEntity]) then
     Exit;
 
   vFieldDef := TEntityFieldDef(FDefinition);
@@ -918,6 +896,47 @@ begin
     Exit;
 
   Result := TEntityFieldDef(FDefinition).Name = vListFieldDef.MasterFieldName;
+end;
+
+procedure TView.LoadActionState(const AEntity: TEntity);
+var
+  vSettings: TSettings;
+  vSectionName: string;
+  vValues: TStrings;
+  vField: TBaseField;
+  jFieldValue: TJSONObject;
+  i: Integer;
+begin
+  vSettings := TDomain(FDomain).UserSettings;
+  vSectionName := 'Defaults$' + FFullName;
+  if vSettings.SectionExists(vSectionName) then
+  begin
+    vValues := TStringList.Create;
+    try
+      vSettings.ReadSection(vSectionName, vValues);
+      for i := 0 to vValues.Count - 1 do
+      begin
+        if not TEntity(FDomainObject).FieldExists(vValues.Names[i]) then
+        begin
+          vSettings.DeleteKey(vSectionName, vValues.Names[i]);
+          Continue;
+        end;
+
+        vField := TEntity(FDomainObject).FieldByName(vValues.Names[i]);
+        if vField.FieldDef.HasFlag(cNotSave) then
+          Continue;
+
+        jFieldValue := TJSONObject.LoadFromText(vValues.ValueFromIndex[i]);
+        try
+          vField.SetFromJSON(jFieldValue, True);
+        finally
+          FreeAndNil(jFieldValue);
+        end;
+      end;
+    finally
+      FreeAndNil(vValues);
+    end;
+  end;
 end;
 
 procedure TView.NotifyUI(const AKind: Word; const AParameter: TObject);
@@ -1170,6 +1189,7 @@ var
   vDefinition: TDefinition;
   vSysAction: TActionDef;
   vActionName: string;
+  vIsContextDependent: Boolean;
   vFieldDef: TFieldDef;
   vEntityState: TState;
 begin
@@ -1234,10 +1254,10 @@ begin
         FState := FState and vSession.GetUIState(vActionName, vEntityState);
         if (FName = 'Add') or (FName = 'Edit') or (FName = 'Delete') or (FName = 'Link') or (FName = 'OpenInPage')
           or (FName = 'Unlink') or (FName = 'View') or (FName = 'Refresh') or (FName = 'ViewDocument') or (FName = 'ClearDocument')
-          or (FName = 'Load') or (FName = 'Create') or (FName = 'Open') or (FName = 'Show') then
+          or (FName = 'Load') or (FName = 'Create') or (FName = 'Open') or (FName = 'Show') or (FName.StartsWith('#')) then
           // Родительское состояние уже учтено
         else begin
-          if (vParentState in [vsReadOnly, vsSelectOnly]) or ((vParentState = vsHidden) and (FParent.Name = 'Selected')) then
+          if (vParentState in [vsReadOnly{, vsSelectOnly}]) or ((vParentState = vsHidden) and (FParent.Name = 'Selected')) then
             vParentState := vsDisabled;
           FState := FState and vParentState;
           //if FState in [vsHidden, vsReadOnly] then
@@ -1251,7 +1271,8 @@ begin
           //vParentState := vsReadOnly;
           vParentState := vsFullAccess;
 
-        if IsContextDependent then
+        vIsContextDependent := IsContextDependent;
+        if vIsContextDependent then
           vParentState := vParentState and vsDisabled;
 
         vContextEntity := TEntity(GetParentDomainObject);
@@ -1270,6 +1291,8 @@ begin
             begin
               if vParentState = vsHidden then
                 FState := vsHidden
+              else if (vParentState = vsDisabled) {and vIsContextDependent} then
+                FState := vsDisabled
               else
                 FParent.RefreshView(nil);
             end

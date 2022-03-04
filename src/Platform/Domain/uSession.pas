@@ -132,7 +132,7 @@ procedure AddUserRole(const AHolder: TChangeHolder; const AUser: TEntity; const 
 var
   vRoles: TListField;
   vRole: TEntity;
-  vUserRole: TEntity;
+  //vUserRole: TEntity;
 begin
   if Assigned(AUser) then
   begin
@@ -143,8 +143,8 @@ begin
     if Assigned(vRole) then
     begin
       vRoles := TListField(AUser.FieldByName('Roles'));
-      vUserRole := vRoles.AddListEntity(AHolder, 'SysUsersRoles');
-      vUserRole._SetFieldEntity(AHolder, 'Role', vRole);
+      {vUserRole := }vRoles.AddListEntity(AHolder, 'SysUsersRoles', 'Role', [Integer(vRole)]);
+      //vUserRole._SetFieldEntity(AHolder, 'Role', vRole);
     end;
   end;
 end;

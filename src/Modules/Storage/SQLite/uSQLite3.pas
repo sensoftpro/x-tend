@@ -1123,7 +1123,7 @@ type
     property Value[Idx: Integer]: Variant read GetValue write SetValue; default;
   end;
 
-  TSQLiteRecords = TObjectList< TSQLiteRecord >;
+  TSQLiteRecords = TObjectList<TSQLiteRecord>;
 
   TSQLiteResult = class
   private
@@ -1137,7 +1137,6 @@ type
 
     procedure Clear;
     function Empty: Boolean;
-    function Clone: TSQLiteResult;
 
     property Columns: TStrings read FColumns;
     property Records: TSQLiteRecords read FRecords;
@@ -1151,12 +1150,13 @@ type
     FDB: psqlite3;
     FSQLiteResult: TSQLiteResult;
   public
-    constructor Create(DBFileName: string);
+    constructor Create(const ADBFileName: string);
     destructor Destroy; override;
 
     function Open: Boolean;
     procedure Close;
     function DBQuery(Sql: string; Params: array of const): Boolean;
+    function ErrorMessage: string;
 
     property SQLiteResult: TSQLiteResult read FSQLiteResult;
   end;
@@ -1494,24 +1494,6 @@ begin
   FCurrentRow := 0;
 end;
 
-function TSQLiteResult.Clone: TSQLiteResult;
-var
-  Rec, NewRec: TSQLiteRecord;
-  I, J: Integer;
-begin
-  Result := TSQLiteResult.Create;
-  Result.Columns.Assign(Self.Columns);
-  for I := 0 to Self.Records.Count - 1 do
-  begin
-    Rec := Self.Records[I];
-    NewRec := TSQLiteRecord.Create;
-    NewRec.Count := Rec.Count;
-    for J := 0 to Rec.Count - 1 do
-      NewRec[J] := Rec[J];
-    Result.Records.Add(NewRec);
-  end;
-end;
-
 constructor TSQLiteResult.Create;
 begin
   FColumns := TStringList.Create;
@@ -1552,13 +1534,10 @@ begin
   sqlite3_close(FDB);
 end;
 
-constructor TSQLite.Create(DBFileName: string);
-var
-  s: AnsiString;
+constructor TSQLite.Create(const ADBFileName: string);
 begin
   FSQLiteResult := TSQLiteResult.Create;
-  s := AnsiString(DBFileName);
-  sqlite3_open(PAnsiChar(s), @FDB);
+  FDBFileName := ADBFileName;
 end;
 
 function TSQLite.DBQuery(Sql: string; Params: array of const): Boolean;
@@ -1750,12 +1729,15 @@ begin
   inherited;
 end;
 
+function TSQLite.ErrorMessage: string;
+begin
+  Result := IntToStr(sqlite3_errcode(FDB));
+end;
+
 function TSQLite.Open: Boolean;
 var
   s: AnsiString;
 begin
-  Result := False;
-  if not FileExists(FDBFileName) then Exit;
   s := AnsiString(FDBFileName);
   Result := sqlite3_open(PAnsiChar(s), @FDB) = SQLITE_OK;
 end;

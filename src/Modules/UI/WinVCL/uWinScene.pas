@@ -125,6 +125,7 @@ type
     procedure DoDestroyScene; override;
     procedure DoRender(const ANeedFullRepaint: Boolean); override;
     procedure UpdateContexts(const AWidth, AHeight: Single); override;
+    function GetImageContext: TDrawContext; override;
   end;
 
 implementation
@@ -259,8 +260,24 @@ begin
 end;
 
 procedure TWinScene.DoActivate;
+  function AllParentsVisible(const AControl: TControl): Boolean;
+  var
+    vParent: TControl;
+  begin
+    Result := True;
+    vParent := AControl.Parent;
+    while Assigned(vParent) do
+    begin
+      if not vParent.Visible then
+      begin
+        Result := False;
+        Break;
+      end;
+      vParent := vParent.Parent;
+    end;
+  end;
 begin
-  if (not FPanel.Focused) and FPanel.CanFocus then
+  if (not FPanel.Focused) and FPanel.CanFocus and AllParentsVisible(FPanel) then
     FPanel.SetFocus;
 end;
 
@@ -354,6 +371,11 @@ begin
   end;
 
   FPainter.DrawContext(FDrawContext);
+end;
+
+function TWinCanvasScene.GetImageContext: TDrawContext;
+begin
+  Result := FCachedDrawContext;
 end;
 
 procedure TWinCanvasScene.UpdateContexts(const AWidth, AHeight: Single);

@@ -187,6 +187,7 @@ type
     // Процедура нужна, чтобы уведомить, что сущность создана и загружена
     //   и дать вложенным полям настроить свои подписки
     procedure SubscribeFields;
+    procedure UnsubscribeFields;
 
     procedure AddListener(const AFieldName: string; const AInstance: TEntity);
     procedure RemoveListener(const AFieldName: string; const AInstance: TEntity);
@@ -597,30 +598,24 @@ var
   vDependentFieldDef: TObjectFieldDef;
   vParameter: TEntity;
 begin
-  if FInstance.Definition is TActionDef then
-  begin
-    // Поля действий не должны регистрироваться в сессии
-    DoSetValue(AValue);
-    if FFieldDef.Kind = fkObject then
-      vParameter := TEntity(Integer(AValue))
-    else
-      vParameter := nil;
-    FInstance.ProcessFieldChanged(nil, dckFieldChanged, GetFieldName, vParameter);
-
-    Exit;
-  end;
-
   if DoCheckValuedCondition(AValue, ckEqualTo, cmNone) then
     Exit;
 
   BeforeChanges(AHolder);
 
-  vNeedRegisterChanges := not FInstance.IsNew;
-  if vNeedRegisterChanges and Assigned(vHolder) then
-    vNeedRegisterChanges := vHolder.KeepOldData(FInstance, GetFieldName);
-  DoSetValue(AValue);
-  if vNeedRegisterChanges and Assigned(vHolder) then
-    vHolder.RegisterFieldChanges(TEntity(FInstance), GetFieldName);
+  if FInstance.Definition is TActionDef then
+  begin
+    // Поля действий не должны регистрироваться в сессии
+    DoSetValue(AValue);
+  end
+  else begin
+    vNeedRegisterChanges := not FInstance.IsNew;
+    if vNeedRegisterChanges and Assigned(vHolder) then
+      vNeedRegisterChanges := vHolder.KeepOldData(FInstance, GetFieldName);
+    DoSetValue(AValue);
+    if vNeedRegisterChanges and Assigned(vHolder) then
+      vHolder.RegisterFieldChanges(TEntity(FInstance), GetFieldName);
+  end;
 
   AfterChanges(AHolder);
 
@@ -675,7 +670,7 @@ var
 begin
   vSession := TDomain(FDomain).DomainSession;
 
-  TDomain(FDomain).LogEnter('>> Activate field [' + AFieldDef.Name + '], entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
+  //TDomain(FDomain).LogEnter('>> Activate field [' + AFieldDef.Name + '], entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
   try
     if AFieldDef.HasFlag(cCalculated) and AFieldDef.HasFlag(cNotSave) and Assigned(AFieldDef.FNotificationChains.Calculations) then
       for vHandler in AFieldDef.FNotificationChains.Calculations do
@@ -685,7 +680,7 @@ begin
       for vHandler in AFieldDef.FNotificationChains.UICalculations do
         TReactionProcRef(vHandler)(vSession, nil, '', Self, nil);
   finally
-    TDomain(FDomain).LogExit('<< Activate field, entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
+    //TDomain(FDomain).LogExit('<< Activate field, entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
   end;
 end;
 
@@ -1454,7 +1449,7 @@ var
 begin
   for i := 0 to FFieldList.Count - 1 do
     if GetField(i).FieldKind = fkObject then
-      FieldInternalSetValue(GetField(i), Integer(nil))
+      TEntityField(GetField(i)).ResetToDefault(nil)
     else
       FieldInitialize(GetField(i));
 end;
@@ -1517,6 +1512,15 @@ begin
   // Уведомить измененные объекты
 
   FieldByName(FDefinition.StateFieldDef.Name).SetValue(AHolder, Integer(ANewState));
+end;
+
+procedure TEntity.UnsubscribeFields;
+var
+  vField: TBaseField;
+begin
+  for vField in FFieldList do
+    if vField.FieldDef.Kind = fkObject then
+      vField.BeforeChanges(nil);
 end;
 
 procedure TEntity.UpdateFields;
@@ -1602,13 +1606,17 @@ begin
 end;
 
 function TEntity.Clone(const AHolder: TObject; const AIgnoreFields: string): TEntity;
+var
+  vHolder: TChangeHolder absolute AHolder;
 begin
-  Result := TCollection(FCollection).CreateNewEntity(TChangeHolder(AHolder));
+  Result := TCollection(FCollection)._CreateNewEntity(vHolder, cNewID, '', [], nil, False);
 
   // Возможны разные побочные эффекты..
   // Нужно переходить на отложенную калькуляцию
   FillEntity(AHolder, Result, AIgnoreFields);
   // Core.ApplyCalculations(Result);
+
+  TEntityCreationProc(TDomain(FDomain).Configuration.AfterEntityCreationProc)(vHolder, nil, Result);
 end;
 
 procedure TEntity.Delete(const AHolder: TObject);

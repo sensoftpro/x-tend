@@ -129,8 +129,9 @@ type
     function First: TEntity;
     // Add, Create New or Load entity
     // Wrappers for overridable methods
-    function CreateNewEntity(const AHolder: TChangeHolder; const AID: Integer = cNewID;
-      const AFieldContext: TBaseField = nil): TEntity;
+    function _CreateNewEntity(const AHolder: TChangeHolder; const AID: Integer;
+      const AFieldNames: string; const AValues: array of Variant; const AOwnerContext: TObject = nil;
+      const ANeedInvokeScript: Boolean = True): TEntity;
     function CreateDefaultEntity(const AHolder: TChangeHolder; const AID: Integer; const AFieldNames: string;
       const AValues: array of Variant; const AIsService: Boolean = False): TEntity;
     procedure RemoveEntity(const AEntity: TEntity);
@@ -158,6 +159,7 @@ type
 
 type
   TEntityChangingProc = procedure(const AHolder: TChangeHolder; const AEntity: TEntity) of object;
+  TEntityCreationProc = procedure(const AHolder: TChangeHolder; const AOwnerContext: TObject; const AEntity: TEntity) of object;
 
 implementation
 
@@ -366,16 +368,17 @@ end;
 type
   TCrackedField = class(TBaseField);
 
-function TCollection.CreateNewEntity(const AHolder: TChangeHolder; const AID: Integer = cNewID;
-  const AFieldContext: TBaseField = nil): TEntity;
+function TCollection._CreateNewEntity(const AHolder: TChangeHolder; const AID: Integer;
+  const AFieldNames: string; const AValues: array of Variant; const AOwnerContext: TObject = nil;
+  const ANeedInvokeScript: Boolean = True): TEntity;
 var
-  vField: TEntityField absolute AFieldContext;
+  vField: TEntityField absolute AOwnerContext;
+  vOwnerContext: TObject;
   vDocCode: string;
   vDependencies: TStrings;
   i: Integer;
   vMyFieldName: string;
   vMasterFieldName: string;
-  vMasterField: TEntityField;
 begin
   Result := InternalCreateEntity(AID, True);
 
@@ -390,26 +393,42 @@ begin
     Result.FieldByName('DocCode').Value := vDocCode;
   end;
 
-  // Нужно, так как entity поля могут иметь значения по умолчанию
+  if Length(AFieldNames) > 0 then
+    TCrackedEntity(Result).Populate(AFieldNames, AValues);
+
+  // Оживляем созданную сущность
   Result.SubscribeFields;
 
-  if Assigned(AFieldContext) and (AFieldContext.FieldKind = fkObject) then
+  if Assigned(AOwnerContext) and (AOwnerContext is TBaseField) then
   begin
-    // Установка поля, от которого зависит эта сущность
-    vDependencies := TObjectFieldDef(vField.FieldDef).SelectiveFields;
-    for i := 0 to vDependencies.Count - 1 do
+    if vField.FieldKind = fkObject then
     begin
-      vMyFieldName := vDependencies.Names[i];
-      vMasterFieldName := vDependencies.ValueFromIndex[i];
-      if vMasterFieldName <> '' then
+      vField.OwnerInstance._SetFieldEntity(AHolder, vField.FieldDef.Name, Result);
+
+      // Установка поля, от которого зависит эта сущность
+      vDependencies := TObjectFieldDef(vField.FieldDef).SelectiveFields;
+      for i := 0 to vDependencies.Count - 1 do
       begin
-        vMasterField := TEntityField(vField.OwnerInstance.FieldByName(vMasterFieldName));
-        AHolder.SetFieldEntity(TEntity(Result), vMyFieldName, TEntity(vMasterField.Entity));
+        vMyFieldName := vDependencies.Names[i];
+        vMasterFieldName := vDependencies.ValueFromIndex[i];
+        if vField.OwnerInstance.FieldExists(vMasterFieldName) and Result.FieldExists(vMyFieldName) then
+        begin
+          Result._SetFieldEntity(AHolder, vMyFieldName, vField.OwnerInstance.ExtractEntity(vMasterFieldName));
+          Result.FieldByName(vMyFieldName).SetUIState(vsReadOnly);
+        end;
       end;
     end;
   end;
 
-  TEntityChangingProc(TDomain(FDomain).Configuration.AfterEntityCreationProc)(AHolder, Result);
+  if FContentDefinition.HasFlag(ccNotSave) then
+    Result.IsNew := False;
+
+  vOwnerContext := AOwnerContext;
+  if not Assigned(vOwnerContext) then
+    vOwnerContext := Self; // TODO: или передавать в качестве контекста TEntityList
+
+  if ANeedInvokeScript then
+    TEntityCreationProc(TDomain(FDomain).Configuration.AfterEntityCreationProc)(AHolder, vOwnerContext, Result);
 
   NotifyListeners(dckListAdded, Result);
 end;
@@ -431,10 +450,7 @@ function TCollection.CreateDefaultEntity(const AHolder: TChangeHolder; const AID
   const AValues: array of Variant; const AIsService: Boolean = False): TEntity;
 var
   i: Integer;
-  vPopulateAll: Boolean;
 begin
-  vPopulateAll := True;
-
   // Для локальных коллекций в параметре AID можно передать доп. информацию
   if FContentDefinition.HasFlag(ccLocalOnly) then
   begin
@@ -448,29 +464,23 @@ begin
       end;
     end;
 
-    Result := CreateNewEntity(AHolder);
+    Result := _CreateNewEntity(AHolder, cNewId, AFieldNames, AValues);
   end
   else begin
     if FMaxID < AID  then
       FMaxID := AID;
 
     Result := EntityByID(AID);
-    if (AID > 0) and Assigned(Result) then
-      vPopulateAll := False
-    else
-      Result := CreateNewEntity(AHolder, AID);
+    if (AID <= 0) or not Assigned(Result) then
+      Result := _CreateNewEntity(AHolder, AID, AFieldNames, AValues)
+    else if Length(AFieldNames) > 0 then
+    begin
+      Result.Populate(AFieldNames, AValues, False);
+      Result.SubscribeFields;
+    end;
   end;
 
-  // Заполнение значений свежесозданной сущности
-  if Length(AFieldNames) > 0 then
-    TCrackedEntity(Result).Populate(AFieldNames, AValues, vPopulateAll);
   Result.IsService := AIsService;
-
-  if not vPopulateAll then
-    Exit;
-
-  if FContentDefinition.HasFlag(ccNotSave) then
-    Result.IsNew := False;
 end;
 
 destructor TCollection.Destroy;

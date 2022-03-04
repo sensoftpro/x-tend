@@ -49,8 +49,8 @@ type
     function DoCheckActionFlags(const AView: TView; const AActionName: string;
       const AContext: TObject; const AParams: TEntity): TViewState; override;
     function CheckCanChangeField(const AView: TView; const AEntity: TEntity;
-      const AFieldName: string; var AHandled: Boolean): Boolean; override;
-    procedure DoAfterEntityCreation(const AHolder: TChangeHolder; const AEntity: TEntity); override;
+      const AFieldName: string; const ANewValue: Variant; var AHandled: Boolean): Boolean; override;
+    procedure DoAfterEntityCreation(const AHolder: TChangeHolder; const AOwnerContext: TObject; const AEntity: TEntity); override;
     function DoExecuteAction(const AView: TView; const AActionName: string;
       const AContext: TObject; const AParams: TEntity; const AParentHolder: TChangeHolder): Boolean; override;
   end;
@@ -176,7 +176,7 @@ begin
     if not vIniFile.ValueExists('MSAccess', 'Database') then
       vIniFile.WriteString('MSAccess', 'Database', vDBName);
     if not vIniFile.ValueExists('Modules', 'DataStorage') then
-      vIniFile.WriteString('Modules', 'DataStorage', 'MSAccess.OLEDB');
+      vIniFile.WriteString('Modules', 'DataStorage', 'SQLite');
     if not vIniFile.ValueExists('Modules', 'ReportEngine') then
       vIniFile.WriteString('Modules', 'ReportEngine', 'FastReport');
     if not vIniFile.ValueExists('Modules', 'ChartPainter') then
@@ -207,19 +207,20 @@ end;
 { TConfiguratorScript }
 
 function TConfiguratorScript.CheckCanChangeField(const AView: TView; const AEntity: TEntity;
-  const AFieldName: string; var AHandled: Boolean): Boolean;
+  const AFieldName: string; const ANewValue: Variant; var AHandled: Boolean): Boolean;
 begin
   Result := True;
 end;
 
-procedure TConfiguratorScript.DoAfterEntityCreation(const AHolder: TChangeHolder; const AEntity: TEntity);
+procedure TConfiguratorScript.DoAfterEntityCreation(const AHolder: TChangeHolder;
+  const AOwnerContext: TObject; const AEntity: TEntity);
 begin
   // Здесь мы в контексте редактирования
   if AEntity.InstanceOf('') then
   begin
   end
   else
-    inherited DoAfterEntityCreation(AHolder, AEntity);
+    inherited DoAfterEntityCreation(AHolder, AOwnerContext, AEntity);
 end;
 
 function TConfiguratorScript.DoCheckActionFlags(const AView: TView; const AActionName: string;

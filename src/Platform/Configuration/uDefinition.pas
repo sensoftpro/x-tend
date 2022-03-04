@@ -1155,7 +1155,7 @@ begin
   if FAncestors.Count > 0 then
     ApplyInheritance;
 
-  if (AKind <> clkMixin) and not FieldExists('Name') then
+  if FIsCollection and (AKind <> clkMixin) and not FieldExists('Name') then
     AddSimpleFieldDef('Name', 'name', 'Наименование', '', Null, 150, fkString, '', '', vsFullAccess, cAutoCalculatedField);
   // AddSimpleFieldDef('Deleted', 'is_deleted', 'Удалено', False, Null, Null, fkBoolean, '', cHidden);
   // AddSimpleFieldDef('Flags', 'flags', 'Флаги сущности', 0, Null, Null, fkFlag, '', '', cHidden or cSystem);

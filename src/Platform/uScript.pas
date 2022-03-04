@@ -83,7 +83,7 @@ type
     procedure DoCreateDefaultEntities(const ADomain: TObject; const AHolder: TChangeHolder); virtual;
     function GetFullText(const AEntity: TEntity; var AHandled: Boolean): string; virtual;
     function DoCheckField(const AEntity: TEntity; const AFieldName: string; var AHandled: Boolean): Boolean; virtual;
-    procedure DoAfterEntityCreation(const AHolder: TChangeHolder; const AEntity: TEntity); virtual;
+    procedure DoAfterEntityCreation(const AHolder: TChangeHolder; const AOwnerContext: TObject; const AEntity: TEntity); virtual;
     procedure DoBeforeEntitySaving(const AHolder: TChangeHolder; const AEntity: TEntity); virtual;
     procedure DoAfterEntitySaved(const AHolder: TChangeHolder; const AEntity: TEntity); virtual;
     procedure DoBeforeEntityRemoving(const AHolder: TChangeHolder; const AEntity: TEntity); virtual;
@@ -95,7 +95,7 @@ type
     procedure DoOnLogined(const AInteractor: TInteractor); virtual;
 
     function CheckCanChangeField(const AView: TView; const AEntity: TEntity; const AFieldName: string;
-      var AHandled: Boolean): Boolean; virtual;
+      const ANewValue: Variant; var AHandled: Boolean): Boolean; virtual;
     procedure DoActualizeData(const ADomain: TObject); virtual;
     function DoCalculateStyle(const AViewName: string; const AEntity: TEntity;
       var AHandled: Boolean): TColor; virtual;
@@ -152,14 +152,14 @@ type
     procedure ActualizeData(const ADomain: TObject);
     function CalculateStyle(const AViewName: string; const AEntity: TEntity): TColor;
     function CanChangeField(const AView: TView; const AEntity: TEntity;
-      const AFieldName: string): Boolean;
+      const AFieldName: string; const ANewValue: Variant): Boolean;
     function BeforeUIClosing(const AInteractor: TInteractor): Boolean;
     function CheckActionFlags(const AView: TView): TViewState;
     function ExecuteAction(const AView: TView; const AParentHolder: TChangeHolder): Boolean;
     function ExecuteCommand(const AExecutor: TObject; const ATask: TTaskHandle; const AFiber, ACommand: TObject): Boolean;
 
     // Триггеры-обработчики начала/окончания действий
-    procedure AfterEntityCreation(const AHolder: TChangeHolder; const AEntity: TEntity);
+    procedure AfterEntityCreation(const AHolder: TChangeHolder; const AOwnerContext: TObject; const AEntity: TEntity);
     procedure BeforeEntitySaving(const AHolder: TChangeHolder; const AEntity: TEntity);
     procedure AfterEntitySaved(const AHolder: TChangeHolder; const AEntity: TEntity);
     procedure BeforeEntityRemoving(const AHolder: TChangeHolder; const AEntity: TEntity);
@@ -251,18 +251,18 @@ begin
   end;
 end;
 
-procedure TScript.AfterEntityCreation(const AHolder: TChangeHolder; const AEntity: TEntity);
+procedure TScript.AfterEntityCreation(const AHolder: TChangeHolder; const AOwnerContext: TObject; const AEntity: TEntity);
 var
   vInclusion: TInclusion;
 begin
   if not Assigned(AEntity) then
     Exit;
-  if AEntity.CollectionName = '' then
+  if not Assigned(AEntity.Collection) then
     Exit;
 
   for vInclusion in FInclusions do
-    vInclusion.DoAfterEntityCreation(AHolder, AEntity);
-  DoAfterEntityCreation(AHolder, AEntity);
+    vInclusion.DoAfterEntityCreation(AHolder, AOwnerContext, AEntity);
+  DoAfterEntityCreation(AHolder, AOwnerContext, AEntity);
 end;
 
 procedure TScript.AfterEntitySaved(const AHolder: TChangeHolder; const AEntity: TEntity);
@@ -332,7 +332,7 @@ begin
 end;
 
 function TScript.CanChangeField(const AView: TView; const AEntity: TEntity;
-  const AFieldName: string): Boolean;
+  const AFieldName: string; const ANewValue: Variant): Boolean;
 var
   vHandled: Boolean;
   vInclusion: TInclusion;
@@ -346,13 +346,13 @@ begin
   for vInclusion in FInclusions do
   begin
     vHandled := True;
-    Result := vInclusion.CheckCanChangeField(AView, AEntity, AFieldName, vHandled);
+    Result := vInclusion.CheckCanChangeField(AView, AEntity, AFieldName, ANewValue, vHandled);
     if vHandled then
       Exit;
   end;
 
   vHandled := True;
-  Result := CheckCanChangeField(AView, AEntity, AFieldName, vHandled);
+  Result := CheckCanChangeField(AView, AEntity, AFieldName, ANewValue, vHandled);
   if not vHandled then
     Result := True;
 end;
@@ -461,7 +461,7 @@ begin
 
   AddAction('#HandleDblClick', 'Обработать двойное нажатие', -1);
   AddAction('#ExportToCsv', 'Экспорт в Excel', 7);
-  AddAction('#ApplyBestFit', 'Оптимальная ширина колонок', -1);
+  AddAction('#ApplyBestFit', 'Оптимальная ширина колонок', 47);
 
   vAction := AddAction('#FilterByText', 'Фильтровать по тексту', 13, ccInstantExecution);
   vAction.AddSimpleFieldDef('Text', '', '', Null, Null, 50, fkString, '', '', vsFullAccess, cNotSave);
@@ -498,7 +498,7 @@ begin
   AddAction('ArrangeCascade', 'Каскадом', 15);
   AddAction('ArrangeVert', 'Вертикально', 17);
   AddAction('ArrangeHorz', 'Горизонтально', 16);
-  AddAction('CloseAllWindows', 'Закрыть всё', -1);
+  AddAction('CloseAllWindows', 'Закрыть все', -1);
   AddAction('ShowAbout', 'О программе', -1);
   AddAction('ShowStartPage', 'Показать стартовую страницу', -1);
   AddAction('GetAllUpdates', 'Выгрузить изменения в файл', -1);
@@ -663,6 +663,8 @@ begin
   vDefinition.AddSimpleFieldDef('MailPassword', 'mail_password', 'Пароль служебной почты', Null, Null, 30, fkString, 'mask');
   vDefinition.AddSimpleFieldDef('MailFromName', 'mail_from_name', 'Подпись отправителя', 'Application notifications', Null, 100, fkString, '', '', vsFullAccess, cLocalizable);
   vDefinition.AddSimpleFieldDef('IsMailVerified', 'is_mail_verified', 'Соединение проверено', False, Null, Null, fkBoolean, '', '', vsReadOnly);
+  vDefinition.AddSimpleFieldDef('NewRecordColor', 'new_record_color', 'Цвет новой записи', TColorRec.Silver, Null, Null, fkColor, 'simple', '', vsFullAccess);
+  vDefinition.AddSimpleFieldDef('ServiceRecordColor', 'service_record_color', 'Цвет служебной записи', TColorRec.Navy, Null, Null, fkColor, 'simple', '', vsFullAccess);
   vDefinition.AddSimpleFieldDef('SharedFolder', 'shared_folder', 'Папка для хранения общих файлов', Null, Null, 255, fkString, 'dir');
   vDefinition.AddUniqueIndex('Code');
   vDefinition.AddAction('CheckEmailConnection', 'Проверить SMTP соединение', 25);
@@ -1127,8 +1129,10 @@ begin
         Result := vsHidden;
     end
     else begin
-      if AView.Parent.State < vsFullAccess then
-        Result := vsHidden;
+      if AView.Parent.State < vsSelectOnly then
+        Result := vsDisabled
+      else
+        Result := vsFullAccess;
     end;
   end
   else if AActionName = 'Delete' then
@@ -1301,7 +1305,7 @@ const
       var
         vNewEntity: TEntity;
       begin
-        vNewEntity := AEntityList.AddEntity(TChangeHolder(AHolder), vDefinitionName);
+        vNewEntity := AEntityList.AddEntity(TChangeHolder(AHolder), vDefinitionName, '', []);
         AEntityList.SelectEntity(vNewEntity);
         Result := AView.Parent.ViewByName('Selected');
         if not Assigned(Result) then
@@ -1316,11 +1320,9 @@ const
     vFieldDef: TObjectFieldDef;
     vNewEntity: TEntity;
     vMasterEntity: TEntity;
-    vMasterField, vDependentField: string;
     vSession: TUserSession;
     vHolder: TChangeHolder;
     vResult: Boolean;
-    i: Integer;
   begin
     if Assigned(AParams) then
       vDefinitionIndex := Max(0, AParams['SelectedIndex'])
@@ -1338,14 +1340,19 @@ const
     vHolder := nil;
     vNewEntity := nil;
     vSession.DomainWrite(procedure
-      var
-        i: Integer;
+      //var
+      //  i: Integer;
       begin
         vHolder := vSession.RetainChangeHolder(TChangeHolder(AParentHolder));
-        vNewEntity := TDomain(AView.Domain)[vDefinitionName].CreateNewEntity(vHolder, cNewID);
-        if Assigned(AView.Parent.ParentDomainObject) then
-        begin
+        if not Assigned(AView.Parent.ParentDomainObject) then
+          vNewEntity := TDomain(AView.Domain).CreateNewEntity(vDefinitionName, vHolder, cNewID)
+        else begin
           vMasterEntity := TEntity(AView.Parent.ParentDomainObject);
+          vNewEntity := TDomain(AView.Domain)[vDefinitionName]._CreateNewEntity(vHolder, cNewID,
+            '', [], vMasterEntity.FieldByName(vFieldDef.Name));
+        end;
+
+        {  vMasterEntity := TEntity(AView.Parent.ParentDomainObject);
           vMasterEntity._SetFieldEntity(vHolder, vFieldDef.Name, vNewEntity);
           for i := 0 to vFieldDef.SelectiveFields.Count - 1 do
           begin
@@ -1357,14 +1364,16 @@ const
               vNewEntity.FieldByName(vDependentField).SetUIState(vsReadOnly);
             end;
           end;
-        end;
+
+          TEntityCreationProc(TDomain(AInteractor.Domain).Configuration.AfterEntityCreationProc)(vHolder,
+            vMasterEntity.FieldByName(vFieldDef.Name), Result); }
       end);
 
     try
       vResult := AInteractor.ShowEntityEditor(AView.Parent, vHolder, '');
       if vResult then
-        AView.Parent.DomainObject := vNewEntity
-      else begin
+        AView.Parent.DomainObject := vNewEntity;
+      {else begin
         // Убираем привязки
         if Assigned(vMasterEntity) then
         begin
@@ -1375,7 +1384,7 @@ const
               vNewEntity._SetFieldEntity(vHolder, vDependentField, nil);
           end;
         end;
-      end;
+      end;}
     finally
       vSession.DomainWrite(procedure
         begin
@@ -1830,7 +1839,7 @@ begin
 end;
 
 function TBaseScript.CheckCanChangeField(const AView: TView; const AEntity: TEntity; const AFieldName: string;
-  var AHandled: Boolean): Boolean;
+  const ANewValue: Variant; var AHandled: Boolean): Boolean;
 begin
   Result := True;
   AHandled := False;
@@ -1858,7 +1867,7 @@ procedure TBaseScript.DoActualizeData(const ADomain: TObject);
 begin
 end;
 
-procedure TBaseScript.DoAfterEntityCreation(const AHolder: TChangeHolder; const AEntity: TEntity);
+procedure TBaseScript.DoAfterEntityCreation(const AHolder: TChangeHolder; const AOwnerContext: TObject; const AEntity: TEntity);
 begin
 end;
 

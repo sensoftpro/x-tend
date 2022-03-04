@@ -79,6 +79,7 @@ type
     procedure PopContext;
     function GetMaxTableID(const ATableName: string): Integer;
     function SearchTable(const AName: string): Boolean;
+    function ExecuteDBQuery(Sql: string; Params: array of const): Boolean;
   protected
     FDBFileName: string;
     function SQLTypeFromFieldKind(const AKind: TFieldKind; const ASize: Integer): string;
@@ -487,7 +488,7 @@ end;
 
 procedure TSQLiteStorage.DoCommitTransaction(const ATransactionID: Integer);
 begin
-  FSQLite.DBQuery('commit transaction', []);
+  ExecuteDBQuery('commit transaction', []);
   FTransCount := Max(0, FTransCount - 1);
 end;
 
@@ -509,17 +510,17 @@ var
   vTableName: string;
 begin
   vTableName := ATag;
-  FSQLite.DBQuery('select [last_code] from [numerators] where [table_name] = ?', [vTableName]);
+  ExecuteDBQuery('select [last_code] from [numerators] where [table_name] = ?', [vTableName]);
 
   if FSQLite.SQLiteResult.Empty then
   begin
     Result := 1;
-    FSQLite.DBQuery('insert into [numerators] ([id], [table_name], [last_code], [last_id]) values (?, ?, ?, ?)',
+    ExecuteDBQuery('insert into [numerators] ([id], [table_name], [last_code], [last_id]) values (?, ?, ?, ?)',
       [GetMaxTableID('numerators') + 1, vTableName, Result, 0]);
   end
   else begin
     Result := FSQLite.SQLiteResult[0, 'last_code'] + 1;
-    FSQLite.DBQuery('update [numerators] set [last_code] = ? where [table_name] = ?', [Result, vTableName]);
+    ExecuteDBQuery('update [numerators] set [last_code] = ? where [table_name] = ?', [Result, vTableName]);
   end;
 end;
 
@@ -531,14 +532,14 @@ begin
   vTableName := ATag;
   vMaxID := GetMaxTableID(vTableName);
 
-  FSQLite.DBQuery('select [last_id] from [numerators] where [table_name] = ?', [vTableName]);
+  ExecuteDBQuery('select [last_id] from [numerators] where [table_name] = ?', [vTableName]);
   if FSQLite.SQLiteResult.Empty then
   begin
     if vMaxID > 0 then
       Result := vMaxID + ACount
     else
       Result := ACount;
-    FSQLite.DBQuery('insert into [numerators] ([id], [table_name], [last_id], [last_code]) values (?, ?, ?, ?)',
+    ExecuteDBQuery('insert into [numerators] ([id], [table_name], [last_id], [last_code]) values (?, ?, ?, ?)',
       [GetMaxTableID('numerators') + 1, vTableName, Result, 0]);
   end
   else begin
@@ -548,7 +549,7 @@ begin
     else
       Result := Result + ACount;
 
-    FSQLite.DBQuery('update [numerators] set [last_id] = ? where [table_name] = ?', [Result, vTableName]);
+    ExecuteDBQuery('update [numerators] set [last_id] = ? where [table_name] = ?', [Result, vTableName]);
   end;
 end;
 
@@ -615,7 +616,7 @@ begin
 
   Result := TJSONObject.Create;
 
-  FSQLite.DBQuery('select la.sys_log_id, l.user_name, l.log_time, ' +
+  ExecuteDBQuery('select la.sys_log_id, l.user_name, l.log_time, ' +
     'la.id, la.action_kind_id, la.collection, la.entity_id, la.json ' +
     'from sys_log l inner join sys_log_actions la on la.sys_log_id = l.id ' +
     'where l.id > ? order by l.id, la.action_kind_id, la.collection', [ALogID]);
@@ -659,14 +660,14 @@ end;
 function TSQLiteStorage.DoGetLastLogID: Integer;
 begin
   Result := 0;
-  if FSQLIte.DBQuery('select max([id]) as [id] from [sys_log]', []) then
+  if ExecuteDBQuery('select max([id]) as [id] from [sys_log]', []) then
     Result := VarToInt(FSQLIte.SQLiteResult[0, 'id'], -1);
 end;
 
 function TSQLiteStorage.DoGetVersion: string;
 begin
   try
-    if FSQLIte.DBQuery('select [version] from [sys_constants]', []) then
+    if ExecuteDBQuery('select [version] from [sys_constants]', []) then
       Result := VarToStr(FSQLIte.SQLiteResult[0, 'version']);
   except
     Result := '';
@@ -676,19 +677,19 @@ end;
 // Добавить сюда QueryObject
 procedure TSQLiteStorage.DoReadGroup(const ATag: string; const AReadFunc: TStorageFunc);
 var
-  I: Integer;
+  i: Integer;
   vRes: TSQLiteResult;
 begin
-  FSQLite.DBQuery(Format('select * from [%s]', [ATag]), []);
+  ExecuteDBQuery(Format('select * from [%s]', [ATag]), []);
   if FSQLite.SQLiteResult.Empty then Exit;
   if not Assigned(AReadFunc) then Exit;
 
-  vRes := FSQLite.SQLiteResult.Clone;
+  vRes := FSQLite.SQLiteResult;
   Push(vRes);
   try
-    for I := 0 to vRes.Records.Count - 1 do
+    for i := 0 to vRes.Records.Count - 1 do
     begin
-      vRes.CurrentRow := I;
+      vRes.CurrentRow := i;
       AReadFunc(Self);
     end;
   finally
@@ -744,13 +745,13 @@ end;
 
 procedure TSQLiteStorage.DoRollbackTransaction(const ATransactionID: Integer);
 begin
-  FSQLite.DBQuery('rollback transaction', []);
+  ExecuteDBQuery('rollback  transaction', []);
   FTransCount := Max(0, FTransCount - 1);
 end;
 
 function TSQLiteStorage.DoBeginTransaction: Integer;
 begin
-  FSQLite.DBQuery('begin transaction', []);
+  ExecuteDBQuery('begin transaction', []);
   Inc(FTransCount);
   Result := FTransCount;
 end;
@@ -758,7 +759,7 @@ end;
 procedure TSQLiteStorage.DoSetVersion(const Value: string);
 begin
   try
-    FSQLite.DBQuery('update [sys_constants] set [version] = ?', [Value]);  // todo: set version
+    ExecuteDBQuery('update [sys_constants] set [version] = ?', [Value]);  // todo: set version
   except
   end;
 end;
@@ -778,7 +779,7 @@ begin
         vAlterText := 'CREATE TABLE [' + ATag + '] ([id] INTEGER NULL)'
       else
         vAlterText := 'CREATE TABLE [' + ATag + '] ([id] INTEGER NOT NULL PRIMARY KEY)';
-      FSQLite.DBQuery(vAlterText, []);
+      ExecuteDBQuery(vAlterText, []);
 
       FCurTableName := ATag;
       FCurTableColumns.Add('id');
@@ -799,7 +800,7 @@ begin
     vColName := FCurTableColumns[i];
     if FItemDefsList.IndexOf(vColName) < 0 then
     begin
-      FSQLite.DBQuery(Format('ALTER TABLE [%s] DROP [%s]', [FCurTableName, vColName]), []);
+      ExecuteDBQuery(Format('ALTER TABLE [%s] DROP [%s]', [FCurTableName, vColName]), []);
       FCurTableColumns.Delete(i);
       FCurTableTypes.Delete(i);
     end;
@@ -822,7 +823,7 @@ begin
   if vColIdx < 0 then
   begin
     vAlterText := Format('ALTER TABLE [%s] ADD [%s] %s', [FCurTableName, vColumn, vType]);
-    FSQLite.DBQuery(vAlterText, []);
+    ExecuteDBQuery(vAlterText, []);
     FCurTableColumns.Add(vColumn);
     FCurTableTypes.Add(vType);
   end
@@ -831,9 +832,9 @@ begin
     begin
       // no alter column - replace column
       vAlterText := Format('ALTER TABLE [%s] DROP [%s]', [ FCurTableName, vColumn ]);
-      FSQLite.DBQuery(vAlterText, []);
+      ExecuteDBQuery(vAlterText, []);
       vAlterText := Format('ALTER TABLE [%s] ADD [%s] %s', [ FCurTableName, vColumn, vType ]);
-      FSQLite.DBQuery(vAlterText, []);
+      ExecuteDBQuery(vAlterText, []);
       FCurTableTypes[vColIdx] := vType;
     end;
   end;
@@ -860,6 +861,13 @@ begin
   GetActiveContext.AddParameter(ATag, AValue, AIsKey);
 end;
 
+function TSQLiteStorage.ExecuteDBQuery(Sql: string; Params: array of const): Boolean;
+begin
+  Result := FSQLite.DBQuery(Sql, Params);
+  if not Result then
+    TDomain(FDomain).Logger.AddMessage('DB ERROR: ' + Sql + ', Code: ' + FSQLite.ErrorMessage);
+end;
+
 function TSQLiteStorage.GetActiveContext: TSQLiteDBContext;
 begin
   Result := TSQLiteDBContext(FGroupList[FGroupList.Count - 1]);
@@ -867,7 +875,7 @@ end;
 
 function TSQLiteStorage.GetActiveDataset: TSQLiteResult;
 begin
-  Result := TSQLiteResult(FGroupList[ FGroupList.Count - 1 ]);
+  Result := TSQLiteResult(FGroupList[FGroupList.Count - 1]);
 end;
 
 function TSQLiteStorage.GetMaxTableID(const ATableName: string): Integer;
@@ -875,7 +883,7 @@ var
   v: Variant;
 begin
   Result := 0;
-  if not FSQLite.DBQuery(Format('select max([id]) as [m] from [%s]', [ATableName]), []) then Exit;
+  if not ExecuteDBQuery(Format('select max([id]) as [m] from [%s]', [ATableName]), []) then Exit;
   v := FSQLite.SQLiteResult[0, 'm'];
   if VarIsNull(v) then Exit;
   Result := v;
@@ -912,7 +920,7 @@ begin
 
   if AName = '' then Exit;
 
-  if not FSQLite.DBQuery(Format('PRAGMA table_info(%s)', [AName]), []) then Exit;
+  if not ExecuteDBQuery(Format('PRAGMA table_info(%s)', [AName]), []) then Exit;
   Result := FSQLite.SQLiteResult.Records.Count > 0;
   if not Result then Exit;
 
@@ -949,7 +957,7 @@ begin
   if ALastID < 0 then
     Exit;
 
-  if not FSQLite.DBQuery('select [last_id] from [numerators] where [table_name] = ?', [ATag]) then
+  if not ExecuteDBQuery('select [last_id] from [numerators] where [table_name] = ?', [ATag]) then
   begin
     vLastStoredID := -1;
   end else
@@ -961,10 +969,10 @@ begin
   end;
 
   if vLastStoredID < 0 then
-    FSQLite.DBQuery('insert into [numerators] ([id], [table_name], [last_id], [last_code]) values (?, ?, ?, ?)',
+    ExecuteDBQuery('insert into [numerators] ([id], [table_name], [last_id], [last_code]) values (?, ?, ?, ?)',
       [0, ATag, ALastID, 0])
   else if ALastID > vLastStoredID then
-    FSQLite.DBQuery('update [numerators] set [last_id] = ? where [table_name] = ?', [ALastID, ATag]);
+    ExecuteDBQuery('update [numerators] set [last_id] = ? where [table_name] = ?', [ALastID, ATag]);
 end;
 
 initialization

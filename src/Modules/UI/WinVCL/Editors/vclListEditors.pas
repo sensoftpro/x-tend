@@ -36,7 +36,7 @@ unit vclListEditors;
 interface
 
 uses
-  Generics.Collections, Graphics, Classes, Controls, Types, CheckLst, ExtCtrls,
+  Generics.Collections, Graphics, Classes, Controls, Types, CheckLst, ExtCtrls, ComCtrls,
 
   uEntity, uEntityList, vclArea, uView, uUIBuilder, uDefinition, uConsts,
 
@@ -116,6 +116,7 @@ type
     FSanitizedFieldName: string;
     FFieldDef: TFieldDef;
     FAfterPoint: Integer; // знаков после запятой для Float (здесь для оптимизации)
+    FColumn: TcxGridColumn;
   public
     constructor Create(const AFieldName: string; const AFieldDef: TFieldDef);
 
@@ -130,6 +131,7 @@ type
     FEntities: TList<TEntity>;
     FColumns: TObjectList<TColumnBinding>;
     FIsLoading: Boolean;
+    FEditor: TVCLArea;
   protected
     function AppendRecord: TcxDataRecordHandle; override;
     procedure DeleteRecord(ARecordHandle: TcxDataRecordHandle); override;
@@ -139,8 +141,9 @@ type
     function GetValue(ARecordHandle: TcxDataRecordHandle;
       AItemHandle: TcxDataItemHandle): Variant; override;
     function IsNativeCompare: Boolean; override;
+    procedure SetValue(ARecordHandle: TcxDataRecordHandle; AItemHandle: TcxDataItemHandle; const AValue: Variant); override;
   public
-    constructor Create;
+    constructor Create(const AEditor: TVCLArea);
     destructor Destroy; override;
 
     procedure DataChanged; override;
@@ -174,7 +177,8 @@ type
     FEditRepository: TcxEditRepository;
     procedure DoOnCompare(ADataController: TcxCustomDataController; ARecordIndex1, ARecordIndex2, AItemIndex: Integer;
       const V1, V2: Variant; var Compare: Integer);
-    procedure DoOnTableViewDblClick(Sender: TObject);
+    procedure DoOnCellDblClick(Sender: TcxCustomGridTableView; ACellViewInfo: TcxGridTableDataCellViewInfo; AButton: TMouseButton;
+      AShift: TShiftState; var AHandled: Boolean);
     procedure DoOnSelectionChanged(Sender: TcxCustomGridTableView);
     procedure DoCanSelectRecord(Sender: TcxCustomGridTableView; ARecord: TcxCustomGridRecord; var AAllow: Boolean);
     procedure CreateColumnsFromModel(const AFields: string = '');
@@ -216,7 +220,8 @@ type
     FLayoutExists: Boolean;
     procedure DoOnCompare(ADataController: TcxCustomDataController; ARecordIndex1, ARecordIndex2, AItemIndex: Integer;
       const V1, V2: Variant; var Compare: Integer);
-    procedure DoOnTableViewDblClick(Sender: TObject);
+    procedure DoOnCellDblClick(Sender: TcxCustomGridTableView; ACellViewInfo: TcxGridTableDataCellViewInfo; AButton: TMouseButton;
+      AShift: TShiftState; var AHandled: Boolean);
     procedure DoOnFocusedRecordChanged(Sender: TcxCustomGridTableView; APrevFocusedRecord,
       AFocusedRecord: TcxCustomGridRecord; ANewItemRecordFocusingChanged: Boolean);
     procedure CreateColumnsFromModel(const AFields: string = '');
@@ -232,6 +237,8 @@ type
     procedure DoOnColumnSizeChanged(Sender: TcxGridTableView; AColumn: TcxGridColumn);
     procedure DoOnHeaderClick(Sender: TObject);
     procedure LoadColumnWidths;
+    procedure OnDrawEnumItem_LineStyle(AControl: TcxCustomComboBox; ACanvas: TcxCanvas; AIndex: Integer; const ARect: TRect;
+      AState: TOwnerDrawState);
   protected
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure DoBeforeFreeControl; override;
@@ -358,7 +365,7 @@ uses
   uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings,
 
   dxCore, cxGridStrs, cxPivotGridStrs, cxDataStorage, cxGridCustomView, cxImageComboBox, cxDateUtils,
-  cxGridExportLink, cxProgressBar;
+  cxGridExportLink, cxProgressBar, dxColorGallery;
 
 type
   TCalculateStyleFunc = function(const AViewName: string; const AEntity: TEntity): TColor of object;
@@ -534,9 +541,9 @@ begin
     end;
 
     if vEntity.IsService then
-      vStyle.TextColor := clNavy
+      vStyle.TextColor := TDomain(AArea.Domain).Constant['ServiceRecordColor']//clNavy
     else if vEntity.IsNew then
-      vStyle.TextColor := clSilver
+      vStyle.TextColor := TDomain(AArea.Domain).Constant['NewRecordColor']
     else if (AItem.Name = 'TotalAmount') and (vEntity['TotalAmount'] < 0) then
       vStyle.TextColor := clRed;
 
@@ -775,6 +782,30 @@ begin
   end;
 end;
 
+procedure FillEnumList(const ADomain: TDomain; const AItems: TStrings; const AColumn: TcxGridColumn);
+var
+  vEnumItem: TEnumItem;
+  vEnum: TEnumeration;
+  vFieldDef: TFieldDef;
+begin
+  vFieldDef := TColumnBinding(AColumn.DataBinding.Data).FieldDef;
+  vEnum := ADomain.Configuration.Enumerations.ObjectByName(TSimpleFieldDef(vFieldDef).Dictionary);
+  if not Assigned(vEnum) then
+    vEnum := ADomain.Configuration.StateMachines.ObjectByName(TSimpleFieldDef(vFieldDef).Dictionary);
+
+  AItems.BeginUpdate;
+  try
+    AItems.Clear;
+    for vEnumItem in vEnum do
+    begin
+      if not vFieldDef.HasFlag(cRequired) or (vEnumItem.ID > 0) then
+        AItems.Add(vEnumItem.DisplayText);
+    end;
+  finally
+    AItems.EndUpdate;
+  end;
+end;
+
 { TEntityListSelector }
 
 procedure TEntityListSelector.DoBeforeFreeControl;
@@ -979,6 +1010,8 @@ begin
   FList.OnDblClick := OnDblClick;
   FList.CreateColumn;
   FList.OptionsView.Headers := True;
+  if FCreateParams.Values['ShowHeader'] = 'No' then
+    FList.OptionsView.Headers := False;
   FList.OptionsView.ShowRoot := False;
   FList.OptionsView.ColumnAutoWidth := True;
   FList.OptionsSelection.HideSelection := False;
@@ -1044,6 +1077,7 @@ var
   vArea: TVCLArea;
   vHolder: TObject;
 begin
+  if not TcxTreeList(Sender).HitTest.HitAtNode then Exit;
   vArea := TVCLArea(TComponent(Sender).Tag);
   Assert(Assigned(vArea), 'Нет холдера для грида');
 
@@ -1196,17 +1230,16 @@ var
   vColumn: TcxGridColumn;
   vPopupArea: TVCLArea;
   vPopupMenu: TPopupMenu;
-  vParams: TStrings;
   vFields: string;
 begin
   FBGStyle := TcxStyle.Create(nil);
   FHeaderStyle := TcxStyle.Create(nil);
   FEditRepository := TcxEditRepository.Create(nil);
-  FMasterDS := TUserDataSource.Create;
+  FMasterDS := TUserDataSource.Create(Self);
 
   FMasterTableView := TcxGridTableView.Create(nil);
   FMasterTableView.DataController.OnCompare := DoOnCompare;
-//  FMasterTableView.OptionsData.Editing := False;
+  FMasterTableView.OptionsData.Editing := False;
   FMasterTableView.OptionsData.Deleting := False;
   FMasterTableView.OptionsData.Inserting := False;
   FMasterTableView.OptionsCustomize.ColumnsQuickCustomization := True;
@@ -1214,7 +1247,7 @@ begin
   FMasterTableView.OptionsSelection.MultiSelect := True;
   FMasterTableView.OptionsSelection.HideSelection := True;
 
-  if StrToBoolDef(TDomain(TInteractor(AView.Interactor).Domain).UserSettings.GetValue('Core', 'MouseMultiSelectInGrids'), True) then
+  if StrToBoolDef(TDomain(TInteractor(AView.Interactor).Domain).UserSettings.GetValue('Core', 'MouseMultiSelectInGrids'), False) then
   begin
     FMasterTableView.OptionsSelection.CheckBoxVisibility := [cbvDataRow, cbvColumnHeader];
     FMasterTableView.OptionsSelection.ShowCheckBoxesDynamically := True;
@@ -1234,7 +1267,7 @@ begin
 
   FMasterTableView.OptionsBehavior.CellHints := True;
   FMasterTableView.DataController.CustomDataSource := FMasterDS;
-  FMasterTableView.OnDblClick := DoOnTableViewDblClick;
+  FMasterTableView.OnCellDblClick:= DoOnCellDblClick;
   FMasterTableView.OnSelectionChanged := DoOnSelectionChanged;
   FMasterTableView.OnCanSelectRecord := DoCanSelectRecord;
   FMasterTableView.DataController.Summary.Options := [soSelectedRecords, soMultipleSelectedRecords];
@@ -1281,12 +1314,18 @@ begin
 
   EnableColumnParamsChangeHandlers(False);
 
-  vParams := CreateDelimitedList(AParams, '&');
-  try
-    vFields := vParams.Values['fields'];
-  finally
-    FreeAndNil(vParams);
-  end;
+  if Assigned(FCreateParams) then
+  begin
+    vFields := FCreateParams.Values['fields'];
+    if FCreateParams.Values['editingInGrid'] = 'true' then
+    begin
+      FMasterTableView.OptionsData.Editing := True;
+      FMasterTableView.OptionsSelection.CellSelect := True;
+      FMasterTableView.OnCellDblClick := nil;
+    end;
+  end
+  else
+    vFields := '';
 
   if vFields = '' then
     vFields := AParent.QueryParameter('fields');
@@ -1319,6 +1358,7 @@ begin
       vView := FView.BuildView('#GroupByColumn');
       TEntity(vView.DomainObject)._SetFieldValue(nil, 'IsChecked', True);
       FMasterTableView.OptionsView.GroupByBox := True;
+      FMasterTableView.DataController.Options := FMasterTableView.DataController.Options + [dcoGroupsAlwaysExpanded];
     end;
   end;
 end;
@@ -1519,7 +1559,12 @@ begin
   if AKind = dckEntityChanged then
   begin
     if not FMasterDS.IsLoading then
-      FMasterTableView.Invalidate(True);
+    begin
+      //if FMasterTableView.OptionsView.GroupByBox then
+      //  FMasterTableView.DataController.CustomDataSource.DataChanged
+      //else
+        FMasterTableView.Invalidate(True);
+    end;
   end
   else if AKind = dckEntitySaved then
   begin
@@ -1630,6 +1675,7 @@ begin
   vCol.Caption := AOverriddenCaption;
   vColumnBinding := FMasterDS.AddColumn(AFieldName, AFieldDef);
   vCol.DataBinding.Data := vColumnBinding;
+  vColumnBinding.FColumn := vCol;
 
   if Assigned(AFieldDef) then
   begin
@@ -1637,6 +1683,7 @@ begin
     if AFieldDef.Kind in [fkInteger, fkFloat, fkCurrency] then
     begin
       vStyleName := GetUrlCommand(AFieldDef.StyleName);
+
       if vStyleName = 'progress' then
       begin
         vCol.PropertiesClass := TcxProgressBarProperties;
@@ -1647,12 +1694,17 @@ begin
       else
       begin
         vCol.PropertiesClassName := 'TcxSpinEditProperties';   // need for Excel export
+
+        if AFieldDef.Kind = fkFloat then
+          TcxSpinEditProperties(vCol.Properties).ValueType := vtFloat;
+
         if vStyleName = 'formatted' then
-        begin
-          if AFieldDef.Kind = fkFloat then
-            TcxSpinEditProperties(vCol.Properties).ValueType := vtFloat;
           TcxSpinEditProperties(vCol.Properties).DisplayFormat := GetUrlParam(AFieldDef.StyleName, 'format');
-        end;
+
+        if not VarIsNull(TSimpleFieldDef(AFieldDef).MinValue) then
+          TcxSpinEditProperties(vCol.Properties).MinValue := TSimpleFieldDef(AFieldDef).MinValue;
+        if not VarIsNull(TSimpleFieldDef(AFieldDef).MaxValue) then
+          TcxSpinEditProperties(vCol.Properties).MaxValue := TSimpleFieldDef(AFieldDef).MaxValue;
       end;
       vCol.HeaderAlignmentHorz := taRightJustify;
       vCol.FooterAlignmentHorz := taRightJustify;
@@ -1675,27 +1727,39 @@ begin
       TcxCheckBoxProperties(vCol.Properties).DisplayUnchecked := 'Нет';
     end
     else if AFieldDef.Kind = fkColor then
-      vCol.PropertiesClass := TdxColorEditProperties
-    else if (AFieldDef.Kind = fkEnum) and (AFieldDef.StyleName = 'images') then
     begin
-      vCol.PropertiesClass := TcxImageComboBoxProperties;
-      TcxImageComboBoxProperties(vCol.Properties).Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
-      for i := 0 to FAllData.ContentDefinitions.Count - 1 do
+      vCol.PropertiesClassName := 'TdxColorEditProperties';
+      TdxColorEditProperties(vCol.Properties).ColorPalette := TdxColorPalette.cpExtended;
+      TdxColorEditProperties(vCol.Properties).ColorSet := TdxColorSet.csDefault;
+    end
+    else if (AFieldDef.Kind = fkEnum) then
+    begin
+      if (AFieldDef.StyleName = 'images') then
       begin
-        vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
-        vComboItem := TcxImageComboBoxProperties(vCol.Properties).Items.Add;
-        vImageID := GetImageID(vDefinition._ImageID);
-        vComboItem.Value := vImageID;
-        vComboItem.ImageIndex := vImageID;
+        vCol.PropertiesClass := TcxImageComboBoxProperties;
+        TcxImageComboBoxProperties(vCol.Properties).Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
+        for i := 0 to FAllData.ContentDefinitions.Count - 1 do
+        begin
+          vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
+          vComboItem := TcxImageComboBoxProperties(vCol.Properties).Items.Add;
+          vImageID := GetImageID(vDefinition._ImageID);
+          vComboItem.Value := vImageID;
+          vComboItem.ImageIndex := vImageID;
+        end;
+      end
+      else
+      begin
+        vCol.PropertiesClass := TcxComboBoxProperties;
+        TcxComboBoxProperties(vCol.Properties).DropDownListStyle := lsFixedList;
+        FillEnumList(TDomain(FView.Domain), TcxComboBoxProperties(vCol.Properties).Items, vCol);
       end;
     end;
 
     vCol.SortOrder := TcxDataSortOrder(ASortOrder);
     vCol.Styles.OnGetContentStyle := OnGetContentStyle;
-    if Assigned(vCol.Properties) then
-      vCol.Properties.ReadOnly := True;
-      
-    vCol.Options.Editing := False;
+    if not Assigned(vCol.Properties) then
+      vCol.PropertiesClass := TcxTextEditProperties;
+    vCol.Properties.ReadOnly := AFieldDef.UIState < vsSelectOnly;
 
   end
   else
@@ -1881,9 +1945,11 @@ begin
   end;
 end;
 
-procedure TCollectionEditor.DoOnTableViewDblClick(Sender: TObject);
+procedure TCollectionEditor.DoOnCellDblClick(Sender: TcxCustomGridTableView; ACellViewInfo: TcxGridTableDataCellViewInfo; AButton: TMouseButton;
+  AShift: TShiftState; var AHandled: Boolean);
 begin
-  OnTableViewDblClick(FView, Self);
+  if AButton = mbLeft then
+    OnTableViewDblClick(FView, Self);
 end;
 
 { TUserDataSource }
@@ -1919,11 +1985,12 @@ begin
   Result := TcxDataRecordHandle(FEntities.Last);
 end;
 
-constructor TUserDataSource.Create;
+constructor TUserDataSource.Create(const AEditor: TVCLArea);
 begin
   FEntities := TList<TEntity>.Create;
   FColumns := TObjectList<TColumnBinding>.Create;
   FIsLoading := False;
+  FEditor := AEditor;
 end;
 
 procedure TUserDataSource.DataChanged;
@@ -1976,11 +2043,11 @@ begin
   Result := TcxDataRecordHandle(FEntities[ARecordIndex]);
 end;
 
-function TUserDataSource.GetValue(ARecordHandle: TcxDataRecordHandle;
-  AItemHandle: TcxDataItemHandle): Variant;
+function TUserDataSource.GetValue(ARecordHandle: TcxDataRecordHandle; AItemHandle: TcxDataItemHandle): Variant;
 var
   vColumnBinding: TColumnBinding;
   vFieldDef: TFieldDef;
+  vField: TBaseField;
   vFieldName: string;
   vEntity: TEntity;
   vEnumeration: TEnumeration;
@@ -1995,11 +2062,15 @@ begin
         Exit;
 
       if (AItemHandle = nil) or (not (TObject(AItemHandle) is TColumnBinding)) then Exit;
-        
+
       vColumnBinding := TColumnBinding(AItemHandle);
-      
-      vFieldDef := vColumnBinding.FieldDef;
+
       vFieldName := vColumnBinding.FieldName;
+      vField := vEntity.FieldByName(vFieldName);
+      if Assigned(vField) then
+        vFieldDef := vField.FieldDef
+      else
+        vFieldDef := vColumnBinding.FieldDef;
 
       if vFieldDef = nil then
       begin
@@ -2018,8 +2089,6 @@ begin
         else if vFieldDef.StyleName = 'date' then // cut the time
           Result := Trunc(Result);
       end
-      else if vFieldDef.Kind = fkFloat then
-        Result := RoundTo(Result, -vColumnBinding.AfterPoint)
       else if vFieldDef.Kind = fkEnum then
       begin
         vEnumeration := TDomain(vEntity.Domain).Configuration.Enumerations.ObjectByName(TSimpleFieldDef(vFieldDef).Dictionary);
@@ -2027,6 +2096,19 @@ begin
           Result := vEnumeration.Items[Integer(vEntity.FieldByName(vFieldDef.Name).Value)].DisplayText
         else
           Result := vEntity.GetStateCaption(vFieldName);
+      end
+      else if vFieldDef.Kind in [fkInteger, fkFloat] then
+      begin
+        if vFieldDef.Kind = fkFloat then
+          Result := RoundTo(Result, -vColumnBinding.AfterPoint);
+
+        if Assigned(vColumnBinding.FColumn) and Assigned(vColumnBinding.FColumn.Properties) then
+        begin
+          if (vFieldDef.Kind = fkInteger) and (TcxSpinEditProperties(vColumnBinding.FColumn.Properties).ValueType = vtFloat) then
+            TcxSpinEditProperties(vColumnBinding.FColumn.Properties).ValueType := vtInt
+          else if (vFieldDef.Kind = fkFloat) and (TcxSpinEditProperties(vColumnBinding.FColumn.Properties).ValueType = vtInt) then
+            TcxSpinEditProperties(vColumnBinding.FColumn.Properties).ValueType := vtFloat;
+        end;
       end;
     except
       on E: Exception do
@@ -2053,6 +2135,81 @@ begin
   DataController.DeleteRecord(FEntities.IndexOf(AEntity));
   FEntities.Remove(AEntity);
   DataChanged;
+end;
+
+procedure TUserDataSource.SetValue(ARecordHandle: TcxDataRecordHandle; AItemHandle: TcxDataItemHandle; const AValue: Variant);
+var
+  vColumnBinding: TColumnBinding;
+  vFieldDef: TFieldDef;
+  vFieldName: string;
+  vEntity: TEntity;
+  vEnumeration: TEnumeration;
+  vInteractor: TInteractor;
+  vValue: Variant;
+  vItem: TEnumItem;
+  procedure DoChange;
+  begin
+    TUserSession(vInteractor.Session).AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
+      begin
+        vEntity._SetFieldValue(AHolder, vFieldName, vValue);
+        Result := True;
+      end, TChangeHolder(FEditor.Holder));
+  end;
+begin
+  vEntity := nil;
+  FIsLoading := True;
+  try
+    try
+      vEntity := TEntity(ARecordHandle);
+      if not Assigned(vEntity) then
+        Exit;
+
+      if (AItemHandle = nil) or (not (TObject(AItemHandle) is TColumnBinding)) then Exit;
+
+      vColumnBinding := TColumnBinding(AItemHandle);
+
+      vFieldDef := vColumnBinding.FieldDef;
+      vFieldName := vColumnBinding.FieldName;
+
+      if vFieldDef = nil then
+        Exit;
+
+      vInteractor := TInteractor(FEditor.View.Interactor);
+
+      if vFieldDef.Kind = fkDateTime then
+      begin
+      {  if (TDateTime(Result) < 2) and (vFieldDef.StyleName <> 'time') then
+          Result := Null
+        else if vFieldDef.StyleName = 'date' then // cut the time
+          Result := Trunc(Result);  }
+      end
+      else if vFieldDef.Kind = fkEnum then
+      begin
+        vEnumeration := TDomain(vEntity.Domain).Configuration.Enumerations.ObjectByName(TSimpleFieldDef(vFieldDef).Dictionary);
+        if Assigned(vEnumeration) then
+        begin
+          vItem := vEnumeration.GetItemByDisplayText(AValue);
+          if Assigned(vItem) then
+          begin
+            vValue := vItem.ID;
+            DoChange;
+          end;
+        end;
+      end
+      else if vFieldDef.Kind in [fkInteger, fkFloat, fkColor, fkString, fkBoolean] then
+      begin
+        vValue := AValue;
+        DoChange;
+      end;
+
+    except
+      on E: Exception do
+        if Assigned(vEntity) then
+          TDomain(vEntity.Domain).Logger.AddMessage('Ошибка обновления данных в модели. Поле [' + vFieldName + ']');
+    end;
+  finally
+    FIsLoading := False;
+  end;
 end;
 
 procedure TUserDataSource.Update;
@@ -2113,9 +2270,11 @@ var
   vStyleName: string;
 begin
   vCol := FMasterTableView.CreateColumn;
+  vCol.Options.Editing := AFieldDef.UIState > vsReadOnly;
   vCol.Caption := AOverriddenCaption;
   vColumnBinding := FMasterDS.AddColumn(AFieldName, AFieldDef);
   vCol.DataBinding.Data := vColumnBinding;
+  vColumnBinding.FColumn := vCol;
 
   if Assigned(AFieldDef) then
   begin
@@ -2123,6 +2282,7 @@ begin
     if AFieldDef.Kind in [fkInteger, fkFloat, fkCurrency] then
     begin
       vStyleName := GetUrlCommand(AFieldDef.StyleName);
+
       if vStyleName = 'progress' then
       begin
         vCol.PropertiesClass := TcxProgressBarProperties;
@@ -2132,16 +2292,22 @@ begin
       else
       begin
         vCol.PropertiesClassName := 'TcxSpinEditProperties';   // need for Excel export
+
+        if AFieldDef.Kind = fkFloat then
+          TcxSpinEditProperties(vCol.Properties).ValueType := vtFloat;
+
         if vStyleName = 'formatted' then
-        begin
-          if AFieldDef.Kind = fkFloat then
-            TcxSpinEditProperties(vCol.Properties).ValueType := vtFloat;
           TcxSpinEditProperties(vCol.Properties).DisplayFormat := GetUrlParam(AFieldDef.StyleName, 'format');
-        end;
-        vCol.HeaderAlignmentHorz := taRightJustify;
-        vCol.FooterAlignmentHorz := taRightJustify;
-        vCol.Properties.Alignment.Horz := taRightJustify;
+
+        if not VarIsNull(TSimpleFieldDef(AFieldDef).MinValue) then
+          TcxSpinEditProperties(vCol.Properties).MinValue := TSimpleFieldDef(AFieldDef).MinValue;
+        if not VarIsNull(TSimpleFieldDef(AFieldDef).MaxValue) then
+          TcxSpinEditProperties(vCol.Properties).MaxValue := TSimpleFieldDef(AFieldDef).MaxValue;
       end;
+
+      vCol.HeaderAlignmentHorz := taRightJustify;
+      vCol.FooterAlignmentHorz := taRightJustify;
+      vCol.Properties.Alignment.Horz := taRightJustify;
     end
     else if AFieldDef.Kind = fkDateTime then
     begin
@@ -2156,7 +2322,23 @@ begin
     else if AFieldDef.Kind = fkBoolean then
       vCol.PropertiesClassName := 'TcxCheckBoxProperties'
     else if AFieldDef.Kind = fkColor then
+    begin
       vCol.PropertiesClassName := 'TdxColorEditProperties';
+      TdxColorEditProperties(vCol.Properties).ColorPalette := TdxColorPalette.cpExtended;
+      TdxColorEditProperties(vCol.Properties).ColorSet := TdxColorSet.csDefault;
+    end
+    else if AFieldDef.Kind = fkEnum then
+    begin
+      vCol.PropertiesClass := TcxComboBoxProperties;
+
+      TcxComboBoxProperties(vCol.Properties).DropDownListStyle := lsFixedList;
+      FillEnumList(TDomain(FView.Domain), TcxComboBoxProperties(vCol.Properties).Items, vCol);
+      if AFieldDef.StyleName = 'line_style' then
+      begin
+        TcxComboBoxProperties(vCol.Properties).OnDrawItem := OnDrawEnumItem_LineStyle;
+        TcxComboBoxProperties(vCol.Properties).OnDrawItem := nil;//todo: пока отключил, нужно переопределить отрисовку для ячейки в гриде, иначе в гриде только текст рисуется
+      end;
+    end;
 
     vCol.SortOrder := TcxDataSortOrder(ASortOrder);
     vCol.Styles.OnGetContentStyle := OnGetContentStyle;
@@ -2261,7 +2443,7 @@ begin
   FBGStyle := TcxStyle.Create(nil);
   FHeaderStyle := TcxStyle.Create(nil);
 
-  FMasterDS := TUserDataSource.Create;
+  FMasterDS := TUserDataSource.Create(Self);
 
   FMasterTableView := TcxGridTableView.Create(nil);
   FMasterTableView.DataController.OnCompare := DoOnCompare;
@@ -2277,7 +2459,7 @@ begin
     FMasterTableView.OptionsCustomize.ColumnSorting := False;
 
   //FMasterTableView.OptionsView.Header := TObjectFieldDef(FFieldDef).SortType <> estSortByOrder;
-  if StrToBoolDef(TDomain(TInteractor(FView.Interactor).Domain).UserSettings.GetValue('Core', 'MouseMultiSelectInGrids'), True) then
+  if StrToBoolDef(TDomain(TInteractor(FView.Interactor).Domain).UserSettings.GetValue('Core', 'MouseMultiSelectInGrids'), False) then
   begin
     FMasterTableView.OptionsSelection.CheckBoxVisibility := [cbvDataRow, cbvColumnHeader];
     FMasterTableView.OptionsSelection.ShowCheckBoxesDynamically := True;
@@ -2295,7 +2477,7 @@ begin
 
   FMasterTableView.OptionsBehavior.CellHints := True;
   FMasterTableView.DataController.CustomDataSource := FMasterDS;
-  FMasterTableView.OnDblClick := DoOnTableViewDblClick;
+  FMasterTableView.OnCellDblClick := DoOnCellDblClick;
 //  FMasterTableView.OnKeyDown := OnFilterKeyDown;
   FMasterTableView.OnFocusedRecordChanged := DoOnFocusedRecordChanged;
   FMasterTableView.DataController.Summary.Options := [soSelectedRecords, soMultipleSelectedRecords];
@@ -2304,7 +2486,7 @@ begin
 
   if Assigned(ALayout) and (ALayout is TPanel) and Assigned(TPanel(ALayout).PopupMenu) then
   begin
-    vPopupArea := TVCLArea(Parent.AreaById('Popup'));
+    vPopupArea := TVCLArea(AParent.AreaById('Popup'));
     { TODO -owa : Нужно найти другой способ привязки меню }
     if not Assigned(vPopupArea) and Assigned(Parent.Parent) then
       vPopupArea := TVCLArea(Parent.Parent.AreaById('Popup'));
@@ -2335,9 +2517,30 @@ begin
   FHeaderStyle.Font.Size := 10;
   FHeaderStyle.TextColor := clGray;
 
-  vFields := TUIArea(AParent).QueryParameter('fields');
+  if Assigned(FCreateParams) then
+  begin
+    vFields := FCreateParams.Values['fields'];
+    if FCreateParams.Values['editingInGrid'] = 'true' then
+    begin
+      FMasterTableView.OptionsData.Editing := True;
+      FMasterTableView.OptionsSelection.CellSelect := True;
+      FMasterTableView.OnCellDblClick := nil;
+    end;
+  end
+  else
+    vFields := '';
+  if vFields = '' then
+    vFields := AParent.QueryParameter('fields');
+
   CreateColumnsFromModel(vFields);
   LoadColumnWidths;
+end;
+
+procedure TColumnListEditor.DoOnCellDblClick(Sender: TcxCustomGridTableView; ACellViewInfo: TcxGridTableDataCellViewInfo; AButton: TMouseButton;
+  AShift: TShiftState; var AHandled: Boolean);
+begin
+  if AButton = mbLeft then
+    OnTableViewDblClick(FView, Self);
 end;
 
 procedure TColumnListEditor.DoOnColumnPosChanged(Sender: TcxGridTableView; AColumn: TcxGridColumn);
@@ -2389,11 +2592,6 @@ begin
   SaveColumnWidths;
 end;
 
-procedure TColumnListEditor.DoOnTableViewDblClick(Sender: TObject);
-begin
-  OnTableViewDblClick(FView, Self);
-end;
-
 procedure TColumnListEditor.EnableColumnParamsChangeHandlers(const AEnable: Boolean);
 begin
   if AEnable then
@@ -2418,6 +2616,25 @@ end;
 procedure TColumnListEditor.LoadColumnWidths;
 begin
   FLayoutExists := LoadGridColumnWidths(TInteractor(FView.Interactor).Domain, FMasterTableView, FFieldDef.FullName);
+end;
+
+procedure TColumnListEditor.OnDrawEnumItem_LineStyle(AControl: TcxCustomComboBox; ACanvas: TcxCanvas; AIndex: Integer; const ARect: TRect;
+  AState: TOwnerDrawState);
+var
+  vID: Integer;
+begin
+  ACanvas.FillRect(ARect);
+  ACanvas.Pen.Color := ACanvas.Font.Color;
+  ACanvas.Pen.Width := 1;
+
+  vID := AIndex;
+  if FFieldDef.HasFlag(cRequired) then
+    vID := vID + 1;
+
+  ACanvas.Pen.Style := Graphics.TPenStyle(vID);
+
+  ACanvas.MoveTo(ARect.Left + 8, ARect.CenterPoint.Y);
+  ACanvas.LineTo(ARect.Right - 8, ARect.CenterPoint.Y);
 end;
 
 procedure TColumnListEditor.OnGetContentStyle(Sender: TcxCustomGridTableView; ARecord: TcxCustomGridRecord;
@@ -3637,8 +3854,8 @@ begin
       var
         vTransitEntity: TEntity;
       begin
-        vTransitEntity := TEntityList(FView.DomainObject).AddEntity(AHolder, '');
-        vTransitEntity._SetFieldEntity(AHolder, FTransitField.Name, vEntity);
+        vTransitEntity := TEntityList(FView.DomainObject).AddEntity(AHolder, '', FTransitField.Name, [Integer(vEntity)]);
+        //vTransitEntity._SetFieldEntity(AHolder, FTransitField.Name, vEntity);
         FListBox.Items[AIndex].ItemObject := vTransitEntity;
         Result := True;
       end, TChangeHolder(Holder));

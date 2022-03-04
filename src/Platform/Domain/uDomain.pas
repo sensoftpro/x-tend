@@ -155,16 +155,13 @@ type
     function LoadCollection(const ACollectionName: string): TCollection;
 
     function CreateNewEntity(const ACollectionName: string; const AHolder: TObject;
-      const AID: Integer = cNewID; const AFieldContext: TBaseField = nil): TEntity;
+      const AID: Integer = cNewID; const AOwnerContext: TObject = nil): TEntity;
     function EntityByID(const ACollectionName: string; const AID: Integer): TEntity;
     function FirstEntity(const ACollectionName: string): TEntity;
     function FindOneEntity(const ADefinitionName: string; const ASession: TUserSession;
       const AQuery: string; const AParams: array of Variant): TEntity;
     function FindEntities(const ADefinitionName: string; const ASession: TUserSession;
       const AQuery: string; const AParams: array of Variant): TList<TEntity>;
-
-    //function CreateNotification(const AMessage, AActionLink: string): TEntity;
-    //procedure NotifyUser(const AUser, ANotification: TEntity);
 
     function Translate(const AKey, ADefault: string): string;
     function TranslateDefinition(const ADefinition: TDefinition;
@@ -391,19 +388,24 @@ begin
   if SameText(AVersion1, AVersion2) then
     Exit(0);
 
+  Result := 0;
   vList1 := CreateDelimitedList(AVersion1, '.');
   vList2 := CreateDelimitedList(AVersion2, '.');
-  Result := 0;
-  for i := 0 to Max(vList1.Count, vList2.Count) - 1 do
-  begin
-    if vList1.Count <= i then
-      Exit(-1);
-    if vList2.Count <= i then
-      Exit(1);
+  try
+    for i := 0 to Max(vList1.Count, vList2.Count) - 1 do
+    begin
+      if vList1.Count <= i then
+        Exit(-1);
+      if vList2.Count <= i then
+        Exit(1);
 
-    Result := StrToIntDef(Trim(vList1[i]), 0) - StrToIntDef(Trim(vList2[i]), 0);
-    if Result <> 0 then
-      Exit;
+      Result := StrToIntDef(Trim(vList1[i]), 0) - StrToIntDef(Trim(vList2[i]), 0);
+      if Result <> 0 then
+        Exit;
+    end;
+  finally
+    FreeAndNil(vList1);
+    FreeAndNil(vList2);
   end;
 end;
 
@@ -450,45 +452,16 @@ begin
 end;
 
 function TDomain.CreateNewEntity(const ACollectionName: string; const AHolder: TObject; const AID: Integer;
-  const AFieldContext: TBaseField): TEntity;
+  const AOwnerContext: TObject): TEntity;
 var
   vCollection: TCollection;
 begin
   vCollection := CollectionByName(ACollectionName);
   if Assigned(vCollection) then
-    Result := vCollection.CreateNewEntity(TChangeHolder(AHolder), AID, AFieldContext)
+    Result := vCollection._CreateNewEntity(TChangeHolder(AHolder), AID, '', [], AOwnerContext, True)
   else
     Result := nil;
 end;
-
-(*function TDomain.CreateNotification(const AMessage, AActionLink: string): TEntity;
-var
-  vCollection: TCollection;
-  vEntity: TEntity;
-  i: Integer;
-begin
-  // Медленно
-  vCollection := CollectionByName('SysNotifications');
-  for i := 0 to vCollection.Count - 1 do
-  begin
-    Result := vCollection[i];
-    if Result['ActionLink'] = AActionLink then
-      Exit;
-  end;
-
-  FDomainSession.AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
-    begin
-      vEntity := vCollection.CreateNewEntity(AHolder);
-      AHolder.SetFieldEntity(vEntity, 'Sender', CollectionByName('SysUsers').EntityByID(0));
-      AHolder.SetFieldEntity(vEntity, 'Severity', CollectionByName('SysNotificationSeverities').EntityByID(1));
-      AHolder.SetFieldValue(vEntity, 'Message', AMessage);
-      AHolder.SetFieldValue(vEntity, 'DueDate', Now + 1);
-      AHolder.SetFieldValue(vEntity, 'ActionLink', AActionLink);
-      Result := True;
-    end, nil, True);
-
-  Result := vEntity;
-end; *)
 
 destructor TDomain.Destroy;
 var
@@ -1129,35 +1102,6 @@ begin
     FOnProgress(AProgress, AInfo);
 end;
 
-(*procedure TDomain.NotifyUser(const AUser, ANotification: TEntity);
-var
-  i: Integer;
-  vNotifications: TListField;
-  vEntity: TEntity;
-begin
-  { TODO -owa -caddition : Уведомить и всех его заместителей (тогда нужно создавать отдельные уведомления под каждого пользователя) }
-  vNotifications := TListField(AUser.FieldByName('Notifications'));
-  for i := 0 to vNotifications.Count - 1 do
-  begin
-    vEntity := TEntity(vNotifications[i]);
-    if not Assigned(vEntity) then
-      Continue;
-
-    if SafeID(vEntity.ExtractEntity('Notification')) = SafeID(ANotification) then
-      Exit;
-  end;
-
-  FDomainSession.AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
-    var
-      vUserNotification: TEntity;
-    begin
-      vUserNotification := CollectionByName('SysUsersNotifications').CreateNewEntity(AHolder);
-      AHolder.SetFieldEntity(vUserNotification, 'User', AUser);
-      AHolder.SetFieldEntity(vUserNotification, 'Notification', ANotification);
-      Result := True;
-    end, nil, True);
-end; *)
-
 function TDomain.Now: TDateTime;
 begin
   if FStorage = nil then
@@ -1167,6 +1111,8 @@ begin
 end;
 
 procedure TDomain.Preload(const AStorage: TStorage);
+var
+  vEntity: TEntity;
 begin
   NotifyLoadingProgress(25, 'Создание системных структур');
 
@@ -1220,7 +1166,7 @@ begin
             if vSyncDefinition.ID > 0 then
               vDefEntity := TCollection(FRootCollection.EntityByID(vSyncDefinition.ID));
             if not Assigned(vDefEntity) then
-              vDefEntity := TCollection(FRootCollection.CreateNewEntity(AHolder));
+              vDefEntity := TCollection(FRootCollection._CreateNewEntity(AHolder, cNewID, '', []));
           end;
           vDefEntity.SetCollectionAttributes(TEntity, vSyncDefinition);
           vHolder := AHolder;
@@ -1234,6 +1180,11 @@ begin
       end;
       Result := True;
     end, nil, True);
+
+  for vEntity in FRootCollection do
+    if Assigned(TCollection(vEntity).ContentDefinition) then
+      if TCollection(vEntity).ContentDefinition.ID = 0 then
+        TCollection(vEntity).ContentDefinition.SetID(vEntity.ID);
 
   FStorage.UpdateNumerator(FConfiguration.RootDefinition.StorageName, FRootCollection.MaxID);
 end;

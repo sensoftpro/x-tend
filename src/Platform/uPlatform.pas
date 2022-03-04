@@ -160,7 +160,7 @@ var
   end;
 begin
 {$IFDEF DEBUG}
-  ReportMemoryLeaksOnShutdown := True;
+  //ReportMemoryLeaksOnShutdown := True;
 {$ENDIF}
 
   inherited Create;

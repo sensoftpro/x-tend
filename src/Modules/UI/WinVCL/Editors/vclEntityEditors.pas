@@ -80,8 +80,6 @@ type
   protected
     procedure UpdateVisibility; virtual;
   protected
-    procedure DoAdd(const ACollectionIndex: Integer);
-    procedure DoEdit;
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
@@ -324,42 +322,6 @@ begin
     FSelectPopup.Close;
 end;
 
-procedure TVCLEntityFieldEditor.DoAdd(const ACollectionIndex: Integer);
-var
-  vSaved: Boolean;
-  vInteractor: TInteractor;
-begin
-  vInteractor := TInteractor(FView.Interactor);
-  vSaved := vInteractor.AtomicEditEntity(function(const AHolder: TObject): TView
-    var
-      vEntity: TEntity;
-      vCollectionName: string;
-    begin
-      vCollectionName := TDefinition(TEntityFieldDef(FFieldDef).ContentDefinitions[ACollectionIndex]).Name;
-      vEntity := TDomain(TInteractor(FView.Interactor).Domain).CreateNewEntity(
-        vCollectionName, AHolder, cNewID, FView.ExtractEntityField);
-      TChangeHolder(AHolder).SetFieldEntity(TEntity(FView.ParentDomainObject), FFieldDef.Name, vEntity);
-      FView.DomainObject := vEntity;
-      Result := FView;
-    end, nil {RETHINK: , Holder - это вызывало перенос изменений в родительский холдер});
-
-  if vSaved then
-    PostMessage(TWinControl(FControl).Handle, WM_NEXTDLGCTL, 0, 0) //нам нужен именно переход к следующему
-end;
-
-procedure TVCLEntityFieldEditor.DoEdit;
-var
-  vEntity: TEntity;
-begin
-  vEntity := TEntity(FView.DomainObject);
-  if not Assigned(vEntity) then
-    Exit;
-
-  SetFocused(True);
-
-  TInteractor(Interactor).AtomicEditEntity(FView, Holder);
-end;
-
 procedure TVCLEntityFieldEditor.FillEditor;
 var
   vEntity: TEntity;
@@ -495,6 +457,7 @@ var
   vInteractor: TInteractor;
   vField: TEntityField;
   vEntity: TEntity;
+  vPrevCursor: TCursorType;
 begin
   vEntity := TEntity(FView.FieldEntity);
   vInteractor := TInteractor(FView.Interactor);
@@ -502,7 +465,7 @@ begin
   if FEntities = nil then
     FEntities := TEntityList.Create(vInteractor.Domain, vInteractor.Session);
 
-  TWinVCLPresenter(vInteractor.Presenter).LongOperationStarted;
+  vPrevCursor := TPresenter(vInteractor.Presenter).SetCursor(crtHourGlass);
   try
     vField := FView.ExtractEntityField;
     vField.GetEntitiesForSelect(TInteractor(FView.Interactor).Session, FEntities);
@@ -517,7 +480,7 @@ begin
     FSelectPopup.Init(FEntities, True, vEntity, AFilter);
     FSelectPopup.ShowFor(TWinControl(FControl), '');
   finally
-    TWinVCLPresenter(vInteractor.Presenter).LongOperationEnded;
+    TPresenter(vInteractor.Presenter).SetCursor(vPrevCursor);
   end;
 end;
 

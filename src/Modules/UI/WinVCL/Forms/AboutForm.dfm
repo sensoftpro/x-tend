@@ -38,7 +38,7 @@ object AboutFm: TAboutFm
     Top = 158
     Width = 157
     Height = 16
-    Caption = 'Copyright '#169' 2021 Sensoft. '
+    Caption = 'Copyright '#169' 2022 Sensoft. '
     Font.Charset = DEFAULT_CHARSET
     Font.Color = 4795653
     Font.Height = -13

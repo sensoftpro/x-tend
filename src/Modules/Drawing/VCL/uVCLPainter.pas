@@ -325,14 +325,19 @@ end;
 procedure TVCLPainter.DoDrawLine(const AStroke: TStylePen; const APoint1, APoint2: TPointF);
 var
   vOldPen: TPen;
+  vOldBrushStyle: TBrushStyle;
 begin
   vOldPen := ThisCanvas.Pen;
+  vOldBrushStyle := ThisCanvas.Brush.Style;
+
   ThisCanvas.Pen := TPen(AStroke.NativeObject);
+  ThisCanvas.Brush.Style := bsClear;
   try
     ThisCanvas.MoveTo(Round(APoint1.X), Round(APoint1.Y));
     ThisCanvas.LineTo(Round(APoint2.X), Round(APoint2.Y));
   finally
     ThisCanvas.Pen := vOldPen;
+    ThisCanvas.Brush.Style := vOldBrushStyle;
   end;
 end;
 
@@ -404,16 +409,20 @@ procedure TVCLPainter.DoDrawPolyline(const AStroke: TStylePen; const APoints: PP
 var
   vOldPen: TPen;
   vPoints: TPointArray;
+  vOldBrushStyle: TBrushStyle;
 begin
   vOldPen := ThisCanvas.Pen;
+  vOldBrushStyle := ThisCanvas.Brush.Style;
 
   vPoints := PPointFToPoints(APoints, ACount);
   ThisCanvas.Pen := TPen(AStroke.NativeObject);
+  ThisCanvas.Brush.Style := bsClear;
   try
     ThisCanvas.Polyline(vPoints);
   finally
     SetLength(vPoints, 0);
     ThisCanvas.Pen := vOldPen;
+    ThisCanvas.Brush.Style := vOldBrushStyle;
   end;
 end;
 
@@ -447,35 +456,27 @@ procedure TVCLPainter.DoDrawRegion(const AFill: TStyleBrush; const AStroke: TSty
   const ACount: Integer);
 var
   vOldPen: TPen;
+  vOldBrush: TBrush;
   vPoints: TPointArray;
-  vRegion: HRGN;
-  vRgnRect: TRect;
 begin
   vPoints := PPointFToPoints(APoints, ACount);
 
-  if Assigned(AFill) then
-  begin
-    vRegion := CreatePolygonRgn(APoints, SizeOf(vPoints) div SizeOf(TPoint), WINDING);
-    GetRgnBox(vRegion, vRgnRect);
-
-    SelectClipRgn(ThisCanvas.Handle, vRegion);
-    try
-      InternalFillRect(AFill, vRgnRect);
-    finally
-      SelectClipRgn(ThisCanvas.Handle, 0);
-      DeleteObject(vRegion);
-    end;
-  end;
-
+  vOldPen := ThisCanvas.Pen;
+  vOldBrush := ThisCanvas.Brush;
   if Assigned(AStroke) then
-  begin
-    vOldPen := ThisCanvas.Pen;
-    ThisCanvas.Pen := TPen(AStroke.NativeObject);
-    try
-      ThisCanvas.Polygon(vPoints);
-    finally
-      ThisCanvas.Pen := vOldPen;
-    end;
+    ThisCanvas.Pen := TPen(AStroke.NativeObject)
+  else
+    ThisCanvas.Pen := FClearPen;
+  if Assigned(AFill) then
+    ThisCanvas.Brush := TBrush(AFill.NativeObject)
+  else
+    ThisCanvas.Brush := FClearBrush;
+
+  try
+    ThisCanvas.Polygon(vPoints);
+  finally
+    ThisCanvas.Pen := vOldPen;
+    ThisCanvas.Brush := vOldBrush;
   end;
 
   SetLength(vPoints, 0);

@@ -36,7 +36,7 @@ unit uPresenter;
 interface
 
 uses
-  Classes, Generics.Collections, uModule, uSettings, uInteractor, uView, uConsts, uUIBuilder, uIcon;
+  Classes, Generics.Collections, SysUtils, uModule, uSettings, uInteractor, uView, uConsts, uUIBuilder, uIcon;
 
 type
   { НАВИГАЦИЯ И ИДЕНТИФИКАЦИЯ ПОЛЕЙ }
@@ -240,8 +240,8 @@ type
     procedure Authorize(const AAccount: TObject; const AUrl: string; const AWidth, AHeight: Integer;
       const AOnNavigated: TNavigateEvent);
 
-    function CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
-      const AAreaName: string; const ACallback: TNotifyEvent = nil): TUIArea; virtual;
+    function CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView; const AAreaName: string;
+      const ACallback: TNotifyEvent = nil; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; virtual;
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; virtual;
     procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); virtual;
 
@@ -262,12 +262,9 @@ type
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
     procedure CloseAllPages(const AInteractor: TInteractor);
 
-    procedure LongOperationStarted; virtual;
-    procedure LongOperationEnded; virtual;
-
     function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject; virtual; abstract;
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
-    procedure SetCursor(const ACursorType: TCursorType);
+    function SetCursor(const ACursorType: TCursorType): TCursorType;
 
     procedure ShowMessage(const ACaption, AText: string; const AMessageType: TMessageType = msNone);
     function ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
@@ -287,7 +284,7 @@ type
 implementation
 
 uses
-  IOUtils, SysUtils, TypInfo, {>> Windows} Controls, StdCtrls, ExtCtrls, ComCtrls, Menus, {Windows <<}
+  IOUtils, TypInfo, {>> Windows} Controls, StdCtrls, ExtCtrls, ComCtrls, Menus, {Windows <<}
   uDefinition, uUtils;
 
 { TPresenter }
@@ -406,7 +403,7 @@ begin
 end;
 
 function TPresenter.CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
-  const AAreaName: string; const ACallback: TNotifyEvent = nil): TUIArea;
+  const AAreaName: string; const ACallback: TNotifyEvent = nil; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea;
 begin
   Result := nil;
 end;
@@ -596,14 +593,6 @@ begin
   FInteractors.Remove(AInteractor);
 end;
 
-procedure TPresenter.LongOperationEnded;
-begin
-end;
-
-procedure TPresenter.LongOperationStarted;
-begin
-end;
-
 procedure TPresenter.OnDomainError(const ACaption, AText: string);
 begin
 end;
@@ -663,8 +652,9 @@ begin
   DoRun(AParameter);
 end;
 
-procedure TPresenter.SetCursor(const ACursorType: TCursorType);
+function TPresenter.SetCursor(const ACursorType: TCursorType): TCursorType;
 begin
+  Result := FCursorType;
   if FCursorType = ACursorType then
     Exit;
   FCursorType := ACursorType;
