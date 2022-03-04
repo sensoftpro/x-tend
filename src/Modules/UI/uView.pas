@@ -501,6 +501,19 @@ begin
           SetDomainEntity(nil);
       end;
     end
+    else if Pos('Index', FName) = 1 then
+    begin
+      if FName <> 'Index' then
+      begin
+        vTextID := Copy(FName, 6, Length(FName) - 5);
+        vId := StrToIntDef(vTextID, 0);
+        vCollection := TDomain(vInteractor.Domain).CollectionByName(TDefinition(FDefinition).Name);
+        if (vId > -1) and (vId < vCollection.Count) then
+          SetDomainEntity(TDomain(vInteractor.Domain).CollectionByName(TDefinition(FDefinition).Name)[vId])
+        else
+          SetDomainEntity(nil);
+      end;
+    end
     else if (Pos('$', FName) = 1) and (Length(FName) > 1) then
     begin
       vTextID := Copy(FName, 2, Length(FName) - 1);
@@ -712,7 +725,7 @@ begin
         vParentDefinition := TDefinition(vParentDefinition);
         if not ExtractAction(vParentDefinition, FName) then
         begin
-          if (FName = 'Selected') or (FName = 'Current') or (Pos('New', FName) = 1) or (Pos('$', FName) = 1) or (StrToIntDef(FName, 0) > 0) then
+          if (FName = 'Selected') or (FName = 'Current') or (Pos('New', FName) = 1) or (Pos('Index', FName) = 1) or (Pos('$', FName) = 1) or (StrToIntDef(FName, 0) > 0) then
           begin
             FDefinition := vParentDefinition;
             FDefinitionKind := dkEntity;
@@ -1223,7 +1236,10 @@ begin
           if TEntity(FDomainObject).IsService then
             FState := FState and vsReadOnly
           else
+          begin
             FState := FState and vsFullAccess;
+            UpdateChildViews(dkAction);
+          end;
         end
         else
           FState := vsHidden;

@@ -269,6 +269,8 @@ type
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+  public
+    destructor Destroy; override;
   end;
 
   TDEPagesFieldEditor = class(TDEEditor)
@@ -395,6 +397,11 @@ begin
   FControl := TcxLabel.Create(nil);
   TcxLabel(FControl).Transparent := True;
   TcxLabel(FControl).Properties.WordWrap := True;
+  if Assigned(FCreateParams) and (FCreateParams.Values['WordWrap'] = 'False') then
+  begin
+    TcxLabel(FControl).Properties.WordWrap := False;
+    TcxLabel(FControl).Properties.ShowEndEllipsis := True;
+  end;
   TcxLabel(FControl).AutoSize := False;
 end;
 
@@ -1782,19 +1789,49 @@ type
 procedure TSpinner.AssignFromLayout(const ALayout: TObject);
 var
   vPanel: TCrackedControl absolute ALayout;
+  vColor: Cardinal;
+  vR, vG, vB: Byte;
+  vRGBColor: Integer;
 begin
   inherited;
 
   if (ALayout is TPanel) or (ALayout is TMemo) then
     if (FControl is TdxActivityIndicator) and not vPanel.ParentFont and (vPanel.Font.Color <> clWindowText) then
-      TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(FControl).Properties).DotColor :=
-        TAlphaColorRec.Alpha or TAlphaColor(TColorRec.ColorToRGB(vPanel.Font.Color));
+    begin
+      vRGBColor := TColorRec.ColorToRGB(vPanel.Font.Color);
+      vR := GetRValue(vRGBColor); vG := GetGValue(vRGBColor); vB := GetBValue(vRGBColor);
+      vColor := TAlphaColorRec.Alpha or TAlphaColor(RGB(vB, vG, vR));
+      if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorHorizontalDotsProperties then
+        TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(FControl).Properties).DotColor := vColor
+      else if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorGravityDotsProperties then
+        TdxActivityIndicatorGravityDotsProperties(TdxActivityIndicator(FControl).Properties).DotColor := vColor
+      else if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorElasticCircleProperties then
+        TdxActivityIndicatorElasticCircleProperties(TdxActivityIndicator(FControl).Properties).ArcColor := vColor;
+    end;
 end;
 
 procedure TSpinner.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TdxActivityIndicator.Create(nil);
   TdxActivityIndicator(FControl).Transparent := True;
+  Control.Visible := False;
+  if Assigned(FCreateParams) then
+  begin
+    if FCreateParams.Values['type'] = 'GravityDots' then
+      TdxActivityIndicator(FControl).PropertiesClassName := 'TdxActivityIndicatorGravityDotsProperties'
+    else if FCreateParams.Values['type'] = 'ElasticCircle' then
+    begin
+      TdxActivityIndicator(FControl).PropertiesClassName := 'TdxActivityIndicatorElasticCircleProperties';
+      TdxActivityIndicatorElasticCircleProperties(TdxActivityIndicator(FControl).Properties).ArcThickness := StrToIntDef(FCreateParams.Values['ArcThickness'], 3);
+    end
+    else
+    begin
+      TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(FControl).Properties).DotSize := StrToIntDef(FCreateParams.Values['DotSize'], 5);
+    end;
+
+
+  end;
+
 end;
 
 procedure TSpinner.FillEditor;
@@ -2345,7 +2382,7 @@ end;
 procedure TDELogFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   inherited DoCreateControl(AParent, ALayout);
-  TcxMemo(FControl).Properties.ScrollBars := ssBoth;
+  TcxMemo(FControl).Properties.ScrollBars := ssVertical;
 end;
 
 { TDEPagesFieldEditor }
@@ -2638,11 +2675,17 @@ end;
 
 { TDEImagedAction }
 
+destructor TDEImagedAction.Destroy;
+begin
+
+  inherited;
+end;
+
 procedure TDEImagedAction.DoBeforeFreeControl;
 begin
   if Assigned(FActionView) then
   begin
-    FActionView.CleanView;
+    FActionView.RemoveListener(Self);
     FActionView := nil;
   end;
 end;
@@ -2674,6 +2717,7 @@ begin
   if vActionName <> '' then
   begin
     FActionView := FUIBuilder.RootView.BuildView(vActionName);
+    FActionView.AddListener(Self);
     if FActionView.DefinitionKind = dkUndefined then
     begin
       FActionView.CleanView;
@@ -2751,6 +2795,7 @@ begin
       TImage(FControl).Hint := FCreateParams.Values['trueHint']
     else
       TImage(FControl).Hint := FCreateParams.Values['falseHint'];
+    TImage(FControl).Parent.Invalidate;
   end;
 end;
 
@@ -2850,6 +2895,7 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiDateEdit, 'info', TTextInfo);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCurrencyEdit, '', TDECurrencyFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCurrencyEdit, 'info', TTextInfo);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, '', TDEBoolFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'simple', TDEBoolFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'imaged_action', TDEImagedAction);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'images', TBoolImages);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'pages', TDEPagesFieldEditor);

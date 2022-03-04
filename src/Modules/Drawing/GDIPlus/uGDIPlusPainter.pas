@@ -88,6 +88,7 @@ type
       const AOptions: Cardinal; const AAngle: Single); override;
     function GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF; override;
     procedure DoInvertRect(const ARect: TRectF); override;
+    procedure DoClipRect(const ARect: TRectF); override;
     procedure DoDrawImage(const AImage: TObject; const ARect: TRectF; const AOpacity: Single); override;
     procedure DoDrawContext(const AContext: TDrawContext); override;
 
@@ -115,6 +116,11 @@ uses
   SysUtils, PngImage, IOUtils, Math, GDIPAPI, uModule;
 
 { TGDIPlusPainter }
+
+procedure TGDIPlusPainter.DoClipRect(const ARect: TRectF);
+begin
+  //TODO
+end;
 
 procedure TGDIPlusPainter.DoColorizeBrush(const AFill: TStyleBrush; const AColor: Cardinal);
 begin

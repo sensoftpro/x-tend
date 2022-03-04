@@ -339,6 +339,10 @@ begin
   FCaption := GetTitle;
   FVersion := LoadConfiguration;
 
+  // Обновляем унаследованные поля
+  for vDefinition in FDefinitions do
+    vDefinition.UpdateInheritance;
+
   // Устанавливаем все связи с наследниками
   for vDefinition in FDefinitions do
     vDefinition.FillContentDefinitions;

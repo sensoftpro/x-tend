@@ -395,7 +395,14 @@ begin
   begin
     //vFrame.SetBounds(Control.Left, Control.Top, Control.Width, Control.Height);
     if (vFrame.Hint <> '') and (FControl is TcxTabSheet) then
+    begin
       TcxTabSheet(FControl).Caption := vFrame.Hint;
+      if Pos('=', vFrame.Hint) > 0 then // Hint содержит url-строку с параметрами
+      begin
+        TcxTabSheet(FControl).Caption := GetUrlParam(vFrame.Hint, 'Caption', '');
+        TcxTabSheet(FControl).ImageIndex := GetImageId(StrToIntDef(GetUrlParam(vFrame.Hint, 'ImageIndex', ''), -1));
+      end;
+    end;
   end
   else if (ALayout is TPanel) or (ALayout is TMemo) then
   begin
@@ -1760,6 +1767,8 @@ begin
       vPC.Top := vSourcePanel.Top;
       vPC.Properties.Images := TDragImageList(TInteractor(Interactor).Images[16]);
       vPC.Properties.TabPosition := tpBottom;
+      if vParams.Values['PageLayout'] = 'Top' then
+        vPC.Properties.TabPosition := tpTop;
       vPC.Properties.CloseButtonMode := cbmActiveTab;
       vPC.OnCanClose := OnPCCanClose;
       vPC.Align := vSourcePanel.Align;

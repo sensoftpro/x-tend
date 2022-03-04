@@ -486,8 +486,6 @@ type
 
     procedure InternalTryDeleteField(const AFieldDef: TFieldDef);
     procedure InternalAddField(const AFieldDef: TFieldDef);
-
-    procedure ApplyInheritance;
   protected
     procedure InternalSetFlags(const AFlags: Integer);
     function IsParam: Boolean; virtual;
@@ -523,6 +521,8 @@ type
     procedure AddDescendant(const ADefinition: TDefinition);
     function IsDescendantOf(const ADefinitionName: string): Boolean;
 
+    procedure ApplyInheritance;
+    procedure UpdateInheritance;
     procedure FillContentDefinitions(const AContentDefinitions: TList<TDefinition> = nil);
     procedure CreateObjectRelations;
     procedure CreateListRelations;
@@ -1492,6 +1492,24 @@ function TDefinition.SetStorageName(const AStorageName: string): TDefinition;
 begin
   FStorageName := AStorageName;
   Result := Self;
+end;
+
+procedure TDefinition.UpdateInheritance;
+var
+  vDefinition: TDefinition;
+  i: Integer;
+  vFieldDef: TFieldDef;
+begin
+  for i := 0 to FAncestors.Count - 1 do
+  begin
+    vDefinition := TConfiguration(FConfiguration)[FAncestors[i]];
+    if Assigned(vDefinition) then
+    begin
+      for vFieldDef in vDefinition.Fields do
+        if not FieldExists(vFieldDef.Name) then
+          InternalAddField(vFieldDef);
+    end;
+  end;
 end;
 
 { TFilter }

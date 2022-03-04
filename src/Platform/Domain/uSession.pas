@@ -298,7 +298,7 @@ begin
       if Assigned(FInteractor) then
         TInteractor(FInteractor).ShowMessage('Произошла ошибка!'#13#10 + E.Message);
       Result := False;
-    //raise;
+      if Assigned(FDomain) then TDomain(FDomain).Log('Произошла ошибка!'#13#10 + E.Message, mkError);
     end;
   end;
 end;

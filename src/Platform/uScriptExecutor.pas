@@ -309,6 +309,8 @@ type
       const AContext: TObject; const AParams: TEntity; const AParentHolder: TChangeHolder): Boolean; override;
   end;
 
+function GetExecutor(const ADomain: TObject): TScriptExecutor;
+
 implementation
 
 uses
@@ -329,6 +331,13 @@ begin
 end;
 
 // Aux procedures
+
+function GetExecutor(const ADomain: TObject): TScriptExecutor;
+begin
+  Result := TScriptExecutor(TDomain(ADomain).Module['ScriptExecutor']);
+  if not Assigned(Result) then
+    TDomain(ADomain).Log('В системе не определён исполнитель сценариев!', mkError);
+end;
 
 function GetSiblingCommand(const ACommand: TEntity; const AIsPrevious: Boolean): TEntity;
 var
@@ -906,8 +915,8 @@ begin
   TTaskHandle.SafeInvoke(ATask, procedure
     begin
       FInProcess := False;
-      if Assigned(FOnLogMessage) then
-        FOnLogMessage(FormatDateTime('hh:nn:ss.zzz', Now) + '  << Выполнено: ' + vScriptName);
+      //if Assigned(FOnLogMessage) then
+      //  FOnLogMessage(FormatDateTime('hh:nn:ss.zzz', Now) + '  << Выполнено: ' + vScriptName);
       if Assigned(AFiber.OnScriptEnd) then
         AFiber.OnScriptEnd(AFiber);
     end);
@@ -940,7 +949,7 @@ end; }
 
 function TScriptExecutor.Prepare(const AScript: TEntity): TCodeBlock;
 begin
-  PrintText(nil, '>> Старт: ' + AScript.DisplayName);
+//  PrintText(nil, '>> Старт: ' + AScript.DisplayName);
 
   Result := TTextCodeBlock.Create(Self, nil, AScript['Name']);
   TTextCodeBlock(Result).ParseCode(AScript['Code']);
@@ -958,7 +967,7 @@ begin
   if Assigned(FOnLogMessage) then
     TTaskHandle.SafeInvoke(ATask, procedure
       begin
-        FOnLogMessage(FormatDateTime('hh:nn:ss.zzz', Now) + '  ' + AText);
+        FOnLogMessage(FormatDateTime('hh:nn:ss', Now) + '  ' + AText);
       end);
 end;
 
