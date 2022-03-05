@@ -57,6 +57,7 @@ uses
   // UI common
   uPresenter in '..\..\Modules\UI\uPresenter.pas',
   uView in '..\..\Modules\UI\uView.pas',
+  uLayout in '..\..\Modules\UI\uLayout.pas',
   uUIBuilder in '..\..\Modules\UI\uUIBuilder.pas',
   uInteractor in '..\..\Modules\UI\uInteractor.pas',
   // Storage common

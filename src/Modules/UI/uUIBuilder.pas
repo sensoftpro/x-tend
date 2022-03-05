@@ -36,32 +36,11 @@ unit uUIBuilder;
 interface
 
 uses
-  Classes, Generics.Collections, UITypes, SysUtils, uConsts, uView, uDefinition, uEntity;
+  Classes, Generics.Collections, UITypes, SysUtils, uConsts, uLayout, uView, uDefinition, uEntity;
 
 type
   TUIBuilder = class;
   TUIArea = class;
-
-  TLayoutKind = (lkPanel, lkPage, lkPages, lkFrame, lkMenu, lkMemo);
-
-  TLayout = class
-  private
-    FItems: TObjectList<TObject>;
-    FLayoutKind: TLayoutKind;
-    FName: string;
-    FCaption: string;
-    FImageIndex: Integer;
-  public
-    constructor Create(const AKind: TLayoutKind);
-    destructor Destroy; override;
-
-    procedure Load(const AFileName: string);
-    procedure Save(const AFileName: string);
-
-    property Caption: string read FCaption write FCaption;
-    property Name: string read FName write FName;
-    property ImageIndex: Integer read FImageIndex write FImageIndex;
-  end;
 
   TUIStyle = class
   private
@@ -121,18 +100,18 @@ type
     FCreateParams: TStrings;
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); virtual; abstract;
     procedure DoClose(const AModalResult: Integer); virtual; abstract;
-    function DoCreateChildArea(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; virtual; abstract;
-    function DoCreateChildAction(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; virtual; // Перенести
-    function DoCreateChildList(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea;
-    function DoCreateChildEditor(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
+    function DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea; virtual; abstract;
+    function DoCreateChildAction(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea; virtual; // Перенести
+    function DoCreateChildList(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
+    function DoCreateChildEditor(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
     procedure AppendServiceArea(const ALayoutName: string); virtual; abstract;
-    function CreateChildLayoutedArea(const ALayout: TObject; const AView: TView;
+    function CreateChildLayoutedArea(const ALayout: TLayout; const AView: TView;
       const AChildLayoutName: string; const AParams: string): TUIArea;
-    function CreateChildArea(const AChildView: TView; const ALayout: TObject; const AParams: string): TUIArea;
+    function CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string): TUIArea;
     function AreaFromSender(const ASender: TObject): TUIArea; virtual;
     procedure DoAfterChildAreasCreated; virtual;
 
-    function GetAreaByView(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
+    function GetAreaByView(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
     procedure Clear;
     procedure ClearContent;
     // Отвязать все нативные элементы
@@ -158,8 +137,8 @@ type
     function GetName: string; virtual;
     procedure SetParent(const Value: TUIArea); virtual;
     procedure SetControl(const AControl: TObject); virtual;
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); virtual;
-    procedure AssignFromLayout(const ALayout: TObject); virtual;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); virtual;
+    procedure AssignFromLayout(const ALayout: TLayout); virtual;
     procedure ArrangeChildAreas; virtual;
     procedure SaveLayoutToFile(const AFileName: string); virtual;
     procedure RefillArea(const AKind: Word); virtual;
@@ -176,7 +155,7 @@ type
     procedure DM_ViewChanged(var AMessage: TViewChangedMessage); message DM_VIEW_CHANGED;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); virtual;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); virtual;
     destructor Destroy; override;
 
     // Полная очистка и удаление
@@ -248,7 +227,7 @@ type
     function Select(const AList: TUIAreaList; const AQuery: string): TUIAreaList; overload;
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
 
-    procedure CreateChildAreas(const AArea: TUIArea; const ALayout: TObject; const AParams: string);
+    procedure CreateChildAreas(const AArea: TUIArea; const ALayout: TLayout; const AParams: string);
     procedure CloseCurrentArea(const AModalResult: Integer);
     procedure PrintHierarchy;
     procedure ProcessAreaDeleting(const AArea: TUIArea);
@@ -333,21 +312,13 @@ begin
   FRootView := TView.Create(TInteractor(FInteractor), nil, '');
 end;
 
-procedure TUIBuilder.CreateChildAreas(const AArea: TUIArea; const ALayout: TObject; const AParams: string);
+procedure TUIBuilder.CreateChildAreas(const AArea: TUIArea; const ALayout: TLayout; const AParams: string);
 var
-  vControls: TList<TObject>;
-  vControl: TObject;
+  vLayout: TLayout;
 begin
-  vControls := TList<TObject>.Create;
-  try
-    TPresenter(FPresenter).EnumerateControls(ALayout, vControls);
-    for vControl in vControls do
-      AArea.CreateChildArea(AArea.View, vControl, AParams);
-
-    AArea.AfterChildAreasCreated;
-  finally
-    FreeAndNil(vControls);
-  end;
+  for vLayout in ALayout.Items do
+    AArea.CreateChildArea(AArea.View, vLayout, AParams);
+  AArea.AfterChildAreasCreated;
 end;
 
 destructor TUIBuilder.Destroy;
@@ -404,7 +375,7 @@ var
   vAction: TActionDef;
   vView: TView;
   vArea: TUIArea;
-  vLayout: TObject;
+  vLayout: TLayout;
 begin
   if not Assigned(AView) or not (AView.DefinitionKind in [dkEntity, dkAction, dkObjectField]) then
     Exit;
@@ -422,7 +393,7 @@ begin
   if not Assigned(vDefinition) then
     Exit;
 
-  vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
+  vLayout := TLayout.Create(lkPanel);
   AView.AddListener(AArea);
   try
     for vAction in vDefinition.Actions.Objects do
@@ -473,31 +444,21 @@ end;
 
 procedure TUIBuilder.MakeLayoutFromFile(const AArea: TUIArea; const AView: TView; const AFileName: string; const AParams: string);
 var
-  vFileStream: TStream;
-  vMemStream: TStream;
-  vFrame: TComponent;
+  vLayout: TLayout;
 begin
-  vFrame := TComponent(TPresenter(FPresenter).CreateLayoutArea(lkFrame, ''));
-  vFileStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyNone);
-  vMemStream := TMemoryStream.Create;
+  vLayout := TLayout.Create(lkFrame);
   try
-    ObjectTextToBinary(vFileStream, vMemStream);
-
-    vMemStream.Position := 0;
-    vMemStream.ReadComponent(vFrame);
+    vLayout.Load(AFileName);
+    AArea.BeginUpdate;
+    try
+      AArea.AssignFromLayout(vLayout);
+      AArea.SetView(AView);
+      CreateChildAreas(AArea, vLayout, AParams);
+    finally
+      AArea.EndUpdate;
+    end;
   finally
-    FreeAndNil(vFileStream);
-    FreeAndNil(vMemStream);
-  end;
-
-  AArea.BeginUpdate;
-  try
-    AArea.AssignFromLayout(vFrame);
-    AArea.SetView(AView);
-    CreateChildAreas(AArea, vFrame, AParams);
-  finally
-    AArea.EndUpdate;
-    FreeAndNil(vFrame);
+    FreeAndNil(vLayout);
   end;
 end;
 
@@ -513,7 +474,7 @@ var
   vTabArea: TUIArea;
   vView: TView;
   vEntity: TEntity;
-  vTab: TObject;
+  vLayout: TLayout;
   vTabParams: string;
   vPageID: string;
   vImageID: Integer;
@@ -659,15 +620,15 @@ begin
         else
           vTabParams := 'Caption=Стартовая страница;ImageIndex=' + GetUrlParam(AOptions, 'ImageID', '-1') + ';Name=' + vPageID;
 
-        vTab := TPresenter(FPresenter).CreateLayoutArea(lkPage, vTabParams);
+        vLayout := TLayout.Create(lkPage, vTabParams);
         try
-          vTabArea := vUIArea.CreateChildArea(vView, vTab, AOptions);
+          vTabArea := vUIArea.CreateChildArea(vView, vLayout, AOptions);
           vTabArea.SetHolder(AChangeHolder);
           if AOptions <> '' then
             vTabArea.AddParams(CreateDelimitedList(AOptions, '&'));
           ApplyLayout(vTabArea, vView, vLayoutName, AOptions);
         finally
-          vTab.Free;
+          FreeAndNil(vLayout);
         end;
       end;
 
@@ -860,7 +821,7 @@ procedure TUIArea.ArrangeChildAreas;
 begin
 end;
 
-procedure TUIArea.AssignFromLayout(const ALayout: TObject);
+procedure TUIArea.AssignFromLayout(const ALayout: TLayout);
 begin
 end;
 
@@ -910,7 +871,7 @@ begin
 end;
 
 constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
+  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
 begin
   inherited Create;
 
@@ -942,9 +903,8 @@ procedure TUIArea.CreateCaption(const AFieldDef: TFieldDef);
 begin
 end;
 
-function TUIArea.CreateChildArea(const AChildView: TView; const ALayout: TObject; const AParams: string): TUIArea;
+function TUIArea.CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string): TUIArea;
 var
-  vPresenter: TPresenter;
   vUIParams: string;
   vView: TView;
   vDefaultViewName: string;
@@ -957,14 +917,13 @@ var
   vAlreadyAssigned: Boolean;
 begin
   vAlreadyAssigned := False;
-  vPresenter := TPresenter(GetPresenter);
-  vLayoutKind := vPresenter.GetLayoutKind(ALayout);
+  vLayoutKind := ALayout.LayoutKind;
   if not (vLayoutKind in [lkPanel, lkPages, lkMemo]) then
   begin
     Result := DoCreateChildArea(ALayout, AChildView)
   end
   else begin
-    vCaption := Trim(vPresenter.GetLayoutCaption(ALayout));
+    vCaption := Trim(ALayout.ExtractCaption);
     vUIParams := '';
 
     vQuery := '';
@@ -991,7 +950,7 @@ begin
       // Именованные области
       Delete(vCaption, 1, 1);
 
-      vPresenter.SetLayoutCaption(ALayout, vCaption);
+      ALayout.SetCaption(vCaption);
       Result := DoCreateChildArea(ALayout, FView, vQuery);
     end
     else if vCaption = '$' then
@@ -1069,7 +1028,7 @@ begin
   end;
 end;
 
-function TUIArea.CreateChildLayoutedArea(const ALayout: TObject; const AView: TView;
+function TUIArea.CreateChildLayoutedArea(const ALayout: TLayout; const AView: TView;
   const AChildLayoutName: string; const AParams: string): TUIArea;
 var
   vChildLayoutName: string;
@@ -1143,7 +1102,7 @@ procedure TUIArea.DoAfterChildAreasCreated;
 begin
 end;
 
-function TUIArea.DoCreateChildAction(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
+function TUIArea.DoCreateChildAction(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
 var
   vStyleName: string;
 begin
@@ -1153,7 +1112,7 @@ begin
   Assert(False, 'Вход в неработающий блок');
 end;
 
-function TUIArea.DoCreateChildEditor(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
+function TUIArea.DoCreateChildEditor(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
 var
   vStyleName: string;
 begin
@@ -1168,7 +1127,7 @@ begin
   Result := TPresenter(FUIBuilder.Presenter).CreateFieldArea(Self, ALayout, AView, vStyleName, AParams);
 end;
 
-function TUIArea.DoCreateChildList(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
+function TUIArea.DoCreateChildList(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
 var
   vStyleName: string;
 begin
@@ -1176,7 +1135,7 @@ begin
   Result := TPresenter(FUIBuilder.Presenter).CreateCollectionArea(Self, ALayout, AView, vStyleName, AParams);
 end;
 
-procedure TUIArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+procedure TUIArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
 begin
   FControl := nil;
 end;
@@ -1284,7 +1243,7 @@ begin
   Result := TUIArea(FAreas[AIndex]);
 end;
 
-function TUIArea.GetAreaByView(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
+function TUIArea.GetAreaByView(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
 var
   vFieldDef: TFieldDef;
   vParams: TStrings;
@@ -1705,31 +1664,6 @@ var
 begin
   for vArea in Self do
     vArea.Style.Visible := Value;
-end;
-
-{ TLayout }
-
-constructor TLayout.Create(const AKind: TLayoutKind);
-begin
-  inherited Create;
-  FItems := TObjectList<TObject>.Create;
-  FLayoutKind := AKind;
-end;
-
-destructor TLayout.Destroy;
-begin
-  FreeAndNil(FItems);
-  inherited Destroy;
-end;
-
-procedure TLayout.Load(const AFileName: string);
-begin
-
-end;
-
-procedure TLayout.Save(const AFileName: string);
-begin
-
 end;
 
 end.
