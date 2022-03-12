@@ -39,34 +39,44 @@ uses
   Classes, Generics.Collections, UITypes;
 
 type
-  TLayoutKind = (lkPanel, lkPage, lkPages, lkFrame, lkMenu, lkMemo);
+  TLayoutKind = (lkNone, lkPanel, lkPage, lkPages, lkFrame, lkMenu, lkMemo, lkLabel, lkImage, lkBevel, lkSplitter, lkScrollBox);
   TAlign = (alNone, alTop, alBottom, alLeft, alRight, alClient, alCustom);
   TPageStyle = (psTabs, psButtons, psFlatButtons);
   TPagePosition = (ppTop, ppBottom, ppLeft, ppRight);
   TBevelKind = (bkNone, bkLowered, bkRaised, bkSpace);
+
+  TLayoutMargins = record
+    Left, Top, Right, Bottom: Integer;
+  end;
+  TLayoutPadding = TLayoutMargins;
 
   TLayout = class
   private
     FControl: TObject;
     FItems: TObjectList<TLayout>;
     FLayoutKind: TLayoutKind;
+
     FName: string;
     FCaption: string;
+    FHint: string;
     FImageIndex: Integer;
     FTag: Integer;
 
-    FAlign: TAlign;
-    FAlignment: TAlignment;
-    FAnchors: TAnchors;
-    FShowCaption: Boolean;
-
-    FFontColor: TColor;
-    FFontSize: Integer;
-
+    // Размеры и расположение
     FWidth: Integer;
     FHeight: Integer;
     FLeft: Integer;
     FTop: Integer;
+    FAlign: TAlign;
+    FAnchors: TAnchors;
+    FAlignWithMargins: Boolean;
+    FMargins: TLayoutMargins;
+    FPadding: TLayoutPadding;
+
+    FAlignment: TAlignment;
+    FFontColor: TColor;
+    FFontSize: Integer;
+    FFontStyle: TFontStyles;
 
     FPageStyle: TPageStyle;
     FPagePosition: TPagePosition;
@@ -75,6 +85,17 @@ type
 
     FBevelInner: TBevelKind;
     FBevelOuter: TBevelKind;
+
+    FShowCaption: Boolean;
+    FShowHint: Boolean;
+    FAutoSize: Boolean;
+    FTransparent: Boolean;
+    FWordWrap: Boolean;
+
+    FPictureStream: TStream;
+
+    FStretch: Boolean;
+    FProportional: Boolean;
 
     procedure EnumerateControls(const AControl: TObject);
     procedure ExtractSettings(const AControl: TObject);
@@ -94,21 +115,35 @@ type
     property Name: string read FName write FName;
     property ImageIndex: Integer read FImageIndex write FImageIndex;
     property Tag: Integer read FTag;
-    property Align: TAlign read FAlign;
-    property Alignment: TAlignment read FAlignment;
-    property Anchors: TAnchors read FAnchors;
-    property FontColor: TColor read FFontColor;
-    property FontSize: Integer read FFontSize;
-    property Width: Integer read FWidth;
-    property Height: Integer read FHeight;
+
     property Left: Integer read FLeft;
     property Top: Integer read FTop;
+    property Width: Integer read FWidth;
+    property Height: Integer read FHeight;
+    property Align: TAlign read FAlign;
+    property Anchors: TAnchors read FAnchors;
+    property AlignWithMargins: Boolean read FAlignWithMargins;
+    property Margins: TLayoutMargins read FMargins;
+    property Padding: TLayoutPadding read FPadding;
+
+    property FontColor: TColor read FFontColor;
+    property FontSize: Integer read FFontSize;
+    property FontStyle: TFontStyles read FFontStyle;
+
+    property Alignment: TAlignment read FAlignment;
     property PageStyle: TPageStyle read FPageStyle;
     property PagePosition: TPagePosition read FPagePosition;
     property PageHeight: Integer read FPageHeight;
     property HidePages: Boolean read FHidePages;
     property BevelInner: TBevelKind read FBevelInner;
     property BevelOuter: TBevelKind read FBevelOuter;
+    property AutoSize: Boolean read FAutoSize;
+    property Transparent: Boolean read FTransparent;
+    property WordWrap: Boolean read FWordWrap;
+    property PictureStream: TStream read FPictureStream;
+    property Stretch: Boolean read FStretch;
+    property Proportional: Boolean read FProportional;
+    property Hint: string read FHint;
 
     property LayoutKind: TLayoutKind read FLayoutKind;
 
@@ -135,8 +170,20 @@ begin
     FLayoutKind := lkPages
   else if FControl is TMemo then
     FLayoutKind := lkMemo
+  else if FControl is TFrame then
+    FLayoutKind := lkFrame
+  else if FControl is TLabel then
+    FLayoutKind := lkLabel
+  else if FControl is TImage then
+    FLayoutKind := lkImage
+  else if FControl is TBevel then
+    FLayoutKind := lkBevel
+  else if FControl is TSplitter then
+    FLayoutKind := lkSplitter
+  else if FControl is TScrollBox then
+    FLayoutKind := lkScrollBox
   else
-    FLayoutKind := lkFrame;
+    FLayoutKind := lkNone;
 
   FItems := TObjectList<TLayout>.Create;
 
@@ -218,6 +265,8 @@ var
   vPanel: TPanel absolute AControl;
   vPC: TPageControl absolute AControl;
   vTab: TTabSheet absolute AControl;
+  vLabel: TLabel absolute AControl;
+  vImage: TImage absolute AControl;
 begin
   FName := TControl(AControl).Name;
   FTag := TControl(AControl).Tag;
@@ -227,12 +276,13 @@ begin
     FAlign := TAlign(vPanel.Align);
     FAlignment := vPanel.Alignment;
     FAnchors := vPanel.Anchors;
-    FFontColor := vPanel.Font.Color;
-    FFontSize := vPanel.Font.Size;
-    FWidth := vPanel.Width;
-    FHeight := vPanel.Height;
     FLeft := vPanel.Left;
     FTop := vPanel.Top;
+    FWidth := vPanel.Width;
+    FHeight := vPanel.Height;
+    FFontColor := vPanel.Font.Color;
+    FFontSize := vPanel.Font.Size;
+    FFontStyle := vPanel.Font.Style;
     FShowCaption := vPanel.ShowCaption;
     FBevelInner := TBevelKind(vPanel.BevelInner);
     FBevelOuter := TBevelKind(vPanel.BevelOuter);
@@ -275,6 +325,50 @@ begin
   else if FLayoutKind = lkMemo then
   begin
 
+  end
+  else if FLayoutKind = lkLabel then
+  begin
+    FLeft := vLabel.Left;
+    FTop := vLabel.Top;
+    FWidth := vLabel.Width;
+    FHeight := vLabel.Height;
+    FFontColor := vLabel.Font.Color;
+    FFontSize := vLabel.Font.Size;
+    FFontStyle := vLabel.Font.Style;
+    FWordWrap := vLabel.WordWrap;
+    FTransparent := vLabel.Transparent;
+    FAutoSize := vLabel.AutoSize;
+    FCaption := vLabel.Caption;
+  end
+  else if FLayoutKind = lkImage then
+  begin
+    FLeft := vImage.Left;
+    FTop := vImage.Top;
+    FWidth := vImage.Width;
+    FHeight := vImage.Height;
+    FAlign := TAlign(vImage.Align);
+    FAnchors := vImage.Anchors;
+    FAlignWithMargins := vImage.AlignWithMargins;
+    FMargins := vImage.Margins;
+
+    FStretch := vImage.Stretch;
+    FProportional := vImage.Proportional;
+    FHint := vImage.Hint;
+    FAlignWithMargins := vImage.AlignWithMargins;
+    if FAlignWithMargins then
+    begin
+      FMargins.Left := vImage.Margins.Left;
+      FMargins.Top := vImage.Margins.Top;
+      FMargins.Right := vImage.Margins.Right;
+      FMargins.Bottom := vImage.Margins.Bottom;
+      //FPadding.Left := vImage.Padding.Left;
+      //FPadding.Top := vImage.Padding.Top;
+      //FPadding.Right := vImage.Padding.Right;
+      //FPadding.Bottom := vImage.Padding.Bottom;
+    end;
+
+    FPictureStream := TMemoryStream.Create;
+    vImage.Picture.SaveToStream(FPictureStream);
   end;
 end;
 

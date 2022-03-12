@@ -774,9 +774,8 @@ begin
 
   vImageID := GetImageID(vImageID);
 
-  if (TPanel(ALayout).BevelOuter = bvNone) and (TPanel(ALayout).BevelInner = bvNone)
-    and (TPanel(ALayout).BevelKind = TBevelKind.bkNone)
-  then begin
+  if (ALayout.BevelOuter = TBevelKind.bkNone) and (ALayout.BevelInner = TBevelKind.bkNone) then
+  begin
     vButton.SpeedButtonOptions.Flat := True;
     vButton.SpeedButtonOptions.CanBeFocused := False;
   end;
@@ -861,8 +860,6 @@ end;
 
 function TVCLArea.DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
 var
-  vSourceLabel: TLabel absolute ALayout;
-  vSourceImage: TImage absolute ALayout;
   vSourcePC: TPageControl absolute ALayout;
   vSourceTabSheet: TTabSheet absolute ALayout;
   vSourceToolBar: TToolBar absolute ALayout;
@@ -1534,21 +1531,21 @@ begin
 
   vDomain := TDomain(TInteractor(Interactor).Domain);
 
-  if ALayout is TLabel then
+  if ALayout.LayoutKind = lkLabel then
   begin
     vLabel := TLabel.Create(nil);
-    vLabel.Left := vSourceLabel.Left;
-    vLabel.Top := vSourceLabel.Top;
-    vLabel.Width := vSourceLabel.Width;
-    vLabel.Height := vSourceLabel.Height;
-    vLabel.Transparent := vSourceLabel.Transparent;
-    vLabel.AutoSize := vSourceLabel.AutoSize;
-    vLabel.WordWrap := vSourceLabel.WordWrap;
-    vLabel.Font.Size := vSourceLabel.Font.Size;
-    vLabel.Font.Color := vSourceLabel.Font.Color;
-    vLabel.Font.Style := vSourceLabel.Font.Style;
+    vLabel.Left := ALayout.Left;
+    vLabel.Top := ALayout.Top;
+    vLabel.Width := ALayout.Width;
+    vLabel.Height := ALayout.Height;
+    vLabel.Transparent := ALayout.Transparent;
+    vLabel.AutoSize := ALayout.AutoSize;
+    vLabel.WordWrap := ALayout.WordWrap;
+    vLabel.Font.Size := ALayout.FontSize;
+    vLabel.Font.Color := ALayout.FontColor;
+    vLabel.Font.Style := ALayout.FontStyle;
 
-    vCaption := vSourceLabel.Caption;
+    vCaption := ALayout.Caption;
     vUIParams := '';
     vPos := Pos('@', vCaption);
     if vPos > 1 then
@@ -1564,35 +1561,36 @@ begin
         // Обработать другие ситуации
     end
     else
-      vCaption := vSourceLabel.Caption; //FView.Interactor.Translate('@' + {FFullAreaName или FLayoutName +} '.' +
+      vCaption := ALayout.Caption; //FView.Interactor.Translate('@' + {FFullAreaName или FLayoutName +} '.' +
         //vSourceLabel.Name + '@Caption', vSourceLabel.Caption);
 
     vLabel.Caption := vCaption;
 
     Result := TVCLArea.Create(Self, AView, '', False, vLabel);
   end
-  else if ALayout is TImage then
+  else if ALayout.LayoutKind = lkImage then
   begin
     vImage := TcxImage.Create(nil);
     vImage.Style.BorderStyle := ebsNone;
     vImage.ControlStyle := vImage.ControlStyle + [csOpaque];
-    vImage.Width := vSourceImage.Width;
-    vImage.Height := vSourceImage.Height;
-    vImage.Left := vSourceImage.Left;
-    vImage.Top := vSourceImage.Top;
-    vImage.Picture.Assign(vSourceImage.Picture);
-    vImage.Anchors := vSourceImage.Anchors;
-    vImage.Align := vSourceImage.Align;
+    vImage.Width := ALayout.Width;
+    vImage.Height := ALayout.Height;
+    vImage.Left := ALayout.Left;
+    vImage.Top := ALayout.Top;
+    vImage.Picture.LoadFromStream(ALayout.PictureStream);
+    vImage.Anchors := ALayout.Anchors;
+    vImage.Align := ALayout.Align;
     vImage.Transparent := True;
     vImage.Properties.ShowFocusRect := False;
     vImage.Properties.PopupMenuLayout.MenuItems := [];
     vImage.Properties.FitMode := ifmNormal;
     vImage.DoubleBuffered := True;
-    vImage.Properties.Stretch := vSourceImage.Stretch;
-    vImage.Properties.Proportional := vSourceImage.Proportional;
-    vImage.Hint := vSourceImage.Hint;
-    vImage.AlignWithMargins := vSourceImage.AlignWithMargins;
-    vImage.Margins := vSourceImage.Margins;
+    vImage.Properties.Stretch := ALayout.Stretch;
+    vImage.Properties.Proportional := ALayout.Proportional;
+    vImage.Hint := ALayout.Hint;
+    vImage.AlignWithMargins := ALayout.AlignWithMargins;
+    if ALayout.AlignWithMargins then
+      vImage.Margins.SetBounds(ALayout.Margins.Left, ALayout.Margins.Top, ALayout.Margins.Right, ALayout.Margins.Bottom);
     vImage.Properties.Center := False;
 
     Result := TVCLArea.Create(Self, AView, '', False, vImage);
