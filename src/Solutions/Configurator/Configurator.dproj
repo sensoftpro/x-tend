@@ -195,6 +195,7 @@
         <DCCReference Include="..\..\Modules\Storage\SQLite\uSQLiteStorage.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\VCL\uVCLPainter.pas"/>
         <DCCReference Include="..\..\Modules\Reporting\FastReport\uFRReport.pas"/>
+        <DCCReference Include="Extensions\UI\uLayoutEditor.pas"/>
         <DCCReference Include="uConfiguratorScript.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>

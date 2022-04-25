@@ -1131,6 +1131,7 @@ begin
   TcxMemo(FControl).Properties.ScrollBars := ssVertical;
   TcxMemo(FControl).Properties.WantReturns := True;
   TcxMemo(FControl).ParentFont := True;
+  TcxMemo(FControl).ParentColor := True;
   TcxMemo(FControl).OnKeyDown := OnKeyDown;
 
   if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
@@ -1847,11 +1848,12 @@ procedure TImageByString.DoCreateControl(const AParent: TUIArea; const ALayout: 
 begin
   FControl := TImage.Create(nil);
   TImage(FControl).Transparent := True;
+  TImage(FControl).Center := True;
 end;
 
 procedure TImageByString.FillEditor;
 var
-  i: Integer;
+  i, vImageSize: Integer;
   vStream: TStream;
 begin
   inherited;
@@ -1860,8 +1862,9 @@ begin
   if i < 0 then Exit;
 
   i := StrToIntDef(FCreateParams.Values[FView.FieldValue], 0);
+  vImageSize := StrToIntDef(FCreateParams.Values['ImageSize'], 16);
 
-  vStream := TConfiguration(TInteractor(FView.Interactor).Configuration).Icons.IconByIndex(i, 16);
+  vStream := TConfiguration(TInteractor(FView.Interactor).Configuration).Icons.IconByIndex(i, vImageSize);
   if Assigned(vStream) then
   begin
     vStream.Position := 0;

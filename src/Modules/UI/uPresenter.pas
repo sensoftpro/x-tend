@@ -392,7 +392,9 @@ begin
     vFieldAreaClass := TUIAreaClass(GetUIClass(FName, ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), vViewName));
 
   if vParams = '' then
-    vParams := AParams;
+    vParams := AParams
+  else
+    vParams := vParams + '&' + AParams;
 
   Result := vFieldAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
 end;

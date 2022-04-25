@@ -554,7 +554,7 @@ begin
     end;
     Exit;
   end;
-
+{$R-}
   if AFill.GradientKind <> gkNone then
   begin
     vStartColor := AFill.Color;
@@ -592,6 +592,7 @@ begin
     AlphaBlend(ThisCanvas.Handle, ARect.Left, ARect.Top, ARect.Width, ARect.Height,
       FBlendBitmap.Canvas.Handle, 0, 0, 1, 1, vBlendFunction);
   end;
+{$R+}
 end;
 
 function TVCLPainter.PPointFToPoints(const APoints: PPointF; const ACount: Integer): TPointArray;

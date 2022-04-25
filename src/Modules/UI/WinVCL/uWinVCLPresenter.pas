@@ -390,27 +390,32 @@ begin
   vArea := TUIArea(vForm.Tag);
   vView := vArea.View;
   vCloseView := vView.BuildView('Close');
-  vInteractor := TInteractor(vArea.Interactor);
+  vCloseView.AddListener(vArea);
+  try
+    vInteractor := TInteractor(vArea.Interactor);
 
-  vCanBeClosed := not (Assigned(vCloseView) and (TCheckActionFlagsFunc(TConfiguration(vInteractor.Configuration).
-    CheckActionFlagsFunc)(vCloseView) <> vsFullAccess));
+    vCanBeClosed := not (Assigned(vCloseView) and (TCheckActionFlagsFunc(TConfiguration(vInteractor.Configuration).
+      CheckActionFlagsFunc)(vCloseView) <> vsFullAccess));
 
-  if vCanBeClosed then
-  begin
-    if Assigned(TVCLArea(vArea).OnClose) then
-      TVCLArea(vArea).OnClose();
+    if vCanBeClosed then
+    begin
+      if Assigned(TVCLArea(vArea).OnClose) then
+        TVCLArea(vArea).OnClose();
 
-    // Возможно, нужно сбросить CurrentArea у UIBuilder-а в vArea.Parent
+      // Возможно, нужно сбросить CurrentArea у UIBuilder-а в vArea.Parent
 
-    vArea.SetHolder(nil);
-    if Assigned(vArea.Parent) then
-      vArea.Parent.RemoveArea(vArea);
+      vArea.SetHolder(nil);
+      if Assigned(vArea.Parent) then
+        vArea.Parent.RemoveArea(vArea);
 
-    vInteractor.PrintHierarchy;
-    Action := caFree;
-  end
-  else
-    Action := caNone;
+      vInteractor.PrintHierarchy;
+      Action := caFree;
+    end
+    else
+      Action := caNone;
+  finally
+    vCloseView.RemoveListener(vArea);
+  end;
 end;
 
 procedure TWinVCLPresenter.LoadImages(const AInteractor: TInteractor;
@@ -973,11 +978,12 @@ var
   vForm: TForm;
   vArea: TUIArea;
   vInteractor: TInteractor;
-  vView: TView;
+  vView, vCloseView: TView;
   vHolder: TChangeHolder;
   vRes: TDialogResult;
   vChildArea: TVCLArea;
   i: Integer;
+  vCanBeClosed: Boolean;
 
   function GetUnfilledRequiredFields(const AArea: TUIArea; var AFields: string): Boolean;
   var
@@ -1056,23 +1062,38 @@ begin
     end;
   end;
 
-  if vForm.ModalResult = mrOk then
-    DoValidation
-  else begin
-    if Assigned(vHolder) and vHolder.IsVisibleModified then
+  vCloseView := vView.BuildView('Close');
+  vCloseView.AddListener(vArea);
+  try
+    vCanBeClosed := not (Assigned(vCloseView) and (TCheckActionFlagsFunc(TConfiguration(vInteractor.Configuration).
+      CheckActionFlagsFunc)(vCloseView) <> vsFullAccess));
+
+    if vCanBeClosed then
     begin
-      vRes := TPresenter(vInteractor.Presenter).ShowYesNoDialog(vForm.Caption,
-        vInteractor.Translate('msgPromtSaveChanges', 'Сохранить изменения перед закрытием формы?'), True);
-      if vRes = drYes then
+      if vForm.ModalResult = mrOk then
+        DoValidation
+      else
       begin
-        vForm.ModalResult := mrOk;
-        DoValidation;
-      end
-      else if vRes = drNo then
-        vForm.ModalResult := mrCancel
-      else if vRes = drCancel then
-        vForm.ModalResult := mrNone;
-    end;
+        if Assigned(vHolder) and vHolder.IsVisibleModified then
+        begin
+          vRes := TPresenter(vInteractor.Presenter).ShowYesNoDialog(vForm.Caption,
+            vInteractor.Translate('msgPromtSaveChanges', 'Сохранить изменения перед закрытием формы?'), True);
+          if vRes = drYes then
+          begin
+            vForm.ModalResult := mrOk;
+            DoValidation;
+          end
+          else if vRes = drNo then
+            vForm.ModalResult := mrCancel
+          else if vRes = drCancel then
+            vForm.ModalResult := mrNone;
+        end;
+      end;
+    end
+    else
+      Action := caNone;
+  finally
+    vCloseView.RemoveListener(vArea);
   end;
 end;
 

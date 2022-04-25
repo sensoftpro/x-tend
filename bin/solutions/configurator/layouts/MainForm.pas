@@ -18,7 +18,7 @@ type
     ToolBar1: TToolBar;
     ShowSettings1: TMenuItem;
     ToolButton2: TToolButton;
-    ToolButton1: TToolButton;
+    Panel1: TPanel;
   end;
 
 implementation

@@ -215,6 +215,8 @@ type
   TConditionKind = (ckUndefined, ckEqualTo, ckMatchesTo,
     ckGreaterThan, ckLessThan, ckPartOf, ckContains, ckCrosses);
 
+  TLayoutKind = (lkAbsolute, lkGrid, lkFlow, lkOverlap);
+
   TUIItemType = (uiTextEdit, uiBoolEdit, uiEntityEdit, uiIntegerEdit, uiEnumEdit, uiFlagEdit,
     uiFloatEdit, uiDateEdit, uiCurrencyEdit, uiListEdit, uiBLOBEdit, uiComplexEdit, uiColorEdit,
     uiAction, uiCollection);
@@ -292,6 +294,8 @@ const
   cFieldKindNames: array[TFieldKind] of string =
     ('<undefined>', 'String', 'Integer', 'Enumeration', 'Flag', 'Float', 'DateTime', 'Boolean',
      'Color', 'Currency', 'Object', 'List', 'Blob', 'Complex');
+  cLayoutKindNames: array[TLayoutKind] of string =
+    ('Абсолютные координаты', 'Табличное размещение', 'Потоковое размещение', 'Размещение пачкой');
   cEnumTypeNames: array[TEnumType] of string =
     ('По порядку', 'Битовая маска', 'Произвольный');
   cStorageKindNames: array[TStorageKind] of string =
