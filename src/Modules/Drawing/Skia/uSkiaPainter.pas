@@ -118,6 +118,7 @@ type
       const AOptions: Cardinal; const AAngle: Single); override;
     function GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF; override;
     procedure DoInvertRect(const ARect: TRectF); override;
+    procedure DoClipRect(const ARect: TRectF); override;
     procedure DoDrawImage(const AImage: TObject; const ARect: TRectF; const AOpacity: Single); override;
     procedure DoDrawContext(const AContext: TDrawContext); override;
 
@@ -294,6 +295,11 @@ destructor TSkiaPainter.Destroy;
 begin
   // Очистить все созданные в конструкторе объекты
   inherited Destroy;
+end;
+
+procedure TSkiaPainter.DoClipRect(const ARect: TRectF);
+begin
+  FCanvas.ClipRect(ARect);
 end;
 
 procedure TSkiaPainter.DoColorizeBrush(const AFill: TStyleBrush; const AColor: Cardinal);

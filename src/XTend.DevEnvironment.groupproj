@@ -6,6 +6,9 @@
         <Projects Include="Environment\Painting\Painters.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Environment\Layouts\Layouts.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -23,14 +26,23 @@
     <Target Name="Painters:Make">
         <MSBuild Projects="Environment\Painting\Painters.dproj" Targets="Make"/>
     </Target>
+    <Target Name="Layouts">
+        <MSBuild Projects="Environment\Layouts\Layouts.dproj"/>
+    </Target>
+    <Target Name="Layouts:Clean">
+        <MSBuild Projects="Environment\Layouts\Layouts.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Layouts:Make">
+        <MSBuild Projects="Environment\Layouts\Layouts.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Painters"/>
+        <CallTarget Targets="Painters;Layouts"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Painters:Clean"/>
+        <CallTarget Targets="Painters:Clean;Layouts:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Painters:Make"/>
+        <CallTarget Targets="Painters:Make;Layouts:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

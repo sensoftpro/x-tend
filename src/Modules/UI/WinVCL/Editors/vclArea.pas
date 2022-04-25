@@ -37,7 +37,7 @@ interface
 
 uses
   Windows, Classes, Forms, Messages, Generics.Collections, Controls, StdCtrls, ExtCtrls, Menus, UITypes, SysUtils,
-  uConsts, uUIBuilder, uDefinition, uEntity, uView;
+  uConsts, uUIBuilder, uDefinition, uEntity, uLayout, uView;
 
 type
   TButtonDesc = class
@@ -87,8 +87,8 @@ type
     FNeedCreateCaption: Boolean;
     procedure PlaceLabel;
     procedure DoClose(const AModalResult: Integer); override;
-    function DoCreateChildArea(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
-    function DoCreateChildAction(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
+    function DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea; override;
+    function DoCreateChildAction(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea; override;
     function AreaFromSender(const ASender: TObject): TUIArea; override;
     procedure AppendServiceArea(const ALayoutName: string); override;
     procedure BeginUpdate; override;
@@ -102,7 +102,7 @@ type
     procedure SetControl(const AControl: TObject); override;
     procedure SetParent(const Value: TUIArea); override;
     procedure UnbindContent; override;
-    procedure AssignFromLayout(const ALayout: TObject); override;
+    procedure AssignFromLayout(const ALayout: TLayout); override;
     procedure ArrangeChildAreas; override;
     procedure SaveLayoutToFile(const AFileName: string); override;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
@@ -114,7 +114,7 @@ type
     procedure SetCaptionProperty(const ALayout: TObject); virtual;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
     destructor Destroy; override;
 
     property Component: TComponent read GetComponent;
@@ -157,7 +157,7 @@ type
     procedure SetFieldStream(const AStream: TStream);
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
     destructor Destroy; override;
 
     procedure Deinit;
@@ -237,7 +237,7 @@ begin
   vPanel := TPanel.Create(nil);
   vPanel.BevelOuter := bvNone;
   vPanel.Height := cServiceAreaHeight;
-  vPanel.Align := alBottom;
+  vPanel.Align := Controls.TAlign(alBottom);
   vArea := TVCLArea.Create(Self, FView, '', True, vPanel);
   AddArea(vArea);
   FUIBuilder.ApplyLayout(vArea, FView, ALayoutName, '');
@@ -344,7 +344,7 @@ begin
     Control.ClientHeight := Control.ClientHeight + cServiceAreaHeight;
 end;
 
-procedure TVCLArea.AssignFromLayout(const ALayout: TObject);
+procedure TVCLArea.AssignFromLayout(const ALayout: TLayout);
 var
   vPage: TTabSheet absolute ALayout;
   vFrame: TFrame absolute ALayout;
@@ -356,7 +356,7 @@ begin
   begin
     vForm := TForm(FControl);
 
-    if ALayout is TFrame then
+    if ALayout.LayoutKind = lkFrame then
     begin
       if (vFrame.Tag and cEditFormResizable) > 0 then
       begin
@@ -391,7 +391,7 @@ begin
       vForm.Caption := vPage.Caption;
     end;
   end
-  else if ALayout is TFrame then
+  else if ALayout.LayoutKind = lkFrame then
   begin
     //vFrame.SetBounds(Control.Left, Control.Top, Control.Width, Control.Height);
     if (vFrame.Hint <> '') and (FControl is TcxTabSheet) then
@@ -404,7 +404,7 @@ begin
       end;
     end;
   end
-  else if (ALayout is TPanel) or (ALayout is TMemo) then
+  else if ALayout.LayoutKind in [lkPanel, lkMemo] then
   begin
     PlaceIntoBounds(vPanel.Left, vPanel.Top, vPanel.Width, vPanel.Height);
     SetCaptionProperty(vPanel);
@@ -423,9 +423,9 @@ begin
 
     vAlignment := taLeftJustify;
 
-    if ALayout is TPanel then
+    if ALayout.LayoutKind = lkPanel then
       vAlignment := TPanel(ALayout).Alignment
-    else if ALayout is TMemo then
+    else if ALayout.LayoutKind = lkMemo then
       vAlignment := TMemo(ALayout).Alignment;
 
     if vAlignment = taRightJustify then
@@ -459,7 +459,6 @@ begin
       TCrackedControl(FControl).ParentColor := False;
       TCrackedControl(FControl).ParentBackground := False;
     end;
-
   end;
 end;
 
@@ -470,7 +469,7 @@ begin
 end;
 
 constructor TVCLArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
+  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
 begin
   FNeedCreateCaption := True;
 
@@ -707,7 +706,7 @@ begin
   end;
 end;
 
-function TVCLArea.DoCreateChildAction(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea;
+function TVCLArea.DoCreateChildAction(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
 var
   vButton: TcxButton;
   vLabel: TcxLabel;
@@ -775,9 +774,8 @@ begin
 
   vImageID := GetImageID(vImageID);
 
-  if (TPanel(ALayout).BevelOuter = bvNone) and (TPanel(ALayout).BevelInner = bvNone)
-    and (TPanel(ALayout).BevelKind = TBevelKind.bkNone)
-  then begin
+  if (ALayout.BevelOuter = TBevelKind.bkNone) and (ALayout.BevelInner = TBevelKind.bkNone) then
+  begin
     vButton.SpeedButtonOptions.Flat := True;
     vButton.SpeedButtonOptions.CanBeFocused := False;
   end;
@@ -860,10 +858,8 @@ begin
     Result.AddParams(CreateDelimitedList(AParams, '&'));
 end;
 
-function TVCLArea.DoCreateChildArea(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea;
+function TVCLArea.DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
 var
-  vSourceLabel: TLabel absolute ALayout;
-  vSourceImage: TImage absolute ALayout;
   vSourcePC: TPageControl absolute ALayout;
   vSourceTabSheet: TTabSheet absolute ALayout;
   vSourceToolBar: TToolBar absolute ALayout;
@@ -1535,21 +1531,21 @@ begin
 
   vDomain := TDomain(TInteractor(Interactor).Domain);
 
-  if ALayout is TLabel then
+  if ALayout.LayoutKind = lkLabel then
   begin
     vLabel := TLabel.Create(nil);
-    vLabel.Left := vSourceLabel.Left;
-    vLabel.Top := vSourceLabel.Top;
-    vLabel.Width := vSourceLabel.Width;
-    vLabel.Height := vSourceLabel.Height;
-    vLabel.Transparent := vSourceLabel.Transparent;
-    vLabel.AutoSize := vSourceLabel.AutoSize;
-    vLabel.WordWrap := vSourceLabel.WordWrap;
-    vLabel.Font.Size := vSourceLabel.Font.Size;
-    vLabel.Font.Color := vSourceLabel.Font.Color;
-    vLabel.Font.Style := vSourceLabel.Font.Style;
+    vLabel.Left := ALayout.Left;
+    vLabel.Top := ALayout.Top;
+    vLabel.Width := ALayout.Width;
+    vLabel.Height := ALayout.Height;
+    vLabel.Transparent := ALayout.Transparent;
+    vLabel.AutoSize := ALayout.AutoSize;
+    vLabel.WordWrap := ALayout.WordWrap;
+    vLabel.Font.Size := ALayout.FontSize;
+    vLabel.Font.Color := ALayout.FontColor;
+    vLabel.Font.Style := ALayout.FontStyle;
 
-    vCaption := vSourceLabel.Caption;
+    vCaption := ALayout.Caption;
     vUIParams := '';
     vPos := Pos('@', vCaption);
     if vPos > 1 then
@@ -1565,35 +1561,36 @@ begin
         // Обработать другие ситуации
     end
     else
-      vCaption := vSourceLabel.Caption; //FView.Interactor.Translate('@' + {FFullAreaName или FLayoutName +} '.' +
+      vCaption := ALayout.Caption; //FView.Interactor.Translate('@' + {FFullAreaName или FLayoutName +} '.' +
         //vSourceLabel.Name + '@Caption', vSourceLabel.Caption);
 
     vLabel.Caption := vCaption;
 
     Result := TVCLArea.Create(Self, AView, '', False, vLabel);
   end
-  else if ALayout is TImage then
+  else if ALayout.LayoutKind = lkImage then
   begin
     vImage := TcxImage.Create(nil);
     vImage.Style.BorderStyle := ebsNone;
     vImage.ControlStyle := vImage.ControlStyle + [csOpaque];
-    vImage.Width := vSourceImage.Width;
-    vImage.Height := vSourceImage.Height;
-    vImage.Left := vSourceImage.Left;
-    vImage.Top := vSourceImage.Top;
-    vImage.Picture.Assign(vSourceImage.Picture);
-    vImage.Anchors := vSourceImage.Anchors;
-    vImage.Align := vSourceImage.Align;
+    vImage.Width := ALayout.Width;
+    vImage.Height := ALayout.Height;
+    vImage.Left := ALayout.Left;
+    vImage.Top := ALayout.Top;
+    vImage.Picture.LoadFromStream(ALayout.PictureStream);
+    vImage.Anchors := ALayout.Anchors;
+    vImage.Align := ALayout.Align;
     vImage.Transparent := True;
     vImage.Properties.ShowFocusRect := False;
     vImage.Properties.PopupMenuLayout.MenuItems := [];
     vImage.Properties.FitMode := ifmNormal;
     vImage.DoubleBuffered := True;
-    vImage.Properties.Stretch := vSourceImage.Stretch;
-    vImage.Properties.Proportional := vSourceImage.Proportional;
-    vImage.Hint := vSourceImage.Hint;
-    vImage.AlignWithMargins := vSourceImage.AlignWithMargins;
-    vImage.Margins := vSourceImage.Margins;
+    vImage.Properties.Stretch := ALayout.Stretch;
+    vImage.Properties.Proportional := ALayout.Proportional;
+    vImage.Hint := ALayout.Hint;
+    vImage.AlignWithMargins := ALayout.AlignWithMargins;
+    if ALayout.AlignWithMargins then
+      vImage.Margins.SetBounds(ALayout.Margins.Left, ALayout.Margins.Top, ALayout.Margins.Right, ALayout.Margins.Bottom);
     vImage.Properties.Center := False;
 
     Result := TVCLArea.Create(Self, AView, '', False, vImage);
@@ -2325,7 +2322,7 @@ begin
 end;
 
 constructor TVCLFieldArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
+  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
 var
   vPopupArea: TVCLArea;
   vPopupMenu: TPopupMenu;

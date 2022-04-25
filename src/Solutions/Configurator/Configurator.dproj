@@ -142,6 +142,7 @@
         <DCCReference Include="..\..\Platform\uScript.pas"/>
         <DCCReference Include="..\..\Modules\UI\uPresenter.pas"/>
         <DCCReference Include="..\..\Modules\UI\uView.pas"/>
+        <DCCReference Include="..\..\Modules\UI\uLayout.pas"/>
         <DCCReference Include="..\..\Modules\UI\uUIBuilder.pas"/>
         <DCCReference Include="..\..\Modules\UI\uInteractor.pas"/>
         <DCCReference Include="..\..\Modules\Storage\uStorage.pas"/>
