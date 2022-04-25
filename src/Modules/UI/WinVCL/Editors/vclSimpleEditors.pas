@@ -36,20 +36,21 @@ unit vclSimpleEditors;
 interface
 
 uses
-  Classes, Types, Graphics, ExtCtrls, StdCtrls, Dialogs, ActnList, StdActns,
+  Classes, Types, Graphics, ExtCtrls, StdCtrls, Dialogs, Controls, ActnList, StdActns,
 
-  vclArea, uDefinition, uEnumeration, uLayout, uUIBuilder, uView, Controls,
+  vclArea, uDefinition, uEnumeration, uUIBuilder, uView,
 
   //DevExpress
   cxSpinEdit, cxEdit, cxCalendar, cxDateUtils, cxTextEdit, cxRadioGroup, cxPC,
   cxLabel, cxCurrencyEdit, cxCheckBox, cxListBox, cxDropDownEdit,
   cxTL, cxGraphics, cxControls, dxBevel, cxMemo, cxButtons,
-  cxGroupBox, cxTimeEdit, cxLookAndFeelPainters;
+  cxGroupBox, cxTimeEdit, cxLookAndFeelPainters,
+  dxGaugeCustomScale, dxGaugeQuantitativeScale, dxGaugeCircularScale, dxGaugeControl;
 
 type
   TTextInfo = class (TVCLFieldArea)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
   end;
 
@@ -67,7 +68,7 @@ type
     procedure FillList;
     procedure CBOnInitPopup(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -84,7 +85,7 @@ type
 
     procedure DoDrawItem(const ACanvas: TcxCanvas; const AID: Integer; const ARect: TRect;
       AState: TOwnerDrawState); virtual;
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -102,7 +103,7 @@ type
     procedure FillList;
     procedure CLBOnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -111,7 +112,7 @@ type
 
   TDEIntegerFieldEditor = class (TDEEditor)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure FocusedChanged(const AFocused: Boolean); override;
@@ -122,7 +123,7 @@ type
   private
     FAfterPoint: Integer; // знаков после запятой
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -130,7 +131,7 @@ type
 
   TDECurrencyFieldEditor = class (TDEEditor)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -138,7 +139,7 @@ type
 
   TDEDateFieldEditor = class (TDEEditor)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     function GetNewValue: Variant; override;
@@ -147,7 +148,7 @@ type
 
   TDETimeFieldEditor = class (TDEEditor)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     function GetNewValue: Variant; override;
@@ -156,7 +157,7 @@ type
 
   TDEDateTimeFieldEditor = class (TDEEditor)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     function GetNewValue: Variant; override;
@@ -167,7 +168,7 @@ type
   private
     procedure OnPhoneKeyPress(Sender: TObject; var Key: Char);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -178,7 +179,7 @@ type
     procedure FillList;
     procedure CBOnInitPopup(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -192,7 +193,7 @@ type
     procedure BrowseForFolder1Accept(Sender: TObject);
     procedure BeforeExecute(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
@@ -207,7 +208,7 @@ type
     procedure OnAccept(Sender: TObject);
     procedure BeforeExecute(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
@@ -218,7 +219,7 @@ type
 
   TDEMaskFieldEditor = class (TDEEditor)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -226,7 +227,7 @@ type
 
   TMRUFieldEditor = class (TDEEditor)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -236,7 +237,7 @@ type
   private
     procedure OnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -245,12 +246,12 @@ type
 
   TDELogFieldEditor = class (TDEMemoFieldEditor)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
   end;
 
   TDEBoolFieldEditor = class(TDEEditor)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -265,7 +266,7 @@ type
     FActionView: TView;
     procedure OnButtonClick(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -275,7 +276,7 @@ type
 
   TDEPagesFieldEditor = class(TDEEditor)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -283,7 +284,7 @@ type
 
   TDEEnumFieldEditor = class (TDEEditor)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -295,7 +296,7 @@ type
       const Picture: TPicture);
     procedure DoOnChangeImage(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -305,19 +306,19 @@ type
   private
     procedure DoOnChangeBLOB(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
   end;
 
   TImageByString = class (TVCLFieldArea)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
   end;
 
   TBoolImages = class (TVCLFieldArea)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
   end;
 
@@ -331,11 +332,12 @@ type
     //procedure OnClearBtnClick(Sender: TObject);
     //procedure OnPaint(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
 
+    //procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     //procedure DoBeforeFreeControl; override;
     //procedure FillEditor; override;
   end;
@@ -350,7 +352,7 @@ type
     procedure OnClearBtnClick(Sender: TObject);
     procedure OnPaint(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
   end;
@@ -358,21 +360,31 @@ type
   // неопределённый по времени процесс
   TSpinner = class (TVCLFieldArea)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
-    procedure AssignFromLayout(const ALayout: TLayout); override;
+    procedure AssignFromLayout(const ALayout: TObject); override;
   end;
 
   // определённый по времени процесс
   TProgress = class (TVCLFieldArea)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure FillEditor; override;
+  end;
+
+  TGauge = class (TVCLFieldArea)
+  private
+    FGaugeControl: TdxGaugeControl;
+    FGaugeControl1CircularHalfScale: TdxGaugeCircularHalfScale;
+  protected
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
   end;
 
   TEntityBreadcrumb = class (TVCLFieldArea)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SetValidateDefinition(const ADefinition: TDefinition);
@@ -385,13 +397,13 @@ uses
   Generics.Collections, TypInfo, Variants, SysUtils, Windows,
   Forms, ComCtrls, Math, DateUtils, Messages, cxBlobEdit, cxImage, dxGDIPlusClasses, cxMaskEdit, cxMRUEdit,
   dxActivityIndicator, cxLookAndFeels, cxProgressBar, dxBreadcrumbEdit, cxCustomListBox, cxCheckListBox,
-  dxColorEdit, dxColorGallery, {CPort,}
+  dxColorEdit, dxColorGallery, dxCoreGraphics, {CPort,}
 
   uConfiguration, uDomain, uInteractor, uPresenter, uCollection, uEntity, uConsts, uUtils, UITypes;
 
 { TTextInfo }
 
-procedure TTextInfo.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TTextInfo.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TcxLabel.Create(nil);
   TcxLabel(FControl).Transparent := True;
@@ -408,6 +420,7 @@ procedure TTextInfo.FillEditor;
 var
   vEnum: TEnumeration;
   vEntity: TEntity;
+  vColorField: TBaseField;
 begin
   inherited;
   if VarIsNull(FView.FieldValue) then
@@ -448,8 +461,14 @@ begin
     vEntity := TEntity(FView.FieldEntity);
     if not Assigned(vEntity) then
       TcxLabel(FControl).Caption := TObjectFieldDef(FView.Definition)._ContentDefinition._EmptyValue
-    else
+    else begin
       TcxLabel(FControl).Caption := vEntity['Name'];
+      if vEntity.Definition.ColorFieldName <> '' then
+      begin
+        vColorField := vEntity.FieldByName(vEntity.Definition.ColorFieldName);
+        TcxLabel(FControl).Style.Font.Color := TColor(vColorField.Value);
+      end;
+    end;
   end
   else
     TcxLabel(FControl).Caption := FView.FieldValue;
@@ -457,7 +476,7 @@ end;
 
 { TDEIntegerEditControl }
 
-procedure TDEIntegerFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEIntegerFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TcxSpinEdit.Create(nil);
 
@@ -549,7 +568,7 @@ end;
 
 { TDEFloatEditControl }
 
-procedure TDEFloatFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEFloatFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vFormat: string;
 begin
@@ -646,7 +665,7 @@ end;
 
 { TDEDateEditControl }
 
-procedure TDEDateFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEDateFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vDef: TSimpleFieldDef;
 begin
@@ -799,11 +818,12 @@ end;
 
 { TDETextEditControl }
 
-procedure TDETextFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDETextFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   inherited;
   FControl := TcxTextEdit.Create(nil);
   TcxTextEdit(FControl).Properties.BeepOnError := True;
+  TcxTextEdit(FControl).ParentColor := True;
 
   if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
     TcxTextEdit(FControl).Properties.MaxLength := TSimpleFieldDef(FFieldDef).MaxValue;
@@ -857,6 +877,7 @@ begin
       vEdit.Style.Color := clWindow;
     end;
   end;
+
 end;
 
 procedure TDETextFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
@@ -868,7 +889,7 @@ end;
 
 { TDEEnumEditControl }
 
-procedure TDEEnumFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEEnumFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vRadioItem: TcxRadioGroupItem;
   vCollections: TList<TCollection>;
@@ -922,7 +943,7 @@ end;
 
 { TDECurrencyEditControl }
 
-procedure TDECurrencyFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDECurrencyFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vDef: TSimpleFieldDef;
 begin
@@ -992,7 +1013,7 @@ end;
 
 { TDEBoolEditControl }
 
-procedure TDEBoolFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEBoolFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FNeedCreateCaption := False;
 
@@ -1000,15 +1021,15 @@ begin
   TcxCheckBox(FControl).Properties.FullFocusRect := True;
   TcxCheckBox(FControl).Transparent := True;
 
-  if ALayout.LayoutKind = lkPanel then
+  if ALayout is TPanel then
   begin
-    if ALayout.Alignment <> taCenter then
+    if TPanel(ALayout).Alignment <> taCenter then
     begin
       TcxCheckBox(FControl).AutoSize := False;
-      if ALayout.Alignment = taLeftJustify then
+      if TPanel(ALayout).Alignment = taLeftJustify then
         TcxCheckBox(FControl).Properties.Alignment := taCenter
       else
-        TcxCheckBox(FControl).Properties.Alignment := ALayout.Alignment;
+        TcxCheckBox(FControl).Properties.Alignment := TPanel(ALayout).Alignment;
     end;
   end;
 
@@ -1048,7 +1069,7 @@ begin
   inherited;
 end;
 
-procedure TDEImageEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEImageEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TcxImage.Create(nil);
   TcxImage(FControl).Properties.GraphicClassName := 'TdxSmartImage';
@@ -1124,7 +1145,7 @@ end;
 
 { TDEMemoFieldEditor }
 
-procedure TDEMemoFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEMemoFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TcxMemo.Create(nil);
   TcxMemo(FControl).Properties.ScrollBars := ssVertical;
@@ -1194,7 +1215,7 @@ end;
 
 { TDETimeFieldEditor }
 
-procedure TDETimeFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDETimeFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vDef: TSimpleFieldDef;
 begin
@@ -1276,7 +1297,7 @@ end;
 
 { TDEMaskFieldEditor }
 
-procedure TDEMaskFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEMaskFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vMask: string;
 begin
@@ -1352,7 +1373,7 @@ end;
 
 { TMRUFieldEditor }
 
-procedure TMRUFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TMRUFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TcxMRUEdit.Create(nil);
   TcxMRUEdit(FControl).Properties.ShowEllipsis := False;
@@ -1434,7 +1455,7 @@ begin
   FreeAndNil(FPaintBox);
 end;
 
-procedure TColorEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TColorEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FBasePanel := TPanel.Create(nil);
   FControl := FBasePanel;
@@ -1501,7 +1522,7 @@ end;
 
 { TDEDateTimeFieldEditor }
 
-procedure TDEDateTimeFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEDateTimeFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vDef: TSimpleFieldDef;
 begin
@@ -1606,7 +1627,7 @@ begin
   FreeAndNil(FAction);
 end;
 
-procedure TFilenameFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TFilenameFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vBase: TPanel;
 begin
@@ -1707,7 +1728,7 @@ begin
   FreeAndNil(FAction);
 end;
 
-procedure TSelectFolderFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TSelectFolderFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vBase: TPanel;
 begin
@@ -1786,18 +1807,19 @@ type
 
 { TSpinner }
 
-procedure TSpinner.AssignFromLayout(const ALayout: TLayout);
+procedure TSpinner.AssignFromLayout(const ALayout: TObject);
 var
+  vPanel: TCrackedControl absolute ALayout;
   vColor: Cardinal;
   vR, vG, vB: Byte;
   vRGBColor: Integer;
 begin
   inherited;
 
-  if ALayout.LayoutKind in [lkPanel, lkMemo] then
-    if (FControl is TdxActivityIndicator) and (ALayout.FontColor <> clWindowText) then
+  if (ALayout is TPanel) or (ALayout is TMemo) then
+    if (FControl is TdxActivityIndicator) and not vPanel.ParentFont and (vPanel.Font.Color <> clWindowText) then
     begin
-      vRGBColor := TColorRec.ColorToRGB(ALayout.FontColor);
+      vRGBColor := TColorRec.ColorToRGB(vPanel.Font.Color);
       vR := GetRValue(vRGBColor); vG := GetGValue(vRGBColor); vB := GetBValue(vRGBColor);
       vColor := TAlphaColorRec.Alpha or TAlphaColor(RGB(vB, vG, vR));
       if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorHorizontalDotsProperties then
@@ -1809,7 +1831,7 @@ begin
     end;
 end;
 
-procedure TSpinner.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TSpinner.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TdxActivityIndicator.Create(nil);
   TdxActivityIndicator(FControl).Transparent := True;
@@ -1842,7 +1864,7 @@ end;
 
 { TImageByString }
 
-procedure TImageByString.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TImageByString.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TImage.Create(nil);
   TImage(FControl).Transparent := True;
@@ -1872,7 +1894,7 @@ end;
 
 { TTextSelector }
 
-procedure TTextSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TTextSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TcxComboBox.Create(nil);
 
@@ -2043,7 +2065,7 @@ end;
 
 { TDEBLOBEditor }
 
-procedure TDEBLOBEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEBLOBEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TcxBLOBEdit.Create(nil);
   TcxBLOBEdit(FControl).AutoSize := False;
@@ -2084,7 +2106,7 @@ begin
   FillList;
 end;
 
-procedure TDEEnumEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEEnumEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FEnum := TDomain(FView.Domain).Configuration.Enumerations.ObjectByName(TSimpleFieldDef(FFieldDef).Dictionary);
   if not Assigned(FEnum) then
@@ -2275,7 +2297,7 @@ begin
   DoDrawItem(ACanvas, vID, ARect, AState);
 end;
 
-procedure TDEGraphicEnumSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEGraphicEnumSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FEnum := TDomain(FView.Domain).Configuration.Enumerations.ObjectByName(TSimpleFieldDef(FFieldDef).Dictionary);
   if not Assigned(FEnum) then
@@ -2380,7 +2402,7 @@ end;
 
 { TDELogFieldEditor }
 
-procedure TDELogFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDELogFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   inherited DoCreateControl(AParent, ALayout);
   TcxMemo(FControl).Properties.ScrollBars := ssVertical;
@@ -2388,13 +2410,15 @@ end;
 
 { TDEPagesFieldEditor }
 
-procedure TDEPagesFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEPagesFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
+  vPanel: TPanel absolute ALayout;
+  vSourcePC: TPageControl absolute ALayout;
   vPC: TcxPageControl;
-  //vSourceTab: TTabSheet;
-  vTabLayout: TLayout;
+  vSourceTab: TTabSheet;
   vPage: TcxTabSheet;
   vChildArea: TVCLArea;
+  i: Integer;
 begin
   FNeedCreateCaption := False;
 
@@ -2403,37 +2427,48 @@ begin
   vPC := TcxPageControl.Create(nil);
   FControl := vPC;
   vPC.DoubleBuffered := True;
-  vPC.Width := ALayout.Width;
-  vPC.Height := ALayout.Height;
-  vPC.Left := ALayout.Left;
-  vPC.Top := ALayout.Top;
+  vPC.Width := vSourcePC.Width;
+  vPC.Height := vSourcePC.Height;
 
-  vPC.Font.Size := ALayout.FontSize;
-  vPC.Align := Controls.TAlign(ALayout.Align);
-  vPC.Anchors := ALayout.Anchors;
-  vPC.Style := Integer(ALayout.PageStyle);
+  vPC.Font.Size := vSourcePC.Font.Size;
+  vPC.Align := vSourcePC.Align;
+  vPC.Anchors := vSourcePC.Anchors;
+  vPC.Style := Integer(vSourcePC.Style);
+  if (vSourcePC.Style <> TTabStyle.tsTabs) and (vSourcePC.PageCount > 0) then
+  begin
+    vPC.Left := vSourcePC.Left + vSourcePC.Pages[0].Left;
+    vPC.Top := vSourcePC.Top + vSourcePC.Pages[0].Top;
+  end
+  else begin
+    vPC.Left := vSourcePC.Left;
+    vPC.Top := vSourcePC.Top;
+  end;
 
-  vPC.HideTabs := ALayout.HidePages;
+  vPC.HideTabs := not vSourcePC.ShowHint or ((vSourcePC.PageCount > 0) and not vSourcePC.Pages[0].TabVisible);
   if not vPC.HideTabs then
   begin
     vPC.Properties.Options := vPC.Properties.Options + [pcoTopToBottomText];
-    vPC.Properties.TabPosition := TcxTabPosition(ALayout.PagePosition);
-    vPC.Properties.TabHeight := ALayout.PageHeight;
+    vPC.Properties.TabPosition := TcxTabPosition(vSourcePC.TabPosition);
+    vPC.Properties.TabHeight := vSourcePC.TabHeight;
   end;
 
   // Нужно прописывать родителя, чтобы создавать вложенные сцены
   vPC.Parent := TWinControl(TVCLArea(AParent).Control);
 
-  for vTabLayout in ALayout.Items do
+  for i := 0 to vSourcePC.PageCount - 1 do
   begin
+    vSourceTab := vSourcePC.Pages[i];
     vPage := TcxTabSheet.Create(vPC);
-    vPage.Caption := vTabLayout.Caption;
-    vPage.ImageIndex := vTabLayout.ImageIndex;
+    vPage.Caption := vSourceTab.Caption;
+    vPage.ImageIndex := vSourceTab.ImageIndex;
 
-    vChildArea := TVCLArea.Create(Self, FView.Parent, vTabLayout.Name, False, vPage);
+    vChildArea := TVCLArea.Create(Self, FView.Parent, vSourceTab.Name, False, vPage);
     AddArea(vChildArea);
-    TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vTabLayout, '');
+    TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vSourceTab, '');
   end;
+
+  for i := vSourcePC.PageCount - 1 downto 0 do
+    vSourcePC.Pages[i].Free;
 end;
 
 procedure TDEPagesFieldEditor.DoOnChange;
@@ -2469,7 +2504,11 @@ begin
     if TFieldDef(FView.Definition).Kind = fkBoolean then
       vTag := IfThen(vValue, 1, 0)
     else if TFieldDef(FView.Definition).Kind = fkEnum then
+    begin
+      if TFieldDef(FView.Definition).Flags or cRequired = 1 then
+        vValue := vValue - 1;
       vTag := vValue
+    end
     else
       vTag := -1;
   end;
@@ -2485,12 +2524,12 @@ end;
 
 { TProgress }
 
-procedure TProgress.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TProgress.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TcxProgressBar.Create(nil);
-  TcxProgressBar(FControl).AutoSize := ALayout.ShowCaption;
+  TcxProgressBar(FControl).AutoSize := TPanel(ALayout).ShowCaption;
   TcxProgressBar(FControl).Properties.SolidTextColor := True;
-  TcxProgressBar(FControl).Properties.ShowText := ALayout.ShowCaption;
+  TcxProgressBar(FControl).Properties.ShowText := TPanel(ALayout).ShowCaption;
   FNeedCreateCaption := False;
   TcxProgressBar(FControl).Properties.Max := TSimpleFieldDef(FFieldDef).MaxValue;
 end;
@@ -2503,7 +2542,7 @@ end;
 
 { TEntityBreadcrumb }
 
-procedure TEntityBreadcrumb.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TEntityBreadcrumb.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TdxBreadcrumbEdit.Create(nil);
   TdxBreadcrumbEdit(FControl).Properties.PathEditor.PathDelimiter := '.';
@@ -2576,7 +2615,7 @@ begin
   OnChange(Sender);
 end;
 
-procedure TDEFlagsEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEFlagsEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FEnum := TDomain(FView.Domain).Configuration.Enumerations.ObjectByName(TSimpleFieldDef(FFieldDef).Dictionary);
   FControl := TcxCheckListBox.Create(nil);
@@ -2678,7 +2717,7 @@ begin
   end;
 end;
 
-procedure TDEImagedAction.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEImagedAction.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vActionName: string;
   vImageSize: Integer;
@@ -2752,7 +2791,7 @@ end;
 
 { TBoolImages }
 
-procedure TBoolImages.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TBoolImages.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TImage.Create(nil);
   TImage(FControl).Transparent := True;
@@ -2789,7 +2828,7 @@ end;
 
 { TDEColorEditor }
 
-procedure TDEColorEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+procedure TDEColorEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := TdxColorEdit.Create(nil);
   TdxColorEdit(FControl).Properties.ColorPalette := TdxColorPalette.cpExtended;
@@ -2840,6 +2879,48 @@ begin
   TdxColorEdit(FControl).Properties.OnChange := AHandler;
 end;
 
+{ TGauge }
+
+procedure TGauge.DoBeforeFreeControl;
+begin
+  inherited;
+ // FGaugeControl.Parent := nil;
+ // FreeAndNil(FGaugeControl1CircularHalfScale);
+ // FreeAndNil(FGaugeControl);
+end;
+
+procedure TGauge.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+var
+  vRange: TdxGaugeCircularScaleRange;
+begin
+  inherited;
+  FGaugeControl := TdxGaugeControl.Create(nil);
+  if Assigned(AParent.Control) and (AParent.Control is TWinControl) then
+    FGaugeControl.Parent := TWinControl(AParent.Control);
+  FGaugeControl.Transparent := True;
+  FGaugeControl.BorderStyle := cxcbsNone;
+  FGaugeControl1CircularHalfScale := TdxGaugeCircularHalfScale(FGaugeControl.AddScale(TdxGaugeCircularHalfScale));
+  FGaugeControl1CircularHalfScale.StyleName := 'Smart';
+  FGaugeControl1CircularHalfScale.OptionsView.ShowTicks := False;
+  FGaugeControl1CircularHalfScale.OptionsLayout.CenterPositionFactorX := 0.504975199699401900;
+  FGaugeControl1CircularHalfScale.OptionsAnimate.Enabled := True;
+  vRange := FGaugeControl1CircularHalfScale.Ranges.Add as TdxGaugeCircularScaleRange;
+  vRange.ValueStart := 70;
+  vRange.ValueEnd := 100;
+  vRange.WidthFactor := 0.3;
+  vRange.Color := dxColorToAlphaColor(clMaroon, 30);
+  vRange.Visible := True;
+
+  FControl := FGaugeControl;
+
+end;
+
+procedure TGauge.FillEditor;
+begin
+  inherited;
+  FGaugeControl1CircularHalfScale.Value := FView.FieldValue;
+end;
+
 initialization
 
 RegisterClasses([TdxBevel, TcxLabel, TcxTreeList, TcxTreeListColumn]);
@@ -2866,6 +2947,7 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, '', TDEIntegerFi
 TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'info', TTextInfo);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'spinner', TSpinner);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'progress', TProgress);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'gauge', TGauge);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, '', TDEEnumEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, 'radio', TDEEnumEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, 'info', TTextInfo);
@@ -2876,6 +2958,8 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'enum', TDEEnumFi
 TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, '', TDEFloatFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'formatted', TDEFloatFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'currency_rate', TDEFloatFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'info', TTextInfo);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'gauge', TGauge);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiDateEdit, '', TDEDateFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiDateEdit, 'time', TDETimeFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiDateEdit, 'datetime', TDEDateTimeFieldEditor);

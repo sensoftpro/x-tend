@@ -45,10 +45,10 @@ type
   TPagePosition = (ppTop, ppBottom, ppLeft, ppRight);
   TBevelKind = (bkNone, bkLowered, bkRaised, bkSpace);
 
-  TLayoutMargins = record
-    Left, Top, Right, Bottom: Integer;
-  end;
-  TLayoutPadding = TLayoutMargins;
+  //TLayoutMargins = record
+  //  Left, Top, Right, Bottom: Integer;
+  //end;
+  //TLayoutPadding = TLayoutMargins;
 
   TLayout = class
   private
@@ -70,8 +70,8 @@ type
     FAlign: TAlign;
     FAnchors: TAnchors;
     FAlignWithMargins: Boolean;
-    FMargins: TLayoutMargins;
-    FPadding: TLayoutPadding;
+    //FMargins: TLayoutMargins;
+    //FPadding: TLayoutPadding;
 
     FAlignment: TAlignment;
     FFontColor: TColor;
@@ -87,7 +87,7 @@ type
     FBevelOuter: TBevelKind;
 
     FShowCaption: Boolean;
-    FShowHint: Boolean;
+    //FShowHint: Boolean;
     FAutoSize: Boolean;
     FTransparent: Boolean;
     FWordWrap: Boolean;
@@ -123,8 +123,8 @@ type
     property Align: TAlign read FAlign;
     property Anchors: TAnchors read FAnchors;
     property AlignWithMargins: Boolean read FAlignWithMargins;
-    property Margins: TLayoutMargins read FMargins;
-    property Padding: TLayoutPadding read FPadding;
+    //property Margins: TLayoutMargins read FMargins;
+    //property Padding: TLayoutPadding read FPadding;
 
     property FontColor: TColor read FFontColor;
     property FontSize: Integer read FFontSize;
@@ -153,7 +153,7 @@ type
 implementation
 
 uses
-  IOUtils, TypInfo, SysUtils, {>> Windows} Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Menus, {Windows <<} uDefinition, uUtils;
+  IOUtils, TypInfo, SysUtils, Graphics, {>> Windows} Forms, Controls, StdCtrls, ExtCtrls, ComCtrls, Menus, {Windows <<} uDefinition, uUtils;
 
 { TLayout }
 
@@ -349,7 +349,7 @@ begin
     FAlign := TAlign(vImage.Align);
     FAnchors := vImage.Anchors;
     FAlignWithMargins := vImage.AlignWithMargins;
-    FMargins := vImage.Margins;
+    //FMargins := vImage.Margins;
 
     FStretch := vImage.Stretch;
     FProportional := vImage.Proportional;
@@ -357,10 +357,10 @@ begin
     FAlignWithMargins := vImage.AlignWithMargins;
     if FAlignWithMargins then
     begin
-      FMargins.Left := vImage.Margins.Left;
-      FMargins.Top := vImage.Margins.Top;
-      FMargins.Right := vImage.Margins.Right;
-      FMargins.Bottom := vImage.Margins.Bottom;
+      //FMargins.Left := vImage.Margins.Left;
+      //FMargins.Top := vImage.Margins.Top;
+      //FMargins.Right := vImage.Margins.Right;
+      //FMargins.Bottom := vImage.Margins.Bottom;
       //FPadding.Left := vImage.Padding.Left;
       //FPadding.Top := vImage.Padding.Top;
       //FPadding.Right := vImage.Padding.Right;

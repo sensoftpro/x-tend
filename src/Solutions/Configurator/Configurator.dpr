@@ -110,9 +110,6 @@ uses
   // Reporting: FastReport
   uFRReport in '..\..\Modules\Reporting\FastReport\uFRReport.pas',
 
-  // Extensions
-  uLayoutEditor in 'Extensions\UI\uLayoutEditor.pas',
-
   // Script modules
   uConfiguratorScript in 'uConfiguratorScript.pas';
 

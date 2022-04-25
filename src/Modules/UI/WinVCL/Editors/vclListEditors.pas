@@ -44,7 +44,7 @@ uses
   cxTL, cxGrid, cxGridTableView, cxCustomData, cxGridLevel, cxGridCustomTableView, cxGridChartView, cxStyles,
   cxVGrid, cxCalendar, cxCheckBox, cxGraphics, cxControls, cxLookAndFeels, cxContainer,
   cxEdit, cxTextEdit, cxMaskEdit, cxDropDownEdit, cxSpinEdit, cxInplaceContainer, cxCustomPivotGrid, cxPivotGrid,
-  cxExportPivotGridLink, cxTLData, cxButtonEdit, cxEditRepositoryItems;
+  cxExportPivotGridLink, cxTLData, cxButtonEdit, cxEditRepositoryItems, cxPC;
 
 type
   TEntityListSelector = class (TVCLFieldArea)
@@ -67,6 +67,22 @@ type
     FListBox: TcxCheckListBox;
     FEntityList: TEntityList;
     procedure OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
+  protected
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoBeforeFreeControl; override;
+    procedure FillEditor; override;
+    function GetLayoutPositionCount: Integer; override;
+    function GetDefaultFocusedChild: TWinControl; override;
+    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+    procedure DoOnChange; override;
+  end;
+
+  TPagedEntityListSelector = class(TVCLFieldArea)
+  private
+    FPages: TcxPageControl;
+    FEntityList: TEntityList;
+    FInUpdate: Boolean;
+    FCreatedViews: TList<TView>;
   protected
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure DoBeforeFreeControl; override;
@@ -200,6 +216,7 @@ type
     procedure CreateColumnForAction(const AActionDef: TActionDef; const AFieldName: string);
     procedure CreateBtnPropertiesForAction(const AActionDef: TActionDef);
     procedure OnActionGetProperties(Sender: TcxCustomGridTableItem; ARecord: TcxCustomGridRecord; var AProperties: TcxCustomEditProperties);
+    procedure ExportToCsv;
   protected
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
     procedure DoExecuteUIAction(const AView: TView); override;
@@ -1480,7 +1497,40 @@ var
 begin
   if not GetFileName(vFileName) then Exit;
 
-  ExportGridToExcel(vFileName, FGrid, True, True, False);
+  ExportGridToExcel(vFileName, FGrid, True, FMasterTableView.Controller.SelectedRowCount < 2, False);
+
+  if FileExists(vFileName) and (TPresenter(Presenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
+    TPresenter(Presenter).OpenFile(vFileName);
+end;
+
+procedure TCollectionEditor.ExportToCsv;
+  function GetFileName(out AFileName: string): Boolean;
+  var
+    vSaveDialog: TSaveDialog;
+  begin
+    vSaveDialog := TSaveDialog.Create(nil);
+    try
+      vSaveDialog.Filter := '*.csv|*.csv';
+      vSaveDialog.InitialDir := GetDesktopDir;
+      vSaveDialog.FileName := StringReplace(FAllData.MainDefinition.Name, '/', '_', [rfReplaceAll]) + '.csv';
+      vSaveDialog.Options := vSaveDialog.Options + [ofOverwritePrompt];
+      vSaveDialog.DefaultExt := '*.csv';
+
+      Result := vSaveDialog.Execute;
+
+      if Result then
+        AFileName := ChangeFileExt(vSaveDialog.FileName, '.csv');
+
+    finally
+      vSaveDialog.Free;
+    end;
+  end;
+var
+  vFileName: string;
+begin
+  if not GetFileName(vFileName) then Exit;
+
+  ExportGridToCSV(vFileName, FGrid, True, FMasterTableView.Controller.SelectedRowCount < 2, ';', 'csv');
 
   if FileExists(vFileName) and (TPresenter(Presenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
     TPresenter(Presenter).OpenFile(vFileName);
@@ -1860,6 +1910,8 @@ var
 begin
   if AView.Name = '#ExportToCsv' then
     ExportToExcel
+  else if AView.Name = '#ExportToCsv2' then
+    ExportToCsv
   else if AView.Name = '#FilterByText' then
   begin
     if not SameText(FFilterText, TEntity(AView.DomainObject)['Text']) then
@@ -3815,7 +3867,12 @@ begin
       for i := 0 to FEntityList.Count - 1 do
       begin
         vItem := FListBox.Items.Add;
-        vItem.Text := FEntityList[i].DisplayName;
+
+        if FCreateParams.Values['DisplayName'] = '' then
+          vItem.Text := FEntityList[i].DisplayName
+        else
+          vItem.Text := FEntityList[i][FCreateParams.Values['DisplayName']];
+
         vSelectedIndex := vList.IndexOf(FEntityList[i]);
         vItem.Checked := vSelectedIndex >= 0;
         if vItem.Checked then
@@ -3945,6 +4002,102 @@ begin
   end;    }
 end;
 
+{ TPagedEntityListSelector }
+
+procedure TPagedEntityListSelector.DoBeforeFreeControl;
+var
+  vView: TView;
+begin
+  inherited;
+  FControl := nil;
+  FreeAndNil(FPages);
+  for vView in FCreatedViews do
+    vView.RemoveListener(Self);
+  FreeAndNil(FCreatedViews);
+end;
+
+procedure TPagedEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+begin
+  FPages := TcxPageControl.Create(nil);
+  FEntityList := nil;
+  FControl := FPages;
+  FInUpdate := False;
+  FCreatedViews := TList<TView>.Create;
+end;
+
+procedure TPagedEntityListSelector.DoOnChange;
+begin
+  inherited;
+
+end;
+
+procedure TPagedEntityListSelector.FillEditor;
+var
+  i: Integer;
+  vSelectedList: TEntityList;
+  vTab: TObject;
+  vTabArea, vArea: TUIArea;
+  vView: TView;
+  vTabParams: string;
+begin
+  if FInUpdate then Exit;
+
+  vSelectedList := TEntityList(FView.DomainObject);
+
+  if vSelectedList.Count = Count then Exit;
+
+  FPages.Properties.BeginUpdate;
+  FInUpdate := True;
+  try
+    while Count > 0 do
+    begin
+      vArea := Areas[0];
+      RemoveArea(vArea);
+    end;
+
+    for i := 0 to vSelectedList.Count - 1 do
+    begin
+      if FCreateParams.Values['DisplayName'] = '' then
+        vTabParams := 'caption=' + vSelectedList[i].DisplayName
+      else
+        vTabParams := 'caption=' + vSelectedList[i][FCreateParams.Values['DisplayName']];
+
+      vTab := TPresenter(Presenter).CreateLayoutArea(lkPage, vTabParams);
+      try
+        TComponent(vTab).Tag := 0;
+        vView := FView.BuildView(IntToStr(i));
+        vView.AddListener(Self);
+        FCreatedViews.Add(vView);
+        vTabArea := CreateChildArea(vView, vTab, '');
+        TInteractor(Interactor).UIBuilder.ApplyLayout(vTabArea, vView, FCreateParams.Values['layout'], '');
+      finally
+        vTab.Free;
+      end;
+    end;
+    FPages.Properties.HideTabs := FPages.PageCount < 2;
+  finally
+    FPages.Properties.EndUpdate;
+    FInUpdate := False;
+  end;
+
+end;
+
+function TPagedEntityListSelector.GetDefaultFocusedChild: TWinControl;
+begin
+  Result := FPages;
+end;
+
+function TPagedEntityListSelector.GetLayoutPositionCount: Integer;
+begin
+  Result := 6;
+end;
+
+procedure TPagedEntityListSelector.SwitchChangeHandlers(const AHandler: TNotifyEvent);
+begin
+  inherited;
+
+end;
+
 initialization
 
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, '', TColumnListEditor);
@@ -3953,6 +4106,7 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'selector', TEntity
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'multiselect', TEntityListSelector2);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'mtm', TEntityListSelectorMTM);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'parameters', TParametersEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'paged', TPagedEntityListSelector);
 
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, '', TCollectionEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, 'Pivot', TPivotGrid);

@@ -773,8 +773,11 @@ var
   vChildView: TView;
 begin
   if Assigned(FView) then
+  begin
     for vChildView in FChildViews do
       vChildView.RemoveListener(Self);
+    FChildViews.Clear;
+  end;
 end;
 
 function TEntityFieldListEditor.CreateCategoryRow(const ARootEntity: TEntity; const AFieldDef: TFieldDef): TcxCategoryRow;
@@ -879,8 +882,14 @@ begin
 end;
 
 procedure TEntityFieldListEditor.DoBeforeFreeControl;
+var
+  vChildView: TView;
 begin
   inherited;
+
+  for vChildView in FChildViews do
+    vChildView.RemoveListener(Self);
+
   FreeAndNil(FDisplayFields);
   FreeEditors;
   FreeAndNil(FChildViews);
@@ -1194,6 +1203,7 @@ end;
 initialization
 
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, '', TVCLEntityFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'simple', TVCLEntityFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'list', TListEntityFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'link', TVCLLinkedEntityFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'select', TVCLEntitySelector);

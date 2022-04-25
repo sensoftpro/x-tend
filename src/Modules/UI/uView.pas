@@ -75,8 +75,7 @@ type
     function GetStateCaption: string;
     function GetFieldObject: TComplexObject;
     procedure RemoveView(const AView: TView);
-    procedure SetDomainObject(const Value: TObject);
-    procedure SetDomainEntity(const AEntity: TEntity);
+    function SetDomainEntity(const AEntity: TEntity): Boolean;
     procedure SubscribeField(const AParentEntity: TEntity);
     procedure UnsubscribeField(const AParentEntity: TEntity);
     procedure SubscribeDomainObject;
@@ -106,6 +105,7 @@ type
     procedure LoadActionState(const AEntity: TEntity);
     procedure StoreActionState(const AField: TBaseField);
 
+    function SetDomainObject(const Value: TObject): Boolean;
     procedure SetFieldValue(const AHolder: TObject; const AValue: Variant);
     procedure SetFieldEntity(const AHolder: TObject; const AEntity: TEntity);
     procedure SetFieldStream(const AHolder: TObject; const AStream: TStream);
@@ -129,7 +129,7 @@ type
     property Definition: TObject read FDefinition;
     property DefinitionKind: TDefinitionKind read FDefinitionKind;
     property ParentDomainObject: TObject read GetParentDomainObject;
-    property DomainObject: TObject read FDomainObject write SetDomainObject;
+    property DomainObject: TObject read FDomainObject;
     property Interactor: TObject read FInteractor;
     property Session: TObject read FSession;
     property Domain: TObject read FDomain;
@@ -378,7 +378,7 @@ begin
       SetDomainObject(AMessage.Parameter);
 
     UpdateUIState;
-    TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+    TInteractor(FInteractor).PrintHierarchy;
 
     NotifyUI(dckFieldChanged, nil);
   end
@@ -398,7 +398,7 @@ begin
       if vActiveView.DomainObject = AMessage.Parameter then
       begin
         vActiveView.UpdateChildViews(dkAction);
-        TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+        TInteractor(FInteractor).PrintHierarchy;
       end;
     end;
   end
@@ -414,7 +414,7 @@ begin
     if Assigned(vSelectedView) then
     begin
       vSelectedView.DoParentChanged(FDomainObject);
-      TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+      TInteractor(FInteractor).PrintHierarchy;
     end;
   end
   else if AMessage.Kind in [dckListAdded, dckListRemoved] then
@@ -431,7 +431,7 @@ begin
         if (vActiveView.DefinitionKind = dkEntity) {and (vActiveView.DomainObject = AMessage.Parameter)} then
           vActiveView.DoParentChanged(FDomainObject);
       end;
-      TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+      TInteractor(FInteractor).PrintHierarchy;
     end;
 
     NotifyUI(AMessage.Kind, AMessage.Parameter);
@@ -476,6 +476,7 @@ begin
   end
   else if FDefinitionKind = dkEntity then
   begin
+    vChanged := True;
     if SameText(FName, 'Current') then
     begin
       if TDefinition(FDefinition).IsDescendantOf('SysUsers') then
@@ -531,7 +532,7 @@ begin
       begin
         vId := StrToIntDef(FName, -1);
         if (vId >= 0) and (TEntityList(AParentDomainObject).Count > vId) then
-          SetDomainEntity(TEntityList(AParentDomainObject).Entity[vId])
+          vChanged := SetDomainEntity(TEntityList(AParentDomainObject).Entity[vId])
         else
           SetDomainEntity(nil);
       end
@@ -543,7 +544,6 @@ begin
           SetDomainEntity(nil);
       end;
     end;
-    vChanged := True;
   end
   else if FDefinitionKind = dkAction then
     vChanged := True
@@ -844,7 +844,7 @@ begin
 
   NotifyUI(dckViewStateChanged, nil);
   UpdateChildViews;
-  TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+  TInteractor(FInteractor).PrintHierarchy;
 end;
 
 function TView.IsContextDependent: Boolean;
@@ -989,7 +989,7 @@ procedure TView.RefreshView(const AParameter: TObject);
 begin
   UpdateUIState;
   NotifyUI(dckViewStateChanged, AParameter);
-  TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+  TInteractor(FInteractor).PrintHierarchy;
 end;
 
 procedure TView.RemoveListener(const AListener: TObject);
@@ -1009,22 +1009,23 @@ begin
   CleanView;
 end;
 
-procedure TView.SetDomainEntity(const AEntity: TEntity);
+function TView.SetDomainEntity(const AEntity: TEntity): Boolean;
 begin
   //if Assigned(FDomainObject) and Assigned(AEntity)
   //  and (TEntity(AEntity).Definition <> TEntity(FDomainObject).Definition)
   //then ; // Потенциальная проблема, если среди отображений полей есть переопределенные поля
 
-  SetDomainObject(AEntity);
+  Result := SetDomainObject(AEntity);
   if Assigned(AEntity) then
     FDefinition := AEntity.Definition;
 end;
 
-procedure TView.SetDomainObject(const Value: TObject);
+function TView.SetDomainObject(const Value: TObject): Boolean;
 begin
   if FDomainObject = Value then
-    Exit;
+    Exit(False);
 
+  Result := True;
   UnsubscribeDomainObject;
 
   FDomainObject := Value;

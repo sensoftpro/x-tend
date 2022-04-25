@@ -5,12 +5,12 @@ object EditForm: TEditForm
   Height = 579
   TabOrder = 0
   object WorkArea: TPanel
-    Left = 305
+    Left = 0
     Top = 24
-    Width = 640
+    Width = 945
     Height = 555
     Align = alClient
-    Caption = '@WorkArea?ViewType=Paged&View=SysUsers&Layout=Collection'
+    Caption = '@WorkArea?ViewType=Paged&View=Configurations&Layout=Collection'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -12
@@ -18,6 +18,8 @@ object EditForm: TEditForm
     Font.Style = []
     ParentFont = False
     TabOrder = 0
+    ExplicitLeft = 305
+    ExplicitWidth = 640
   end
   object ToolBar1: TToolBar
     Left = 0
@@ -26,7 +28,7 @@ object EditForm: TEditForm
     Height = 24
     AutoSize = True
     ButtonHeight = 24
-    ButtonWidth = 344
+    ButtonWidth = 374
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
     Font.Height = -13
@@ -41,47 +43,26 @@ object EditForm: TEditForm
       Caption = 'View=SysUsers@WorkArea=WorkArea@Layout=Collection'
       ImageIndex = 0
     end
-  end
-  object Panel1: TPanel
-    Left = 0
-    Top = 24
-    Width = 305
-    Height = 555
-    Align = alLeft
-    Caption = '_Configurations?childLayout=Navigator&fields=Name'
-    TabOrder = 2
+    object ToolButton1: TToolButton
+      Left = 374
+      Top = 0
+      Caption = 'View=Configurations@WorkArea=WorkArea@Layout=Collection'
+      ImageIndex = 1
+    end
   end
   object MainMenu1: TMainMenu
     Left = 340
     Top = 171
     object System1: TMenuItem
       Caption = 'Id=System@Caption='#1057#1080#1089#1090#1077#1084#1072
-      object ChangePassword1: TMenuItem
-        Caption = 'ChangePassword'
-      end
-      object GetAllUpdates1: TMenuItem
-        Caption = 'GetAllUpdates'
-      end
-      object ApplyAllUpdates1: TMenuItem
-        Caption = 'ApplyAllUpdates'
-      end
-      object ActualizeData1: TMenuItem
-        Caption = 'ActualizeData'
-      end
       object ShowSysLog1: TMenuItem
         Caption = 'ShowSysLog'
-      end
-      object SetupRTFReports1: TMenuItem
-        Caption = 'SetupRTFReports'
       end
       object ShowSettings1: TMenuItem
         Caption = 'ShowSettings'
       end
       object ShowOptions1: TMenuItem
         Caption = 'ShowOptions'
-      end
-      object ShowStartPage1: TMenuItem
-        Caption = 'ShowStartPage'
       end
       object LoadChanges1: TMenuItem
         Caption = 'LoadChanges'

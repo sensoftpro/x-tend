@@ -1372,7 +1372,7 @@ const
     try
       vResult := AInteractor.ShowEntityEditor(AView.Parent, vHolder, '');
       if vResult then
-        AView.Parent.DomainObject := vNewEntity;
+        AView.Parent.SetDomainObject(vNewEntity);
       {else begin
         // Убираем привязки
         if Assigned(vMasterEntity) then

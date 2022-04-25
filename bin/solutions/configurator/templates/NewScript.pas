@@ -25,7 +25,7 @@ type
 implementation
 
 uses
-  SysUtils, DateUtils, StrUtils, Variants, uDomain, uUtils;
+  SysUtils, DateUtils, StrUtils, Variants, uDefinition, uDomain, uUtils;
 
 const
   cAdminID = 1;
@@ -59,7 +59,8 @@ begin
   Result := True;
 end;
 
-procedure TNewApplicationScript.DoAfterEntityCreation(const AHolder: TChangeHolder; const AOwnerContext: TObject; const AEntity: TEntity);
+procedure TNewApplicationScript.DoAfterEntityCreation(const AHolder: TChangeHolder;
+  const AOwnerContext: TObject; const AEntity: TEntity);
 var
   vCollectionName: string;
 begin

@@ -40,7 +40,7 @@ uses
   ExtCtrls, TypInfo, Types, ComCtrls, SysUtils, Windows, Graphics,
   Variants, Controls, Forms, Mask, Menus,
 
-  uDefinition, uPresenter, uInteractor, uLayout, uView, uSettings,
+  uDefinition, uPresenter, uInteractor, uView, uSettings,
 
   StartForm, DebugInfoForm, SplashForm, uUIBuilder;
 
@@ -113,6 +113,7 @@ type
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
 
+    function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject; override;
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
 
     function GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
@@ -250,6 +251,30 @@ begin
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue(AName, 'ShowSplash'), False)
   else
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
+end;
+
+function TWinVCLPresenter.CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject;
+var
+  vParams: TStrings;
+begin
+  vParams := CreateDelimitedList(AParams);
+  case ALayoutKind of
+    lkPanel: begin
+        Result := TPanel.Create(nil);
+        TPanel(Result).BevelOuter := bvNone;
+      end;
+    lkPage: begin
+        Result := TTabSheet.Create(nil);
+        TTabSheet(Result).Caption := vParams.Values['Caption'];
+        TTabSheet(Result).ImageIndex := StrToIntDef(vParams.Values['ImageIndex'], -1);
+        TTabSheet(Result).Name := vParams.Values['Name'];
+        TTabSheet(Result).Tag := 11;
+      end;
+    lkFrame: Result := TFrame.Create(nil);
+  else
+    Result := nil;
+  end;
+  FreeAndNil(vParams);
 end;
 
 function TWinVCLPresenter.CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;

@@ -111,6 +111,7 @@ function MakeMethod(const ACode, AData: Pointer): TMethod;
 
 function GetUrlParam(const AUrl, AParamName: string; const ADefaultValue: string = ''): string;
 function GetUrlCommand(const AUrl: string; const ADefaultValue: string = ''): string;
+function RemoveUrlParam(const AUrl, AParamName: string): string;
 function ExtractUrlParams(const AUrl: string; const ADefaultValue: string = ''): string;
 
 function EncodeUrl(const AUrl: string): string;
@@ -1164,38 +1165,124 @@ begin
   end;
 end;
 
-function GetUrlParamDefTerm(const AUrl, AParamName, AValueIfNone, ATerm: string): string;
+function GetUrlParam(const AUrl, AParamName: string; const ADefaultValue: string = ''): string;
 var
   vFrom, vTo: Integer;
+  vSearchUrl, vSrcUrl, vParamName: string;
 begin
-	vFrom := Pos(AnsiUpperCase(AParamName), AnsiUpperCase(AUrl));
-	if vFrom = 0 then
+  if Length(AUrl) = 0 then
   begin
-		Result := AValueIfNone;
+    Result := ADefaultValue;
     Exit;
   end;
 
-	vFrom := vFrom + Length(AParamName);
-	vTo := PosEx(ATerm, AUrl, vFrom);
-	if vTo = 0 then
-		vTo := Length(AUrl) + 1;
+  vSrcUrl := AUrl;
+  if Pos('?', vSrcUrl) = 0 then
+    vSrcUrl := '?' + vSrcUrl;
+  vSearchUrl := AnsiUpperCase(vSrcUrl);
 
-	Result := Copy(AUrl, vFrom, vTo - vFrom);
+  vParamName := '&' + AnsiUpperCase(AParamName) + '=';
+
+  vFrom := Pos(vParamName, vSearchUrl);
+
+  if vFrom = 0 then
+  begin
+    vParamName := '?' + AnsiUpperCase(AParamName) + '=';
+    vFrom := Pos(vParamName, vSearchUrl);
+  end;
+
+  if vFrom = 0 then
+  begin
+    Result := ADefaultValue;
+    Exit;
+  end;
+
+	vFrom := vFrom + Length(vParamName);
+	vTo := PosEx('&', vSearchUrl, vFrom);
+  if vTo = 0 then
+    vTo := PosEx('?', vSearchUrl, vFrom);
+
+	if vTo = 0 then
+		vTo := Length(vSearchUrl) + 1;
+
+	Result := Copy(vSrcUrl, vFrom, vTo - vFrom);
 end;
 
-function GetUrlParam(const AUrl, AParamName: string; const ADefaultValue: string = ''): string;
+function RemoveUrlParam(const AUrl, AParamName: string): string;
+var
+  vFrom, vTo: Integer;
+  vSearchUrl, vSrcUrl, vParamName: string;
 begin
-	Result := GetUrlParamDefTerm(AUrl, AParamName + '=', ADefaultValue, '&');
+  Result := AUrl;
+  if Length(Result) = 0 then Exit;
+
+  vSrcUrl := AUrl;
+  if Pos('?', vSrcUrl) = 0 then
+    vSrcUrl := '?' + vSrcUrl;
+  vSearchUrl := AnsiUpperCase(vSrcUrl);
+
+  vParamName := '&' + AnsiUpperCase(AParamName) + '=';
+
+  vFrom := Pos(vParamName, vSearchUrl);
+
+  if vFrom = 0 then
+  begin
+    vParamName := '?' + AnsiUpperCase(AParamName) + '=';
+    vFrom := Pos(vParamName, vSearchUrl);
+  end;
+
+  if vFrom = 0 then Exit;
+
+  vTo := PosEx('&', vSearchUrl, vFrom + 1);
+  if vTo = 0 then
+		vTo := Length(vSearchUrl) + 1;
+
+  if vFrom > 1 then
+  begin
+    if (vSrcUrl[vFrom] = '&') or ((vTo < Length(vSearchUrl) + 1) and (vSrcUrl[vFrom] = '?') and (vSrcUrl[vTo] <> '&')) then
+      vFrom := vFrom - 1
+  end;
+
+  if (vTo < Length(vSearchUrl) + 1) and ((vSrcUrl[vFrom] = '?') and (vSrcUrl[vTo] = '&')) then
+    vTo := vTo + 1;
+
+  Result := Copy(vSrcUrl, 1, vFrom) + Copy(vSrcUrl, vTo, Length(vSearchUrl) + 1);
+
+  if Length(Result) = 0 then Exit;
+
+  if (Result[Length(Result)] = '&') or (Result[Length(Result)] = '?') then
+    Result := Copy(Result, 0, Length(Result) - 1)
+  else if (Result[1] = '&') or (Result[1] = '?') then
+    Result := Copy(Result, 2, Length(Result));
 end;
 
 function GetUrlCommand(const AUrl: string; const ADefaultValue: string = ''): string;
 var
   vUrl: string;
+  vFrom, vTo: Integer;
 begin
-  vUrl := AUrl;
+  if Length(AUrl) = 0 then
+  begin
+    Result := ADefaultValue;
+    Exit;
+  end;
+
+  vUrl := AnsiUpperCase(AUrl);
   if Pos('//', vUrl) = 0 then
     vUrl := '//' + vUrl;
-	Result := GetUrlParamDefTerm(vUrl, '//', ADefaultValue, '?');
+
+	vFrom := Pos('//', vUrl);
+	if vFrom = 0 then
+  begin
+		Result := ADefaultValue;
+    Exit;
+  end;
+
+	vTo := PosEx('?', AUrl, vFrom);
+	if vTo = 0 then
+		vTo := Length(AUrl) + 1;
+
+	Result := Copy(AUrl, vFrom, vTo - vFrom);
 end;
 
 function ExtractUrlParams(const AUrl: string; const ADefaultValue: string = ''): string;

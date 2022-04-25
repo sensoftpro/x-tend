@@ -36,7 +36,7 @@ unit uPresenter;
 interface
 
 uses
-  Classes, Generics.Collections, SysUtils, uModule, uSettings, uInteractor, uUIBuilder, uLayout, uView, uConsts, uIcon;
+  Classes, Generics.Collections, SysUtils, uModule, uSettings, uInteractor, uView, uConsts, uUIBuilder, uIcon;
 
 type
   { НАВИГАЦИЯ И ИДЕНТИФИКАЦИЯ ПОЛЕЙ }
@@ -246,19 +246,23 @@ type
     procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); virtual;
 
     // Layouts operations
-    function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TLayout;
+    function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
       const AView: TView; const AStyleName, AParams: string): TUIArea;
-    function CreateActionArea(const AParentArea: TUIArea; const ALayout: TLayout;
+    function CreateActionArea(const AParentArea: TUIArea; const ALayout: TObject;
       const AView: TView; const AStyleName, AParams: string): TUIArea;
-    function CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TLayout;
+    function CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject;
       const AView: TView; const AStyleName, AParams: string): TUIArea;
     procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
+    procedure EnumerateControls(const ALayout: TObject; const AControls: TList<TObject>);
+    procedure SetLayoutCaption(const ALayout: TObject; const ACaption: string);
+    function GetLayoutCaption(const ALayout: TObject): string;
+    function GetLayoutKind(const ALayout: TObject): TLayoutKind;
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; virtual;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
     procedure CloseAllPages(const AInteractor: TInteractor);
 
-    //function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject; virtual; abstract;
+    function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject; virtual; abstract;
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
     function SetCursor(const ACursorType: TCursorType): TCursorType;
 
@@ -280,7 +284,8 @@ type
 implementation
 
 uses
-  IOUtils, TypInfo, uDefinition, uUtils;
+  IOUtils, TypInfo, {>> Windows} Controls, StdCtrls, ExtCtrls, ComCtrls, Menus, {Windows <<}
+  uDefinition, uUtils;
 
 { TPresenter }
 
@@ -342,7 +347,7 @@ begin
   FProgressInfo := TProgressInfo.Create;
 end;
 
-function TPresenter.CreateActionArea(const AParentArea: TUIArea; const ALayout: TLayout; const AView: TView;
+function TPresenter.CreateActionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView;
   const AStyleName, AParams: string): TUIArea;
 var
   vParams, vViewName: string;
@@ -356,7 +361,7 @@ begin
   Result := vActionAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
 end;
 
-function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TLayout; const AView: TView; const AStyleName,
+function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView; const AStyleName,
   AParams: string): TUIArea;
 var
   //vParams, vViewName: string;
@@ -370,7 +375,7 @@ begin
   Result := vCollectionAreaClass.Create(AParentArea, AView, 'List', False, nil, ALayout, AParams);
 end;
 
-function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TLayout;
+function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
   const AView: TView; const AStyleName, AParams: string): TUIArea;
 var
   vParams, vViewName: string;
@@ -381,8 +386,8 @@ begin
 
   if AView.DefinitionKind = dkEntity then
     vFieldAreaClass := TUIAreaClass(GetUIClass(FName, uiEntityEdit, vViewName))
-////  else if ALayout is TPageControl then
-////    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), 'pages'))
+  else if ALayout is TPageControl then
+    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), 'pages'))
   else
     vFieldAreaClass := TUIAreaClass(GetUIClass(FName, ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), vViewName));
 
@@ -471,6 +476,53 @@ end;
 
 procedure TPresenter.DoUnfreeze;
 begin
+end;
+
+procedure TPresenter.EnumerateControls(const ALayout: TObject; const AControls: TList<TObject>);
+var
+  vParentControl: TWinControl;
+  i: Integer;
+begin
+  if not (ALayout is TWinControl) then
+    Exit;
+  if TWinControl(ALayout).ControlCount <= 0 then
+    Exit;
+
+  vParentControl := TWinControl(ALayout);
+  for i := 0 to vParentControl.ComponentCount - 1 do
+    if vParentControl.Components[i] is TMenu then
+      AControls.Add(vParentControl.Components[i]);
+
+  for i := 0 to vParentControl.ControlCount - 1 do
+    AControls.Add(vParentControl.Controls[i]);
+end;
+
+function TPresenter.GetLayoutCaption(const ALayout: TObject): string;
+begin
+  if ALayout is TPageControl then
+    Result := TPageControl(ALayout).Hint
+  else if ALayout is TMemo then
+  begin
+    TMemo(ALayout).WordWrap := False;
+    TMemo(ALayout).WantReturns := False;
+    Result := TMemo(ALayout).Lines.Text;
+  end
+  else
+    Result := TPanel(ALayout).Caption;
+end;
+
+function TPresenter.GetLayoutKind(const ALayout: TObject): TLayoutKind;
+begin
+  if ALayout is TPanel then
+    Result := lkPanel
+  else if ALayout is TTabSheet then
+    Result := lkPage
+  else if ALayout is TPageControl then
+    Result := lkPages
+  else if ALayout is TMemo then
+    Result := lkMemo
+  else
+    Result := lkFrame;
 end;
 
 class function TPresenter.GetPageClass(const APresenterName, APageName: string): TClass;
@@ -609,6 +661,11 @@ begin
     Exit;
   FCursorType := ACursorType;
   DoSetCursor(FCursorType);
+end;
+
+procedure TPresenter.SetLayoutCaption(const ALayout: TObject; const ACaption: string);
+begin
+  TPanel(ALayout).Caption := ACaption;
 end;
 
 function TPresenter.ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
