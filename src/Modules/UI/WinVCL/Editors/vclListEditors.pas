@@ -248,6 +248,9 @@ type
       const AWidth: Integer; const ASortOrder: TSortOrder; const AAgg: TAggregationKind);
     procedure OnGetContentStyle(Sender: TcxCustomGridTableView; ARecord: TcxCustomGridRecord;
       AItem: TcxCustomGridTableItem; var AStyle: TcxStyle);
+    procedure OnExitFromInplaceEditor(Sender: TObject);
+    procedure OnInitEdit(Sender: TcxCustomGridTableView; AItem: TcxCustomGridTableItem; AEdit: TcxCustomEdit);
+
     procedure BeforeContextMenuShow(Sender: TObject);
     procedure SaveColumnWidths;
     procedure DoOnColumnPosChanged(Sender: TcxGridTableView; AColumn: TcxGridColumn);
@@ -371,6 +374,17 @@ type
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
       const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
     destructor Destroy; override;
+  end;
+
+  TSharesEditor = class(TVCLFieldArea)
+  private
+    FPanel: TPanel;
+  protected
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoBeforeFreeControl; override;
+    procedure FillEditor; override;
+    function GetLayoutPositionCount: Integer; override;
+    procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
   end;
 
 implementation
@@ -2355,6 +2369,9 @@ begin
           TcxSpinEditProperties(vCol.Properties).MinValue := TSimpleFieldDef(AFieldDef).MinValue;
         if not VarIsNull(TSimpleFieldDef(AFieldDef).MaxValue) then
           TcxSpinEditProperties(vCol.Properties).MaxValue := TSimpleFieldDef(AFieldDef).MaxValue;
+
+        //TcxSpinEditProperties(vCol.Properties).OnChange := OnColumnChange;
+        FMasterTableView.OnInitEdit := OnInitEdit;
       end;
 
       vCol.HeaderAlignmentHorz := taRightJustify;
@@ -2689,10 +2706,69 @@ begin
   ACanvas.LineTo(ARect.Right - 8, ARect.CenterPoint.Y);
 end;
 
+procedure TColumnListEditor.OnExitFromInplaceEditor(Sender: TObject);
+var
+  vEntityList: TEntityList;
+  vView: TView;
+  vEntity: TEntity;
+  vColumn: TcxGridColumn;
+  vBinding: TColumnBinding;
+begin
+  if not (Sender is TcxCustomInnerTextEdit) then
+    Exit;
+
+  vEntityList := TEntityList(FView.DomainObject);
+  if not Assigned(vEntityList) then
+    Exit;
+
+  vEntity := TEntity(vEntityList.Selected);
+  if not Assigned(vEntity) then
+    Exit;
+
+  vColumn := FMasterTableView.Controller.FocusedColumn;
+  if not Assigned(vColumn) then
+    Exit;
+
+  vBinding := TColumnBinding(vColumn.DataBinding.Data);
+  if not Assigned(vBinding) then
+    Exit;
+
+  vView := FView.BuildView('Selected/' + vBinding.FieldDef.Name);
+  if not Assigned(vView) then
+    Exit;
+
+  vView.AddListener(FUIBuilder.RootArea);
+  try
+    if not TCanChangeFieldFunc(TDomain(FView.Domain).Configuration.CanChangeFieldFunc)
+      (vView, vEntity, vBinding.FieldDef.Name, StrToIntDef(TcxCustomInnerTextEdit(Sender).Text, 0)) then
+    begin
+      if Assigned(FMasterTableView.Controller) and Assigned(FMasterTableView.Controller.EditingController) then
+      begin
+        // Для того, чтобы откатить изменения, сделанные через UpDown
+        FMasterTableView.Controller.EditingController.HideEdit(False);
+        // Для того, чтобы откатить изменения, сделанные прямым набором текста
+        vEntity._RestoreFieldValue(Holder, vBinding.FieldDef.Name);
+      end;
+      Exit;
+    end;
+  finally
+    vView.RemoveListener(FUIBuilder.RootArea);
+  end;
+end;
+
 procedure TColumnListEditor.OnGetContentStyle(Sender: TcxCustomGridTableView; ARecord: TcxCustomGridRecord;
   AItem: TcxCustomGridTableItem; var AStyle: TcxStyle);
 begin
   GetContentStyle(Self, FAllData, FAllData.MainDefinition.ColorFieldName, FMasterDS.Data, Sender, ARecord, AItem, AStyle);
+end;
+
+type
+  TWinControlAccess = class(TWinControl);
+
+procedure TColumnListEditor.OnInitEdit(Sender: TcxCustomGridTableView; AItem: TcxCustomGridTableItem;
+  AEdit: TcxCustomEdit);
+begin
+  TWinControlAccess(AEdit.InnerControl).OnExit := OnExitFromInplaceEditor;
 end;
 
 procedure TColumnListEditor.SaveColumnWidths;
@@ -4074,7 +4150,7 @@ begin
         vTab.Free;
       end;
     end;
-    FPages.Properties.HideTabs := FPages.PageCount < 2;
+//    FPages.Properties.HideTabs := FPages.PageCount < 2;
   finally
     FPages.Properties.EndUpdate;
     FInUpdate := False;
@@ -4098,6 +4174,51 @@ begin
 
 end;
 
+{ TSharesEditor }
+
+procedure TSharesEditor.DoBeforeFreeControl;
+begin
+  inherited;
+
+end;
+
+procedure TSharesEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+var
+  vShape: TShape;
+begin
+  FPanel := TPanel.Create(nil);
+  FControl := FPanel;
+
+  vShape := TShape.Create(FPanel);
+  vShape.Parent := FPanel;
+  vShape.SetBounds(0, 0, 80, 8);
+  vShape.Pen.Color := clGray;
+  vShape.Brush.Color := clAqua;
+end;
+
+procedure TSharesEditor.FillEditor;
+//var
+//  vAllData: TEntityList;
+begin
+  inherited;
+  FPanel.Caption := '';
+  FPanel.BevelOuter := TBevelCut.bvNone;
+//  vAllData := TEntityList(FView.DomainObject);
+//  FPanel.Controls[0].Width := vAllData.Count * 10;
+  FPanel.Caption := FView.DomainObject.ClassName;
+end;
+
+function TSharesEditor.GetLayoutPositionCount: Integer;
+begin
+  Result := 0;
+end;
+
+procedure TSharesEditor.UpdateArea(const AKind: Word; const AParameter: TEntity);
+begin
+  inherited;
+
+end;
+
 initialization
 
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, '', TColumnListEditor);
@@ -4111,6 +4232,8 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'paged', TPagedEnti
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, '', TCollectionEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, 'Pivot', TPivotGrid);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, 'Tree', TTreeCollectionEditor);
+
+TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'shares', TSharesEditor);
 
 end.
 

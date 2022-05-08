@@ -127,6 +127,14 @@ function FloorTo(const AValue: Double; const ADigit: Integer = -2): Double;
 function FormatTo(const AValue: Double; const ADigit: Integer = -2; const AUseStrictFormat: Boolean = False): string;
 function FormatAsBitString(const AValue: Cardinal; const ASize: Byte = 32): string;
 
+type
+  TPrintProcedure = reference to procedure(const AText: string);
+var
+  PrintProc: TPrintProcedure = nil;
+  PrintBuffer: TStrings = nil;
+
+procedure Print(const AText: string; const AParams: array of const);
+
 implementation
 
 uses
@@ -1405,6 +1413,21 @@ begin
     else
       Result := '0' + Result;
   end;
+end;
+
+procedure Print(const AText: string; const AParams: array of const);
+var
+  vText: string;
+begin
+  if Length(AParams) > 0 then
+    vText := Format(AText, AParams)
+  else
+    vText := AText;
+
+  if Assigned(PrintBuffer) then
+    PrintBuffer.Add(vText)
+  else if Assigned(PrintProc) then
+    PrintProc(vText);
 end;
 
 end.

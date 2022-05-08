@@ -877,7 +877,6 @@ begin
       vEdit.Style.Color := clWindow;
     end;
   end;
-
 end;
 
 procedure TDETextFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
@@ -2513,7 +2512,7 @@ begin
       vTag := -1;
   end;
 
-  if vTag < TcxPageControl(FControl).PageCount then
+  if (vTag < TcxPageControl(FControl).PageCount) and (TcxPageControl(FControl).ActivePageIndex <> vTag) then
     TcxPageControl(FControl).ActivePageIndex := vTag;
 end;
 

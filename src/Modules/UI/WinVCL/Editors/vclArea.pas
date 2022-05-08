@@ -82,6 +82,7 @@ type
     procedure OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
     function GetControl: TControl;
     function GetComponent: TComponent;
+    function CreateNavigationArea(const ASourcePanel: TPanel; const AView: TView; const AParams: string): TUIArea;
   protected
     FPopupMenu: TPopupMenu;
     FNeedCreateCaption: Boolean;
@@ -166,18 +167,21 @@ type
     property LayoutPositionCount: Integer read GetLayoutPositionCount;
   end;
 
+type
+  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
+
 implementation
 
 uses
   Types, Graphics, Math, StrUtils, ComCtrls, Buttons,
-  Generics.Defaults, Variants, cxGraphics, dxGDIPlusClasses, cxLabel, cxImage, cxEdit, cxTextEdit, cxPC, dxBar,
+  Generics.Defaults, Variants, cxGraphics, dxGDIPlusClasses, cxLabel, cxImage, cxEdit, cxTextEdit, cxPC, dxBar, dxNavBar, dxNavBarGroupItems,
+  dxNavBarCollns, dxNavBarBase, dxNavBarExplorerViews,
   cxLookAndFeels, cxButtons, cxScrollBox, cxControls, cxSplitter,
 
   uDomain, uPresenter, uConfiguration, uSession, uInteractor, uUtils,
   vclSimpleEditors, uEntityList, uDomainUtils;
 
 type
-  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
   TCrackedControl = class(TWinControl) end;
 
   TLayoutParam = class
@@ -653,6 +657,157 @@ begin
   end;
 end;
 
+function TVCLArea.CreateNavigationArea(const ASourcePanel: TPanel; const AView: TView; const AParams: string): TUIArea;
+var
+  vNavBar: TdxNavBar;
+
+  procedure ProcessChilds(const AMenuItem: TMenuItem; const AParentArea: TUIArea; const AParentView: TView; const AParentObj: TObject; const ALevel: Integer);
+  var
+    i: Integer;
+    vMI: TMenuItem;
+    vNavBarGroup: TdxNavBarGroup;
+    vNavBarItem: TdxNavBarItem;
+    vGroupView: TView;
+    vDefinition: TDefinition;
+    vGroupArea: TVCLArea;
+    vImageID, vUrl, vLayoutName, vCaption, vHint: string;
+    vImageIndex: Integer;
+    vControl: TObject;
+  begin
+    for i := 0 to AMenuItem.Count - 1 do
+    begin
+      vMI := AMenuItem[i];
+      vNavBarGroup := nil;
+      vNavBarItem := nil;
+
+      if ALevel = 0 then
+      begin
+        vNavBarGroup := vNavBar.Groups.Add;
+        vNavBarGroup.LinksUseSmallImages := False;
+        vNavBarGroup.OptionsExpansion.Expandable := False;
+        vNavBarGroup.OptionsExpansion.ShowExpandButton := False;
+      end
+      else
+      begin
+        vNavBarItem := vNavBar.Items.Add;
+        if Assigned(AParentObj) and (AParentObj is TdxNavBarGroup) then
+          TdxNavBarGroup(AParentObj).CreateLink(vNavBarItem);
+      end;
+
+      vGroupView := FUIBuilder.RootView.BuildView(vMI.Caption);
+
+      if vGroupView.DefinitionKind in [dkAction, dkCollection] then
+      begin
+        vDefinition := TDefinition(vGroupView.Definition);
+        vUrl := vMI.Caption;
+
+        if vGroupView.DefinitionKind = dkAction then
+        begin
+          Assert(vMI.Count = 0, 'У действия ' + vMI.Caption + ' заданы дочерние элементы. Ошибка конфигурирования.');
+          if ALevel = 0 then
+            vNavBarGroup.OnClick := OnExecuteAction
+          else
+            vNavBarItem.OnClick := OnExecuteAction
+        end
+        else if vGroupView.DefinitionKind = dkCollection then
+        begin
+          if vMI.Count = 0 then
+          begin
+            if ALevel = 0 then
+              vNavBarGroup.OnClick := ExplicitNavigate
+            else
+              vNavBarItem.OnClick := ExplicitNavigate;
+
+            vLayoutName := GetUrlParam(vMI.Caption, 'Layout');
+
+            if vLayoutName = '' then
+              vLayoutName := 'Collection';
+            vUrl := 'View=' + vGroupView.InitialName + '@WorkArea=WorkArea@Layout=' + vLayoutName;
+          end;
+        end;
+
+        vCaption := GetUrlParam(vMI.Caption, 'Caption');
+        if vCaption= '' then
+          vCaption := GetTranslation(vDefinition);
+
+        vHint := GetUrlParam(vMI.Caption, 'Hint');
+        if vHint = '' then
+          vHint := vCaption;
+
+        vImageID := GetUrlParam(vMI.Caption, 'ImageID');
+        if vImageID = '' then
+          vImageIndex := GetImageID(vDefinition._ImageID)
+        else
+          vImageIndex := GetImageID(StrToIntDef(vImageID, GetImageID(vDefinition._ImageID)));
+
+        if ALevel = 0 then
+        begin
+          vNavBarGroup.Caption := vCaption;
+          vNavBarGroup.Hint := vHint;
+          vNavBarGroup.SmallImageIndex := vImageIndex;
+          vNavBarGroup.LargeImageIndex := vImageIndex;
+          vControl := vNavBarGroup;
+        end
+        else
+        begin
+          vNavBarItem.Caption := vCaption;
+          vNavBarItem.Hint := vHint;
+          vNavBarItem.SmallImageIndex := vImageIndex;
+          vNavBarItem.LargeImageIndex := vImageIndex;
+          vControl := vNavBarItem;
+        end;
+
+        vGroupArea := TVCLArea.Create(AParentArea, vGroupView, vUrl, False, vControl);
+
+        TVCLArea(vGroupArea).UpdateArea(dckViewStateChanged);
+      end
+      else
+      begin
+        vGroupView.CleanView;
+        vNavBarGroup.Caption := vMI.Caption;
+        if vMI.Count = 0 then
+          vControl := vNavBarGroup
+        else
+          vControl := vNavBarItem;
+        vGroupArea := TVCLArea.Create(AParentArea, AParentView, vUrl, False, vControl);
+      end;
+
+      AParentArea.AddArea(vGroupArea);
+
+      if ALevel = 0 then
+        ProcessChilds(vMI, vGroupArea, vGroupView, vNavBarGroup, 1);
+    end;
+  end;
+
+begin
+// Assigned(vParams) and (vParams.Values['ViewType'] = 'NavBar')
+  Assert(Assigned(ASourcePanel.PopupMenu), 'У панели с именем ' + ASourcePanel.Name + ' задан Caption ' + ASourcePanel.Caption + '. Это навигационная область. Для неё нужно указать PopupMenu.');
+
+  vNavBar := TdxNavBar.Create(nil);
+  vNavBar.DoubleBuffered := True;
+  vNavBar.Width := ASourcePanel.Width;
+  vNavBar.Height := ASourcePanel.Height;
+  vNavBar.Left := ASourcePanel.Left;
+  vNavBar.Top := ASourcePanel.Top;
+  vNavBar.SmallImages := TDragImageList(TInteractor(Interactor).Images[16]);
+  vNavBar.LargeImages := TDragImageList(TInteractor(Interactor).Images[32]);
+  vNavBar.View := 9;
+  vNavBar.OptionsStyle.DefaultStyles.GroupHeader.Font.Assign(ASourcePanel.Font);
+  vNavBar.OptionsStyle.DefaultStyles.GroupHeader.Font.Size := 12;
+  vNavBar.OptionsStyle.DefaultStyles.Item.Font.Assign(ASourcePanel.Font);
+  vNavBar.OptionsStyle.DefaultStyles.Background.BackColor := ASourcePanel.Color;
+  vNavBar.OptionsStyle.DefaultStyles.Background.BackColor2 := DimColor(ASourcePanel.Color, 0.2);
+  vNavBar.OptionsStyle.DefaultStyles.GroupBackground.BackColor := ASourcePanel.Color;
+  vNavBar.OptionsStyle.DefaultStyles.GroupBackground.BackColor2 := DimColor(ASourcePanel.Color, 0.2);
+  vNavBar.OptionsStyle.DefaultStyles.GroupHeader.BackColor := ASourcePanel.Color;
+  vNavBar.OptionsStyle.DefaultStyles.GroupHeader.BackColor2 := DimColor(ASourcePanel.Color, 0.2);
+  vNavBar.DragDropFlags := [];
+
+  Result := TVCLArea.Create(Self, AView, Trim(ASourcePanel.Caption), False, vNavBar);
+
+  ProcessChilds(ASourcePanel.PopupMenu.Items, Result, AView, nil, 0);
+end;
+
 procedure TVCLArea.DoActivate(const AUrlParams: string);
 var
   vChangeTab: Boolean;
@@ -879,6 +1034,9 @@ var
   vSourceBox: TScrollBox absolute ALayout;
   vSourceBevel: TBevel absolute ALayout;
   vSourceSplitter: TSplitter absolute ALayout;
+  vSourceShape: TShape absolute ALayout;
+  vSourceListView: TListView absolute ALayout;
+  vSourceImageList: TImageList absolute ALayout;
   vDomain: TDomain;
   vPos: Integer;
   vCaption: string;
@@ -901,13 +1059,9 @@ var
   vChildArea: TUIArea;
   vMenu: TMenu;
   vForm: TForm;
-
-  function AddMainMI(const ACaption: string): TMenuItem;
-  begin
-    Result := TMenuItem.Create(nil);
-    Result.Caption := ACaption;
-    vMenu.Items.Add(Result);
-  end;
+  vShape: TShape;
+  vListView: TListView;
+  vImageList: TImageList;
 
   function AddDefinition(const AParent: TUIArea; const AMenu: TMenuItem; const ADefinition: TDefinition;
     const ALayoutName: string = ''): TUIArea;
@@ -1037,10 +1191,16 @@ var
         if vView.DefinitionKind = dkAction then
         begin
           vAction := TActionDef(vView.Definition);
-
-          vDestItem.Caption := GetTranslation(vAction);
+          vDestItem.Caption := GetUrlParam(vCaption, 'Caption');
+          if vDestItem.Caption = '' then
+            vDestItem.Caption := GetTranslation(vAction);
           vDestItem.Hint := vDestItem.Caption;
-          vDestItem.ImageIndex := GetImageID(vAction._ImageID);
+          vImageID := Trim(GetUrlParam(vCaption, 'ImageID'));
+          if vImageID = '' then
+            vDestItem.ImageIndex := GetImageID(vAction._ImageID)
+          else
+            vDestItem.ImageIndex := GetImageID(StrToIntDef(vImageID, GetImageID(vAction._ImageID)));
+
           vDestItem.OnClick := OnExecuteAction;
 
           vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, vDestItem);
@@ -1062,7 +1222,6 @@ var
           vDestItem.OnClick := ExplicitNavigate;
 
           vLayoutName := GetUrlParam(vCaption, 'Layout');
-
           if vLayoutName = '' then
             vLayoutName := 'Collection';
           vCaption := 'View=' + vView.InitialName + '@WorkArea=WorkArea@Layout=' + vLayoutName;
@@ -1543,7 +1702,54 @@ begin
 
   vDomain := TDomain(TInteractor(Interactor).Domain);
 
-  if ALayout is TLabel then
+  if ALayout is TShape then
+  begin
+    vShape := TShape.Create(nil);
+    vShape.Left := vSourceShape.Left;
+    vShape.Top := vSourceShape.Top;
+    vShape.Width := vSourceShape.Width;
+    vShape.Height := vSourceShape.Height;
+    vShape.Anchors := vSourceShape.Anchors;
+    vShape.Align := vSourceShape.Align;
+    vShape.Hint := vSourceShape.Hint;
+    vShape.Visible := vSourceShape.Visible;
+    vShape.Pen.Color := vSourceShape.Pen.Color;
+    vShape.Brush.Color := vSourceShape.Brush.Color;
+
+    Result := TVCLArea.Create(Self, AView, '', False, vShape);
+  end 
+  else if ALayout is TListView then
+  begin
+    vListView := TListView.Create(nil);
+    vListView.Left := vSourceListView.Left;
+    vListView.Top := vSourceListView.Top;
+    vListView.Width := vSourceListView.Width;
+    vListView.Height := vSourceListView.Height;
+    vListView.Anchors := vSourceListView.Anchors;
+    vListView.Align := vSourceListView.Align;
+    vListView.Hint := vSourceListView.Hint;
+    vListView.Visible := vSourceListView.Visible;
+    vListView.Constraints := vSourceListView.Constraints;
+    vListView.ViewStyle := vSourceListView.ViewStyle;
+    vListView.Columns.Assign(vSourceListView.Columns);
+    vListView.GridLines := vSourceListView.GridLines;
+    vListView.Font.Size := vSourceListView.Font.Size;
+    vListView.Font.Color := vSourceListView.Font.Color;
+    vListView.Font.Style := vSourceListView.Font.Style;
+//    vListView.Items.Assign(vSourceListView.Items);
+    vListView.Name := vSourceListView.Name;
+
+    Result := TVCLArea.Create(Self, AView, '', False, vListView);
+  end 
+  else if ALayout is TImageList then
+  begin
+    vImageList := TImageList.Create(nil);
+    vImageList.Width := vSourceImageList.Width;
+    vImageList.Height := vSourceImageList.Height;
+
+    Result := TVCLArea.Create(Self, AView, '', False, vImageList);
+  end
+  else if ALayout is TLabel then
   begin
     vLabel := TcxLabel.Create(nil);   // заменил с TLabel на TcxLabel, потому что TLabel мерцал при растягивании формы
     vLabel.Left := vSourceLabel.Left;
@@ -1556,6 +1762,7 @@ begin
     vLabel.Style.Font.Size := vSourceLabel.Font.Size;
     vLabel.Style.Font.Color := vSourceLabel.Font.Color;
     vLabel.Style.Font.Style := vSourceLabel.Font.Style;
+    vLabel.Anchors := vSourceLabel.Anchors;
 
     vCaption := vSourceLabel.Caption;
     vUIParams := '';
@@ -1617,7 +1824,7 @@ begin
     vPC.Properties.TabPosition := TcxTabPosition(vSourcePC.TabPosition);
     vPC.Properties.TabHeight := vSourcePC.TabHeight;
     vPC.Properties.TabWidth := vSourcePC.TabWidth;
-    vPC.Font.Size := vSourcePC.Font.Size;
+    vPC.Font.Assign(vSourcePC.Font);
     vPC.Align := vSourcePC.Align;
     vPC.AlignWithMargins := vSourcePC.AlignWithMargins;
     vPC.Margins := vSourcePC.Margins;
@@ -1664,8 +1871,8 @@ begin
 
       Result := TVCLArea.Create(Self, AView, vSourceTabSheet.Name, False, vTab);
 
-      if vSourceTabSheet.Visible then
-        TcxPageControl(FControl).ActivePage := vTab;
+//      if vSourceTabSheet.Visible then // это нужно? иначе лишние перерисовки контролов идут
+//        TcxPageControl(FControl).ActivePage := vTab;
     end;
   end
   else if ALayout is TToolBar then
@@ -1755,7 +1962,11 @@ begin
     else
       vParams := nil;
 
-    if LowerCase(vSourcePanel.Caption) = '@navigation' then
+    if (vSourcePanel.Caption = 'NavigationArea') then
+    begin
+      Result := CreateNavigationArea(vSourcePanel, AView, AParams);
+    end
+    else if LowerCase(vSourcePanel.Caption) = '@navigation' then
     begin  
       Result := CreateNavigation(Self);
     end
@@ -2795,6 +3006,7 @@ end;
 initialization
 
 RegisterClasses([TLabel, TPanel, TSplitter, TImage, TBevel, TPageControl, TMemo,
-  TTabSheet, TToolBar, TToolButton, TBitBtn, TScrollBox, TMainMenu, TPopupMenu]);
+  TTabSheet, TToolBar, TToolButton, TBitBtn, TScrollBox, TMainMenu, TPopupMenu,
+  TShape, TListView, TImageList]);
 
 end.

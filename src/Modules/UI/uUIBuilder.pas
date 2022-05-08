@@ -266,7 +266,7 @@ type
 implementation
 
 uses
-  StrUtils, IOUtils,
+  StrUtils, IOUtils, Windows, Controls, Messages, Forms,
   uPlatform, uPresenter, uInteractor, uConfiguration, uSession, uChangeManager,
   uUtils, uDomain, uObjectField, uEntityList;
 
@@ -666,10 +666,22 @@ begin
         vTab := TPresenter(FPresenter).CreateLayoutArea(lkPage, vTabParams);
         try
           vTabArea := vUIArea.CreateChildArea(vView, vTab, AOptions, AOnClose);
-          vTabArea.SetHolder(AChangeHolder);
-          if AOptions <> '' then
-            vTabArea.AddParams(CreateDelimitedList(AOptions, '&'));
-          ApplyLayout(vTabArea, vView, vLayoutName, AOptions);
+          vTabArea.BeginUpdate;
+          if TInteractor(FInteractor).Layout = 'mdi' then
+            SendMessage(Application.MainForm.ClientHandle, WM_SETREDRAW, 0, 0);
+          try
+            vTabArea.SetHolder(AChangeHolder);
+            if AOptions <> '' then
+              vTabArea.AddParams(CreateDelimitedList(AOptions, '&'));
+            ApplyLayout(vTabArea, vView, vLayoutName, AOptions);
+          finally
+            vTabArea.EndUpdate;
+            if TInteractor(FInteractor).Layout = 'mdi' then
+            begin
+              SendMessage(Application.MainForm.ClientHandle, WM_SETREDRAW, 1, 0);
+              RedrawWindow(Application.MainForm.ClientHandle, nil, 0, RDW_ERASE or RDW_FRAME or RDW_INVALIDATE or RDW_ALLCHILDREN);
+            end;
+          end;
         finally
           vTab.Free;
         end;

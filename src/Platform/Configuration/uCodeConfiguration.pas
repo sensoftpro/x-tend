@@ -46,6 +46,7 @@ type
   protected
     function LoadConfiguration: string; override;
     function GetTitle: string; override;
+    function GetVersionName: string; override;
   public
     constructor Create(const APlatform: TObject; const AName: string);
     destructor Destroy; override;
@@ -96,6 +97,11 @@ end;
 function TCodeConfiguration.GetTitle: string;
 begin
   Result := FScript.AppTitle;
+end;
+
+function TCodeConfiguration.GetVersionName: string;
+begin
+  Result := FScript.VersionName;
 end;
 
 function TCodeConfiguration.LoadConfiguration: string;

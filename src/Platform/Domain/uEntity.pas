@@ -248,6 +248,7 @@ type
     procedure _SetFieldEntity(const AHolder: TObject; const AFieldName: string; const AEntity: TEntity);
     procedure _SetFieldStream(const AHolder: TObject; const AFieldName: string; const AStream: TStream);
     procedure _SetFieldObject(const AHolder: TObject; const AFieldName: string; const AObject: TComplexObject);
+    procedure _RestoreFieldValue(const AHolder: TObject; const AFieldName: string);
     function _SetState(const AHolder: TObject; const ANewState: Variant): Boolean;
     function GetFieldValue(const AFieldName: string): Variant;
     function GetFieldEntity(const AFieldName: string): TEntity;
@@ -523,7 +524,7 @@ var
 begin
   if FUIState = vsUndefined then
   begin
-    FCalcUIState := vsFullAccess;
+   // FCalcUIState := vsFullAccess; // иначе запрошенное ранее состояние сбрасывается
     if Assigned(FFieldDef.FNotificationChains.UICalculations) then
     begin
       // Обновить FCalcUIState
@@ -1696,6 +1697,12 @@ begin
   end
   else
     Result := GetAnyFieldValue(AFieldName);
+end;
+
+procedure TEntity._RestoreFieldValue(const AHolder: TObject; const AFieldName: string);
+begin
+  if Assigned(AHolder) then
+    TChangeHolder(AHolder).RevertField(Self, AFieldName);
 end;
 
 procedure TEntity.FillEntity(const AHolder: TObject; const ATargetEntity: TEntity;

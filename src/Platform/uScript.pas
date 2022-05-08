@@ -50,10 +50,13 @@ type
   end;
 
   TBaseScript = class abstract
+  private
+    function GetVersionName: string;
   protected
     [Weak] FConfiguration: TObject;
     FAppTitle: string;
     FVersion: string;
+    FVersionName: string;
 
     constructor Create(const AConfiguration: TObject); virtual;
 
@@ -77,6 +80,7 @@ type
     function GetParentListView(const AView: TView): TView;
   protected
     procedure DoInit; virtual; abstract;
+    procedure DoDeinit; virtual;
 
     procedure DoCreateDefinitions; virtual;
     procedure DoCreateMigrations; virtual;
@@ -111,7 +115,10 @@ type
     destructor Destroy; override;
 
     property AppTitle: string read FAppTitle;
+    // Version текстовый номер версии с разделением точкой, используется для сравнения версии по порядку (чтобы старый ехе не смог стартовать на новой версии хранилища)
     property Version: string read FVersion;
+    // VersionName полное текстовое представление версии продукта, может быть использован любой текст, по умолчанию будет равно Version, имеет приоритет над FVersion
+    property VersionName: string read GetVersionName;
   end;
 
   TScript = class(TBaseScript)
@@ -461,6 +468,7 @@ begin
 
   AddAction('#HandleDblClick', 'Обработать двойное нажатие', -1);
   AddAction('#ExportToCsv', 'Экспорт в Excel', 7);
+  AddAction('#ExportToCsv2', 'Экспорт в *.csv', 7);
   AddAction('#ApplyBestFit', 'Оптимальная ширина колонок', 47);
 
   vAction := AddAction('#FilterByText', 'Фильтровать по тексту', 13, ccInstantExecution);
@@ -1859,6 +1867,7 @@ end;
 
 destructor TBaseScript.Destroy;
 begin
+  DoDeinit;
   FConfiguration := nil;
   inherited Destroy;
 end;
@@ -1911,6 +1920,10 @@ begin
 end;
 
 procedure TBaseScript.DoCreateMigrations;
+begin
+end;
+
+procedure TBaseScript.DoDeinit;
 begin
 end;
 
@@ -1978,6 +1991,13 @@ begin
         Result := nil;
     end;
   end;
+end;
+
+function TBaseScript.GetVersionName: string;
+begin
+  Result := FVersionName;
+  if Length(Result) = 0 then
+    Result := FVersion;
 end;
 
 function TBaseScript.RegisterComplexClass(const AName: string; const AComplexClass: TComplexClass): TComplexClassDef;

@@ -101,6 +101,7 @@ type
 
     function LoadConfiguration: string; virtual;
     function GetTitle: string; virtual;
+    function GetVersionName: string; virtual;
   public
     constructor Create(const APlatform: TObject; const AName: string);
     destructor Destroy; override;
@@ -117,6 +118,7 @@ type
     property Name: string read FName;
     property _Caption: string read FCaption;
     property Version: string read FVersion;
+    property VersionName: string read GetVersionName;
     property IconFileName: string read FIconFileName;
     property ConfigurationDir: string read FConfigurationDir;
     property CacheDir: string read FCacheDir;
@@ -328,6 +330,11 @@ end;
 function TConfiguration.GetTitle: string;
 begin
   Result := 'unnamed';
+end;
+
+function TConfiguration.GetVersionName: string;
+begin
+  Result := FVersion;
 end;
 
 procedure TConfiguration.Init;

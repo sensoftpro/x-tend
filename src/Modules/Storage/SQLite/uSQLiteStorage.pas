@@ -44,44 +44,46 @@ type
 
   TSQLiteDBContext = class
   private
-    FStorage: TStorage;
-    FTableName: string;
-    FParameters: TList<TBaseParameter>;
-    FKeyParameters: TList<TBaseParameter>;
     function BuildInsertQuery: string;
     function BuildUpdateQuery: string;
     function BuildDeleteQuery: string;
     function GetParamValues: TVarRecArray;
     function GetKeyParamValues: TVarRecArray;
+  protected
+    FStorage: TStorage;
+    FTableName: string;
+    FParameters: TList<TBaseParameter>;
+    FKeyParameters: TList<TBaseParameter>;
   public
     constructor Create(const AStorage: TStorage; const ATableName: string);
     destructor Destroy; override;
 
     procedure AddParameter(const AName: string; const AValue: Variant;
-      const AIsKey: Boolean = False);
-    procedure AddBlobParameter(const AName: string; const AValue: TStream);
+      const AIsKey: Boolean = False); virtual;
+    procedure AddBlobParameter(const AName: string; const AValue: TStream); virtual;
+
     procedure Commit(const ASQLite: TSQLite; const ASaveAction: TEntitySaveAction);
     procedure OpenQueryAsync(const ASQLite: TSQLite; const AFetchFunc: TFetchDataFunc);
   end;
 
   TSQLiteStorage = class(TStorage)
-  private
+  protected
     FGroupList: TList;
     FSQLite: TSQLite;
     FTransCount: Integer;
     FCurTableName: string;
     FCurTableColumns: TStrings;
     FCurTableTypes: TStrings;
+    FDBFileName: string;
+
     function GetActiveContext: TSQLiteDBContext;
     function GetActiveDataset: TSQLiteResult;
     procedure Push(const AObject: TObject);
     procedure Pop;
-    procedure PopContext;
+    procedure PopContext; virtual;
     function GetMaxTableID(const ATableName: string): Integer;
     function SearchTable(const AName: string): Boolean;
     function ExecuteDBQuery(Sql: string; Params: array of const): Boolean;
-  protected
-    FDBFileName: string;
     function SQLTypeFromFieldKind(const AKind: TFieldKind; const ASize: Integer): string;
 
     procedure DoWriteValue(const ATag: string; const AFieldKind: TFieldKind; const AValue: Variant;

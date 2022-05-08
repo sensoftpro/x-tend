@@ -737,7 +737,7 @@ end;
 
 procedure TBlobField.SetJSONValue(const AJSONValue: TJSONValue);
 begin
-  if AJSONValue.Null then
+  if (not Assigned(AJSONValue)) or AJSONValue.Null then
     DoSetValue(0)
   else
     DoSetValue(Integer(StringToStream(TJSONString(AJSONValue).Value)));

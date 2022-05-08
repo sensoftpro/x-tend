@@ -74,6 +74,7 @@ type
     //           т.е. поле стало неизмененным
     function RegisterFieldChanges(const AFieldName: string): Boolean;
 
+    procedure RevertField(const AFieldName: string);
     function OldFieldValue(const AFieldName: string): string;
 
     procedure Revert;
@@ -133,6 +134,7 @@ type
     procedure SetFieldStream(const AEntity: TEntity; const AFieldName: string; const AStream: TStream);
     procedure SetFieldObject(const AEntity: TEntity; const AFieldName: string; const AObject: TComplexObject);
     procedure SetFieldState(const AEntity: TEntity; const AFieldName: string; const AValue: Variant);
+    procedure RevertField(const AEntity: TEntity; const AFieldName: string);
 
     function OldEntityValue(const AEntity: TEntity; const AFieldName: string): string;
 
@@ -671,6 +673,19 @@ begin
   end;
 end;
 
+procedure TChangeHolder.RevertField(const AEntity: TEntity; const AFieldName: string);
+var
+  vIndex: Integer;
+  vChangedEntity: TChangedEntity;
+begin
+  vIndex := IndexOfChangedEntity(AEntity);
+  if vIndex >= 0 then
+  begin
+    vChangedEntity := TChangedEntity(FChangedEntities[vIndex]);
+    vChangedEntity.RevertField(AFieldName);
+  end;
+end;
+
 procedure TChangeHolder.ScheduleCalculation(const AFieldChain: string;
   const AInstance, AParameter: TEntity);
 var
@@ -1053,6 +1068,31 @@ begin
   end;
 
   TDomain(FDomain).Logger.AddExitMessage('CANCELED');
+end;
+
+procedure TChangedEntity.RevertField(const AFieldName: string);
+var
+  vField: TBaseField;
+  vSavedValue: TJSONValue;
+begin
+  if not FChangedFields.TryGetValue(AFieldName, vSavedValue) then
+    Exit;
+
+  vField := FieldByName(AFieldName);
+  if not Assigned(vField) then
+    Exit;
+
+  if vField.FieldKind = fkComplex then
+  begin
+    if Assigned(TComplexField(vField).InitialJSON) then
+      vField.JSON := TComplexField(vField).InitialJSON;
+  end
+  else
+    vField.JSON := vSavedValue;
+
+  FChangedFields.Remove(AFieldName);
+
+  TDomain(FDomain).Logger.AddMessage('<< ' + vField.FieldName + ': ' + cFieldKindNames[vField.FieldKind]);
 end;
 
 procedure TChangedEntity.TransferAllFields(const AStorage: TStorage);
