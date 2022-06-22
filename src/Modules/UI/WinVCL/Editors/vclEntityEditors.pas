@@ -149,7 +149,7 @@ implementation
 
 uses
   Graphics, SysUtils, Windows, Messages, Forms, cxInplaceContainer, cxCalendar, cxSpinEdit, cxControls, cxRadioGroup,
-  Menus, uInteractor, uDomain, uChangeManager, uObjectField, uConsts, uSession,  Variants, uCollection,
+  Menus, uInteractor, uDomain, uChangeManager, uObjectField, uConsts, uSession,  Variants, 
   uPresenter, uWinVCLPresenter, StrUtils, uUtils, uEnumeration;
 
 type

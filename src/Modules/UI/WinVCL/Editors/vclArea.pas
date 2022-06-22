@@ -65,7 +65,6 @@ type
   private
     FOriginLeft, FOriginTop: Integer;  // for correct order during alignment
     FLabelPosition: TLabelPosition;
-    FShowCaption: Boolean;
     FCaption: TLabel;
     FIsForm: Boolean;
     FIsAutoReleased: Boolean;
@@ -86,6 +85,7 @@ type
   protected
     FPopupMenu: TPopupMenu;
     FNeedCreateCaption: Boolean;
+    FShowCaption: Boolean;
     procedure PlaceLabel;
     procedure DoClose(const AModalResult: Integer); override;
     function DoCreateChildArea(const ALayout: TObject; const AView: TView; const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
@@ -885,9 +885,7 @@ end;
 procedure TVCLArea.DoActivate(const AUrlParams: string);
 var
   vChangeTab: Boolean;
-  vClass: string;
 begin
-  vClass := FControl.classname;
   vChangeTab := SameText(GetUrlParam(AUrlParams, 'TabActivationOption', ''), 'ChangeTab');
 
   if (FControl is TcxTabSheet) then

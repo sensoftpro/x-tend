@@ -661,9 +661,9 @@ begin
           vTabParams := vTabParams + ';Name=' + vPageID;
         end
         else if ACaption <> '' then
-          vTabParams := 'Caption=' + ACaption + ';ImageIndex=' + GetUrlParam(AOptions, 'ImageID', '-1') + ';Name=' + vPageID
+          vTabParams := 'Caption=' + ACaption + ';ImageIndex=' + IntToStr(GetImageID(StrToIntDef(GetUrlParam(AOptions, 'ImageID', '-1'), 0))) + ';Name=' + vPageID
         else
-          vTabParams := 'Caption=Стартовая страница;ImageIndex=' + GetUrlParam(AOptions, 'ImageID', '-1') + ';Name=' + vPageID;
+          vTabParams := 'Caption=Стартовая страница;ImageIndex=' + IntToStr(GetImageID(StrToIntDef(GetUrlParam(AOptions, 'ImageID', '-1'), 0))) + ';Name=' + vPageID;
 
         vTab := TPresenter(FPresenter).CreateLayoutArea(lkPage, vTabParams);
         try

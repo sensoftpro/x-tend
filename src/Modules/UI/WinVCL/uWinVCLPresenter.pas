@@ -124,7 +124,7 @@ type
 implementation
 
 uses
-  Dialogs, Math, MultiMon, StrUtils, ShellAPI, ActiveX,
+  Dialogs, Math, StrUtils, ShellAPI, ActiveX,
   cxGraphics, dxGDIPlusClasses, cxImage, cxEdit, cxPC, cxLookAndFeels, cxLookAndFeelPainters, cxStyles, cxMemo,
 
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity, uEntityList, vclArea, uSession,
@@ -995,7 +995,7 @@ var
 begin
   vForm := TForm(Sender);
   vArea := TUIArea(vForm.Tag);
-  vHolder := TChangeHolder(vArea.ThisHolder);//(vArea.Holder);
+  vHolder := TChangeHolder(vArea.ThisHolder);
   vView := vArea.View;
   vInteractor := TInteractor(vArea.Interactor);
 

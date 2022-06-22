@@ -678,8 +678,6 @@ var
         vInsertingCount := vNextRemovingIndex - vPrevRemovingIndex - 1;
         Move(Pointer(NativeInt(FData) + (vPrevRemovingIndex + 1) * FValueSize)^,
           Pointer(NativeInt(FData) + vInsertIndex * FValueSize)^, vInsertingCount * FValueSize);
-        //MoveMemory(Pointer(Integer(FData) + vInsertIndex * FValueSize),
-        //  Pointer(Integer(FData) + (vPrevRemovingIndex + 1) * FValueSize), vInsertingCount * FValueSize);
 
         vInsertIndex := vInsertIndex + vInsertingCount;
         vStartIndex := vNextRemovingIndex;

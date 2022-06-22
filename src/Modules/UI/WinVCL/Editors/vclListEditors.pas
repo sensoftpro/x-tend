@@ -380,24 +380,13 @@ type
     destructor Destroy; override;
   end;
 
-  TSharesEditor = class(TVCLFieldArea)
-  private
-    FPanel: TPanel;
-  protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
-    procedure DoBeforeFreeControl; override;
-    procedure FillEditor; override;
-    function GetLayoutPositionCount: Integer; override;
-    procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
-  end;
-
 implementation
 
 uses
   TypInfo, Windows, SysUtils, Messages, Math, Variants, DateUtils, Dialogs, Menus, ShellApi, IOUtils, StrUtils,
 
   uWinVCLPresenter, uObjectField, uInteractor, uEnumeration, uSession, uChangeManager,
-  uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings, uCollection,
+  uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings,
 
   dxCore, cxGridStrs, cxPivotGridStrs, cxDataStorage, cxGridCustomView, cxImageComboBox, cxDateUtils,
   cxGridExportLink, cxProgressBar, dxColorGallery;
@@ -4311,51 +4300,6 @@ begin
 
 end;
 
-{ TSharesEditor }
-
-procedure TSharesEditor.DoBeforeFreeControl;
-begin
-  inherited;
-
-end;
-
-procedure TSharesEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
-var
-  vShape: TShape;
-begin
-  FPanel := TPanel.Create(nil);
-  FControl := FPanel;
-
-  vShape := TShape.Create(FPanel);
-  vShape.Parent := FPanel;
-  vShape.SetBounds(0, 0, 80, 8);
-  vShape.Pen.Color := clGray;
-  vShape.Brush.Color := clAqua;
-end;
-
-procedure TSharesEditor.FillEditor;
-//var
-//  vAllData: TEntityList;
-begin
-  inherited;
-  FPanel.Caption := '';
-  FPanel.BevelOuter := TBevelCut.bvNone;
-//  vAllData := TEntityList(FView.DomainObject);
-//  FPanel.Controls[0].Width := vAllData.Count * 10;
-  FPanel.Caption := FView.DomainObject.ClassName;
-end;
-
-function TSharesEditor.GetLayoutPositionCount: Integer;
-begin
-  Result := 0;
-end;
-
-procedure TSharesEditor.UpdateArea(const AKind: Word; const AParameter: TEntity);
-begin
-  inherited;
-
-end;
-
 initialization
 
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, '', TColumnListEditor);
@@ -4369,8 +4313,6 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'paged', TPagedEnti
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, '', TCollectionEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, 'Pivot', TPivotGrid);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, 'Tree', TTreeCollectionEditor);
-
-TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'shares', TSharesEditor);
 
 end.
 

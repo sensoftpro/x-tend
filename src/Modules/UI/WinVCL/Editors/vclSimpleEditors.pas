@@ -3103,11 +3103,13 @@ begin
   FData.Text := FView.FieldValue;
 
   FListView.Items.Count := FData.Count;
+
+  FListView.Refresh;
 end;
 
 procedure TLogEditor.OnListViewData(Sender: TObject; Item: TListItem);
 begin
-  Item.Caption := FData[Item.Index];
+  Item.Caption := FData[FData.Count - Item.Index - 1];
 end;
 
 procedure TLogEditor.SetParent(const Value: TUIArea);

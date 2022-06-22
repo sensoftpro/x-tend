@@ -61,7 +61,7 @@ type
     destructor Destroy; override;
 
     function GetViewOfEntity(const AEntity: TObject): TView;
-    function ShowEntityEditor(const AView: TView; const AChangeHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
+    function ShowEntityEditor(const AView: TView; const AHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
     function AtomicEditEntity(const AGetViewFunc: TGetViewFunc; const AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean; overload;
     function AtomicEditEntity(const AView: TView; const AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean; overload;
     function AtomicEditEntity(const AEntity: TObject; const AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean; overload;
@@ -267,7 +267,7 @@ begin
     FUIBuilder.PrintHierarchy;
 end;
 
-function TInteractor.ShowEntityEditor(const AView: TView; const AChangeHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
+function TInteractor.ShowEntityEditor(const AView: TView; const AHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
 var
   vEntity: TEntity;
   vLayoutName: string;
@@ -287,7 +287,7 @@ begin
   else
     vLayoutName := ALayoutName;
 
-  Result := FUIBuilder.Navigate(AView, 'child', vLayoutName, '', AChangeHolder, nil, ACaption) = drOk;
+  Result := FUIBuilder.Navigate(AView, 'child', vLayoutName, '', AHolder, nil, ACaption) = drOk;
 end;
 
 procedure TInteractor.ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);
