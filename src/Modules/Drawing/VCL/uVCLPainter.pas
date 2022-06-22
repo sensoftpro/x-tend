@@ -36,7 +36,11 @@ unit uVCLPainter;
 interface
 
 uses
-  Windows, Types, Classes, Graphics, uDrawStyles, uWinScene;
+  Windows, Types, Classes, Graphics, uDrawStyles,
+
+  uWinScene,   //todo: нужно выделить общий vcl-код из devexpress
+  uVCLScene    //todo: нужно выделить общий vcl-код из devexpress
+  ;
 
 type
   TPointArray = array of TPoint;

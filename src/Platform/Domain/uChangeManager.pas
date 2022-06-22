@@ -136,6 +136,8 @@ type
 
     procedure RevertField(const AEntity: TEntity; const AFieldName: string);
 
+    function OldEntityValue(const AEntity: TEntity; const AFieldName: string): string;
+
     function ApplyChanges(const ASkipLogging: Boolean = False): Integer;
     procedure TransferChanges;
     procedure RevertChanges;
@@ -509,6 +511,23 @@ begin
   Result := FIsCancelling or not Assigned(AEntity);
   if not Result then
     Result := AEntity.Definition.HasFlag(ccNotSave);
+end;
+
+function TChangeHolder.OldEntityValue(const AEntity: TEntity; const AFieldName: string): string;
+var
+  vIndex: Integer;
+  vChangedEntity: TChangedEntity;
+begin
+  Result := '';
+  if FIsCancelling then
+    Exit;
+
+  vIndex := IndexOfChangedEntity(AEntity);
+  if vIndex < 0 then
+    Exit;
+
+  vChangedEntity := TChangedEntity(FChangedEntities[vIndex]);
+  Result := vChangedEntity.OldFieldValue(AFieldName);
 end;
 
 procedure TChangeHolder.RegisterFieldChanges(const AEntity: TEntity; const AFieldName: string);

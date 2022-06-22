@@ -6,9 +6,9 @@ object EditForm: TEditForm
   TabOrder = 0
   object WorkArea: TPanel
     Left = 0
-    Top = 24
+    Top = 73
     Width = 945
-    Height = 555
+    Height = 506
     Align = alClient
     Caption = '@WorkArea?ViewType=Paged&View=Configurations&Layout=Collection'
     Font.Charset = DEFAULT_CHARSET
@@ -18,73 +18,88 @@ object EditForm: TEditForm
     Font.Style = []
     ParentFont = False
     TabOrder = 0
-    ExplicitLeft = 305
-    ExplicitWidth = 640
+    ExplicitTop = 72
+    ExplicitHeight = 507
   end
-  object ToolBar1: TToolBar
+  object Panel6: TPanel
     Left = 0
     Top = 0
     Width = 945
-    Height = 24
-    AutoSize = True
-    ButtonHeight = 24
-    ButtonWidth = 374
-    Font.Charset = DEFAULT_CHARSET
-    Font.Color = clWindowText
-    Font.Height = -13
-    Font.Name = 'Tahoma'
-    Font.Style = []
-    ParentFont = False
-    ShowCaptions = True
+    Height = 25
+    Align = alTop
+    Caption = '@NavigationArea?ViewType=MainMenu'
+    PopupMenu = MainMenu
     TabOrder = 1
-    object ToolButton2: TToolButton
-      Left = 0
-      Top = 0
-      Caption = 'View=SysUsers@WorkArea=WorkArea@Layout=Collection'
-      ImageIndex = 0
-    end
-    object ToolButton1: TToolButton
-      Left = 374
-      Top = 0
-      Caption = 'View=Configurations@WorkArea=WorkArea@Layout=Collection'
-      ImageIndex = 1
-    end
+    ExplicitLeft = -3
+    ExplicitTop = -1
   end
-  object MainMenu1: TMainMenu
-    Left = 340
-    Top = 171
-    object System1: TMenuItem
-      Caption = 'Id=System@Caption='#1057#1080#1089#1090#1077#1084#1072
-      object ShowSysLog1: TMenuItem
+  object Panel1: TPanel
+    Left = 0
+    Top = 25
+    Width = 945
+    Height = 48
+    Align = alTop
+    Caption = '@NavigationArea?ViewType=ToolBar&ImageSize=32'
+    PopupMenu = ToolBar
+    TabOrder = 2
+  end
+  object MainMenu: TPopupMenu
+    Left = 768
+    Top = 160
+    object SystemCaption1: TMenuItem
+      Caption = '@System?Caption='#1057#1080#1089#1090#1077#1084#1072
+      object ShowSysLog2: TMenuItem
         Caption = 'ShowSysLog'
       end
-      object ShowSettings1: TMenuItem
+      object MenuItem2: TMenuItem
         Caption = 'ShowSettings'
       end
-      object ShowOptions1: TMenuItem
+      object MenuItem1: TMenuItem
         Caption = 'ShowOptions'
       end
-      object LoadChanges1: TMenuItem
+      object DetectorsLayoutDetectorsCollectionContentWorkAreamodal1: TMenuItem
         Caption = 'LoadChanges'
       end
-      object N1: TMenuItem
+      object N5: TMenuItem
         Caption = '-'
       end
-      object Quit1: TMenuItem
+      object MenuItem3: TMenuItem
         Caption = 'Quit'
       end
     end
-    object Libraries1: TMenuItem
-      Caption = 'Id=Libraries@Caption='#1057#1087#1088#1072#1074#1086#1095#1085#1080#1082#1080
+    object MenuItem4: TMenuItem
+      Caption = '@Libs?Id=Libraries&Caption='#1057#1087#1088#1072#1074#1086#1095#1085#1080#1082#1080
     end
-    object Windows1: TMenuItem
-      Caption = 'Id=Windows@Caption='#1054#1082#1085#1072
-      object CloseAllPages1: TMenuItem
+    object WindowsCaption1: TMenuItem
+      Caption = '@Windows?Caption='#1054#1082#1085#1072
+      object ArrangeCascade1: TMenuItem
+        Caption = 'ArrangeCascade'
+      end
+      object ArrangeVert1: TMenuItem
+        Caption = 'ArrangeVert'
+      end
+      object ArrangeHorz1: TMenuItem
+        Caption = 'ArrangeHorz'
+      end
+      object N8: TMenuItem
+        Caption = '-'
+      end
+      object CloseAllWindows2: TMenuItem
         Caption = 'CloseAllWindows'
       end
     end
-    object ShowAbout1: TMenuItem
+    object ShowAbout2: TMenuItem
       Caption = 'ShowAbout'
+    end
+  end
+  object ToolBar: TPopupMenu
+    Left = 448
+    Top = 184
+    object SysUsers1: TMenuItem
+      Caption = 'SysUsers'
+    end
+    object Configurations1: TMenuItem
+      Caption = 'Configurations'
     end
   end
 end

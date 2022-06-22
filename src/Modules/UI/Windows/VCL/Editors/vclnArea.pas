@@ -234,7 +234,6 @@ type
     property Control: TObject read GetControl;
     property View: TView read FView;
   end;
-{$R MDIChild.dfm}
 
   TMainMenuArea = class(TNavigationArea)
   private

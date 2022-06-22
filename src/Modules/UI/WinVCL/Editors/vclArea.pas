@@ -82,6 +82,7 @@ type
     function GetControl: TControl;
     function GetComponent: TComponent;
     function CreateNavigationArea(const ASourcePanel: TPanel; const AView: TView; const AParams: string): TUIArea;
+    function LessThanUIState(const ADefinition: TDefinition; const ASession: TObject; const AState: TViewState): Boolean;
   protected
     FPopupMenu: TPopupMenu;
     FNeedCreateCaption: Boolean;
@@ -219,6 +220,7 @@ type
     FView: TView;
   protected
     FCurrentLevel: Integer;
+    FParams: string;
     function GetControl: TObject; virtual; abstract;
     function DoCreateItem(const AParentObj: TObject): TObject; virtual; abstract;
     procedure DoAssignItemOnClick(const AHandler: TNotifyEvent); virtual; abstract;
@@ -772,6 +774,14 @@ function TVCLArea.CreateNavigationArea(const ASourcePanel: TPanel; const AView: 
 var
   vNavArea: TNavigationArea;
   vViewType: string;
+  procedure AddDefinitionToMenu(const AMenu: TMenuItem; const ADefinition: TDefinition);
+  var
+    vDestItem: TMenuItem;
+  begin
+    vDestItem := TMenuItem.Create(nil);
+    AMenu.Add(vDestItem);
+    vDestItem.Caption := ADefinition.Name;// + '?WorkArea=WorkArea&Layout=Collection&ImageID=' + IntToStr(ADefinition._ImageID);
+  end;
 
   procedure ProcessChilds(const AMenuItem: TMenuItem; const AParentArea: TUIArea; const AParentView: TView; const AParentObj: TObject; const ALevel: Integer);
   var
@@ -783,6 +793,7 @@ var
     vImageID, vUrl, vLayoutName, vCaption, vHint: string;
     vImageIndex: Integer;
     vControl: TObject;
+    vDefinitions: TList<TDefinition>;
   begin
     for i := 0 to AMenuItem.Count - 1 do
     begin
@@ -854,6 +865,25 @@ var
       vGroupArea := TVCLArea.Create(AParentArea, vView, vUrl, False, vControl);
 
       AParentArea.AddArea(vGroupArea);
+
+      if GetUrlParam(vMI.Caption, 'Id') = 'Libraries' then
+      begin
+        vDefinitions := TList<TDefinition>.Create;
+        try
+          TConfiguration(TInteractor(Interactor).Configuration).Definitions.DefinitionsByKind(vDefinitions, clkLibrary);
+          vDefinitions.Sort(TComparer<TDefinition>.Construct(function(const Left, Right: TDefinition): Integer
+            begin
+              Result := CompareText(Left._Caption, Right._Caption);
+            end));
+          for vDefinition in vDefinitions do
+            if not LessThanUIState(vDefinition, TInteractor(Interactor).Session, vsReadOnly)
+              and not vDefinition.HasFlag(ccNotSave) and not vDefinition.HasFlag(ccHideInMenu)
+            then
+              AddDefinitionToMenu(vMI, vDefinition);
+        finally
+          FreeAndNil(vDefinitions);
+        end;
+      end;
 
       ProcessChilds(vMI, vGroupArea, vView, vControl, ALevel + 1);
     end;
@@ -1095,6 +1125,18 @@ begin
     Result.AddParams(CreateDelimitedList(AParams, '&'));
 end;
 
+function TVCLArea.LessThanUIState(const ADefinition: TDefinition; const ASession: TObject; const AState: TViewState): Boolean;
+var
+  vSecuredState: TViewState;
+begin
+  if not Assigned(ASession) then
+    Result := ADefinition.UIState <= AState
+  else begin
+    vSecuredState := ADefinition.UIState and TUserSession(ASession).GetUIState(ADefinition.Name, nil);
+    Result := vSecuredState <= AState;
+  end;
+end;
+
 function TVCLArea.DoCreateChildArea(const ALayout: TObject; const AView: TView; const AParams: string = ''; const AOnClose: TProc = nil): TUIArea;
 var
   vSourceLabel: TLabel absolute ALayout;
@@ -1160,18 +1202,6 @@ var
     Result := TVCLArea.Create(AParent, AView, vCaption, False, vDestItem);
     TVCLArea(Result).UpdateArea(dckViewStateChanged);
     AParent.AddArea(Result);
-  end;
-
-  function LessThanUIState(const ADefinition: TDefinition; const ASession: TObject; const AState: TViewState): Boolean;
-  var
-    vSecuredState: TViewState;
-  begin
-    if not Assigned(ASession) then
-      Result := ADefinition.UIState <= AState
-    else begin
-      vSecuredState := ADefinition.UIState and TUserSession(ASession).GetUIState(ADefinition.Name, nil);
-      Result := vSecuredState <= AState;
-    end;
   end;
 
   procedure CopyMenuItems(const AParent: TUIArea; const ASrcMenu, ADestMenu: TMenuItem);
@@ -3114,6 +3144,7 @@ end;
 constructor TNavigationArea.Create(const ASource: TPanel; const AView: TView; const AArea: TVCLArea; const AInteractor: TObject; const AParams: string);
 begin
   FView := AView;
+  FParams := AParams;
 end;
 
 function TNavigationArea.CreateItem(const AParentObj: TObject; const ALevel: Integer): TObject;
@@ -3378,14 +3409,16 @@ end;
 procedure TToolBarArea.DoAfterCreate(const AInteractor: TObject);
 var
   vToolButton: TToolButton;
-  i: Integer;
+  i, vImageSize: Integer;
 begin
-  FToolBar.Images := TDragImageList(TInteractor(AInteractor).Images[16]);
+  vImageSize := StrToIntDef(GetUrlParam(FParams, 'ImageSize'), 16);
+  FToolBar.Images := TDragImageList(TInteractor(AInteractor).Images[vImageSize]);
+  FToolBar.AutoSize := True;
   for i := 0 to FToolBar.ButtonCount - 1 do
   begin
     vToolButton := FToolBar.Buttons[i];
     if Assigned(vToolButton.DropdownMenu) then
-      vToolButton.DropdownMenu.Images :=  TDragImageList(TInteractor(AInteractor).Images[16]);
+      vToolButton.DropdownMenu.Images := FToolBar.Images;
   end
 end;
 
@@ -3494,7 +3527,7 @@ end;
 
 type
   TMyObj = class
-    AHandler: TNotifyEvent
+    AHandler: TNotifyEvent;
   end;
 
 procedure TTreeViewArea.DoAssignItemOnClick(const AHandler: TNotifyEvent);

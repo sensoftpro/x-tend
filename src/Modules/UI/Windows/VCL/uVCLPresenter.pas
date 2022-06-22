@@ -129,7 +129,7 @@ uses
   Dialogs, Math, MultiMon, StrUtils, ShellAPI, ActiveX,
 
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity, uEntityList, vclnArea, uSession,
-  uManagedVCLForm, AboutVCLForm, ReportConfigureVCLForm, uOAuthVCLForm, LoginVCLForm;
+  uManagedVCLForm, AboutVCLForm, ReportConfigureVCLForm, LoginVCLForm;
 
 type
   TLoginedProc = procedure(const AInteractor: TInteractor) of object;
