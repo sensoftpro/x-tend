@@ -36,7 +36,7 @@ unit uUIBuilder;
 interface
 
 uses
-  Classes, Generics.Collections, UITypes, SysUtils, uConsts, uView, uDefinition, uEntity;
+  Classes, Generics.Collections, UITypes, SysUtils, uConsts, uView, uDefinition, uEntity, uSession;
 
 type
   TUIBuilder = class;
@@ -151,6 +151,7 @@ type
   protected
     [Weak] FUIBuilder: TUIBuilder;
     [Weak] FView: TView;
+    [Weak] FSession: TUserSession;
     FId: string;
     FUId: string;
     FStyle: TUIStyle;
@@ -266,8 +267,9 @@ type
 implementation
 
 uses
-  StrUtils, IOUtils, Windows, Controls, Messages, Forms,
-  uPlatform, uPresenter, uInteractor, uConfiguration, uSession, uChangeManager,
+  {DO NOT ADD VCL UNITS HERE (Controls, Forms...)}
+  StrUtils, IOUtils, Windows, Messages,
+  uPlatform, uPresenter, uInteractor, uConfiguration, uChangeManager,
   uUtils, uDomain, uObjectField, uEntityList;
 
 { TUIBuilder }
@@ -667,8 +669,6 @@ begin
         try
           vTabArea := vUIArea.CreateChildArea(vView, vTab, AOptions, AOnClose);
           vTabArea.BeginUpdate;
-          if TInteractor(FInteractor).Layout = 'mdi' then
-            SendMessage(Application.MainForm.ClientHandle, WM_SETREDRAW, 0, 0);
           try
             vTabArea.SetHolder(AChangeHolder);
             if AOptions <> '' then
@@ -676,11 +676,6 @@ begin
             ApplyLayout(vTabArea, vView, vLayoutName, AOptions);
           finally
             vTabArea.EndUpdate;
-            if TInteractor(FInteractor).Layout = 'mdi' then
-            begin
-              SendMessage(Application.MainForm.ClientHandle, WM_SETREDRAW, 1, 0);
-              RedrawWindow(Application.MainForm.ClientHandle, nil, 0, RDW_ERASE or RDW_FRAME or RDW_INVALIDATE or RDW_ALLCHILDREN);
-            end;
           end;
         finally
           vTab.Free;
@@ -907,9 +902,7 @@ begin
   FreeAndNil(FParams);
   if Assigned(FHolder) then
     if Assigned(TChangeHolder(FHolder).Session) then
-      TUserSession(TChangeHolder(FHolder).Session).Cancel(TChangeHolder(FHolder))
-    else
-      FHolder := nil;
+      TUserSession(TChangeHolder(FHolder).Session).Cancel(TChangeHolder(FHolder));
 
   FHolder := nil;
 
@@ -943,6 +936,7 @@ begin
   FStyle := TUIStyle.Create(Self);
   FHolder := nil;
   FUIBuilder := TInteractor(AView.Interactor).UIBuilder;
+  FSession := TUserSession(AView.Session);
 
   FView := AView;
   if not FIsService then
@@ -1261,7 +1255,7 @@ begin
         vRefArea.DoExecuteUIAction(AView);
       finally
         if vNeedClearParams then
-          vParams.ResetToDefault;
+          vParams.ResetToDefault(TUserSession(AView.Session).NullHolder);
       end;
     end;
   end
@@ -1312,7 +1306,9 @@ begin
     case AView.DefinitionKind of
       dkDomain: {do nothings};
       dkEntity:
-        if vParams.Values['view'] <> '' then
+        if SameText(vParams.Values['ViewType'], 'Action') then
+          Result := DoCreateChildAction(ALayout, AView, AParams)
+        else if vParams.Values['view'] <> '' then
           Result := DoCreateChildEditor(ALayout, AView, AParams)
         else
           Result := DoCreateChildArea(ALayout, AView, AParams);
@@ -1602,7 +1598,8 @@ begin
   if vModifier <> '' then
     vModifier := '>>' + vModifier + ': ';
 
-  Result := AIndent + vModifier + GetName + vViewName + DoGetDescription + #13#10;
+  Result := AIndent + vModifier + GetName + ':' + Self.ClassName + ':' + FControl.ClassName + vViewName +
+    DoGetDescription + #13#10;
   for i := 0 to FAreas.Count - 1 do
     Result := Result + GetArea(i).TextHierarchy(AIndent + '    ');
 end;

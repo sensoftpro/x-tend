@@ -93,10 +93,11 @@ type
     procedure SetViewState(const Value: TViewState); override;
   public // Special for TEntity
     procedure InternalAdd(const AEntity: TEntity);
+    procedure RemoveEntity(const AEntity: TEntity);
 
     procedure AddViewListener(const AListener: TObject);
     procedure RemoveViewListener(const AListener: TObject);
-    procedure NotifyListeners(const AChangeKind: Word; const AParameter: TObject);
+    procedure NotifyListeners(const AHolder: TObject; const AChangeKind: Word; const AParameter: TObject);
   public
     constructor Create(const ADomain: TObject; const ADefinition: TDefinition); override;
     destructor Destroy; override;
@@ -113,7 +114,7 @@ type
 
     function CreateEntityFromJSON(const AEntityID: Integer;
       const AJSONObject: TJSONObject): TEntity;
-    procedure FillEntityFromJSON(const AEntity: TEntity;
+    procedure FillEntityFromJSON(const AHolder: TObject; const AEntity: TEntity;
       const AJSONObject: TJSONObject; const AIsNew: Boolean);
 
     function Find(const ASession: TUserSession; const AQuery: string; const AParams: array of Variant;
@@ -121,6 +122,7 @@ type
     procedure FindInto(const ASession: TUserSession; const AQuery: string; const AParams: array of Variant;
       const AList: TList<TEntity>; const AFindAll: Boolean = True);
     function FindOne(const ASession: TUserSession; const AQuery: string; const AParams: array of Variant): TEntity;
+    function FindSimilarEntity(const ASession: TObject; const AEntity: TEntity): TEntity;
 
     // This is a just way to get or release entity
     // Get existed entity
@@ -129,20 +131,17 @@ type
     function First: TEntity;
     // Add, Create New or Load entity
     // Wrappers for overridable methods
-    function _CreateNewEntity(const AHolder: TChangeHolder; const AID: Integer;
+    function _CreateNewEntity(const AHolder: TObject; const AID: Integer;
       const AFieldNames: string; const AValues: array of Variant; const AOwnerContext: TObject = nil;
       const ANeedInvokeScript: Boolean = True): TEntity;
-    function CreateDefaultEntity(const AHolder: TChangeHolder; const AID: Integer; const AFieldNames: string;
+    function CreateDefaultEntity(const AHolder: TObject; const AID: Integer; const AFieldNames: string;
       const AValues: array of Variant; const AIsService: Boolean = False): TEntity;
-    procedure RemoveEntity(const AEntity: TEntity);
     procedure MarkEntityAsDeleted(const AHolder: TObject; const AEntity: TEntity);
     procedure ProcessEntitySaving(const AHolder: TObject; const AEntity: TEntity);
     procedure GenerateEntityID(const AEntity: TEntity);
     function CloneEntity(const AHolder: TObject; const ASourceEntity: TEntity): TEntity;
 
     procedure SetCollectionAttributes(const AEntityClass: TEntityClass; const AContentDefinition: TDefinition);
-
-    function FindSimilarEntity(const ASession: TObject; const AEntity: TEntity): TEntity;
 
     function GetCaption: string;
 
@@ -368,10 +367,11 @@ end;
 type
   TCrackedField = class(TBaseField);
 
-function TCollection._CreateNewEntity(const AHolder: TChangeHolder; const AID: Integer;
+function TCollection._CreateNewEntity(const AHolder: TObject; const AID: Integer;
   const AFieldNames: string; const AValues: array of Variant; const AOwnerContext: TObject = nil;
   const ANeedInvokeScript: Boolean = True): TEntity;
 var
+  vHolder: TChangeHolder absolute AHolder;
   vField: TEntityField absolute AOwnerContext;
   vOwnerContext: TObject;
   vDocCode: string;
@@ -382,8 +382,7 @@ var
 begin
   Result := InternalCreateEntity(AID, True);
 
-  if Assigned(AHolder) then
-    AHolder.RegisterEntityCreating(Result);
+  vHolder.RegisterEntityCreating(Result);
 
   // Создание нового кода документа
   if (FContentDefinition.Kind = clkDocument) and FContentDefinition.FieldExists('DocCode') then
@@ -397,7 +396,7 @@ begin
     TCrackedEntity(Result).Populate(AFieldNames, AValues);
 
   // Оживляем созданную сущность
-  Result.SubscribeFields;
+  Result.SubscribeFields(AHolder);
 
   if Assigned(AOwnerContext) and (AOwnerContext is TBaseField) then
   begin
@@ -428,9 +427,9 @@ begin
     vOwnerContext := Self; // TODO: или передавать в качестве контекста TEntityList
 
   if ANeedInvokeScript then
-    TEntityCreationProc(TDomain(FDomain).Configuration.AfterEntityCreationProc)(AHolder, vOwnerContext, Result);
+    TEntityCreationProc(TDomain(FDomain).Configuration.AfterEntityCreationProc)(vHolder, vOwnerContext, Result);
 
-  NotifyListeners(dckListAdded, Result);
+  NotifyListeners(AHolder, dckListAdded, Result);
 end;
 
 function TCollection.CreateEntityFromJSON(const AEntityID: Integer; const AJSONObject: TJSONObject): TEntity;
@@ -446,7 +445,7 @@ begin
   Result.FillFromJSON(AJSONObject, True);
 end;
 
-function TCollection.CreateDefaultEntity(const AHolder: TChangeHolder; const AID: Integer; const AFieldNames: string;
+function TCollection.CreateDefaultEntity(const AHolder: TObject; const AID: Integer; const AFieldNames: string;
   const AValues: array of Variant; const AIsService: Boolean = False): TEntity;
 var
   i: Integer;
@@ -476,7 +475,7 @@ begin
     else if Length(AFieldNames) > 0 then
     begin
       Result.Populate(AFieldNames, AValues, False);
-      Result.SubscribeFields;
+      Result.SubscribeFields(AHolder);
     end;
   end;
 
@@ -552,24 +551,13 @@ end;
 procedure TCollection.DoLoadAll(const AStorage: TStorage);
 var
   vId: Integer;
-  vName: string;
   vEntity: TEntity;
 begin
   vId := AStorage.ReadValue('id', fkInteger);
   if Assigned(EntityByID(vId)) then
     Exit;
 
-  { TODO -owa : Убрать магическую константу 2 - это SysDefinition }
-  if (FContentDefinition = TDomain(FDomain).Configuration.RootDefinition) then
-  begin
-    vName := AStorage.ReadValue('name', fkString);
-    if SameText('SysDefinitions', vName) then
-      vEntity := Self
-    else
-      vEntity := InternalCreateEntity(vId, False);
-  end
-  else
-    vEntity := InternalCreateEntity(vId, False);
+  vEntity := InternalCreateEntity(vId, False);
   TCrackedEntity(vEntity).InternalLoad(AStorage);
 end;
 
@@ -635,13 +623,13 @@ begin
   end;
 end;
 
-procedure TCollection.FillEntityFromJSON(const AEntity: TEntity; const AJSONObject: TJSONObject; const AIsNew: Boolean);
+procedure TCollection.FillEntityFromJSON(const AHolder: TObject; const AEntity: TEntity; const AJSONObject: TJSONObject; const AIsNew: Boolean);
 begin
   if not Assigned(AEntity) then
     Exit;
 
   AEntity.FillFromJSON(AJSONObject, AIsNew);
-  NotifyListeners(dckEntityChanged, AEntity);
+  NotifyListeners(AHolder, dckEntityChanged, AEntity);
 end;
 
 function TCollection.Find(const ASession: TUserSession; const AQuery: string; const AParams: array of Variant;
@@ -869,12 +857,12 @@ begin
 
   TEntityChangingProc(TDomain(FDomain).Configuration.BeforeEntityRemovingProc)(TChangeHolder(AHolder), AEntity);
 
-  NotifyListeners(dckListRemoved, AEntity);
+  NotifyListeners(AHolder, dckListRemoved, AEntity);
 
   AEntity.SetDeleted(AHolder);
 end;
 
-procedure TCollection.NotifyListeners(const AChangeKind: Word; const AParameter: TObject);
+procedure TCollection.NotifyListeners(const AHolder: TObject; const AChangeKind: Word; const AParameter: TObject);
 var
   vMessage: TDomainChangedMessage;
   i: Integer;
@@ -884,6 +872,7 @@ begin
   vMessage.Kind := AChangeKind;
   vMessage.Sender := Self;
   vMessage.Parameter := AParameter;
+  vMessage.Holder := AHolder;
 
   for i := FListeners.Count - 1 downto 0 do
   begin
@@ -894,7 +883,7 @@ end;
 
 procedure TCollection.ProcessEntitySaving(const AHolder: TObject; const AEntity: TEntity);
 begin
-  NotifyListeners(dckEntitySaved, AEntity);
+  NotifyListeners(AHolder, dckEntitySaved, AEntity);
   TEntityChangingProc(TDomain(FDomain).Configuration.AfterEntitySavedProc)(TChangeHolder(AHolder), AEntity);
 end;
 
@@ -933,7 +922,7 @@ begin
   if FViewState = Value then
     Exit;
   FViewState := Value;
-  NotifyListeners(dckViewStateChanged, Self);
+  NotifyListeners(nil, dckViewStateChanged, Self);
 end;
 
 procedure TCollection.Subscribe;
@@ -941,7 +930,7 @@ var
   i: Integer;
 begin
   for i := 0 to FList.Count - 1 do
-    FList[i].SubscribeFields;
+    FList[i].SubscribeFields(TDomain(FDomain).DomainHolder);
 end;
 
 procedure TCollection.Unsubscribe;

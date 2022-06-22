@@ -53,7 +53,6 @@ type
     FAppTitle: string;
 
     FUIBuilder: TUIBuilder;
-    FUIHolder: TObject;
     FImages: TObjectDictionary<Integer, TObject>;
     FImageMap: TDictionary<Integer, Integer>;
     function GetImages(const AResolution: Integer): TObject;
@@ -62,12 +61,12 @@ type
     destructor Destroy; override;
 
     function GetViewOfEntity(const AEntity: TObject): TView;
-    function ShowEntityEditor(const AView: TView; const AChangeHolder: TObject; const ALayoutName: string = ''): Boolean;
-    function AtomicEditEntity(const AGetViewFunc: TGetViewFunc; const AParentHolder: TObject; const ALayoutName: string = ''): Boolean; overload;
-    function AtomicEditEntity(const AView: TView; const AParentHolder: TObject; const ALayoutName: string = ''): Boolean; overload;
-    function AtomicEditEntity(const AEntity: TObject; const AParentHolder: TObject; const ALayoutName: string = ''): Boolean; overload;
-    function AtomicEditParams(const AView: TView; const ALayoutName: string = ''): Boolean;
-    function EditParams(const AEntity: TObject; const ALayoutName: string = ''): Boolean;
+    function ShowEntityEditor(const AView: TView; const AChangeHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
+    function AtomicEditEntity(const AGetViewFunc: TGetViewFunc; const AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean; overload;
+    function AtomicEditEntity(const AView: TView; const AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean; overload;
+    function AtomicEditEntity(const AEntity: TObject; const AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean; overload;
+    function AtomicEditParams(const AView: TView; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
+    function EditParams(const AEntity: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
     procedure ViewEntity(const AView: TView; const ALayoutName: string = '');
 
     function Translate(const AKey: string; const ADefault: string = ''): string;
@@ -89,7 +88,6 @@ type
     property Layout: string read FLayout write FLayout;
     property AppTitle: string read FAppTitle;
     property Session: TObject read FSession;
-    property UIHolder: TObject read FUIHolder;
     property Domain: TObject read FDomain;
     property Configuration: TObject read FConfiguration;
   end;
@@ -104,7 +102,7 @@ uses
 { TInteractor }
 
 function TInteractor.AtomicEditEntity(const AGetViewFunc: TGetViewFunc; const AParentHolder: TObject;
-  const ALayoutName: string = ''): Boolean;
+  const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
 var
   vView: TView;
   vResult: Boolean;
@@ -117,7 +115,7 @@ begin
     end);
 
   try
-    vResult := ShowEntityEditor(vView, vHolder, ALayoutName);
+    vResult := ShowEntityEditor(vView, vHolder, ALayoutName, ACaption);
   finally
     TUserSession(FSession).DomainWrite(procedure
       begin
@@ -128,15 +126,15 @@ begin
   Result := vResult;
 end;
 
-function TInteractor.AtomicEditEntity(const AView: TView; const AParentHolder: TObject; const ALayoutName: string = ''): Boolean;
+function TInteractor.AtomicEditEntity(const AView: TView; const AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
 begin
   Result := AtomicEditEntity(function(const AHolder: TObject): TView
     begin
       Result := AView;
-    end, AParentHolder, ALayoutName);
+    end, AParentHolder, ALayoutName, ACaption);
 end;
 
-function TInteractor.AtomicEditEntity(const AEntity, AParentHolder: TObject; const ALayoutName: string): Boolean;
+function TInteractor.AtomicEditEntity(const AEntity, AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
 begin
   if not Assigned(AEntity) then
     Exit(False);
@@ -144,12 +142,12 @@ begin
   Result := AtomicEditEntity(function(const AHolder: TObject): TView
     begin
       Result := GetViewOfEntity(TEntity(AEntity));
-    end, AParentHolder, ALayoutName);
+    end, AParentHolder, ALayoutName, ACaption);
 end;
 
-function TInteractor.AtomicEditParams(const AView: TView; const ALayoutName: string = ''): Boolean;
+function TInteractor.AtomicEditParams(const AView: TView; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
 begin
-  Result := ShowEntityEditor(AView, nil, ALayoutName);
+  Result := ShowEntityEditor(AView, nil, ALayoutName, ACaption);
 end;
 
 constructor TInteractor.Create(const APresenter, ASession: TObject);
@@ -162,8 +160,6 @@ begin
   TUserSession(FSession).Interactor := Self;
   FDomain := TUserSession(ASession).Domain;
   FConfiguration := TDomain(FDomain).Configuration;
-
-  FUIHolder := nil;//TUserSession(FSession).Edit(nil);
 
   FUIBuilder := TUIBuilder.Create(Self);
 
@@ -179,9 +175,6 @@ end;
 
 destructor TInteractor.Destroy;
 begin
-  //TUserSession(FSession).Save(TChangeHolder(FUIHolder));
-  FreeAndNil(FUIHolder);
-
   FreeAndNil(FUIBuilder);
   FreeAndNil(FImageMap);
   FreeAndNil(FImages);
@@ -196,9 +189,9 @@ begin
   inherited Destroy;
 end;
 
-function TInteractor.EditParams(const AEntity: TObject; const ALayoutName: string = ''): Boolean;
+function TInteractor.EditParams(const AEntity: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
 begin
-  Result := ShowEntityEditor(GetViewOfEntity(AEntity), nil, ALayoutName);
+  Result := ShowEntityEditor(GetViewOfEntity(AEntity), nil, ALayoutName, ACaption);
 end;
 
 function TInteractor.GetImageIndex(const AImageID: Integer): Integer;
@@ -274,7 +267,7 @@ begin
     FUIBuilder.PrintHierarchy;
 end;
 
-function TInteractor.ShowEntityEditor(const AView: TView; const AChangeHolder: TObject; const ALayoutName: string = ''): Boolean;
+function TInteractor.ShowEntityEditor(const AView: TView; const AChangeHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
 var
   vEntity: TEntity;
   vLayoutName: string;
@@ -294,7 +287,7 @@ begin
   else
     vLayoutName := ALayoutName;
 
-  Result := FUIBuilder.Navigate(AView, 'child', vLayoutName, '', AChangeHolder) = drOk;
+  Result := FUIBuilder.Navigate(AView, 'child', vLayoutName, '', AChangeHolder, nil, ACaption) = drOk;
 end;
 
 procedure TInteractor.ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);

@@ -77,8 +77,8 @@ begin
     Exit;
   Caption := AInteractor.Translate('@' + Self.ClassName + '@Caption', 'О программе');
   lblName.Caption := AInteractor.AppTitle;
-  lblVersion.Caption := AInteractor.Translate('@' + Self.ClassName + '.lblVersion@Caption', 'Версия') + ': ' +
-    TConfiguration(AInteractor.Configuration).Version;
+  lblVersion.Caption := //AInteractor.Translate('@' + Self.ClassName + '.lblVersion@Caption', 'Версия') + ': ' +
+    TConfiguration(AInteractor.Configuration).VersionName;
   lblWeb.Caption := AInteractor.Translate('@' + Self.ClassName + '.lblWeb@Caption', 'Сайт') + ': ';
   lblAllRightsReserved.Caption := AInteractor.Translate('@' + Self.ClassName + '.lblAllRightsReserved@Caption',
     'Все права защищены') + '.';

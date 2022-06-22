@@ -44,6 +44,7 @@ type
     FQueryDef: TQueryDef;
     FResults: TList<TEntity>;
     FParameters: TDictionary<string, Variant>;
+    FCollectionName: string;
     procedure AddSorted(const AEntity: TEntity; const AStartPos: Integer;
       const ASortFields: TStrings = nil);
     function LessThanSecond(const AEntity1, AEntity2: TEntity;
@@ -63,7 +64,7 @@ type
     function CheckCriteriaIsMatch(const ACriteria: TBaseCriteria;
       const ASession: TObject; const AEntity: TEntity): Boolean;
   public
-    constructor Create(const AQueryDef: TQueryDef);
+    constructor Create(const AQueryDef: TQueryDef; const ACollectionName: string = '');
     destructor Destroy; override;
 
     function Select(const ASession: TObject; const AGetParameterFunc: TGetParameterFunc = nil): TList<TEntity>;
@@ -167,11 +168,11 @@ begin
     end;
 
     Assert(VarIsNull(vValue), 'Entity can be compared to fields only!');
-    vField := TBaseField(Integer(vValue));
+    vField := TBaseField(NativeInt(vValue));
     if (vField.FieldKind = fkObject) and (vParamCriteria.Condition = ckEqualTo) then
-      Result := vField.CheckValuedCondition(Integer(AEntity), ckEqualTo, cmNone)
+      Result := vField.CheckValuedCondition(NativeInt(AEntity), ckEqualTo, cmNone)
     else if (vField.FieldKind = fkList) and (vParamCriteria.Condition = ckPartOf) then
-      Result := vField.CheckValuedCondition(Integer(AEntity), ckContains, cmNone)
+      Result := vField.CheckValuedCondition(NativeInt(AEntity), ckContains, cmNone)
     else
       Assert(False, 'Wrong behaviour..');
   end
@@ -299,7 +300,7 @@ begin
       else begin
         if vValue > 0 then
         begin
-          vField := TEntity(Integer(vValue)).FieldByName(vParamCriteria.FieldPath);
+          vField := TEntity(NativeInt(vValue)).FieldByName(vParamCriteria.FieldPath);
           if Assigned(vField) then
             if vField.FieldKind in [fkString..fkObject] then
               Result := CheckCondition(AValue, vField.Value, AFieldKind, vParamCriteria.Condition, vParamCriteria.Modifier);
@@ -334,12 +335,13 @@ begin
     Assert(False, 'Wrong field type for comparision');
 end;
 
-constructor TQueryExecutor.Create(const AQueryDef: TQueryDef);
+constructor TQueryExecutor.Create(const AQueryDef: TQueryDef; const ACollectionName: string = '');
 begin
   inherited Create;
   FQueryDef := AQueryDef;
   FParameters := TDictionary<string, Variant>.Create;
   FResults := TList<TEntity>.Create;
+  FCollectionName := ACollectionName;
 end;
 
 destructor TQueryExecutor.Destroy;
@@ -414,14 +416,22 @@ begin
   FResults.Clear;
   if vAllParamsAssigned then
   begin
-    for vCollectionName in FQueryDef.CollectionNames do
+    if FCollectionName <> '' then
     begin
-      vStartPos := FResults.Count;
-      vCollection := TDomain(TUserSession(ASession).Domain).CollectionByName(vCollectionName);
+      vCollection := TDomain(TUserSession(ASession).Domain).CollectionByName(FCollectionName);
       for vEntity in vCollection do
         if IsMatch(ASession, vEntity) then
-          AddSorted(vEntity, vStartPos, FQueryDef.SortFields);
-    end;
+          AddSorted(vEntity, 0, FQueryDef.SortFields);
+    end
+    else
+      for vCollectionName in FQueryDef.CollectionNames do
+      begin
+        vStartPos := FResults.Count;
+        vCollection := TDomain(TUserSession(ASession).Domain).CollectionByName(vCollectionName);
+        for vEntity in vCollection do
+          if IsMatch(ASession, vEntity) then
+            AddSorted(vEntity, vStartPos, FQueryDef.SortFields);
+      end;
   end;
   Result := FResults;
 end;
@@ -441,11 +451,11 @@ begin
   begin
     vValue := Null;
     if vKey = '*' then
-      vValue := Integer(AEntity)
+      vValue := NativeInt(AEntity)
     else if vKey = '@' then
       vValue := 0
     else if vKey = '$' then
-      vValue := Integer(TUserSession(ASession).CurrentUser)
+      vValue := NativeInt(TUserSession(ASession).CurrentUser)
     else if Assigned(AEntity) then
     begin
       vField := AEntity.FieldByName(vKey);

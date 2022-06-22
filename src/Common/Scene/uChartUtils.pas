@@ -213,7 +213,7 @@ begin
 
   if cpoLogarithmic in AOptions then
   begin
-    Result.MinValue := Ceil(Log10(Max(AMinValue, 1)));
+    Result.MinValue := Ceil(Log10(Max(AMinValue, 0.1)));
     Result.MaxValue := Ceil(Log10(Max(AMaxValue, 1)));
   end
   else if cpoAlwaysIncludeZero in AOptions then
@@ -277,10 +277,10 @@ begin
   Result := 0;
   if cpoLogarithmic in AMetrics.Options then
   begin
-    for i := 0 to AMetrics.ItemsCount do
+    for i := -1 to AMetrics.ItemsCount - 1 do
     begin
       if i <= 1 then
-        vWidth := APainter.TextWidth(AStyle, AFontName, IntToStr(Round(IntPower(10, i))))
+        vWidth := APainter.TextWidth(AStyle, AFontName, '0.1')
       else begin
         vWidth := APainter.TextWidth(AStyle, AFontName, '10');
         vWidth := vWidth + APainter.TextWidth(AStyle, 'power', IntToStr(i)) + 1
@@ -363,13 +363,15 @@ begin
 
     if cpoLogarithmic in AMetrics.Options then
     begin
-      for i := 0 to AMetrics.ItemsCount do
+      for i := -1 to AMetrics.ItemsCount - 1 do
       begin
         vCurValue := i;
         if vCurValue > AMetrics.MaxValue then
           Break;
 
-        if i = 0 then
+        if i = -1 then
+          vCurText := '0.1'
+        else if i = 0 then
           vCurText := '1'
         else
           vCurText := '10';
@@ -379,7 +381,7 @@ begin
         else
           vCurPosition := AChartRect.Bottom - (vCurValue - AMetrics.MinValue) / AMetrics.Ratio;
 
-        if (vCurValue = 0) and (cpoHighlightZero in AMetrics.Options) then
+        if (vCurValue = -1) and (cpoHighlightZero in AMetrics.Options) then
           vStrokeName := 'axis'
         else
           vStrokeName := 'grid';

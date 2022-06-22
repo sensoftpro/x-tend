@@ -23,7 +23,6 @@ type
   private
     FScene: TScene;
     FChart: TSimpleChart;
-    FAliveRect: TAliveRect;
     procedure Measure;
   public
     { Public declarations }

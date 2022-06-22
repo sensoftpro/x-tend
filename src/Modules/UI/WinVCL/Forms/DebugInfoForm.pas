@@ -52,6 +52,7 @@ type
     memLog: TMemo;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
+    procedure FormActivate(Sender: TObject);
   private
     FInteractors: TStrings;
   public
@@ -88,17 +89,7 @@ begin
   UpdateDebugInfo;
 end;
 
-procedure TDebugFm.FormCreate(Sender: TObject);
-begin
-  FInteractors := TStringList.Create;
-end;
-
-procedure TDebugFm.FormDestroy(Sender: TObject);
-begin
-  FreeAndNil(FInteractors);
-end;
-
-procedure TDebugFm.UpdateDebugInfo;
+procedure TDebugFm.FormActivate(Sender: TObject);
 var
   vInteractor: TInteractor;
   i: Integer;
@@ -139,6 +130,38 @@ begin
     memView.Lines.EndUpdate;
     memHolders.Lines.EndUpdate;
     memLog.Lines.EndUpdate;
+  end;
+end;
+
+procedure TDebugFm.FormCreate(Sender: TObject);
+begin
+  FInteractors := TStringList.Create;
+end;
+
+procedure TDebugFm.FormDestroy(Sender: TObject);
+begin
+  FreeAndNil(FInteractors);
+end;
+
+procedure TDebugFm.UpdateDebugInfo;
+var
+  vInteractor: TInteractor;
+  i: Integer;
+begin
+  memHolders.Lines.BeginUpdate;
+
+  try
+    memHolders.Lines.Text := '';
+
+    for i := 0 to FInteractors.Count - 1 do
+    begin
+      vInteractor := TInteractor(FInteractors.Objects[i]);
+      memHolders.Lines.Text := memHolders.Lines.Text + AnsiUpperCase(FInteractors[i]) + #13#10#13#10 +
+        HoldersInfo(vInteractor) + #13#10#13#10;
+    end;
+
+  finally
+    memHolders.Lines.EndUpdate;
   end;
 end;
 

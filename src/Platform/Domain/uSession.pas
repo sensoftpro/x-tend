@@ -41,12 +41,13 @@ uses
 type
   TUserSession = class;
 
-  TReactionProc = procedure(const ASession: TUserSession; const AHolder: TChangeHolder;
+  TReactionProc = procedure(const AHolder: TChangeHolder;
     const AFieldChain: string; const AEntity, AParameter: TEntity);
-  TReactionProcRef = reference to procedure(const ASession: TUserSession; const AHolder: TChangeHolder;
+  TReactionProcRef = reference to procedure(const AHolder: TChangeHolder;
     const AFieldChain: string; const AEntity, AParameter: TEntity);
 
   TAtomicModificationFunc = reference to function(const AHolder: TChangeHolder): Boolean;
+  TAtomicExecutionProc = reference to procedure(const AHolder: TChangeHolder);
   TAtomicWriteProc = reference to procedure;
 
   TUserSession = class
@@ -58,6 +59,7 @@ type
     FIsAdmin: Boolean;
 
     FHolders: TObjectList<TChangeHolder>;
+    FAnemicHolder: TChangeHolder;
 
     function GetCurrentUserName: string;
     procedure SetInteractor(const Value: TObject);
@@ -71,6 +73,8 @@ type
     // Вызывается ТОЛЬКО для явных быстрых модификаций (без EditEntity), блокирующий
     function AtomicModification(const ATask: TTaskHandle; const AModificationFunc: TAtomicModificationFunc;
       const AParentHolder: TChangeHolder = nil; const ASkipLogging: Boolean = False): Boolean;
+    // Вызывается ТОЛЬКО для явных быстрых модификаций без сохранения состояния, блокирующий
+    function AtomicExecute(const ATask: TTaskHandle; const AExecutionProc: TAtomicExecutionProc): Boolean;
     // Вызывается для изменений из UI редакторов, блокирующий. Холдер находится в UI
     procedure AtomicWrite(const ATask: TTaskHandle; const AWriteProc: TAtomicWriteProc);
 
@@ -89,6 +93,7 @@ type
     procedure CheckLocking(const AExpectedResult: Boolean = True);
 
     property Holders: TObjectList<TChangeHolder> read FHolders;
+    property NullHolder: TChangeHolder read FAnemicHolder;
     property CurrentUser: TEntity read FUser;
     property CurrentUserName: string read GetCurrentUserName;
     property IsAdmin: Boolean read FIsAdmin;
@@ -143,7 +148,7 @@ begin
     if Assigned(vRole) then
     begin
       vRoles := TListField(AUser.FieldByName('Roles'));
-      {vUserRole := }vRoles.AddListEntity(AHolder, 'SysUsersRoles', 'Role', [Integer(vRole)]);
+      {vUserRole := }vRoles.AddListEntity(AHolder, 'SysUsersRoles', 'Role', [NativeInt(vRole)]);
       //vUserRole._SetFieldEntity(AHolder, 'Role', vRole);
     end;
   end;
@@ -190,7 +195,7 @@ procedure RegisterUserStatus(const ASession: TUserSession; const AUser: TEntity;
 begin
   ASession.AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
     begin
-      AHolder.SetFieldValue(AUser, 'Online', AOnline);
+      AUser._SetFieldValue(AHolder, 'Online', AOnline);
       Result := True;
     end, nil, True);
 end;
@@ -274,6 +279,25 @@ end;
 
 { TUserSession }
 
+function TUserSession.AtomicExecute(const ATask: TTaskHandle; const AExecutionProc: TAtomicExecutionProc): Boolean;
+begin
+  try
+    AtomicWrite(ATask, procedure
+      begin
+        AExecutionProc(FAnemicHolder);
+      end);
+    Result := True;
+  except
+    on E: Exception do
+    begin
+      if Assigned(FInteractor) then
+        TInteractor(FInteractor).ShowMessage('Произошла ошибка!'#13#10 + E.Message);
+      Result := False;
+      if Assigned(FDomain) then TDomain(FDomain).Log('Произошла ошибка!'#13#10 + E.Message, mkError);
+    end;
+  end;
+end;
+
 function TUserSession.AtomicModification(const ATask: TTaskHandle; const AModificationFunc: TAtomicModificationFunc;
   const AParentHolder: TChangeHolder = nil; const ASkipLogging: Boolean = False): Boolean;
 var
@@ -314,10 +338,11 @@ end;
 
 procedure TUserSession.Cancel(const AHolder: TChangeHolder);
 begin
-  DomainWrite(procedure
-    begin
-      ReleaseChangeHolder(AHolder, False, True);
-    end);
+  if not AHolder.IsAnemic then
+    DomainWrite(procedure
+      begin
+        ReleaseChangeHolder(AHolder, False, True);
+      end);
 end;
 
 procedure TUserSession.CheckLocking(const AExpectedResult: Boolean = True);
@@ -337,6 +362,7 @@ begin
   FUser := AUser;
 
   FHolders := TObjectList<TChangeHolder>.Create;
+  FAnemicHolder := TChangeHolder.Create(Self, nil, True);;
 
   if Assigned(FUser) then
   begin
@@ -356,6 +382,7 @@ begin
 
   FDomain := nil;
   FUser := nil;
+  FreeAndNil(FAnemicHolder);
   for i := FHolders.Count - 1 downto 0 do
     FHolders[i].RevertChanges;
   FreeAndNil(FHolders);
@@ -462,27 +489,24 @@ end;
 
 procedure TUserSession.ReloadDomainChanges(const AHolder: TChangeHolder);
 begin
-  TDomain(FDomain).ReloadChanges(FInteractor, AHolder);
+  TDomain(FDomain).ReloadChanges(AHolder);
 end;
 
 function TUserSession.RetainChangeHolder(const AParentHolder: TChangeHolder): TChangeHolder;
 begin
   CheckLocking;
   TDomain(FDomain).Logger.AddEnterMessage('$$$ RETAIN HOLDER');
-  Result := TChangeHolder.Create(Self, AParentHolder);
+  Result := TChangeHolder.Create(Self, AParentHolder, False);
 
   FHolders.Add(Result);
 end;
 
 procedure TUserSession.Save(const AHolder: TChangeHolder);
 begin
-  if Assigned(AHolder) then
-  begin
-    DomainWrite(procedure
-      begin
-        InternalReleaseChangeHolder(AHolder, True, False);
-      end);
-  end;
+  DomainWrite(procedure
+    begin
+      InternalReleaseChangeHolder(AHolder, True, False);
+    end);
 end;
 
 procedure TUserSession.SetInteractor(const Value: TObject);

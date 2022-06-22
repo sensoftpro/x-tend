@@ -59,7 +59,6 @@ type
     function Locked: Boolean;
   end;
 
-
   // в домене должна быть возможность прямого указания на соединение
   // например, домен заказа еды м.б. связан с телеграм-ботами @feed, @eda и т.п.
 
@@ -86,14 +85,14 @@ type
     FActualLogID: Integer;
     FSessions: TUserSessions;
     FDomainSession: TUserSession;
+    FDomainHolder: TChangeHolder;
 
     FDataLock: TDomainLock;
 
     FOnError: TNotifyErrorEvent;
     FOnProgress: TNotifyProgressEvent;
 
-    procedure ApplyChanges(const AInteractor: TObject; const AChanges: TJSONObject;
-      const AHolder: TChangeHolder = nil);
+    procedure ApplyChanges(const AHolder: TObject; const AChanges: TJSONObject);
   private
     FCollections: TStringDictionary<TCollection>;
     FRootCollection: TCollection;
@@ -133,7 +132,7 @@ type
 
     // storage
     function Now: TDateTime;
-    procedure ReloadChanges(const AInteractor: TObject; const AHolder: TChangeHolder);
+    procedure ReloadChanges(const AHolder: TObject);
     procedure ImportChanges(const AChanges: TJSONObject);
 
     // object extensions
@@ -154,7 +153,7 @@ type
 
     function LoadCollection(const ACollectionName: string): TCollection;
 
-    function CreateNewEntity(const ACollectionName: string; const AHolder: TObject;
+    function CreateNewEntity(const AHolder: TObject; const ACollectionName: string;
       const AID: Integer = cNewID; const AOwnerContext: TObject = nil): TEntity;
     function EntityByID(const ACollectionName: string; const AID: Integer): TEntity;
     function FirstEntity(const ACollectionName: string): TEntity;
@@ -192,6 +191,7 @@ type
 
     property Sessions: TUserSessions read FSessions;
     property DomainSession: TUserSession read FDomainSession;
+    property DomainHolder: TChangeHolder read FDomainHolder;
     property Storage: TStorage read FStorage;
     property Configuration: TConfiguration read FConfiguration;
     property Module[const AName: string]: TBaseModule read GetModuleByName;
@@ -206,7 +206,7 @@ implementation
 
 uses
   Types, SysUtils, StrUtils, IOUtils, Math, Variants, IniFiles,
-  uPlatform, uQueryDef, uQuery, uMigration, uUtils;
+  uPlatform, uQueryDef, uQuery, uMigration, uUtils, uView;
 
 type
   TCreateDefaultEntitiesProc = procedure (const ADomain: TObject) of object;
@@ -216,9 +216,9 @@ type
 
 { TDomain }
 
-procedure TDomain.ApplyChanges(const AInteractor: TObject; const AChanges: TJSONObject;
-  const AHolder: TChangeHolder = nil);
+procedure TDomain.ApplyChanges(const AHolder: TObject; const AChanges: TJSONObject);
 var
+  vInteractor: TObject;
   vPair: TJSONPair;
   vUpdates: TJSONArray;
   vUpdate: TJSONObject;
@@ -235,6 +235,8 @@ var
   vLogID: Integer;
   vContext: string;
 begin
+  Assert(Assigned(AHolder), 'Пустой холдер в методе');
+  vInteractor := TChangeHolder(AHolder).Interactor;
   vJustCreated := TList<TEntity>.Create;
   vLogID := -1;
   try
@@ -247,7 +249,7 @@ begin
         vLogID := TJSONNumber(vUpdate.Get('log_id').JsonValue).AsInt;
         vActions := TJSONArray(vUpdate.Get('actions').JsonValue);
 
-        if Assigned(AInteractor) then
+        if Assigned(vInteractor) then
         begin
           vContext := vUpdate.Get('log_time').JsonValue.Value + ' ' + Format(Translate('fmtUserChangedField',
             'пользователь %s изменил значение поля %%s записи %%s'), [AnsiUpperCase(vUpdate.Get('user_name').JsonValue.Value)]) +
@@ -285,9 +287,8 @@ begin
                 begin
                   // Убрать поля, которые конфликтуют, записать их в холдер
                   //   инициировать пересчеты калькулируемых полей
-                  if Assigned(AHolder) then
-                    AHolder.ProcessUpdatingEntity(AInteractor, vEntity, vFields, vContext);
-                  CollectionByName(vCollection).FillEntityFromJSON(vEntity, vFields, False);
+                  TChangeHolder(AHolder).ProcessUpdatingEntity(vInteractor, vEntity, vFields, vContext);
+                  CollectionByName(vCollection).FillEntityFromJSON(AHolder, vEntity, vFields, False);
                   vEntity.LogID := vActionID;
                 end;
               end;
@@ -298,12 +299,11 @@ begin
                   vJustCreated.Remove(vEntity);
 
                   // Убрать все ссылки на изменения в холдерах
-                  if Assigned(AHolder) then
-                    AHolder.ProcessDeletingEntity(vEntity);
+                  TChangeHolder(AHolder).ProcessDeletingEntity(vEntity);
 
                   FLoadingChanges := True;
                   try
-                    CollectionByName(vCollection).MarkEntityAsDeleted(nil, vEntity);
+                    CollectionByName(vCollection).MarkEntityAsDeleted(AHolder, vEntity);
                   finally
                     FLoadingChanges := False;
                   end;
@@ -320,8 +320,8 @@ begin
         begin
           FLoadingChanges := True;
           try
-            vEntity.SubscribeFields;
-            TCollection(vEntity.Collection).NotifyListeners(dckListAdded, vEntity);
+            vEntity.SubscribeFields(AHolder);
+            TCollection(vEntity.Collection).NotifyListeners(AHolder, dckListAdded, vEntity);
           finally
             FLoadingChanges := False;
           end;
@@ -345,7 +345,11 @@ end;
 
 function TDomain.CollectionByID(const AID: Integer): TCollection;
 begin
-  Result := TCollection(FRootCollection.EntityByID(AID));
+  if AID = 0 then
+  // ID = 0 у коллекции SysDefinitions
+    Result := FRootCollection
+  else
+    Result := TCollection(FRootCollection.EntityByID(AID));
 end;
 
 function TDomain.CollectionByStorageName(const AStorageName: string): TCollection;
@@ -445,20 +449,21 @@ begin
 
   FSessions := TUserSessions.Create(Self);
   FDomainSession := FSessions.AddSession(nil);
+  FDomainHolder := FDomainSession.NullHolder;
 
   FCollections := TStringDictionary<TCollection>.Create;
   FRootCollection := TCollection.Create(Self, FConfiguration.RootDefinition);
   FRootCollection.SetCollectionAttributes(TCollection, FConfiguration.RootDefinition);
 end;
 
-function TDomain.CreateNewEntity(const ACollectionName: string; const AHolder: TObject; const AID: Integer;
+function TDomain.CreateNewEntity(const AHolder: TObject; const ACollectionName: string; const AID: Integer;
   const AOwnerContext: TObject): TEntity;
 var
   vCollection: TCollection;
 begin
   vCollection := CollectionByName(ACollectionName);
   if Assigned(vCollection) then
-    Result := vCollection._CreateNewEntity(TChangeHolder(AHolder), AID, '', [], AOwnerContext, True)
+    Result := vCollection._CreateNewEntity(AHolder, AID, '', [], AOwnerContext, True)
   else
     Result := nil;
 end;
@@ -785,7 +790,7 @@ begin
                     // Пришедшая сущность могла уже быть удалена
                     if Assigned(vEntity) then
                     begin
-                      vCollection.FillEntityFromJSON(vEntity, vFields, False);
+                      vCollection.FillEntityFromJSON(AHolder, vEntity, vFields, False);
                       vEntity.LogID := vActionID;
                     end;
                   end;
@@ -797,7 +802,7 @@ begin
 
                       FLoadingChanges := True;
                       try
-                        vCollection.MarkEntityAsDeleted(nil, vEntity);
+                        vCollection.MarkEntityAsDeleted(AHolder, vEntity);
                       finally
                         FLoadingChanges := False;
                       end;
@@ -814,8 +819,8 @@ begin
             begin
               FLoadingChanges := True;
               try
-                vEntity.SubscribeFields;
-                TCollection(vEntity.Collection).NotifyListeners(dckListAdded, vEntity);
+                vEntity.SubscribeFields(AHolder);
+                TCollection(vEntity.Collection).NotifyListeners(AHolder, dckListAdded, vEntity);
               finally
                 FLoadingChanges := False;
               end;
@@ -1119,7 +1124,7 @@ begin
   // Приоритетным источником загрузки является хранилище
   FRootCollection.LoadAll(FStorage, False);
 
-{  FDomainSession.AtomicModification(function: Boolean
+{  FDomainSession.AtomicModification(function(const AHolder: TChangeHolder): Boolean
     var
       vCollection: TCollection;
       vCollectionName: string;
@@ -1149,14 +1154,14 @@ begin
       for vSyncDefinition in FConfiguration.Definitions do
       begin
         if (vSyncDefinition.Kind = clkMixin) or (vSyncDefinition.Name = 'Numerators')
-          //or (vSyncDefinition.Name = 'SysDefinitions')
+          //or (vSyncDefinition.Name = '-')
         then
           Continue;
 
         if vSyncDefinition = FConfiguration.RootDefinition then
         begin
           vDefEntity := FRootCollection;
-          vHolder := nil;
+          vHolder := FDomainHolder;
         end
         else begin
           // Search by Name
@@ -1189,7 +1194,7 @@ begin
   FStorage.UpdateNumerator(FConfiguration.RootDefinition.StorageName, FRootCollection.MaxID);
 end;
 
-procedure TDomain.ReloadChanges(const AInteractor: TObject; const AHolder: TChangeHolder);
+procedure TDomain.ReloadChanges(const AHolder: TObject);
 var
   vJSONObject: TJSONObject;
 begin
@@ -1198,7 +1203,7 @@ begin
     Exit;
 
   try
-    ApplyChanges(AInteractor, vJSONObject, AHolder);
+    ApplyChanges(AHolder, vJSONObject);
   finally
     vJSONObject.Free;
   end;

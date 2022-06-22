@@ -50,7 +50,6 @@ type
 type
   TWinVCLPresenter = class(TPresenter)
   private
-    function InternalMessageBox(const AText, ACaption: string; Flags: Longint; ALangID: Word): Integer;
     procedure LoadImages(const AInteractor: TInteractor; const AImageList: TDragImageList; const AResolution: Integer);
     procedure DoToggleUI(const AVisible: Boolean); // Rethink
     procedure DoTrayIconClick(Sender: TObject);
@@ -69,8 +68,6 @@ type
     procedure DoChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure DoFloatFormClose(Sender: TObject; var Action: TCloseAction);
     procedure DoMainFormClose(Sender: TObject; var Action: TCloseAction);
-    procedure DoAuthFormNavigated(ASender: TObject; const pDisp: IDispatch; const URL: OleVariant);
-    procedure DoAuthFormClose(Sender: TObject; var Action: TCloseAction);
     procedure DoDebugFormClose(Sender: TObject; var Action: TCloseAction);
     procedure OnShortCut(var Msg: TWMKey; var Handled: Boolean);
     procedure DoOnFormShow(Sender: TObject);
@@ -82,8 +79,6 @@ type
 
     function DoLogin(const ADomain: TObject): TInteractor; override;
     procedure DoLogout(const AInteractor: TInteractor); override;
-    procedure DoAuthorize(const AAccount: TObject; const AUrl: string; const AWidth, AHeight: Integer;
-      const AOnNavigated: TNavigateEvent); override;
 
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); override;
     function DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult; override;
@@ -99,6 +94,11 @@ type
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; override;
     procedure StoreUILayout(const AInteractor: TInteractor); override;
     procedure RestoreUILayout(const AInteractor: TInteractor); override;
+    function GetViewNameByLayoutType(const ALayout: TObject): string; override;
+    procedure DoEnumerateControls(const ALayout: TObject; const AControls: TList<TObject>); override;
+    procedure DoSetLayoutCaption(const ALayout: TObject; const ACaption: string); override;
+    function DoGetLayoutCaption(const ALayout: TObject): string; override;
+    function DoGetLayoutKind(const ALayout: TObject): TLayoutKind; override;
   public
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
@@ -124,11 +124,11 @@ type
 implementation
 
 uses
-  Dialogs, Math, MultiMon, StrUtils, ShellAPI, WinInet, SHDocVw, ActiveX,
+  Dialogs, Math, MultiMon, StrUtils, ShellAPI, ActiveX,
   cxGraphics, dxGDIPlusClasses, cxImage, cxEdit, cxPC, cxLookAndFeels, cxLookAndFeelPainters, cxStyles, cxMemo,
 
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity, uEntityList, vclArea, uSession,
-  uManagedForm, AboutForm, ReportConfigureForm, OptionsForm, uOAuthForm, LoginForm;
+  uManagedForm, AboutForm, ReportConfigureForm, OptionsForm, LoginForm;
 
 type
   TLoginedProc = procedure(const AInteractor: TInteractor) of object;
@@ -377,6 +377,25 @@ begin
   FDebugForm := nil;
 end;
 
+procedure TWinVCLPresenter.DoEnumerateControls(const ALayout: TObject; const AControls: TList<TObject>);
+var
+  vParentControl: TWinControl;
+  i: Integer;
+begin
+  if not (ALayout is TWinControl) then
+    Exit;
+  if TWinControl(ALayout).ControlCount <= 0 then
+    Exit;
+
+  vParentControl := TWinControl(ALayout);
+  for i := 0 to vParentControl.ComponentCount - 1 do
+    if vParentControl.Components[i] is TMenu then
+      AControls.Add(vParentControl.Components[i]);
+
+  for i := 0 to vParentControl.ControlCount - 1 do
+    AControls.Add(vParentControl.Controls[i]);
+end;
+
 procedure TWinVCLPresenter.DoFloatFormClose(Sender: TObject; var Action: TCloseAction);
 var
   vForm: TForm;
@@ -416,6 +435,34 @@ begin
   finally
     vCloseView.RemoveListener(vArea);
   end;
+end;
+
+function TWinVCLPresenter.DoGetLayoutCaption(const ALayout: TObject): string;
+begin
+  if ALayout is TPageControl then
+    Result := TPageControl(ALayout).Hint
+  else if ALayout is TMemo then
+  begin
+    TMemo(ALayout).WordWrap := False;
+    TMemo(ALayout).WantReturns := False;
+    Result := TMemo(ALayout).Lines.Text;
+  end
+  else
+    Result := TPanel(ALayout).Caption;
+end;
+
+function TWinVCLPresenter.DoGetLayoutKind(const ALayout: TObject): TLayoutKind;
+begin
+  if ALayout is TPanel then
+    Result := lkPanel
+  else if ALayout is TTabSheet then
+    Result := lkPage
+  else if ALayout is TPageControl then
+    Result := lkPages
+  else if ALayout is TMemo then
+    Result := lkMemo
+  else
+    Result := lkFrame;
 end;
 
 procedure TWinVCLPresenter.LoadImages(const AInteractor: TInteractor;
@@ -551,7 +598,7 @@ begin
     else if Msg.CharCode = Ord('R') then
     begin
       Handled := True;
-      TDomain(vActiveInteractor.Domain).ReloadChanges(nil, nil);
+      TDomain(vActiveInteractor.Domain).ReloadChanges(TDomain(vActiveInteractor.Domain).DomainHolder);
     end;
   end;
 end;
@@ -633,7 +680,7 @@ begin
   vMainFormName := vDomain.Settings.GetValue('Core', 'MainForm', '');
   if Trim(vMainFormName) = '' then
     vMainFormName := 'MainForm';
-  Result.UIBuilder.Navigate(nil, '', vMainFormName, ''{, Result.UIHolder});
+  Result.UIBuilder.Navigate(nil, '', vMainFormName, '', vSession.NullHolder);
 
   TLoginedProc(vDomain.Configuration.LoginedProc)(Result);
 
@@ -873,106 +920,6 @@ begin
   LoadForm(vMainForm, 'MainForm');
 end;
 
-procedure DeleteIECache;
-var
-  lpEntryInfo: PInternetCacheEntryInfo;
-  hCacheDir: LongWord;
-  dwEntrySize: LongWord;
-begin
-  dwEntrySize := 0;
-  FindFirstUrlCacheEntry(nil, TInternetCacheEntryInfo(nil^), dwEntrySize);
-  GetMem(lpEntryInfo, dwEntrySize);
-  if dwEntrySize > 0 then lpEntryInfo^.dwStructSize := dwEntrySize;
-  hCacheDir := FindFirstUrlCacheEntry(nil, lpEntryInfo^, dwEntrySize);
-  if hCacheDir <> 0 then
-  begin
-    repeat
-      DeleteUrlCacheEntry(lpEntryInfo^.lpszSourceUrlName);
-      FreeMem(lpEntryInfo, dwEntrySize);
-      dwEntrySize := 0;
-      FindNextUrlCacheEntry(hCacheDir, TInternetCacheEntryInfo(nil^), dwEntrySize);
-      GetMem(lpEntryInfo, dwEntrySize);
-      if dwEntrySize > 0 then lpEntryInfo^.dwStructSize := dwEntrySize;
-    until not FindNextUrlCacheEntry(hCacheDir, lpEntryInfo^, dwEntrySize);
-  end;
-  FreeMem(lpEntryInfo, dwEntrySize);
-  FindCloseUrlCache(hCacheDir);
-end;
-
-type
-  PAuthData = ^TAuthData;
-  TAuthData = record
-    Account: TObject;
-    NavFunction: TNavigateEvent;
-  end;
-
-procedure TWinVCLPresenter.DoAuthFormClose(Sender: TObject; var Action: TCloseAction);
-var
-  vAuthForm: TfrmOAuth absolute Sender;
-  vAuthData: PAuthData;
-begin
-  vAuthForm.wbrAuthData.OnNavigateComplete2 := nil;
-  if vAuthForm.wbrAuthData.Busy then
-    vAuthForm.wbrAuthData.Stop;
-
-  vAuthData := PAuthData(vAuthForm.Tag);
-  Dispose(vAuthData);
-
-  Action := caFree;
-end;
-
-procedure TWinVCLPresenter.DoAuthFormNavigated(ASender: TObject; const pDisp: IDispatch; const URL: OleVariant);
-var
-  vAuthForm: TfrmOAuth;
-  vAuthData: PAuthData;
-begin
-  vAuthForm := TfrmOAuth(TWebBrowser(ASender).Owner);
-  vAuthData := PAuthData(vAuthForm.Tag);
-  if not Assigned(vAuthData) then
-    Exit;
-  if not Assigned(vAuthData^.NavFunction) then
-    Exit;
-
-  if vAuthData^.NavFunction(vAuthData^.Account, URL) then
-    vAuthForm.Close;
-end;
-
-procedure TWinVCLPresenter.DoAuthorize(const AAccount: TObject; const AUrl: string;
-  const AWidth, AHeight: Integer; const AOnNavigated: TNavigateEvent);
-var
-  vAuthForm: TfrmOAuth;
-  vAuthData: PAuthData;
-  vFlags: OleVariant;
-begin
-  try
-    DeleteIECache;
-  except
-  end;
-
-  vAuthForm := TfrmOAuth.Create(nil);
-  vAuthForm.ClientWidth := 680;
-  vAuthForm.ClientHeight := 540;
-  vAuthForm.OnClose := DoAuthFormClose;
-
-  New(vAuthData);
-  vAuthData^.Account := AAccount;
-  vAuthData^.NavFunction := AOnNavigated;
-  vAuthForm.Tag := Integer(vAuthData);
-
-  vAuthForm.wbrAuthData.OnNavigateComplete2 := DoAuthFormNavigated;
-  try
-    vFlags := Cardinal(navNoReadFromCache or navNoWriteToCache or navNoHistory);
-    vAuthForm.wbrAuthData.Navigate2(AUrl);
-    vAuthForm.Show;
-  except
-    on E: Exception do
-    begin
-      vAuthForm.Free;
-      raise;
-    end;
-  end;
-end;
-
 procedure TWinVCLPresenter.DoChildFormClose(Sender: TObject; var Action: TCloseAction);
 var
   vForm: TForm;
@@ -984,6 +931,7 @@ var
   vChildArea: TVCLArea;
   i: Integer;
   vCanBeClosed: Boolean;
+  vCloseProc: TProc;
 
   function GetUnfilledRequiredFields(const AArea: TUIArea; var AFields: string): Boolean;
   var
@@ -1062,6 +1010,7 @@ begin
     end;
   end;
 
+  vCloseProc := nil;
   vCloseView := vView.BuildView('Close');
   vCloseView.AddListener(vArea);
   try
@@ -1070,6 +1019,7 @@ begin
 
     if vCanBeClosed then
     begin
+      vCloseProc := TVCLArea(vArea).OnClose;
       if vForm.ModalResult = mrOk then
         DoValidation
       else
@@ -1095,6 +1045,9 @@ begin
   finally
     vCloseView.RemoveListener(vArea);
   end;
+
+  if Assigned(vCloseProc) then
+    vCloseProc;
 end;
 
 procedure TWinVCLPresenter.DoChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -1280,12 +1233,18 @@ begin
 
   OnDomainLoadProgress(100, '');
 
+  Application.HintHidePause := -1;
   Application.Run;
 end;
 
 procedure TWinVCLPresenter.DoSetCursor(const ACursorType: TCursorType);
 begin
   Screen.Cursor := cCursors[ACursorType];
+end;
+
+procedure TWinVCLPresenter.DoSetLayoutCaption(const ALayout: TObject; const ACaption: string);
+begin
+  TPanel(ALayout).Caption := ACaption;
 end;
 
 function TWinVCLPresenter.DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
@@ -1307,7 +1266,7 @@ begin
     Exit;
   end;
 
-  vRes := InternalMessageBox(AText, ACaption, vFlags, MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL));
+  vRes := Application.MessageBox(PChar(AText), PChar(ACaption), vFlags); //MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL));
     //MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US)); //MAKELANGID(LANG_FRENCH, SUBLANG_FRENCH));
   if vRes = IDOK then
     Result := drOk
@@ -1329,8 +1288,8 @@ begin
     vCaption := 'Message'
   else
     vCaption := ACaption;
-  InternalMessageBox(AText, vCaption, MB_OK or MessageTypeToMBFlags(AMessageType),
-    MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US));
+  Application.MessageBox(PChar(AText), PChar(vCaption), MB_OK or MessageTypeToMBFlags(AMessageType));
+    //MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US));
 end;
 
 function TWinVCLPresenter.DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt,
@@ -1345,6 +1304,7 @@ begin
     vOpenDialog.Filter := AFilter;
     vOpenDialog.DefaultExt := ADefaultExt;
     vOpenDialog.FileName := AFileName;
+    vOpenDialog.Options := vOpenDialog.Options + [ofFileMustExist, ofPathMustExist];
     if ADefaultDir <> '' then
       vOpenDialog.InitialDir := ADefaultDir
     else if AFileName <> '' then
@@ -1425,6 +1385,14 @@ begin
   Application.ProcessMessages;
 end;
 
+function TWinVCLPresenter.GetViewNameByLayoutType(const ALayout: TObject): string;
+begin
+  if ALayout is TPageControl then
+    Result := 'pages'
+  else
+    Result := inherited;
+end;
+
 function TWinVCLPresenter.GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
 begin
   case AFieldDef.Kind of
@@ -1434,49 +1402,6 @@ begin
     fkCurrency: Result := 80;
   else
     Result := AWidth - 4;
-  end;
-end;
-
-function TWinVCLPresenter.InternalMessageBox(const AText, ACaption: string; Flags: Longint; ALangID: Word): Integer;
-var
-  ActiveWindow, TaskActiveWindow: HWnd;
-  MBMonitor, AppMonitor: HMonitor;
-  MonInfo: TMonitorInfo;
-  Rect: TRect;
-  FocusState: TFocusState;
-  WindowList: TTaskWindowList;
-begin
-  ActiveWindow := Application.ActiveFormHandle;
-  if ActiveWindow = 0 then
-    TaskActiveWindow := Application.Handle
-  else
-    TaskActiveWindow := ActiveWindow;
-  MBMonitor := MonitorFromWindow(ActiveWindow, MONITOR_DEFAULTTONEAREST);
-  AppMonitor := MonitorFromWindow(Application.Handle, MONITOR_DEFAULTTONEAREST);
-  if MBMonitor <> AppMonitor then
-  begin
-    MonInfo.cbSize := Sizeof(TMonitorInfo);
-    GetMonitorInfo(MBMonitor, @MonInfo);
-    GetWindowRect(Application.Handle, Rect);
-    SetWindowPos(Application.Handle, 0,
-      MonInfo.rcMonitor.Left + ((MonInfo.rcMonitor.Right - MonInfo.rcMonitor.Left) div 2),
-      MonInfo.rcMonitor.Top + ((MonInfo.rcMonitor.Bottom - MonInfo.rcMonitor.Top) div 2),
-      0, 0, SWP_NOACTIVATE or SWP_NOREDRAW or SWP_NOSIZE or SWP_NOZORDER);
-  end;
-  WindowList := DisableTaskWindows(ActiveWindow);
-  FocusState := SaveFocusState;
-  if Application.UseRightToLeftReading then Flags := Flags or MB_RTLREADING;
-  try
-    Result := MessageBoxEx(TaskActiveWindow, PChar(AText), PChar(ACaption), Flags, ALangID);
-  finally
-    if MBMonitor <> AppMonitor then
-      SetWindowPos(Application.Handle, 0,
-        Rect.Left + ((Rect.Right - Rect.Left) div 2),
-        Rect.Top + ((Rect.Bottom - Rect.Top) div 2),
-        0, 0, SWP_NOACTIVATE or SWP_NOREDRAW or SWP_NOSIZE or SWP_NOZORDER);
-    EnableTaskWindows(WindowList);
-    SetActiveWindow(ActiveWindow);
-    RestoreFocusState(FocusState);
   end;
 end;
 

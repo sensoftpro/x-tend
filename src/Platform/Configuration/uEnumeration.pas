@@ -80,6 +80,7 @@ type
     FTypeInfo: PTypeInfo;
     FIndexType: TOrdType;
     function GetItem(const AID: Integer): TEnumItem;
+    function GetCount: Integer;
   protected
     constructor Create(const AName: string; const ATypeInfo: PTypeInfo; const AEnumItemClass: TEnumItemClass);
   public
@@ -88,7 +89,8 @@ type
 
     function AddDisplayNames(const ADefaultValues: array of string): TEnumeration;
     function AddIDs(const AIDs: array of Integer): TEnumeration;
-    property Items[const AID: Integer]: TEnumItem read GetItem;
+    property Items[const AID: Integer]: TEnumItem read GetItem; default;
+    property Count: Integer read GetCount;
 
     function GetEnumerator: TEnumerator<TEnumItem>;
     function GetItemByDisplayText(const AName: string): TEnumItem;
@@ -179,6 +181,11 @@ begin
   FreeAndNil(FItems);
 
   inherited Destroy;
+end;
+
+function TEnumeration.GetCount: Integer;
+begin
+  Result := FItems.Count;
 end;
 
 function TEnumeration.GetEnumerator: TEnumerator<TEnumItem>;

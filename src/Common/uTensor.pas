@@ -168,7 +168,7 @@ begin
   FDimensions[0] := FDimensions[0] + vSize div vRequiredTensorSize;
   Reshape;
 
-  Move(AValues[0], Pointer(Integer(FData) + vOldDataSize)^, vSize * FValueSize);
+  Move(AValues[0], Pointer(NativeInt(FData) + vOldDataSize)^, vSize * FValueSize);
 end;
 
 procedure TTensor.Append(const AValue: Double);
@@ -198,7 +198,7 @@ begin
   for i := 0 to vSize - 1 do
   begin
     vTensor := ATensors[i];
-    Move(vTensor.FData, Pointer(Integer(FData) + vOldDataSize + i * vTensor.DataSize)^, vTensor.DataSize);
+    Move(vTensor.FData, Pointer(NativeInt(FData) + vOldDataSize + i * vTensor.DataSize)^, vTensor.DataSize);
   end;
 end;
 
@@ -329,7 +329,7 @@ begin
     if vNewMapSize > FFilledMapSize then
     begin
       FData := ReallocMemory(FData, vNewMapSize);
-      FillChar(Pointer(Integer(FData) + FFilledMapSize)^, vNewMapSize - FFilledMapSize, 0);
+      FillChar(Pointer(NativeInt(FData) + FFilledMapSize)^, vNewMapSize - FFilledMapSize, 0);
       FFilledMapSize := vNewMapSize;
     end;
   end
@@ -676,8 +676,8 @@ var
       else begin
         vPrevRemovingIndex := vStartIndex + vRemovingCount - 1;
         vInsertingCount := vNextRemovingIndex - vPrevRemovingIndex - 1;
-        Move(Pointer(Integer(FData) + (vPrevRemovingIndex + 1) * FValueSize)^,
-          Pointer(Integer(FData) + vInsertIndex * FValueSize)^, vInsertingCount * FValueSize);
+        Move(Pointer(NativeInt(FData) + (vPrevRemovingIndex + 1) * FValueSize)^,
+          Pointer(NativeInt(FData) + vInsertIndex * FValueSize)^, vInsertingCount * FValueSize);
         //MoveMemory(Pointer(Integer(FData) + vInsertIndex * FValueSize),
         //  Pointer(Integer(FData) + (vPrevRemovingIndex + 1) * FValueSize), vInsertingCount * FValueSize);
 
@@ -692,8 +692,8 @@ var
       vPrevRemovingIndex := ARemovingIndexes.Last;
       vInsertingCount := FTensorSize - vPrevRemovingIndex - 1;
       if vInsertingCount > 0 then
-        Move(Pointer(Integer(FData) + (vPrevRemovingIndex + 1) * FValueSize)^,
-          Pointer(Integer(FData) + vInsertIndex * FValueSize)^, vInsertingCount * FValueSize);
+        Move(Pointer(NativeInt(FData) + (vPrevRemovingIndex + 1) * FValueSize)^,
+          Pointer(NativeInt(FData) + vInsertIndex * FValueSize)^, vInsertingCount * FValueSize);
         //MoveMemory(Pointer(Integer(FData) + vInsertIndex * FValueSize),
         //  Pointer(Integer(FData) + (vPrevRemovingIndex + 1) * FValueSize), vInsertingCount * FValueSize);
     end;

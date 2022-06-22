@@ -44,6 +44,7 @@ type
     [Weak] FField: TObject;
     FOnChanged: TNotifyEvent;
   protected
+    FDomain: TObject;
     FStorageName: string;
     procedure DoFill(const AObject: TComplexObject); virtual;
 
@@ -63,6 +64,7 @@ type
 
     property JSONValue: TJSONValue read GetJSONValue write SetJSONValue;
     property Field: TObject read FField;
+    property Domain: TObject read FDomain;
   end;
 
   TTensorData = class(TComplexObject)
@@ -93,9 +95,15 @@ begin
   inherited Create;
   FField := AField;
   if Assigned(FField) then
-    FStorageName := TBaseField(AField).StorageName
-  else
+  begin
+    FStorageName := TBaseField(AField).StorageName;
+    FDomain := TBaseField(AField).Domain;
+  end
+  else begin
     FStorageName := '';
+    FDomain := nil;
+    Assert(False, 'Нативный объект без домена');
+  end;
   FOnChanged := AOnChanged;
 end;
 

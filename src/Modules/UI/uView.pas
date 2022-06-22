@@ -61,6 +61,7 @@ type
     FListeners: TList<TObject>;
     FState: TViewState;
     FUIContext: string;
+    FFreezeCount: Integer;
     procedure ExtractViewParams(const AName: string);
     function ExtractAction(const ADefinition: TObject; const AItemName: string): Boolean;
     function ExtractField(const ADefinition: TObject; const AName: string): Boolean;
@@ -247,6 +248,7 @@ begin
   FListeners := TList<TObject>.Create;
   FFullName := '';
   FFilter := '';
+  FFreezeCount := 0;
 
   if not Assigned(FParent) then
   begin
@@ -349,7 +351,7 @@ begin
     if FDefinitionKind = dkAction then
     begin
       if Assigned(TEntity(FDomainObject)) then
-        TEntity(FDomainObject).UnsubscribeFields;
+        TEntity(FDomainObject).UnsubscribeFields(TDomain(FDomain).DomainHolder);
       FreeAndNil(TEntity(FDomainObject));
     end
     else if FDefinitionKind in [dkCollection, dkListField] then
@@ -369,6 +371,27 @@ var
   vSelectedView: TView;
   vActiveView: TView;
 begin
+  if Assigned(AMessage.Holder) and Assigned(TChangeHolder(AMessage.Holder).ViewList) then
+  begin
+    if TChangeHolder(AMessage.Holder).ViewList.IndexOf(Self) < 0 then
+    begin
+      TChangeHolder(AMessage.Holder).ViewList.Add(Self);
+      Inc(FFreezeCount);
+    end;
+    Exit;
+  end
+  else if AMessage.Kind = dckListEndUpdate then
+  begin
+    Dec(FFreezeCount);
+    Assert(FFreezeCount >= 0, 'Неправильное количество обновлений');
+
+    if FFreezeCount = 0 then
+      NotifyUI(dckListEndUpdate, nil);
+    Exit;
+  end
+  else if FFreezeCount > 0 then
+    Exit;
+
   // Обработка изменений модели
   if AMessage.Kind = dckFieldChanged then
   begin
@@ -419,7 +442,7 @@ begin
   end
   else if AMessage.Kind in [dckListAdded, dckListRemoved] then
   begin
-    ///todo сейчас эти уведомления приходят от еще и от коллекций
+    ///todo сейчас эти уведомления приходят еще и от коллекций
     if FDefinitionKind = dkObjectField then
       Exit;
 
@@ -456,12 +479,15 @@ end;
 procedure TView.DoParentChanged(const AParentDomainObject: TObject);
 var
   vListField: TListField;
-  vTextID: string;
+  vTextID, vSearchField: string;
   vId: Integer;
   vChanged: Boolean;
   vChangeKind: Word;
   vInteractor: TInteractor;
   vCollection: TCollection;
+  i: Integer;
+  vEntityList: TEntityList;
+  vEntity: TEntity;
 begin
   vInteractor := TInteractor(FInteractor);
 
@@ -524,6 +550,26 @@ begin
         SetDomainEntity(vCollection.Entities[vID])
       else
         SetDomainEntity(nil);
+    end
+    else if Pos('@', FName) = 1 then
+    begin
+      vTextID := Copy(FName, 2, Length(FName) - 1);
+      vEntityList := TEntityList(AParentDomainObject);
+
+      if vEntityList.MainDefinition.FieldExists('Code') then
+        vSearchField := 'Code'
+      else
+        vSearchField := 'Name';
+
+      vEntity := nil;
+      for i := 0 to vEntityList.Count - 1 do
+        if SameText(vEntityList[i][vSearchField], vTextID) then
+        begin
+          vEntity := vEntityList[i];
+          Break;
+        end;
+
+      SetDomainEntity(vEntity);
     end
     else if SameText(FName, 'Selected') then
       SetDomainEntity(TEntity(TEntityList(AParentDomainObject).Selected))
@@ -660,6 +706,9 @@ var
   function GetParentFieldDefinition(const ABaseDefinition: TObject; const AEntity: TEntity): TDefinition;
   begin
     Result := TDefinition(ABaseDefinition);
+    if not Assigned(Result) then
+      Exit;
+
     // Когда у нас несколько наследников, только по определению нам не определить точный тип => Уточняем тип
     if Result.Descendants.Count > 0 then
     begin
@@ -777,7 +826,7 @@ begin
       begin
         { TODO -owa : Возможно, здесь понадобится точное определение типа }
         vParentDefinition := TObjectFieldDef(vParentDefinition)._ContentDefinition;
-        if (FName = 'Selected') or (StrToIntDef(FName, -1) >= 0) then
+        if (FName = 'Selected') or (StrToIntDef(FName, -1) >= 0 {поиск по индексу}) or (Pos('@', FName) = 1 {поиск по Name}) then
         begin
           FDefinitionKind := dkEntity;
           FDefinition := vParentDefinition;
@@ -814,9 +863,10 @@ begin
 
       LoadActionState(TEntity(FDomainObject));
 
-      TEntity(FDomainObject).SubscribeFields;
+      TEntity(FDomainObject).SubscribeFields(TDomain(FDomain).DomainHolder);
 
-      TEntityCreationProc(TDomain(FDomain).Configuration.AfterEntityCreationProc)(nil, vParentObject, TEntity(FDomainObject));
+      TEntityCreationProc(TDomain(FDomain).Configuration.AfterEntityCreationProc)(TDomain(FDomain).DomainHolder,
+        vParentObject, TEntity(FDomainObject));
     end;
     SubscribeDomainObject;
   end
@@ -825,7 +875,7 @@ begin
     if (FDefinitionKind = dkEntity) then
     begin
       if FName = 'New' then
-        FDomainObject := TDomain(vInteractor.Domain).CreateNewEntity(TDefinition(FDefinition).Name, nil);
+        FDomainObject := TDomain(vInteractor.Domain).CreateNewEntity(TDomain(FDomain).DomainHolder, TDefinition(FDefinition).Name);
     end;
 
     SubscribeDomainObject;
@@ -957,6 +1007,8 @@ var
   vMessage: TViewChangedMessage;
   vListener: TObject;
 begin
+  Assert(FFreezeCount = 0, 'Почему-то FFreezeCount не равен нулю');
+
   vMessage.Msg := DM_VIEW_CHANGED;
   vMessage.Kind := AKind;
   vMessage.View := Self;
@@ -1048,7 +1100,7 @@ begin
 
   TUserSession(TInteractor(FInteractor).Session).DomainWrite(procedure
     begin
-      vEntity._SetFieldEntity(TChangeHolder(AHolder), vFieldDef.Name, AEntity);
+      vEntity._SetFieldEntity(AHolder, vFieldDef.Name, AEntity);
     end);
 
   if Assigned(FParent) and (FParent.DefinitionKind = dkAction) and not vFieldDef.HasFlag(cNotSave) then
@@ -1070,7 +1122,7 @@ begin
 
   TUserSession(TInteractor(FInteractor).Session).DomainWrite(procedure
     begin
-      vEntity._SetFieldStream(TChangeHolder(AHolder), vFieldDef.Name, AStream);
+      vEntity._SetFieldStream(AHolder, vFieldDef.Name, AStream);
     end);
 end;
 
@@ -1090,7 +1142,7 @@ begin
   vValue := AValue;
   TUserSession(TInteractor(FInteractor).Session).DomainWrite(procedure
     begin
-      vEntity._SetFieldValue(TChangeHolder(AHolder), vFieldDef.Name, vValue);
+      vEntity._SetFieldValue(AHolder, vFieldDef.Name, vValue);
     end);
 
   if Assigned(FParent) and (FParent.DefinitionKind = dkAction) and not vFieldDef.HasFlag(cNotSave) then

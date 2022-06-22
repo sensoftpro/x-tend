@@ -465,7 +465,7 @@ begin
   if VarIsNull(AValue) or not VarIsOrdinal(AValue) then
     Result := nil
   else
-    Result := TEntity(Integer(AValue));
+    Result := TEntity(NativeInt(AValue));
 end;
 
 function ObjectFromVariant(const AValue: Variant): TObject;
@@ -473,7 +473,7 @@ begin
   if VarIsNull(AValue) or not VarIsOrdinal(AValue) then
     Result := nil
   else
-    Result := TObject(Integer(AValue));
+    Result := TObject(NativeInt(AValue));
 end;
 
 function BlobFromVariant(const AValue: Variant): TStream;
@@ -529,7 +529,7 @@ begin
     fkInteger, fkEnum, fkFlag:
       Result := AValue.ToString;
     fkFloat: Result := FormatFloat('0.######', TJSONNumber(AValue).AsDouble);
-    fkDateTime: Result := FormatDateTime('dd.mm.yyyy', TJSONNumber(AValue).AsDouble);
+    fkDateTime: Result := FormatDateTime('dd.mm.yyyy hh:nn:ss', TJSONNumber(AValue).AsDouble);
     fkBoolean: begin
       if Boolean(TJSONNumber(AValue).AsInt) then
         Result := 'Yes'

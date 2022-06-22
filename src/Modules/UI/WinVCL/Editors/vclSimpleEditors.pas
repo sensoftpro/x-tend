@@ -36,7 +36,7 @@ unit vclSimpleEditors;
 interface
 
 uses
-  Classes, Types, Graphics, ExtCtrls, StdCtrls, Dialogs, Controls, ActnList, StdActns,
+  Classes, Types, Graphics, ExtCtrls, StdCtrls, Dialogs, Controls, ActnList, StdActns, ComCtrls,
 
   vclArea, uDefinition, uEnumeration, uUIBuilder, uView,
 
@@ -110,6 +110,20 @@ type
     function GetLayoutPositionCount: Integer; override;
   end;
 
+  TIntegerFlagsEditor = class(TDEEditor)
+  private
+    FDisplayFlagCount: Integer;
+    FCaptions: TStrings;
+    procedure FillList;
+    procedure CLBOnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
+  protected
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoBeforeFreeControl; override;
+    procedure FillEditor; override;
+    procedure DoOnChange; override;
+    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+  end;
+
   TDEIntegerFieldEditor = class (TDEEditor)
   protected
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
@@ -151,7 +165,7 @@ type
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
-    function GetNewValue: Variant; override;
+//    function GetNewValue: Variant; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
@@ -390,12 +404,23 @@ type
     procedure SetValidateDefinition(const ADefinition: TDefinition);
   end;
 
+  TLogEditor = class(TVCLFieldArea)
+  private
+    FListView: TListView;
+    FData: TStringList;
+    procedure OnListViewData(Sender: TObject; Item: TListItem);
+  protected
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure SetParent(const Value: TUIArea); override;
+    procedure DoBeforeFreeControl; override;
+    procedure FillEditor; override;
+  end;
 
 implementation
 
 uses
   Generics.Collections, TypInfo, Variants, SysUtils, Windows,
-  Forms, ComCtrls, Math, DateUtils, Messages, cxBlobEdit, cxImage, dxGDIPlusClasses, cxMaskEdit, cxMRUEdit,
+  Forms, Math, DateUtils, Messages, cxBlobEdit, cxImage, dxGDIPlusClasses, cxMaskEdit, cxMRUEdit,
   dxActivityIndicator, cxLookAndFeels, cxProgressBar, dxBreadcrumbEdit, cxCustomListBox, cxCheckListBox,
   dxColorEdit, dxColorGallery, dxCoreGraphics, {CPort,}
 
@@ -569,16 +594,11 @@ end;
 { TDEFloatEditControl }
 
 procedure TDEFloatFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
-var
-  vFormat: string;
 begin
   FControl := TcxMaskEdit.Create(nil);
   FAfterPoint := 4;
-  if GetUrlCommand(FFieldDef.StyleName) = 'formatted' then
-  begin
-    vFormat := GetUrlParam(FFieldDef.StyleName, 'format');
-    FAfterPoint := Length(vFormat) - Pos('.', vFormat);
-  end;
+  if Length(FFieldDef.Format) > 0 then
+    FAfterPoint := Length(FFieldDef.Format) - Pos('.', FFieldDef.Format);
 
   with TcxMaskEdit(FControl).Properties do
   begin
@@ -1034,8 +1054,15 @@ begin
 
 //  TcxCheckBox(Result).OnKeyDown := OnWinControlKeyDown;
 
-  TcxCheckBox(FControl).Caption := GetFieldTranslation(FFieldDef);
-  TcxCheckBox(FControl).Hint := GetFieldTranslation(FFieldDef, tpHint);
+  if Assigned(CreateParams) and (CreateParams.IndexOfName('Caption') >= 0) then
+    TcxCheckBox(FControl).Caption := CreateParams.Values['Caption']
+  else
+    TcxCheckBox(FControl).Caption := GetFieldTranslation(FFieldDef);
+
+  if Assigned(CreateParams) and (CreateParams.IndexOfName('Hint') >= 0) then
+    TcxCheckBox(FControl).Hint := CreateParams.Values['Hint']
+  else
+    TcxCheckBox(FControl).Hint := GetFieldTranslation(FFieldDef, tpHint);
 end;
 
 procedure TDEBoolFieldEditor.DoOnChange;
@@ -1278,15 +1305,15 @@ begin
   vEdit.Properties.SpinButtons.Visible := vEdit.Visible and vEdit.Enabled and (not vEdit.Properties.ReadOnly);
 end;
 
-function TDETimeFieldEditor.GetNewValue: Variant;
-var
-  vTime: TTime;
-begin
-  if MyTryStrToTime(TcxTimeEdit(FControl).EditingText, vTime) then
-    Result := Frac(vTime)
-  else
-    Result := Null;
-end;
+//function TDETimeFieldEditor.GetNewValue: Variant;
+//var
+//  vTime: TTime;
+//begin
+//  if MyTryStrToTime(TcxTimeEdit(FControl).EditingText, vTime) then
+//    Result := Frac(vTime)
+//  else
+//    Result := Null;
+//end;
 
 procedure TDETimeFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
 begin
@@ -1457,6 +1484,7 @@ end;
 procedure TColorEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FBasePanel := TPanel.Create(nil);
+  FBasePanel.BevelOuter := bvNone;
   FControl := FBasePanel;
 
   FColorDialog := TColorDialog.Create(nil);
@@ -2429,8 +2457,10 @@ begin
   vPC.Width := vSourcePC.Width;
   vPC.Height := vSourcePC.Height;
 
-  vPC.Font.Size := vSourcePC.Font.Size;
+  vPC.Font.Assign(vSourcePC.Font);
   vPC.Align := vSourcePC.Align;
+  vPC.AlignWithMargins := vSourcePC.AlignWithMargins;
+  vPC.Margins := vSourcePC.Margins;
   vPC.Anchors := vSourcePC.Anchors;
   vPC.Style := Integer(vSourcePC.Style);
   if (vSourcePC.Style <> TTabStyle.tsTabs) and (vSourcePC.PageCount > 0) then
@@ -2508,6 +2538,8 @@ begin
         vValue := vValue - 1;
       vTag := vValue
     end
+    else if TFieldDef(FView.Definition).Kind = fkInteger then
+      vTag := vValue
     else
       vTag := -1;
   end;
@@ -2891,6 +2923,7 @@ end;
 procedure TGauge.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vRange: TdxGaugeCircularScaleRange;
+  vMax, vMin: Integer;
 begin
   inherited;
   FGaugeControl := TdxGaugeControl.Create(nil);
@@ -2910,6 +2943,17 @@ begin
   vRange.Color := dxColorToAlphaColor(clMaroon, 30);
   vRange.Visible := True;
 
+  if Assigned(FCreateParams) then
+  begin
+    vMin := StrToIntDef(FCreateParams.Values['Min'], 0);
+    vMax := StrToIntDef(FCreateParams.Values['Max'], 100);
+    FGaugeControl1CircularHalfScale.OptionsView.MaxValue := vMax;
+    FGaugeControl1CircularHalfScale.OptionsView.MinValue := vMin;
+
+    vRange.ValueStart := vMax - (vMax - vMin) * 0.3;
+    vRange.ValueEnd := vMax;
+  end;
+
   FControl := FGaugeControl;
 
 end;
@@ -2918,6 +2962,158 @@ procedure TGauge.FillEditor;
 begin
   inherited;
   FGaugeControl1CircularHalfScale.Value := FView.FieldValue;
+end;
+
+{ TIntegerFlagsEditor }
+
+procedure TIntegerFlagsEditor.CLBOnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
+begin
+  OnChange(Sender);
+end;
+
+procedure TIntegerFlagsEditor.DoBeforeFreeControl;
+begin
+  inherited;
+  FreeAndNil(FCaptions);
+end;
+
+procedure TIntegerFlagsEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+var
+  vHorzLayout: Boolean;
+begin
+  FControl := TcxCheckListBox.Create(nil);
+  TcxCheckListBox(FControl).OnClickCheck := CLBOnClickCheck;
+
+  vHorzLayout := False;
+  FDisplayFlagCount := 8;
+
+  if Assigned(CreateParams) then
+  begin
+    FDisplayFlagCount := Min(32, StrToIntDef(CreateParams.Values['DisplayFlagCount'], 8));
+    if CreateParams.IndexOfName('ItemCaptions') > -1 then
+      FCaptions := CreateDelimitedList(CreateParams.Values['ItemCaptions'], ';');
+    vHorzLayout := StrToIntDef(CreateParams.Values['HorzLayout'], 0) = 1;
+  end;
+
+  if vHorzLayout then
+    TcxCheckListBox(FControl).Columns := FDisplayFlagCount;
+end;
+
+procedure TIntegerFlagsEditor.DoOnChange;
+var
+  i: Integer;
+  vFlagsValue: Integer;
+  vListItem: TcxCheckListBoxItem;
+begin
+  vFlagsValue := 0;
+  for i := 0 to TcxCheckListBox(FControl).Items.Count - 1 do
+  begin
+    vListItem := TcxCheckListBox(FControl).Items[i];
+    if vListItem.Checked then
+      vFlagsValue := vFlagsValue or Integer(vListItem.ItemObject);
+  end;
+
+  SetFieldValue(vFlagsValue);
+end;
+
+procedure TIntegerFlagsEditor.FillEditor;
+var
+  vList: TcxCheckListBox;
+begin
+  FillList;
+
+  vList := TcxCheckListBox(FControl);
+  vList.ReadOnly := FView.State < vsSelectOnly;
+  vList.Enabled := not vList.ReadOnly;
+
+  if vList.ReadOnly then
+  begin
+    vList.Style.BorderStyle := GetBoxDisabledBorderStyle;
+    vList.TabStop := False;
+  end
+  else begin
+    vList.Style.BorderStyle := cbsNone;
+    vList.TabStop := True;
+  end;
+end;
+
+procedure TIntegerFlagsEditor.FillList;
+var
+  vList: TcxCheckListBox;
+  vListItem: TcxCheckListBoxItem;
+  vBits, vBit: Integer;
+  i: Integer;
+begin
+  vList := TcxCheckListBox(FControl);
+  vBits := FView.FieldValue;
+  vList.Items.BeginUpdate;
+  try
+    vList.Items.Clear;
+    for i := 0 to FDisplayFlagCount - 1 do
+    begin
+      vListItem := vList.Items.Add;
+      if Assigned(FCaptions) and (i < FCaptions.Count) then
+        vListItem.Text := FCaptions[i]
+      else
+        vListItem.Text := IntToStr(i);
+      vBit := 1 shl i;
+      vListItem.ItemObject := TObject(vBit);
+      vListItem.Checked := (vBit and vBits) <> 0;
+    end;
+  finally
+    vList.Items.EndUpdate;
+  end;
+end;
+
+procedure TIntegerFlagsEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
+begin
+  if Assigned(AHandler) then
+    TcxCheckListBox(FControl).OnClickCheck := CLBOnClickCheck
+  else
+    TcxCheckListBox(FControl).OnClickCheck := nil;
+end;
+
+{ TLogEditor }
+
+procedure TLogEditor.DoBeforeFreeControl;
+begin
+  FreeAndNil(FData);
+  inherited;
+end;
+
+procedure TLogEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+begin
+  inherited;
+  FListView := TListView.Create(nil);
+  FListView.OnData := OnListViewData;
+  FListView.OwnerData := True;
+  FListView.Columns.Add.AutoSize := True;
+  FListView.ShowColumnHeaders := False;
+  FListView.ReadOnly := True;
+
+  FData := TStringList.Create;
+
+  FControl := FListView;
+end;
+
+procedure TLogEditor.FillEditor;
+begin
+  inherited;
+
+  FData.Text := FView.FieldValue;
+
+  FListView.Items.Count := FData.Count;
+end;
+
+procedure TLogEditor.OnListViewData(Sender: TObject; Item: TListItem);
+begin
+  Item.Caption := FData[Item.Index];
+end;
+
+procedure TLogEditor.SetParent(const Value: TUIArea);
+begin
+  inherited;
+  FListView.ViewStyle := vsReport;
 end;
 
 initialization
@@ -2933,7 +3129,8 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'email', TDEMaskFie
 TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'url', TDEMaskFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'INN', TDEMaskFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'memo', TDEMemoFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'log', TDELogFieldEditor);
+//TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'log', TDELogFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'log', TLogEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'info', TTextInfo);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'mru', TMRUFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'dir', TSelectFolderFieldEditor);
@@ -2947,6 +3144,8 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'info', TTextInf
 TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'spinner', TSpinner);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'progress', TProgress);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'gauge', TGauge);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'pages', TDEPagesFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'flags', TIntegerFlagsEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, '', TDEEnumEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, 'radio', TDEEnumEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, 'info', TTextInfo);
@@ -2955,7 +3154,6 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, 'pages', TDEPagesFi
 TPresenter.RegisterUIClass('Windows.DevExpress', uiFlagEdit, '', TDEFlagsEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'enum', TDEEnumFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, '', TDEFloatFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'formatted', TDEFloatFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'currency_rate', TDEFloatFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'info', TTextInfo);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'gauge', TGauge);

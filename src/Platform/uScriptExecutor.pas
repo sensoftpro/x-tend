@@ -241,7 +241,7 @@ type
     FFibers: TList<TExecutionFiber>;
     FFibersLock: TCriticalSection;
     FTask: TTaskHandle;
-    FStopTask: TTaskHandle;
+    FStopTasks: TDictionary<Integer, TTaskHandle>;
     procedure Run;
   public
     constructor Create(const AExecutor: TScriptExecutor);
@@ -479,7 +479,7 @@ begin
   vPointedCommands := TList<TEntity>.Create;
   vCommands := TEntityList.Create(AScript.Domain, nil);
   try
-    TListField(AScript.FieldByName('Commands')).GetEntityList(nil, vCommands);
+    TListField(AScript.FieldByName('Commands')).GetEntityList(TDomain(AScript.Domain).DomainSession, vCommands);
 
     for vCommand in vCommands do
     begin
@@ -564,7 +564,7 @@ end;
 
 // Handlers
 
-procedure OnCommandDefinitionChanged(const ASession: TUserSession; const AHolder: TChangeHolder;
+procedure OnCommandDefinitionChanged(const AHolder: TChangeHolder;
   const AFieldChain: string; const AEntity, AParam: TEntity);
 var
   vList: TListField;
@@ -582,9 +582,9 @@ begin
   begin
     vParamDef := TEntity(vParamDefs[i]);
     if TParameterType(vParamDef['Type']) = ptCommand then
-      {vNewParameter := }TEntity(vList.AddListEntity(AHolder, 'CommandParameterValues', 'ParameterDefinition', [Integer(vParamDef)]))
+      {vNewParameter := }TEntity(vList.AddListEntity(AHolder, 'CommandParameterValues', 'ParameterDefinition', [NativeInt(vParamDef)]))
     else begin
-      {vNewParameter := }TEntity(vList.AddListEntity(AHolder, 'SimpleParameterValues', 'ParameterDefinition;Value', [Integer(vParamDef), vParamDef['DefaultValue']]));
+      {vNewParameter := }TEntity(vList.AddListEntity(AHolder, 'SimpleParameterValues', 'ParameterDefinition;Value', [NativeInt(vParamDef), vParamDef['DefaultValue']]));
       //vNewParameter._SetFieldValue(AHolder, 'Value', vParamDef['DefaultValue']);
     end;
 
@@ -592,7 +592,7 @@ begin
   end;
 end;
 
-procedure OnCommandTextChanged(const ASession: TUserSession; const AHolder: TChangeHolder;
+procedure OnCommandTextChanged(const AHolder: TChangeHolder;
   const AFieldChain: string; const AEntity, AParam: TEntity);
 var
   vText: string;
@@ -635,7 +635,7 @@ begin
   AEntity._SetFieldValue(AHolder, 'Text', '  ' + vText + '(' + vParamText + ');');
 end;
 
-procedure OnCodeBlockChanged(const ASession: TUserSession; const AHolder: TChangeHolder;
+procedure OnCodeBlockChanged(const AHolder: TChangeHolder;
   const AFieldChain: string; const AEntity, AParam: TEntity);
 var
   vList: TListField;
@@ -832,7 +832,7 @@ begin
   else if vCommandName = 'FIND_OBJECT' then
   begin
     vObject := TDomain(FDomain).FindOneEntity(ACommand['Collection'], AFiber.Session, ACommand['Query'], []);
-    ACommand.Owner.SetVariableValue(ATask, AFiber.Session, ACommand['Result'], Integer(vObject));
+    ACommand.Owner.SetVariableValue(ATask, AFiber.Session, ACommand['Result'], NativeInt(vObject));
   end
   else if vCommandName = 'ADD_LIST_ENTITY' then
   begin
@@ -849,7 +849,7 @@ begin
           end);
     end;
 
-    ACommand.Owner.SetVariableValue(ATask, AFiber.Session, ACommand['Result'], Integer(vObject));
+    ACommand.Owner.SetVariableValue(ATask, AFiber.Session, ACommand['Result'], NativeInt(vObject));
   end
   else if vCommandName = 'SCRIPT_END' then
     Exit
@@ -1014,7 +1014,7 @@ begin
     vLog := AText
   else
     vLog := AText + #13#10 + vLog;
-  vVisualInfo._SetFieldValue(nil, 'ExecutionLog', vLog);
+  vVisualInfo._SetFieldValue(TDomain(FDomain).DomainHolder, 'ExecutionLog', vLog);
 end;
 
 { TExecutionFiber }
@@ -1159,12 +1159,14 @@ begin
   FTaskEngine := TTaskEngine(TDomain(FExecutor.Domain).Module['TaskEngine']);
   FFibers := TList<TExecutionFiber>.Create;
   FFibersLock := TCriticalSection.Create;
+  FStopTasks := TDictionary<Integer, TTaskHandle>.Create;
 end;
 
 destructor TExecutionRuntime.Destroy;
 var
   i: Integer;
 begin
+  FreeAndNil(FStopTasks);
   FreeAndNil(FTask);
 
   FExecutor := nil;
@@ -1255,11 +1257,6 @@ end;
 
 procedure TExecutionRuntime.Stop;
 begin
-  //if Assigned(FTask) then
-  //  FTask.Cancel_;
-  if Assigned(FStopTask) then
-    Exit;
-
   FTaskEngine.ExecuteManaged('Script stopper', procedure(const ATask: TTaskHandle)
     var
       vFibers: TList<TExecutionFiber>;
@@ -1278,6 +1275,13 @@ begin
         for i := vFibers.Count - 1 downto 0 do
         begin
           vFiber := vFibers[i];
+
+          if FStopTasks.ContainsKey(vFiber.ID) then
+          begin
+            vFibers.Delete(i);
+            Continue;
+          end;
+
           if vFiber.Interrupt then
             FExecutor.NotifyEnd(ATask, vFiber)
           else
@@ -1298,17 +1302,15 @@ begin
       finally
         FreeAndNil(vFibers);
       end;
-
-      FStopTask := nil;
     end);
 end;
 
 procedure TExecutionRuntime.StopFiber(const AFiberID: Integer);
 begin
-  if Assigned(FStopTask) then
+  if FStopTasks.ContainsKey(AFiberID) then
     Exit;
 
-  FStopTask := FTaskEngine.Execute('Fiber stopper', procedure(const ATask: TTaskHandle)
+  FStopTasks.Add(AFiberID, FTaskEngine.Execute('Fiber stopper', procedure(const ATask: TTaskHandle)
     var
       vFiber: TExecutionFiber;
       vFound: TExecutionFiber;
@@ -1341,8 +1343,9 @@ begin
         vFound.Free;
       end;
 
-      FStopTask := nil;
-    end);
+      FStopTasks.Remove(AFiberID);
+    end)
+  );
 end;
 
 { TScriptVariable }
@@ -2124,7 +2127,7 @@ begin
   vPostponedParams := TList<TScriptParameter>.Create;
   vCommands := TEntityList.Create(AScript.Domain, nil);
   try
-    TListField(AScript.FieldByName('Commands')).GetEntityList(nil, vCommands);
+    TListField(AScript.FieldByName('Commands')).GetEntityList(TDomain(AScript.Domain).DomainSession, vCommands);
     for i := 0 to vCommands.Count - 1 do
     begin
       vCommandDef := vCommands[i].ExtractEntity('CommandDefinition');
@@ -2281,39 +2284,39 @@ begin
   vParameters := vDomain['CommandParameterDefinitions'];
   vCommand := vCommands.CreateDefaultEntity(AHolder, 1, 'Name', ['PRINT']);
   vParameters.CreateDefaultEntity(AHolder, 1, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 's', ptString, '', False, '""']);
+    [NativeInt(vCommand), 's', ptString, '', False, '""']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 2, 'Name', ['WAIT']);
   vParameters.CreateDefaultEntity(AHolder, 2, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'MSec', ptInteger, '', False, '1']);
+    [NativeInt(vCommand), 'MSec', ptInteger, '', False, '1']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 3, 'Name', ['ASSIGN']);
   vParameters.CreateDefaultEntity(AHolder, 3, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Variable', ptString, '', True, '']);
+    [NativeInt(vCommand), 'Variable', ptString, '', True, '']);
   vParameters.CreateDefaultEntity(AHolder, 4, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Value', ptString, '', False, '']);
+    [NativeInt(vCommand), 'Value', ptString, '', False, '']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 4, 'Name', ['GOTO']);
   vParameters.CreateDefaultEntity(AHolder, 5, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'NextCommand', ptCommand, '', False, '']);
+    [NativeInt(vCommand), 'NextCommand', ptCommand, '', False, '']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 5, 'Name', ['IF']);
   vParameters.CreateDefaultEntity(AHolder, 6, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Condition', ptBoolean, '', False, '']);
+    [NativeInt(vCommand), 'Condition', ptBoolean, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 7, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'NextCommand', ptCommand, '', False, '']);
+    [NativeInt(vCommand), 'NextCommand', ptCommand, '', False, '']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 6, 'Name', ['CALL']);
   vParameters.CreateDefaultEntity(AHolder, 8, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'MethodName', ptString, '', True, '']);
+    [NativeInt(vCommand), 'MethodName', ptString, '', True, '']);
 
   vCommands.CreateDefaultEntity(AHolder, 7, 'Name', ['SCRIPT_END']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 8, 'Name', ['SHOW_LAYOUT']);
   vParameters.CreateDefaultEntity(AHolder, 9, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'TargetArea', ptString, '', False, '""']);
+    [NativeInt(vCommand), 'TargetArea', ptString, '', False, '""']);
   vParameters.CreateDefaultEntity(AHolder, 10, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Layout', ptString, '', False, '""']);
+    [NativeInt(vCommand), 'Layout', ptString, '', False, '""']);
 
   vCommands.CreateDefaultEntity(AHolder, 9, 'Name', ['STAND_PREPARE']);
 
@@ -2321,127 +2324,127 @@ begin
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 11, 'Name', ['MEASURE_START']);
   vParameters.CreateDefaultEntity(AHolder, 11, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'ScenarioName', ptString, 'Имя сценария', False, '"Scenario1"']);
+    [NativeInt(vCommand), 'ScenarioName', ptString, 'Имя сценария', False, '"Scenario1"']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 12, 'Name', ['MEASURE_SAVE']);
   vParameters.CreateDefaultEntity(AHolder, 12, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Filename', ptString, '', False, '']);
+    [NativeInt(vCommand), 'Filename', ptString, '', False, '']);
 
   vCommands.CreateDefaultEntity(AHolder, 13, 'Name', ['MEASURE_STOP']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 14, 'Name', ['COUNT_START']);
   vParameters.CreateDefaultEntity(AHolder, 13, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'tractname', ptString, '', False, '']);
+    [NativeInt(vCommand), 'tractname', ptString, '', False, '']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 15, 'Name', ['COUNT_SAVE']);
   vParameters.CreateDefaultEntity(AHolder, 14, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Filename', ptString, '', False, '']);
+    [NativeInt(vCommand), 'Filename', ptString, '', False, '']);
 
   vCommands.CreateDefaultEntity(AHolder, 16, 'Name', ['COUNT_STOP']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 17, 'Name', ['STEPPER_INIT']);
   vParameters.CreateDefaultEntity(AHolder, 100, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Stepper', ptObject, '', False, '']);
+    [NativeInt(vCommand), 'Stepper', ptObject, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 15, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Current', ptInteger, '', False, '500']);
+    [NativeInt(vCommand), 'Current', ptInteger, '', False, '500']);
   vParameters.CreateDefaultEntity(AHolder, 16, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'ClockwiseDirection', ptBoolean, '', False, 'True']);
+    [NativeInt(vCommand), 'ClockwiseDirection', ptBoolean, '', False, 'True']);
   vParameters.CreateDefaultEntity(AHolder, 17, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'PositiveBit', ptInteger, '', False, '-1']);
+    [NativeInt(vCommand), 'PositiveBit', ptInteger, '', False, '-1']);
   vParameters.CreateDefaultEntity(AHolder, 18, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'NegativeBit', ptInteger, '', False, '-1']);
+    [NativeInt(vCommand), 'NegativeBit', ptInteger, '', False, '-1']);
   vParameters.CreateDefaultEntity(AHolder, 19, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Microstep', ptInteger, '', False, '1']);
+    [NativeInt(vCommand), 'Microstep', ptInteger, '', False, '1']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 18, 'Name', ['STEPPER_MOVE_N']);
   vParameters.CreateDefaultEntity(AHolder, 101, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Stepper', ptObject, '', False, '']);
+    [NativeInt(vCommand), 'Stepper', ptObject, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 20, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Speed', ptInteger, 'In Hz', False, '200']);
+    [NativeInt(vCommand), 'Speed', ptInteger, 'In Hz', False, '200']);
   vParameters.CreateDefaultEntity(AHolder, 21, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'StepCount', ptInteger, '', False, '1000']);
+    [NativeInt(vCommand), 'StepCount', ptInteger, '', False, '1000']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 19, 'Name', ['STEPPER_MOVE_TILL']);
   vParameters.CreateDefaultEntity(AHolder, 102, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Stepper', ptObject, '', False, '']);
+    [NativeInt(vCommand), 'Stepper', ptObject, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 22, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Speed', ptInteger, 'In Hz', False, '200']);
+    [NativeInt(vCommand), 'Speed', ptInteger, 'In Hz', False, '200']);
   vParameters.CreateDefaultEntity(AHolder, 23, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'StopMask', ptInteger, '', False, '0']);
+    [NativeInt(vCommand), 'StopMask', ptInteger, '', False, '0']);
   vParameters.CreateDefaultEntity(AHolder, 24, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'StopValueMask', ptInteger, '', False, '0']);
+    [NativeInt(vCommand), 'StopValueMask', ptInteger, '', False, '0']);
   vParameters.CreateDefaultEntity(AHolder, 25, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'CompletedSteps', ptInteger, '', True, '0']);
+    [NativeInt(vCommand), 'CompletedSteps', ptInteger, '', True, '0']);
   vParameters.CreateDefaultEntity(AHolder, 26, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'LimitStepCount', ptInteger, '', False, '0']);
+    [NativeInt(vCommand), 'LimitStepCount', ptInteger, '', False, '0']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 20, 'Name', ['STEPPER_STOP']);
   vParameters.CreateDefaultEntity(AHolder, 103, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Stepper', ptObject, '', False, '']);
+    [NativeInt(vCommand), 'Stepper', ptObject, '', False, '']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 21, 'Name', ['FIND_OBJECT']);
   vParameters.CreateDefaultEntity(AHolder, 27, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Collection', ptString, '', False, '']);
+    [NativeInt(vCommand), 'Collection', ptString, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 28, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Query', ptString, '', False, '']);
+    [NativeInt(vCommand), 'Query', ptString, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 29, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Result', ptObject, '', True, '']);
+    [NativeInt(vCommand), 'Result', ptObject, '', True, '']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 22, 'Name', ['MESSAGE']);
   vParameters.CreateDefaultEntity(AHolder, 30, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Text', ptString, '', False, '""']);
+    [NativeInt(vCommand), 'Text', ptString, '', False, '""']);
   vParameters.CreateDefaultEntity(AHolder, 31, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'IconID', ptInteger, '', False, '0']);
+    [NativeInt(vCommand), 'IconID', ptInteger, '', False, '0']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 23, 'Name', ['ASK']);
   vParameters.CreateDefaultEntity(AHolder, 32, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Question', ptString, '', False, '""']);
+    [NativeInt(vCommand), 'Question', ptString, '', False, '""']);
   vParameters.CreateDefaultEntity(AHolder, 33, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Result', ptBoolean, '', True, '']);
+    [NativeInt(vCommand), 'Result', ptBoolean, '', True, '']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 30, 'Name', ['TRACT_START']);
   vParameters.CreateDefaultEntity(AHolder, 50, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Tract', ptObject, '', False, '']);
+    [NativeInt(vCommand), 'Tract', ptObject, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 51, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Exposition', ptInteger, '', False, '500']);
+    [NativeInt(vCommand), 'Exposition', ptInteger, '', False, '500']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 31, 'Name', ['TRACT_STOP']);
   vParameters.CreateDefaultEntity(AHolder, 52, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Tract', ptObject, '', False, '']);
+    [NativeInt(vCommand), 'Tract', ptObject, '', False, '']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 32, 'Name', ['TRACT_RESET']);
   vParameters.CreateDefaultEntity(AHolder, 53, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Tract', ptObject, '', False, '']);
+    [NativeInt(vCommand), 'Tract', ptObject, '', False, '']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 33, 'Name', ['CORRECT_VOLTAGE']);
   vParameters.CreateDefaultEntity(AHolder, 54, 'CommandDefinition;!Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'CheckObject', ptObject, '', False, '']);
+    [NativeInt(vCommand), 'CheckObject', ptObject, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 55, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'NeedContinue', ptBoolean, '', True, '']);
+    [NativeInt(vCommand), 'NeedContinue', ptBoolean, '', True, '']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 34, 'Name', ['TRACT_SAVE']);
   vParameters.CreateDefaultEntity(AHolder, 56, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Tract', ptObject, '', False, '']);
+    [NativeInt(vCommand), 'Tract', ptObject, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 57, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'FileName', ptString, '', False, '']);
+    [NativeInt(vCommand), 'FileName', ptString, '', False, '']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 35, 'Name', ['COPY_SPECTRUM']);
   vParameters.CreateDefaultEntity(AHolder, 58, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Source', ptObject, '', False, '']);
+    [NativeInt(vCommand), 'Source', ptObject, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 59, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'SourceField', ptString, '', False, '']);
+    [NativeInt(vCommand), 'SourceField', ptString, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 60, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Destination', ptObject, '', False, '']);
+    [NativeInt(vCommand), 'Destination', ptObject, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 61, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'DestField', ptString, '', False, '']);
+    [NativeInt(vCommand), 'DestField', ptString, '', False, '']);
 
   vCommand := vCommands.CreateDefaultEntity(AHolder, 40, 'Name', ['ADD_LIST_ENTITY']);
   vParameters.CreateDefaultEntity(AHolder, 70, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Result', ptObject, '', True, '']);
+    [NativeInt(vCommand), 'Result', ptObject, '', True, '']);
   vParameters.CreateDefaultEntity(AHolder, 71, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'Object', ptObject, '', False, '']);
+    [NativeInt(vCommand), 'Object', ptObject, '', False, '']);
   vParameters.CreateDefaultEntity(AHolder, 72, 'CommandDefinition;Name;Type;Description;ValuesOnly;DefaultValue',
-    [Integer(vCommand), 'ListName', ptString, '', False, '']);
+    [NativeInt(vCommand), 'ListName', ptString, '', False, '']);
 
 
 
@@ -2528,7 +2531,7 @@ begin
   RegisterReaction('ScriptCommands', 'Parameters', 'CommandDefinition', OnCommandDefinitionChanged);
   RegisterReaction('ScriptCommands', 'Text', 'CommandDefinition;Value.Parameters', OnCommandTextChanged);
   RegisterReaction('ScriptCommands', 'Order', 'Block', OnCodeBlockChanged);
-  vDefinition.RegisterReaction('Name', 'Text;Description', TProc(procedure(const ASession: TUserSession; const AHolder: TChangeHolder;
+  vDefinition.RegisterReaction('Name', 'Text;Description', TProc(procedure(const AHolder: TChangeHolder;
       const AFieldChain: string; const AEntity, AParameter: TEntity)
     begin
       AEntity._SetFieldValue(AHolder, 'Name', AEntity['Text'] + '  ' + AEntity['Description']);
@@ -2651,7 +2654,7 @@ begin
       vFiberID := ExecuteScenario(vSession, AParams.ExtractEntity('Scenario'), vScriptParams);
 
       vActionView := AView.Parent.BuildView('StopScenario');
-      TEntity(vActionView.DomainObject)._SetFieldValue(nil, 'FiberID', vFiberID);
+      TEntity(vActionView.DomainObject)._SetFieldValue(vSession.NullHolder, 'FiberID', vFiberID);
     end;
   end}
   else if (AActionName = 'StopScenario') then
@@ -2659,7 +2662,7 @@ begin
     if Assigned(AParams) and (AParams['FiberID'] > 0) then
     begin
       vExecutor.StopScenario(vSession, AParams['FiberID']);
-      TEntity(AView.DomainObject)._SetFieldValue(nil, 'FiberID', 0);
+      TEntity(AView.DomainObject)._SetFieldValue(vSession.NullHolder, 'FiberID', 0);
     end;
   end
   else

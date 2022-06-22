@@ -75,7 +75,7 @@ begin
     Exit;
   lblName.Caption := ADomain.Translate('AppTitle', ADomain.Configuration._Caption);
   lblVersion.Caption := ADomain.Translate('@' + Self.ClassName + '.lblVersion@Caption', 'Версия') + ': ' +
-    TConfiguration(ADomain.Configuration).Version;
+    TConfiguration(ADomain.Configuration).VersionName;
   prbProgress.Position := 0;
 
   vSplashImage := ADomain.Configuration.Icons.Splash;

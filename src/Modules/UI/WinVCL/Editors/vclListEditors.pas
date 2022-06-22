@@ -235,6 +235,7 @@ type
     FMasterDS: TUserDataSource;
     FAllData: TEntityList;
     FLayoutExists: Boolean;
+    FEditRepository: TcxEditRepository;
     procedure DoOnCompare(ADataController: TcxCustomDataController; ARecordIndex1, ARecordIndex2, AItemIndex: Integer;
       const V1, V2: Variant; var Compare: Integer);
     procedure DoOnCellDblClick(Sender: TcxCustomGridTableView; ACellViewInfo: TcxGridTableDataCellViewInfo; AButton: TMouseButton;
@@ -259,11 +260,14 @@ type
     procedure LoadColumnWidths;
     procedure OnDrawEnumItem_LineStyle(AControl: TcxCustomComboBox; ACanvas: TcxCanvas; AIndex: Integer; const ARect: TRect;
       AState: TOwnerDrawState);
+    procedure GetPropertiesForEdit(Sender: TcxCustomGridTableItem; ARecord: TcxCustomGridRecord; var AProperties: TcxCustomEditProperties);
   protected
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure DoBeforeFreeControl; override;
     function GetLayoutPositionCount: Integer; override;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
+  public
+    destructor Destroy; override;
   end;
 
   TListEditor = class (TVCLFieldArea)
@@ -393,7 +397,7 @@ uses
   TypInfo, Windows, SysUtils, Messages, Math, Variants, DateUtils, Dialogs, Menus, ShellApi, IOUtils, StrUtils,
 
   uWinVCLPresenter, uObjectField, uInteractor, uEnumeration, uSession, uChangeManager,
-  uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings,
+  uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings, uCollection,
 
   dxCore, cxGridStrs, cxPivotGridStrs, cxDataStorage, cxGridCustomView, cxImageComboBox, cxDateUtils,
   cxGridExportLink, cxProgressBar, dxColorGallery;
@@ -461,7 +465,7 @@ begin
     Result := 0
   else if AEnt1.IsService = AEnt2.IsService then
   begin
-    if AFieldDef = nil then
+    if (AFieldDef = nil) or (AFieldDef.Definition.Kind = clkMixin) then
       Result := CompareStr(AEnt1.DisplayName, AEnt2.DisplayName)
     else if AFieldDef.Kind = fkObject then
       Result := CompareEntities(AEnt1.ExtractEntity(AFieldName), AEnt2.ExtractEntity(AFieldName), nil, '')
@@ -819,6 +823,7 @@ var
   vEnum: TEnumeration;
   vFieldDef: TFieldDef;
 begin
+  // TODO Обработать то, что привязка может быть некорректной
   vFieldDef := TColumnBinding(AColumn.DataBinding.Data).FieldDef;
   vEnum := ADomain.Configuration.Enumerations.ObjectByName(TSimpleFieldDef(vFieldDef).Dictionary);
   if not Assigned(vEnum) then
@@ -1245,7 +1250,7 @@ begin
       vParams := TEntity(vArea.View.DomainObject);
       vMenuItem.Checked := FMasterTableView.OptionsView.GroupByBox;
       if vParams['IsChecked'] <> vMenuItem.Checked then
-        vParams._SetFieldValue(nil, 'IsChecked', vMenuItem.Checked);
+        vParams._SetFieldValue(FSession.NullHolder, 'IsChecked', vMenuItem.Checked);
     end;
   end;
 
@@ -1387,7 +1392,7 @@ begin
       vColumn.Visible := False;
       vColumn.GroupIndex := 0;
       vView := FView.BuildView('#GroupByColumn');
-      TEntity(vView.DomainObject)._SetFieldValue(nil, 'IsChecked', True);
+      TEntity(vView.DomainObject)._SetFieldValue(FSession.NullHolder, 'IsChecked', True);
       FMasterTableView.OptionsView.GroupByBox := True;
       FMasterTableView.DataController.Options := FMasterTableView.DataController.Options + [dcoGroupsAlwaysExpanded];
     end;
@@ -1762,8 +1767,8 @@ begin
         if AFieldDef.Kind = fkFloat then
           TcxSpinEditProperties(vCol.Properties).ValueType := vtFloat;
 
-        if vStyleName = 'formatted' then
-          TcxSpinEditProperties(vCol.Properties).DisplayFormat := GetUrlParam(AFieldDef.StyleName, 'format');
+        if Length(AFieldDef.Format) > 0 then
+          TcxSpinEditProperties(vCol.Properties).DisplayFormat := AFieldDef.Format;
 
         if not VarIsNull(TSimpleFieldDef(AFieldDef).MinValue) then
           TcxSpinEditProperties(vCol.Properties).MinValue := TSimpleFieldDef(AFieldDef).MinValue;
@@ -1961,7 +1966,7 @@ begin
   else if AView.Name = '#GroupByColumn' then
   begin
     vParams := TEntity(AView.DomainObject);
-    vParams._SetFieldValue(nil, 'IsChecked', not vParams['IsChecked']);
+    vParams._SetFieldValue(FSession.NullHolder, 'IsChecked', not vParams['IsChecked']);
     FMasterTableView.OptionsView.GroupByBox := vParams['IsChecked'];
     if not FMasterTableView.OptionsView.GroupByBox then // remove groups
       for i := 0 to FMasterTableView.ColumnCount - 1 do
@@ -2167,14 +2172,6 @@ begin
       begin
         if vFieldDef.Kind = fkFloat then
           Result := RoundTo(Result, -vColumnBinding.AfterPoint);
-
-        if Assigned(vColumnBinding.FColumn) and Assigned(vColumnBinding.FColumn.Properties) then
-        begin
-          if (vFieldDef.Kind = fkInteger) and (TcxSpinEditProperties(vColumnBinding.FColumn.Properties).ValueType = vtFloat) then
-            TcxSpinEditProperties(vColumnBinding.FColumn.Properties).ValueType := vtInt
-          else if (vFieldDef.Kind = fkFloat) and (TcxSpinEditProperties(vColumnBinding.FColumn.Properties).ValueType = vtInt) then
-            TcxSpinEditProperties(vColumnBinding.FColumn.Properties).ValueType := vtFloat;
-        end;
       end;
     except
       on E: Exception do
@@ -2208,11 +2205,15 @@ var
   vColumnBinding: TColumnBinding;
   vFieldDef: TFieldDef;
   vFieldName: string;
-  vEntity: TEntity;
+  vEntity, vEntityValue: TEntity;
   vEnumeration: TEnumeration;
   vInteractor: TInteractor;
   vValue: Variant;
   vItem: TEnumItem;
+  vField: TBaseField;
+  vEntities: TEntityList;
+  vEntityField: TEntityField;
+  i: Integer;
   procedure DoChange;
   begin
     TUserSession(vInteractor.Session).AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
@@ -2234,8 +2235,13 @@ begin
 
       vColumnBinding := TColumnBinding(AItemHandle);
 
-      vFieldDef := vColumnBinding.FieldDef;
       vFieldName := vColumnBinding.FieldName;
+      vField := vEntity.FieldByName(vFieldName);
+
+      if Assigned(vField) then
+        vFieldDef := vField.FieldDef
+      else
+        vFieldDef := vColumnBinding.FieldDef;
 
       if vFieldDef = nil then
         Exit;
@@ -2266,6 +2272,30 @@ begin
       begin
         vValue := AValue;
         DoChange;
+      end
+      else if vFieldDef.Kind = fkObject then
+      begin
+        vEntityValue := nil;
+        vEntities := TEntityList.Create(vInteractor.Domain, vInteractor.Session);
+        try
+          vEntityField := TEntityField(vField);
+          vEntityField.GetEntitiesForSelect(vInteractor.Session, vEntities);
+
+          for i := 0 to vEntities.Count - 1 do
+            if SafeDisplayName(vEntities[i]) = AValue then
+            begin
+              vEntityValue := vEntities[i];
+              Break;
+            end;
+        finally
+          FreeAndNil(vEntities);
+        end;
+
+        TUserSession(vInteractor.Session).AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
+        begin
+          vEntity._SetFieldEntity(AHolder, vFieldName, vEntityValue);
+          Result := True;
+        end, TChangeHolder(FEditor.Holder));
       end;
 
     except
@@ -2316,12 +2346,114 @@ begin
       vParams := TEntity(vArea.View.DomainObject);
       vMenuItem.Checked := FMasterTableView.OptionsView.GroupByBox;
       if vParams['IsChecked'] <> vMenuItem.Checked then
-        vParams._SetFieldValue(nil, 'IsChecked', vMenuItem.Checked);
+        vParams._SetFieldValue(FSession.NullHolder, 'IsChecked', vMenuItem.Checked);
     end;
   end;
 
   vMenuItem := vMenu.Items[vMenu.Items.Count - 1];
   vMenuItem.Caption := TInteractor(Interactor).Translate('txtRecordCount', 'Записей') + ': ' + IntToStr(FAllData.Count);
+end;
+
+procedure TColumnListEditor.GetPropertiesForEdit(Sender: TcxCustomGridTableItem; ARecord: TcxCustomGridRecord;
+  var AProperties: TcxCustomEditProperties);
+var
+  vColumnBinding: TColumnBinding;
+  vEntity: TEntity;
+  vFieldName: string;
+  vField: TBaseField;
+  vFieldDef: TFieldDef;
+  vProps: TcxCustomEditProperties;
+  function GetProps(const AFieldKind: TFieldKind; const AName: string): TcxCustomEditProperties;
+  var
+    vEditRepositoryItem: TcxEditRepositoryItem;
+    vName: string;
+    vEntityField: TEntityField;
+    i: Integer;
+    vInteractor: TInteractor;
+    vEntities: TEntityList;
+  begin
+    if not Assigned(FEditRepository) then FEditRepository := TcxEditRepository.Create(nil);
+
+    vName := vFieldDef.FullName.Replace('.', '_');// + IntToStr(Ord(AFieldKind));
+    if vFieldDef.Kind = fkObject then
+    begin
+      vEntityField := TEntityField(vField);
+      if Assigned(vEntityField.ContentDefinition) then
+      begin
+        if vEntityField.ContentDefinition.Name <> '-' then
+          vName := vName + '_' + vEntityField.ContentDefinition.Name
+        else begin
+          if Assigned(vEntityField.Entity) then
+          begin
+            vEntityField.SetContentDefinition(Holder, vEntityField.Entity.Definition);
+            vName := vName + '_' + vEntityField.ContentDefinition.Name;
+          end;
+        end;
+      end;
+    end;
+
+    vEditRepositoryItem := FEditRepository.ItemByName(vName);
+    if not Assigned(vEditRepositoryItem) then
+    begin
+      if AFieldKind = fkInteger then
+      begin
+        vEditRepositoryItem := FEditRepository.CreateItem(TcxEditRepositorySpinItem);
+        TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.ValueType := vtInt;
+      end
+      else if AFieldKind = fkFloat then
+      begin
+        vEditRepositoryItem := FEditRepository.CreateItem(TcxEditRepositorySpinItem);
+        TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.ValueType := vtFloat;
+      end
+      else if AFieldKind = fkBoolean then
+      begin
+        vEditRepositoryItem := FEditRepository.CreateItem(TcxEditRepositoryCheckBoxItem);
+      end
+      else if AFieldKind = fkObject then
+      begin
+        vEditRepositoryItem := FEditRepository.CreateItem(TcxEditRepositoryComboBoxItem);
+        vInteractor := TInteractor(FView.Interactor);
+        vEntities := TEntityList.Create(vInteractor.Domain, vInteractor.Session);
+        try
+          vEntityField := TEntityField(vField);
+
+          vEntityField.GetEntitiesForSelect(vInteractor.Session, vEntities);
+
+          TcxComboBoxProperties(TcxEditRepositoryComboBoxItem(vEditRepositoryItem).Properties).Items.Clear;
+          for i := 0 to vEntities.Count - 1 do
+            TcxComboBoxProperties(TcxEditRepositoryComboBoxItem(vEditRepositoryItem).Properties).Items.AddObject(SafeDisplayName(vEntities[i]), vEntities[i]);
+
+        finally
+          FreeAndNil(vEntities);
+        end;
+      end
+    end;
+
+    Result := nil;
+    if Assigned(vEditRepositoryItem) then
+    begin
+      vEditRepositoryItem.Name := vName;
+      Result := vEditRepositoryItem.Properties;
+    end;
+  end;
+begin
+  vColumnBinding := TColumnBinding(Sender.DataBinding.Data);
+  vFieldName := vColumnBinding.FieldName;
+
+  vEntity := FMasterDS.Data[ARecord.RecordIndex];
+
+  vField := vEntity.FieldByName(vFieldName);
+  if Assigned(vField) then
+    vFieldDef := vField.FieldDef
+  else
+    vFieldDef := vColumnBinding.FieldDef;
+
+  if vFieldDef.Kind in [fkInteger, fkFloat, fkBoolean, fkObject] then
+  begin
+    vProps := GetProps(vFieldDef.Kind, vFieldDef.Name);
+    if Assigned(vProps) then
+      AProperties := vProps;
+  end;
 end;
 
 procedure TColumnListEditor.CreateColumn(const AFieldDef: TFieldDef; const AFieldName: string;
@@ -2341,6 +2473,9 @@ begin
   vColumnBinding := FMasterDS.AddColumn(AFieldName, AFieldDef);
   vCol.DataBinding.Data := vColumnBinding;
   vColumnBinding.FColumn := vCol;
+
+  if AFieldDef.Definition.Kind = clkMixin then
+    vCol.OnGetProperties := GetPropertiesForEdit;
 
   if Assigned(AFieldDef) then
   begin
@@ -2362,8 +2497,8 @@ begin
         if AFieldDef.Kind = fkFloat then
           TcxSpinEditProperties(vCol.Properties).ValueType := vtFloat;
 
-        if vStyleName = 'formatted' then
-          TcxSpinEditProperties(vCol.Properties).DisplayFormat := GetUrlParam(AFieldDef.StyleName, 'format');
+        if Length(AFieldDef.Format) > 0 then
+          TcxSpinEditProperties(vCol.Properties).DisplayFormat := AFieldDef.Format;
 
         if not VarIsNull(TSimpleFieldDef(AFieldDef).MinValue) then
           TcxSpinEditProperties(vCol.Properties).MinValue := TSimpleFieldDef(AFieldDef).MinValue;
@@ -2483,6 +2618,12 @@ begin
     FMasterTableView.EndUpdate;
     EnableColumnParamsChangeHandlers(True);
   end;
+end;
+
+destructor TColumnListEditor.Destroy;
+begin
+  FreeAndNil(FEditRepository);
+  inherited;
 end;
 
 procedure TColumnListEditor.DoBeforeFreeControl;
@@ -2768,7 +2909,8 @@ type
 procedure TColumnListEditor.OnInitEdit(Sender: TcxCustomGridTableView; AItem: TcxCustomGridTableItem;
   AEdit: TcxCustomEdit);
 begin
-  TWinControlAccess(AEdit.InnerControl).OnExit := OnExitFromInplaceEditor;
+  if Assigned(AEdit.InnerControl) then
+    TWinControlAccess(AEdit.InnerControl).OnExit := OnExitFromInplaceEditor;
 end;
 
 procedure TColumnListEditor.SaveColumnWidths;
@@ -2975,19 +3117,14 @@ end;
 { TColumnBinding }
 
 constructor TColumnBinding.Create(const AFieldName: string; const AFieldDef: TFieldDef);
-var
-  vFormat: string;
 begin
   inherited Create;
   FFieldName := AFieldName;
   FSanitizedFieldName := StringReplace(AFieldName, '.', '__', [rfReplaceAll]);
   FFieldDef := AFieldDef;
   FAfterPoint := 4;
-  if (FFieldDef.Kind = fkFloat) and (GetUrlCommand(FFieldDef.StyleName) = 'formatted') then
-  begin
-    vFormat := GetUrlParam(FFieldDef.StyleName, 'format');
-    FAfterPoint := Length(vFormat) - Pos('.', vFormat);
-  end;
+  if (FFieldDef.Kind = fkFloat) and (Length(FFieldDef.Format) > 0) then
+    FAfterPoint := Length(FFieldDef.Format) - Pos('.', FFieldDef.Format);
 end;
 
 { TPivotGrid }
@@ -3069,7 +3206,7 @@ begin
       vParams := TEntity(vArea.View.DomainObject);
       vMenuItem.Checked := FMasterTableView.OptionsView.GroupByBox;
       if vParams['IsChecked'] <> vMenuItem.Checked then
-        vParams._SetFieldValue(nil, 'IsChecked', vMenuItem.Checked);
+        vParams._SetFieldValue(FSession.NullHolder, 'IsChecked', vMenuItem.Checked);
     end;}
   end;
 
@@ -3212,7 +3349,7 @@ begin
   else if AView.Name = '#DateReduction' then
   begin
     {vParams := TEntity(AView.DomainObject);
-    vParams._SetFieldValue(nil, 'IsChecked', not vParams['IsChecked']);
+    vParams._SetFieldValue(FSession.NullHolder, 'IsChecked', not vParams['IsChecked']);
     FMasterTableView.OptionsView.GroupByBox := vParams['IsChecked'];
     if not FMasterTableView.OptionsView.GroupByBox then // remove groups
       for i := 0 to FMasterTableView.ColumnCount - 1 do
@@ -3905,8 +4042,6 @@ begin
 
   FEntityList := TEntityList.Create(vInteractor.Domain, vInteractor.Session);
 
-  TDomain(Domain).GetEntityList(FView.Session, FTransitField._ContentDefinition, FEntityList, '');
-
   FListBox.OnClickCheck := OnClickCheck;
 end;
 
@@ -3930,6 +4065,8 @@ var
   vList: TList<TEntity>;
   vSelectedIndex: Integer;
 begin
+  TDomain(Domain).GetEntityList(FView.Session, FTransitField._ContentDefinition, FEntityList, '');
+
   vSelectedList := TEntityList(FView.DomainObject);
   vList := TList<TEntity>.Create;
   try

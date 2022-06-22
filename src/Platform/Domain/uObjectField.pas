@@ -49,15 +49,18 @@ type
     function GetIsSelector: Boolean;
     function GetSearchType: TSearchType;
     function GetContentDefinition: TDefinition;
-    procedure SetContentDefinition(const Value: TDefinition);
     function GetContentDefinitions: TList<TDefinition>;
     function GetDefaultDefinitionName: string;
+  protected
+    procedure HandleContentDefinitionChanged(const AHolder: TObject; const Value: TDefinition); virtual;
   public
     constructor Create(const AInstance: TEntity; const AFieldDef: TFieldDef); override;
     destructor Destroy; override;
 
+    procedure SetContentDefinition(const AHolder: TObject; const Value: TDefinition);
+
     property IsSelector: Boolean read GetIsSelector;
-    property ContentDefinition: TDefinition read GetContentDefinition write SetContentDefinition;
+    property ContentDefinition: TDefinition read GetContentDefinition;
     property DefaultDefinitionName: string read GetDefaultDefinitionName;
     property ContentDefinitions: TList<TDefinition> read GetContentDefinitions;
     property SortType: TEntitySortType read GetSortType;
@@ -91,6 +94,8 @@ type
     function DoCompare(const AValue: Variant): Integer; override;
     function DoCheckValuedCondition(const AValue: Variant; const ACondition:
       TConditionKind; const AModifier: TConditionModifier): Boolean; override;
+
+    procedure HandleContentDefinitionChanged(const AHolder: TObject; const Value: TDefinition); override;
   public
     constructor Create(const AInstance: TEntity; const AFieldDef: TFieldDef); override;
 
@@ -116,7 +121,7 @@ type
   private
     // Список хранит живые сущности
     FList: TList<TEntity>;
-    FDict: TDictionary<TEntity, string>;
+    FDict: TDictionary<TEntity, Integer>;
 
     function GetMasterFieldName: string;
 
@@ -225,11 +230,18 @@ begin
   Result := TObjectFieldDef(FFieldDef).StyleName;
 end;
 
-procedure TObjectField.SetContentDefinition(const Value: TDefinition);
+procedure TObjectField.HandleContentDefinitionChanged(const AHolder: TObject; const Value: TDefinition);
+begin
+end;
+
+procedure TObjectField.SetContentDefinition(const AHolder: TObject; const Value: TDefinition);
 begin
   Assert(Assigned(Value), 'New content definition should not be empty!');
   if FContentDefinition <> Value then
+  begin
     FContentDefinition := Value;
+    HandleContentDefinitionChanged(AHolder, Value);
+  end;
 end;
 
 { TEntityField }
@@ -262,8 +274,14 @@ begin
   vCollection := TDomain(FDomain).CollectionByID(ACollectionID);
   if not Assigned(vCollection) then
     Result := nil
-  else
+  else begin
     Result := vCollection.EntityByID(AEntityID);
+    if Assigned(Result) then
+    begin
+      if not Assigned(FContentDefinition) and (TEntityFieldDef(FFieldDef).ContentDefinitionName = '-') then
+        FContentDefinition := Result.Definition;
+    end;
+  end;
 end;
 
 procedure TEntityField.DoLoad(const AStorage: TStorage);
@@ -351,7 +369,7 @@ end;
 
 function TEntityField.DoGetValue: Variant;
 begin
-  Result := Integer(GetEntity);
+  Result := NativeInt(GetEntity);
 end;
 
 procedure TEntityField.DoSetValue(const AValue: Variant);
@@ -376,9 +394,16 @@ var
   vList: TEntityList absolute AList;
   i: Integer;
   vQuery: TQueryExecutor;
+  vCollectionName: string;
 begin
   vList.Clear;
-  vQuery := TQueryExecutor.Create(TEntityFieldDef(FFieldDef).QueryDef);
+
+   if (TEntityFieldDef(FFieldDef).ContentDefinitionName = '-') and Assigned(FContentDefinition) then
+    vCollectionName := FContentDefinition.Name
+  else
+    vCollectionName := '';
+
+  vQuery := TQueryExecutor.Create(TEntityFieldDef(FFieldDef).QueryDef, vCollectionName);
   try
     vQuery.SetParameters(ASession, FInstance);
     vQuery.Select(ASession);
@@ -414,6 +439,12 @@ begin
   Result := TEntityFieldDef(FFieldDef).SelectorStorageName;
 end;
 
+procedure TEntityField.HandleContentDefinitionChanged(const AHolder: TObject; const Value: TDefinition);
+begin
+  FCollectionID := Value.ID;
+  FInstance.NotifyView(AHolder, dckContentTypeChanged, nil, FFieldDef.Name);
+end;
+
 function TEntityField.GetJSONValue: TJSONValue;
 var
   vEntityID: Integer;
@@ -437,7 +468,7 @@ begin
   if Assigned(AEntity) and IsSelector then
     FCollectionID := AEntity.Definition.ID;
 
-  SetValue(AHolder, Integer(AEntity));
+  SetValue(AHolder, NativeInt(AEntity));
 end;
 
 procedure TEntityField.SetIdentifiers(const AEntityID, ACollectionID: Integer);
@@ -497,7 +528,7 @@ begin
   else
     vCollectionName := ACollectionName;
 
-  Result := TDomain(FDomain)[vCollectionName]._CreateNewEntity(TChangeHolder(AHolder), cNewID, AFieldNames, AValues, Self, False);
+  Result := TDomain(FDomain)[vCollectionName]._CreateNewEntity(AHolder, cNewID, AFieldNames, AValues, Self, False);
 
   // Установка правильного порядка вставки
   if (SortType = estSortByOrder) and Result.FieldExists('Order') then
@@ -517,7 +548,7 @@ constructor TListField.Create(const AInstance: TEntity; const AFieldDef: TFieldD
 begin
   inherited Create(AInstance, AFieldDef);
   FList := TList<TEntity>.Create;
-  FDict := TDictionary<TEntity, string>.Create;
+  FDict := TDictionary<TEntity, Integer>.Create;
 end;
 
 destructor TListField.Destroy;
@@ -648,7 +679,7 @@ end;
 
 function TListField.DoGetValue: Variant;
 begin
-  Result := Integer(Self);
+  Result := NativeInt(Self);
 end;
 
 procedure TListField.GetAllEntitiesForSelect(const ASession, AList: TObject);
@@ -769,8 +800,6 @@ begin
   if Contains(AEntity) then
     TDomain(FDomain).Logger.AddMessage('Exit from LinkListEntity')
   else
-    // Привязываем листовую сущность
-    //TChangeHolder(AHolder).SetFieldEntity(AEntity, GetMasterFieldName, FInstance);
     AEntity._SetFieldEntity(AHolder, GetMasterFieldName, FInstance);
 end;
 
@@ -794,7 +823,6 @@ end;
 procedure TListField.AddToList(const AHolder: TObject; const AEntity: TEntity);
 var
   vQuery: TQueryExecutor;
-  vSession: TObject;
 begin
   if Contains(AEntity) then
     Exit;
@@ -803,12 +831,7 @@ begin
   begin
     vQuery := TQueryExecutor.Create(TListFieldDef(FFieldDef).QueryDef);
     try
-      if Assigned(AHolder) then
-        vSession := TChangeHolder(AHolder).Session
-      else
-        vSession := nil;
-
-      if not vQuery.IsMatch(vSession, AEntity) then
+      if not vQuery.IsMatch(TChangeHolder(AHolder).Session, AEntity) then
         Exit;
     finally
       FreeAndNil(vQuery);
@@ -816,19 +839,88 @@ begin
   end;
 
   FList.Add(AEntity);
-  FDict.Add(AEntity, '');
+  FDict.Add(AEntity, 0);
   AEntity.AddListener(FieldName, FInstance);
   FInstance.ProcessFieldChanged(AHolder, dckListAdded, GetFieldName, AEntity);
 end;
 
 procedure TListField.ClearList(const AHolder: TObject);
 var
-  i: Integer;
+  i, j: Integer;
+  vEntity: TEntity;
+  vLinkedEntity: TEntity;
+  vFieldDef: TFieldDef;
+  vField: TBaseField;
+  vCollection: TCollection;
+  vTempListeners: TList<TEntity>;
+  vFieldNames: TStrings;
+  vFieldName: string;
+  vListener: TEntity;
 begin
   if GetRelationPower = rpStrong then
   begin
     for i := FList.Count - 1 downto 0 do
-      InternalRemove(AHolder, FList[i])
+    begin
+      //InternalRemove(AHolder, FList[i]);
+      vEntity := FList[i];
+      if vEntity.Deleted then
+        Continue;
+
+      for vFieldDef in vEntity.Definition.Fields do
+        if vFieldDef.Kind = fkList then
+          TListField(vEntity.FieldByName(vFieldDef.Name)).ClearList(AHolder);
+
+      vCollection := TCollection(vEntity.Collection);
+      if not Assigned(vCollection) then
+        Continue;
+
+      TEntityChangingProc(TDomain(FDomain).Configuration.BeforeEntityRemovingProc)(TChangeHolder(AHolder), vEntity);
+
+      vCollection.NotifyListeners(AHolder, dckListRemoved, vEntity);
+
+      vEntity.Deleted := True;
+      TChangeHolder(AHolder).RegisterEntityDeleting(vEntity);
+
+      vTempListeners := TList<TEntity>.Create;
+      try
+        for vListener in vEntity.Listeners.Keys do
+          vTempListeners.Add(vListener);
+
+        for j := vTempListeners.Count - 1 downto 0 do
+        begin
+          vListener := vTempListeners[j];
+          if not vEntity.Listeners.TryGetValue(vListener, vFieldNames) then
+            Continue;
+
+          for vFieldName in vFieldNames do
+          begin
+            vField := vListener.FieldByName(vFieldName);
+            if vField.FieldKind = fkObject then
+              vListener._SetFieldEntity(AHolder, vFieldName, nil)
+            else if (vField.FieldKind = fkList) and (vField <> Self) then
+              TListField(vField).UnlinkListEntity(AHolder, vEntity);
+          end;
+        end;
+      finally
+        FreeAndNil(vTempListeners);
+      end;
+
+      vEntity.NotifyView(AHolder, dckEntityDeleted, vEntity);
+
+      for j := 0 to vEntity.FieldCount - 1 do
+      begin
+        vField := vEntity.Fields[j];
+        if vField.FieldKind <> fkObject then
+          Continue;
+
+        vLinkedEntity := TEntity(TEntityField(vField).Entity);
+        if Assigned(vLinkedEntity) then
+          vLinkedEntity.RemoveListener(vField.FieldName, vEntity);
+      end;
+    end;
+
+    FList.Clear;
+    FDict.Clear;
   end
   else
     for i := FList.Count - 1 downto 0 do
@@ -855,18 +947,10 @@ begin
   vMasterField := TEntityField(AEntity.FieldByName(GetMasterFieldName));
   // При отвязке сущности от списка нужно устанавливать ее мастер поле
   //   в значение поля по умолчанию ??? или в специальное значение
-  if Assigned(AHolder) then
-  begin
-    if AEntity.Deleted then
-      vMasterField.SetEntity(AHolder, nil)
-    else
-      vMasterField.ResetToDefault(AHolder);
-  end
-  else begin
-    //?? DeleteFromList ??
-    FList.Remove(AEntity);
-    FDict.Remove(AEntity);
-  end;
+  if AEntity.Deleted then
+    vMasterField.SetEntity(AHolder, nil)
+  else
+    vMasterField.ResetToDefault(AHolder);
 end;
 
 procedure TListField.DeleteFromList(const AHolder: TObject; const AEntity: TEntity);

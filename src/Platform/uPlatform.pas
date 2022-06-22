@@ -243,7 +243,7 @@ begin
   begin
     if False then
       Continue;
-    vDomain.ExecuteDefaultAction(nil, AData);
+    vDomain.ExecuteDefaultAction(vDomain.DomainSession, AData);
   end;
 end;
 

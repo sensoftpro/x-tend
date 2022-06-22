@@ -1,0 +1,20 @@
+
+  // UI: VCL Windows implementation  
+  uVCLPresenter in '..\..\Modules\UI\Windows\VCL\uVCLPresenter.pas',
+  uVCLScene in '..\..\Modules\UI\Windows\VCL\uVCLScene.pas',
+  vclnArea in '..\..\Modules\UI\Windows\VCL\Editors\vclnArea.pas',
+  vclnSimpleEditors in '..\..\Modules\UI\Windows\VCL\Editors\vclnSimpleEditors.pas',
+  vclnEntityEditors in '..\..\Modules\UI\Windows\VCL\Editors\vclnEntityEditors.pas',
+  vclnListEditors in '..\..\Modules\UI\Windows\VCL\Editors\vclnListEditors.pas',
+  vclnBlobEditors in '..\..\Modules\UI\Windows\VCL\Editors\vclnBlobEditors.pas',
+  vclnPopupForm in '..\..\Modules\UI\Windows\VCL\Editors\vclnPopupForm.pas',
+  uManagedVclForm in '..\..\Modules\UI\Windows\VCL\Forms\uManagedVclForm.pas',
+  
+  StartVclForm in '..\..\Modules\UI\Windows\VCL\Forms\StartVclForm.pas' {StartVclFm},
+  LoginVclForm in '..\..\Modules\UI\Windows\VCL\Forms\LoginVclForm.pas' {LoginFm},
+  TranslationVclEditForm in '..\..\Modules\UI\Windows\VCL\Forms\TranslationVclEditForm.pas' {TranslationEditFm},
+  LangVclEditForm in '..\..\Modules\UI\Windows\VCL\Forms\LangVclEditForm.pas' {LangEditFm},
+  AboutVclForm in '..\..\Modules\UI\Windows\VCL\Forms\AboutVclForm.pas' {AboutVclFm},
+  ReportConfigureVclForm in '..\..\Modules\UI\Windows\VCL\Forms\ReportConfigureVclForm.pas' {ReportConfigureFm},
+  DebugInfoVclForm in '..\..\Modules\UI\Windows\VCL\Forms\DebugInfoVclForm.pas' {DebugFm},
+  SplashVclForm in '..\..\Modules\UI\Windows\VCL\Forms\SplashVclForm.pas' {SplashFm},

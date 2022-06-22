@@ -88,8 +88,8 @@ type
     function DoExtractFieldValue(const AFieldName: string): Variant; virtual;
 
     function DoCompare(const AValue: Variant): Integer; virtual; abstract;
-    function DoCheckValuedCondition(const AValue: Variant; const ACondition:
-      TConditionKind; const AModifier: TConditionModifier): Boolean; virtual; abstract;
+    function DoCheckValuedCondition(const AValue: Variant; const ACondition: TConditionKind;
+      const AModifier: TConditionModifier): Boolean; virtual; abstract;
   public
     constructor Create(const AInstance: TEntity; const AFieldDef: TFieldDef); virtual;
     destructor Destroy; override;
@@ -97,16 +97,15 @@ type
     function LogInfo(const AOldValue: TJSONValue = nil): string;
 
     // Заполнение объекта из JSON
-    procedure SetFromJSON(const AJSONObject: TJSONObject;
-      const AIsNew: Boolean);
+    procedure SetFromJSON(const AJSONObject: TJSONObject; const AIsNew: Boolean);
 
     procedure Transfer(const AStorage: TStorage);
     procedure Load(const AStorage: TStorage);
 
     function ExtractFieldValue(const AFieldName: string = ''): Variant;
     function Compare(const AValue: Variant): Integer;
-    function CheckValuedCondition(const AValue: Variant; const ACondition:
-      TConditionKind; const AModifier: TConditionModifier): Boolean;
+    function CheckValuedCondition(const AValue: Variant; const ACondition: TConditionKind;
+      const AModifier: TConditionModifier): Boolean;
 
     function GetUIState(const ASession: TObject): TViewState;
     procedure SetUIState(const Value: TViewState);
@@ -126,17 +125,6 @@ type
     property ValidationStatus: TValidateStatus read FValidationStatus write FValidationStatus;
   end;
 
-  TNamedEntity = class
-  private
-    FName: string;
-    [Weak] FEntity: TEntity;
-  public
-    constructor Create(const AName: string; const AEntity: TEntity);
-
-    property Name: string read FName;
-    property Entity: TEntity read FEntity;
-  end;
-
   TEntity = class
   private
     // Служебная информация о состоянии
@@ -151,7 +139,7 @@ type
     FPassObject: TObject; // Объект для передачи дополнительной информации
   private
     procedure LoadFields(const AStorage: TStorage);
-    procedure ActivateField(const AFieldDef: TFieldDef);
+    procedure ActivateField(const AHolder: TObject; const AFieldDef: TFieldDef);
   protected
     procedure InternalLoad(const AStorage: TStorage);
   private
@@ -170,7 +158,7 @@ type
     [Weak] FDomain: TObject;
     [Weak] FDefinition: TDefinition;
     [Weak] FCollection: TObject;
-    FListeners: TObjectList<TNamedEntity>;
+    FListeners: TObjectDictionary<TEntity, TStrings>;
     FUIListeners: TObjectDictionary<string, TList<TObject>>;
     FFieldList: TObjectList<TBaseField>;
     FViewState: TViewState;
@@ -186,8 +174,8 @@ type
 
     // Процедура нужна, чтобы уведомить, что сущность создана и загружена
     //   и дать вложенным полям настроить свои подписки
-    procedure SubscribeFields;
-    procedure UnsubscribeFields;
+    procedure SubscribeFields(const AHolder: TObject);
+    procedure UnsubscribeFields(const AHolder: TObject);
 
     procedure AddListener(const AFieldName: string; const AInstance: TEntity);
     procedure RemoveListener(const AFieldName: string; const AInstance: TEntity);
@@ -210,13 +198,12 @@ type
 
     function IsParam: Boolean;
     function IsValid: Boolean;
-    procedure ResetToDefault;
+    procedure ResetToDefault(const AHolder: TObject);
 
     property Fields[const AIndex: Integer]: TBaseField read GetField;
     property FieldCount: Integer read GetFieldCount;
     // Получение значений поля для отображения в гридах и для расчетов
-    property FieldValues[const AFieldName: string]: Variant
-      read GetAnyFieldValue; default;
+    property FieldValues[const AFieldName: string]: Variant read GetAnyFieldValue; default;
     function VisibleFieldCount(const ASession: TObject): Integer;
 
     function InstanceOf(const ATypeName: string): Boolean;
@@ -231,12 +218,12 @@ type
   public
     procedure ProcessMasterFieldChanged(const AHolder: TObject; const ADependentFieldDef: TFieldDef;
       const AMasterFieldName, ALinkFieldName: string);
-    procedure ProcessFieldChanged(const AHolder: TObject; const AChangeKind: Word;
-      const AFieldName: string; const AEntity: TEntity);
-    procedure ProcessLinkedEntityChanged(const AHolder: TObject;
-      const AFieldName: string; const APrevChain: string; const AEntity: TEntity);
+    procedure ProcessFieldChanged(const AHolder: TObject; const AChangeKind: Word; const AFieldName: string;
+      const AEntity: TEntity);
+    procedure ProcessLinkedEntityChanged(const AHolder: TObject; const AFieldName: string; const APrevChain: string;
+      const AEntity: TEntity);
     procedure ProcessLinkedEntityDeleted(const AHolder: TObject; const AFieldName: string; const AEntity: TEntity);
-    procedure NotifyView(const AChangeKind: Word; const AParameter: TObject; const AFieldName: string = '');
+    procedure NotifyView(const AHolder: TObject; const AChangeKind: Word; const AParameter: TObject; const AFieldName: string = '');
 
     // Автоматическое управление листовыми полями
     procedure TryRemoveFromForeignList(const AHolder: TObject; const AField: TBaseField);
@@ -260,8 +247,7 @@ type
   public
     // Управление содержимым сущности
     // Обращение к коллекции
-    procedure FillEntity(const AHolder: TObject; const ATargetEntity: TEntity;
-      const AIgnoreFields: string);
+    procedure FillEntity(const AHolder: TObject; const ATargetEntity: TEntity; const AIgnoreFields: string);
     function Clone(const AHolder: TObject; const AIgnoreFields: string): TEntity;
 
     procedure GenerateID;
@@ -275,8 +261,7 @@ type
     property ID: Integer read FID;
     property EnvironmentID: string read FEnvironmentID write SetEnvironmentID;
     property LogID: Integer read FLogID write FLogID;
-    procedure Populate(const AFieldNames: string;
-      const AValues: array of Variant; const APopulateAll: Boolean = True);
+    procedure Populate(const AFieldNames: string; const AValues: array of Variant; const APopulateAll: Boolean = True);
     procedure Delete(const AHolder: TObject);
     procedure SetDeleted(const AHolder: TObject);
 
@@ -290,6 +275,8 @@ type
     //TODO Костыль для состояний
     property ViewState: TViewState read FViewState write SetViewState;
     property PassObject: TObject read FPassObject write FPassObject;
+
+    property Listeners: TObjectDictionary<TEntity, TStrings> read FListeners;
 
     // Сбор и вывод информации о сущности
     function DisplayName: string;
@@ -370,8 +357,7 @@ begin
   Result := TCheckFieldFunc(TDomain(FDomain).Configuration.CheckFieldFunc)(TEntity(FInstance), GetFieldName);
 end;
 
-function TBaseField.CheckValuedCondition(const AValue: Variant;
-  const ACondition: TConditionKind;
+function TBaseField.CheckValuedCondition(const AValue: Variant; const ACondition: TConditionKind;
   const AModifier: TConditionModifier): Boolean;
 begin
   Result := DoCheckValuedCondition(AValue, ACondition, AModifier);
@@ -424,19 +410,22 @@ end;
 
 procedure TBaseField.SetJSON(const AJSONValue: TJSONValue);
 var
+  vHolder: TChangeHolder;
   vParameter: TEntity;
 begin
-  BeforeChanges(nil);
+  vHolder := TDomain(FDomain).DomainHolder;
+
+  BeforeChanges(vHolder);
 
   SetJSONValue(AJSONValue);
 
-  AfterChanges(nil);
+  AfterChanges(vHolder);
 
   if FFieldDef.Kind = fkObject then
-    vParameter := TEntity(Integer(DoGetValue))
+    vParameter := TEntity(NativeInt(DoGetValue))
   else
     vParameter := nil;
-  FInstance.ProcessFieldChanged(nil, dckFieldChanged, GetFieldName, vParameter);
+  FInstance.ProcessFieldChanged(vHolder, dckFieldChanged, GetFieldName, vParameter);
 end;
 
 procedure TBaseField.SetJSONValue(const AJSONValue: TJSONValue);
@@ -459,7 +448,7 @@ begin
   if FUIState <> vNewState then
   begin
     FUIState := vNewState;
-    TEntity(FInstance).NotifyView(dckViewStateChanged, nil, FieldName);
+    TEntity(FInstance).NotifyView(nil, dckViewStateChanged, nil, FieldName);
   end;
 end;
 
@@ -519,7 +508,6 @@ end;
 
 function TBaseField.InternalGetUIState: TViewState;
 var
-  vSession: TUserSession;
   vHandler: TProc;
 begin
   if FUIState = vsUndefined then
@@ -528,12 +516,11 @@ begin
     if Assigned(FFieldDef.FNotificationChains.UICalculations) then
     begin
       // Обновить FCalcUIState
-      vSession := TDomain(FDomain).DomainSession;
       for vHandler in FFieldDef.FNotificationChains.UICalculations do
       begin
         TDomain(FDomain).LogEnter('>> UI reaction, ' + FFieldDef.FullName);
         try
-          TReactionProcRef(vHandler)(vSession, nil, FieldName, FInstance, nil);
+          TReactionProcRef(vHandler)(TDomain(FDomain).DomainHolder, FieldName, FInstance, nil);
         finally
           TDomain(FDomain).LogExit('<< UI reaction, ' + FFieldDef.FullName);
         end;
@@ -602,6 +589,8 @@ begin
   if DoCheckValuedCondition(AValue, ckEqualTo, cmNone) then
     Exit;
 
+  Assert(Assigned(AHolder), 'Пустой холдер в методе');
+
   BeforeChanges(AHolder);
 
   if FInstance.Definition is TActionDef then
@@ -611,10 +600,10 @@ begin
   end
   else begin
     vNeedRegisterChanges := not FInstance.IsNew;
-    if vNeedRegisterChanges and Assigned(vHolder) then
+    if vNeedRegisterChanges then
       vNeedRegisterChanges := vHolder.KeepOldData(FInstance, GetFieldName);
     DoSetValue(AValue);
-    if vNeedRegisterChanges and Assigned(vHolder) then
+    if vNeedRegisterChanges then
       vHolder.RegisterFieldChanges(TEntity(FInstance), GetFieldName);
   end;
 
@@ -637,11 +626,11 @@ begin
     FValidationStatus := vsInvalid;
 
   if FFieldDef.Kind = fkObject then
-    vParameter := TEntity(Integer(Value))
+    vParameter := TEntity(NativeInt(Value))
   else
     vParameter := nil;
 
-  FInstance.ProcessFieldChanged(vHolder, dckFieldChanged, GetFieldName, vParameter);
+  FInstance.ProcessFieldChanged(AHolder, dckFieldChanged, GetFieldName, vParameter);
 end;
 
 procedure TBaseField.Transfer(const AStorage: TStorage);
@@ -664,30 +653,36 @@ end;
 
 { TEntity }
 
-procedure TEntity.ActivateField(const AFieldDef: TFieldDef);
+procedure TEntity.ActivateField(const AHolder: TObject; const AFieldDef: TFieldDef);
 var
-  vSession: TUserSession;
   vHandler: TProc;
 begin
-  vSession := TDomain(FDomain).DomainSession;
-
   //TDomain(FDomain).LogEnter('>> Activate field [' + AFieldDef.Name + '], entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
   try
     if AFieldDef.HasFlag(cCalculated) and AFieldDef.HasFlag(cNotSave) and Assigned(AFieldDef.FNotificationChains.Calculations) then
       for vHandler in AFieldDef.FNotificationChains.Calculations do
-        TReactionProcRef(vHandler)(vSession, nil, '', Self, nil);
+        TReactionProcRef(vHandler)(TChangeHolder(AHolder), '', Self, nil);
 
     if Assigned(AFieldDef.FNotificationChains.UICalculations) then
       for vHandler in AFieldDef.FNotificationChains.UICalculations do
-        TReactionProcRef(vHandler)(vSession, nil, '', Self, nil);
+        TReactionProcRef(vHandler)(TChangeHolder(AHolder), '', Self, nil);
   finally
     //TDomain(FDomain).LogExit('<< Activate field, entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
   end;
 end;
 
 procedure TEntity.AddListener(const AFieldName: string; const AInstance: TEntity);
+var
+  vFieldNames: TStrings;
 begin
-  FListeners.Add(TNamedEntity.Create(AFieldName, AInstance));
+  if not FListeners.TryGetValue(AInstance, vFieldNames) then
+  begin
+    vFieldNames := TStringList.Create;
+    vFieldNames.Add(AFieldName);
+    FListeners.Add(AInstance, vFieldNames);
+  end
+  else if vFieldNames.IndexOf(AFieldName) < 0 then
+    vFieldNames.Add(AFieldName);
 end;
 
 procedure TEntity.TryAddToForeignList(const AHolder: TObject; const AField: TBaseField);
@@ -731,7 +726,7 @@ begin
   FDefinition := ADefinition;
   FIsEnvSpecific := False;
 
-  FListeners := TObjectList<TNamedEntity>.Create;
+  FListeners := TObjectDictionary<TEntity, TStrings>.Create([doOwnsValues]);
   FUIListeners := TObjectDictionary<string, TList<TObject>>.Create([doOwnsValues]);
 
   FFieldList := TObjectList<TBaseField>.Create;
@@ -812,7 +807,7 @@ end;
 procedure TEntity.EnableField(const AField: TBaseField);
 begin
   AField.FEnabled := True;
-  ActivateField(AField.FieldDef);
+  ActivateField(TDomain(FDomain).DomainHolder, AField.FieldDef);
 end;
 
 function TEntity.EntityState(const AFieldName: string = ''): TState;
@@ -894,8 +889,7 @@ begin
   if vPos > 0 then
   begin
     vField := FieldByName(Copy(AFieldName, 1, vPos - 1));
-    Result := vField.ExtractFieldValue(Copy(AFieldName, vPos + 1,
-      Length(AFieldName) - vPos));
+    Result := vField.ExtractFieldValue(Copy(AFieldName, vPos + 1, Length(AFieldName) - vPos));
   end
   else begin
     //if AFieldName = 'IsNull' then
@@ -1184,10 +1178,11 @@ begin
   Result := FDefinition.Name;
 end;
 
-procedure TEntity.ProcessFieldChanged(const AHolder: TObject; const AChangeKind: Word;
-  const AFieldName: string; const AEntity: TEntity);
+procedure TEntity.ProcessFieldChanged(const AHolder: TObject; const AChangeKind: Word; const AFieldName: string;
+  const AEntity: TEntity);
 var
   i: Integer;
+  vListener: TPair<TEntity, TStrings>;
 
   procedure UpdateViews(const ASubscribedEntity, AParameter: TEntity; const ASubscribedFieldName: string;
     const ANotificationKind: Word);
@@ -1197,9 +1192,12 @@ var
 
     // Уведомления от коллекций
     if Assigned(ASubscribedEntity.Collection) then
-      TCollection(ASubscribedEntity.Collection).NotifyListeners(dckEntityChanged, ASubscribedEntity);
+      TCollection(ASubscribedEntity.Collection).NotifyListeners(AHolder, dckEntityChanged, ASubscribedEntity);
 
-    ASubscribedEntity.NotifyView(ANotificationKind, AParameter, ASubscribedFieldName);
+    if ASubscribedEntity.Definition.FieldByName(ASubscribedFieldName).UIState = vsHidden then
+      Exit;
+
+    ASubscribedEntity.NotifyView(AHolder, ANotificationKind, AParameter, ASubscribedFieldName);
   end;
 begin
   if not TDomain(FDomain).IsAlive or FDeleted then
@@ -1212,14 +1210,17 @@ begin
   if FListeners.Count > 0 then
   begin
     if AFieldName = 'Name' then
-      for i := 0 to FListeners.Count - 1 do
-        UpdateViews(FListeners[i].Entity, Self, FListeners[i].Name, dckNameChanged)
-    else if Assigned(FDefinition.StateFieldDef) then
+      for vListener in FListeners do
+      begin
+        for i := 0 to vListener.Value.Count - 1 do
+          UpdateViews(vListener.Key, Self, vListener.Value[i], dckNameChanged)
+      end;
+    {else if Assigned(FDefinition.StateFieldDef) then
     begin
       if AFieldName = FDefinition.StateFieldDef.Name then
         for i := 0 to FListeners.Count - 1 do
           UpdateViews(FListeners[i].Entity, Self, FListeners[i].Name, dckEntityChanged);
-    end;
+    end};
     {else if AFieldName = 'Data' then
       for i := 0 to FListeners.Count - 1 do
         UpdateViews(FListeners[i].Entity, Self, FListeners[i].Name, dckEntityChanged);}
@@ -1228,7 +1229,7 @@ begin
   ProcessLinkedEntityChanged(AHolder, AFieldName, '', AEntity);
 end;
 
-procedure TEntity.SubscribeFields;
+procedure TEntity.SubscribeFields(const AHolder: TObject);
 var
   vFieldDef: TFieldDef;
   vField: TBaseField;
@@ -1237,11 +1238,11 @@ begin
   begin
     vFieldDef := vField.FieldDef;
     if vFieldDef.Kind = fkObject then
-      vField.AfterChanges(nil);
+      vField.AfterChanges(AHolder);
 
     // TODO Performance: Сделать так, чтобы поля регистрировались для активации
     if not vFieldDef.HasFlag(cLazy) then
-      ActivateField(vFieldDef);
+      ActivateField(AHolder, vFieldDef);
   end;
 end;
 
@@ -1249,12 +1250,13 @@ procedure TEntity.ProcessLinkedEntityChanged(const AHolder: TObject;
   const AFieldName: string; const APrevChain: string; const AEntity: TEntity);
 var
   vFieldDef: TFieldDef;
-  vSession: TUserSession;
   vHandlers: THandlers;
   vHandler: TProc;
-  i: Integer;
+  i, j: Integer;
   vListener: TEntity;
   vTransitFields: TList<TFieldDef>;
+  vTempListeners: TList<TEntity>;
+  vFieldNames: TStrings;
   vPrevChain: string;
   vFieldName: string;
 begin
@@ -1268,15 +1270,11 @@ begin
     // 1. Калькуляции
     if vFieldDef.FNotificationChains.TryGetReactions(APrevChain, FDefinition.Name, vHandlers) then
     begin
-      if Assigned(AHolder) then
-        vSession := TUserSession(TChangeHolder(AHolder).Session)
-      else
-        vSession := TDomain(FDomain).DomainSession;
       for vHandler in vHandlers do
       begin
         TDomain(FDomain).LogEnter('>> Base calculation, ' + FDefinition.Name + ':' + AFieldName + ':' + APrevChain);
         try
-          TReactionProcRef(vHandler)(vSession, TChangeHolder(AHolder), vPrevChain, Self, AEntity);
+          TReactionProcRef(vHandler)(TChangeHolder(AHolder), vPrevChain, Self, AEntity);
         finally
           TDomain(FDomain).LogExit('<< Base calculation, ' + FDefinition.Name + ':' + AFieldName + ':' + APrevChain);
         end;
@@ -1284,21 +1282,36 @@ begin
     end;
 
     // 2. Передача по цепочке вычислений, без действий
-    if (FListeners.Count > 0) and vFieldDef.FNotificationChains.TryGetTransitFields(APrevChain, vTransitFields) then
+    if (FListeners.Count > 0) and vFieldDef.FNotificationChains.TryGetTransitFields(APrevChain, vTransitFields) then //if Assigned(vTransitFields) then
     begin
       TDomain(FDomain).Log('%% Transition');
-      for i := FListeners.Count - 1 downto 0 do
-      begin
-        if i >= FListeners.Count then
-          Continue;
-        vListener := FListeners[i].Entity;
-        if not vListener.Deleted then
+      vTempListeners := TList<TEntity>.Create;
+      try
+        for vListener in FListeners.Keys do
+          vTempListeners.Add(vListener);
+
+        for i := vTempListeners.Count - 1 downto 0 do
         begin
-          vFieldName := FListeners[i].Name;
-          if Assigned(vTransitFields) then
-            if vTransitFields.Contains(vListener.Definition.FieldByName(vFieldName)) then
-              vListener.ProcessLinkedEntityChanged(AHolder, vFieldName, vPrevChain, Self);
+          vListener := vTempListeners[i];
+          if not FListeners.TryGetValue(vListener, vFieldNames) then
+            Continue;
+
+          if not vListener.Deleted then
+          begin
+            for j := 0 to vFieldNames.Count - 1 do
+            begin
+              vFieldName := vFieldNames[j];
+              if vTransitFields.Contains(vListener.Definition.FieldByName(vFieldName)) then
+                vListener.ProcessLinkedEntityChanged(AHolder, vFieldName, vPrevChain, Self);
+
+              // Required to check, since this action can remove vListener from FListeners
+              if not FListeners.ContainsKey(vListener) then
+                Break;
+            end;
+          end;
         end;
+      finally
+        FreeAndNil(vTempListeners);
       end;
     end;
   finally
@@ -1306,8 +1319,7 @@ begin
   end;
 end;
 
-procedure TEntity.ProcessLinkedEntityDeleted(const AHolder: TObject; const AFieldName: string;
-  const AEntity: TEntity);
+procedure TEntity.ProcessLinkedEntityDeleted(const AHolder: TObject; const AFieldName: string; const AEntity: TEntity);
 var
   vField: TBaseField;
 begin
@@ -1342,7 +1354,7 @@ begin
       vDependentEntity := TEntityField(vDependentField).Entity;
       if not Assigned(vDependentEntity) then
       begin
-        NotifyView(dckViewStateChanged, Self, ADependentFieldDef.Name);
+        NotifyView(AHolder, dckViewStateChanged, Self, ADependentFieldDef.Name);
         Exit;
       end;
 
@@ -1424,14 +1436,19 @@ end;
 
 procedure TEntity.RemoveListener(const AFieldName: string; const AInstance: TEntity);
 var
-  i: Integer;
+  vFieldNames: TStrings;
+  vIndex: Integer;
 begin
-  for i := 0 to FListeners.Count - 1 do
-    if SameText(FListeners[i].Name, AFieldName) and (FListeners[i].Entity = AInstance) then
-    begin
-      FListeners.Delete(i);
-      Break;
-    end;
+  if FDeleted or (not FListeners.TryGetValue(AInstance, vFieldNames)) then
+    Exit;
+
+  vIndex := vFieldNames.IndexOf(AFieldName);
+  if vIndex < 0 then
+    Exit;
+
+  vFieldNames.Delete(vIndex);
+  if vFieldNames.Count = 0 then
+    FListeners.Remove(AInstance);
 end;
 
 procedure TEntity.RemoveUIListener(const AFieldName: string; const AView: TObject);
@@ -1444,13 +1461,14 @@ begin
         FieldByName(AFieldName).FUIState := vsUndefined;
 end;
 
-procedure TEntity.ResetToDefault;
+procedure TEntity.ResetToDefault(const AHolder: TObject);
 var
   i: Integer;
 begin
+  Assert(Assigned(AHolder), 'Пустой холдер в методе');
   for i := 0 to FFieldList.Count - 1 do
     if GetField(i).FieldKind = fkObject then
-      TEntityField(GetField(i)).ResetToDefault(nil)
+      TEntityField(GetField(i)).ResetToDefault(AHolder)
     else
       FieldInitialize(GetField(i));
 end;
@@ -1459,6 +1477,7 @@ procedure TEntity._SetFieldEntity(const AHolder: TObject; const AFieldName: stri
 var
   vFieldDef: TFieldDef;
 begin
+  Assert(Assigned(AHolder), 'Пустой холдер в методе');
   vFieldDef := FDefinition.FieldByName(AFieldName);
   if Assigned(vFieldDef) and (vFieldDef.Kind = fkObject) then
     TEntityField(FieldByName(AFieldName)).SetEntity(AHolder, AEntity);
@@ -1468,6 +1487,7 @@ procedure TEntity._SetFieldObject(const AHolder: TObject; const AFieldName: stri
 var
   vFieldDef: TFieldDef;
 begin
+  Assert(Assigned(AHolder), 'Пустой холдер в методе');
   vFieldDef := FDefinition.FieldByName(AFieldName);
   if Assigned(vFieldDef) and (vFieldDef.Kind = fkComplex) then
     TComplexField(FieldByName(AFieldName)).SetObject(AHolder, AObject);
@@ -1477,6 +1497,7 @@ procedure TEntity._SetFieldStream(const AHolder: TObject; const AFieldName: stri
 var
   vFieldDef: TFieldDef;
 begin
+  Assert(Assigned(AHolder), 'Пустой холдер в методе');
   vFieldDef := FDefinition.FieldByName(AFieldName);
   if Assigned(vFieldDef) and (vFieldDef.Kind = fkBlob) then
     TBlobField(FieldByName(AFieldName)).SetStream(AHolder, AStream);
@@ -1486,6 +1507,7 @@ procedure TEntity._SetFieldValue(const AHolder: TObject; const AFieldName: strin
 var
   vFieldDef: TFieldDef;
 begin
+  Assert(Assigned(AHolder), 'Пустой холдер в методе');
   vFieldDef := FDefinition.FieldByName(AFieldName);
   if Assigned(vFieldDef) and (vFieldDef.Kind in [fkString..fkCurrency]) then
     FieldByName(AFieldName).SetValue(AHolder, AValue);
@@ -1495,6 +1517,8 @@ function TEntity._SetState(const AHolder: TObject; const ANewState: Variant): Bo
 var
   vState: TState;
 begin
+  Assert(Assigned(AHolder), 'Пустой холдер в методе');
+
   Result := False;
   vState := EntityState;
   if not Assigned(vState) then
@@ -1515,13 +1539,13 @@ begin
   FieldByName(FDefinition.StateFieldDef.Name).SetValue(AHolder, Integer(ANewState));
 end;
 
-procedure TEntity.UnsubscribeFields;
+procedure TEntity.UnsubscribeFields(const AHolder: TObject);
 var
   vField: TBaseField;
 begin
   for vField in FFieldList do
     if vField.FieldDef.Kind = fkObject then
-      vField.BeforeChanges(nil);
+      vField.BeforeChanges(AHolder);
 end;
 
 procedure TEntity.UpdateFields;
@@ -1588,7 +1612,7 @@ begin
   Result := True;
 end;
 
-procedure TEntity.NotifyView(const AChangeKind: Word; const AParameter: TObject; const AFieldName: string);
+procedure TEntity.NotifyView(const AHolder: TObject; const AChangeKind: Word; const AParameter: TObject; const AFieldName: string = '');
 var
   i: Integer;
   vListeners: TList<TObject>;
@@ -1601,23 +1625,22 @@ begin
   vMessage.Kind := AChangeKind;
   vMessage.Sender := Self;
   vMessage.Parameter := AParameter;
+  vMessage.Holder := AHolder;
 
   for i := vListeners.Count - 1 downto 0 do
     vListeners[i].Dispatch(vMessage);
 end;
 
 function TEntity.Clone(const AHolder: TObject; const AIgnoreFields: string): TEntity;
-var
-  vHolder: TChangeHolder absolute AHolder;
 begin
-  Result := TCollection(FCollection)._CreateNewEntity(vHolder, cNewID, '', [], nil, False);
+  Result := TCollection(FCollection)._CreateNewEntity(AHolder, cNewID, '', [], nil, False);
 
   // Возможны разные побочные эффекты..
   // Нужно переходить на отложенную калькуляцию
   FillEntity(AHolder, Result, AIgnoreFields);
   // Core.ApplyCalculations(Result);
 
-  TEntityCreationProc(TDomain(FDomain).Configuration.AfterEntityCreationProc)(vHolder, nil, Result);
+  TEntityCreationProc(TDomain(FDomain).Configuration.AfterEntityCreationProc)(TChangeHolder(AHolder), nil, Result);
 end;
 
 procedure TEntity.Delete(const AHolder: TObject);
@@ -1701,8 +1724,8 @@ end;
 
 procedure TEntity._RestoreFieldValue(const AHolder: TObject; const AFieldName: string);
 begin
-  if Assigned(AHolder) then
-    TChangeHolder(AHolder).RevertField(Self, AFieldName);
+  Assert(Assigned(AHolder), 'Пустой холдер в методе');
+  TChangeHolder(AHolder).RevertField(Self, AFieldName);
 end;
 
 procedure TEntity.FillEntity(const AHolder: TObject; const ATargetEntity: TEntity;
@@ -1726,9 +1749,9 @@ begin
       if vIgnored.IndexOf(vFieldName) >= 0 then
         Continue;
       if vFieldDef.Kind in [fkString..fkCurrency] then
-        TChangeHolder(AHolder).SetFieldValue(ATargetEntity, vFieldName, GetFieldValue(vFieldName))
+        ATargetEntity._SetFieldValue(AHolder, vFieldName, GetFieldValue(vFieldName))
       else if vFieldDef.Kind = fkObject then
-        TChangeHolder(AHolder).SetFieldEntity(ATargetEntity, vFieldName, GetFieldEntity(vFieldName))
+        ATargetEntity._SetFieldEntity(AHolder, vFieldName, GetFieldEntity(vFieldName))
       else if vFieldDef.Kind = fkBlob then
       begin
         vOldStream := GetFieldBlob(vFieldName);
@@ -1739,12 +1762,12 @@ begin
         end
         else
           vStream := nil;
-        TChangeHolder(AHolder).SetFieldStream(ATargetEntity, vFieldName, vStream);
+        ATargetEntity._SetFieldStream(AHolder, vFieldName, vStream);
       end
       else if vFieldDef.Kind = fkComplex then
       begin
         vObject := TComplexField(FieldByName(vFieldName)).CloneComplexObject;
-        TChangeHolder(AHolder).SetFieldObject(ATargetEntity, vFieldName, vObject);
+        ATargetEntity._SetFieldObject(AHolder, vFieldName, vObject);
       end
       else if vFieldDef.Kind = fkList then
       begin
@@ -1768,8 +1791,7 @@ begin
   end;
 end;
 
-procedure TEntity.FillFromJSON(const AJSONObject: TJSONObject;
-  const AIsNew: Boolean);
+procedure TEntity.FillFromJSON(const AJSONObject: TJSONObject; const AIsNew: Boolean);
 var
   i: Integer;
 begin
@@ -1787,22 +1809,45 @@ end;
 
 procedure TEntity.SetDeleted(const AHolder: TObject);
 var
-  i: Integer;
+  i, j: Integer;
   vField: TBaseField;
   vEntity: TEntity;
+  vTempListeners: TList<TEntity>;
+  vFieldNames: TStrings;
+  vListener: TEntity;
 begin
   if FDeleted then
     Exit;
 
+  Assert(Assigned(AHolder), 'Пустой холдер в методе');
+
   FDeleted := True;
-  if Assigned(AHolder) then
-    TChangeHolder(AHolder).RegisterEntityDeleting(Self);
+  TChangeHolder(AHolder).RegisterEntityDeleting(Self);
 
-  for i := FListeners.Count - 1 downto 0 do
-    if i < FListeners.Count then
-      FListeners[i].Entity.ProcessLinkedEntityDeleted(AHolder, FListeners[i].Name, Self);
+  vTempListeners := TList<TEntity>.Create;
+  try
+    for vListener in FListeners.Keys do
+      vTempListeners.Add(vListener);
 
-  NotifyView(dckEntityDeleted, Self);
+    for i := vTempListeners.Count - 1 downto 0 do
+    begin
+      vListener := vTempListeners[i];
+      if not FListeners.TryGetValue(vListener, vFieldNames) then
+        Continue;
+
+      for j := 0 to vFieldNames.Count - 1 do
+      begin
+        vListener.ProcessLinkedEntityDeleted(AHolder, vFieldNames[j], Self);
+        // Required to check, since this action can remove vListener from FListeners
+        if not FListeners.ContainsKey(vListener) then
+          Break;
+      end;
+    end;
+  finally
+    FreeAndNil(vTempListeners);
+  end;
+
+  NotifyView(AHolder, dckEntityDeleted, Self);
 
   for i := 0 to FFieldList.Count - 1 do
   begin
@@ -1837,7 +1882,7 @@ begin
   if FViewState = Value then
     Exit;
   FViewState := Value;
-  NotifyView(dckViewStateChanged, Self);
+  NotifyView(nil, dckViewStateChanged, Self);
 end;
 
 function TEntity.FullText: string;
@@ -1890,8 +1935,8 @@ end;
 type
   TCrackedField = class(TBaseField);
 
-procedure TEntity.Populate(const AFieldNames: string;
-  const AValues: array of Variant; const APopulateAll: Boolean = True);
+procedure TEntity.Populate(const AFieldNames: string; const AValues: array of Variant;
+  const APopulateAll: Boolean = True);
 var
   i: Integer;
   vFieldNames: TStrings;
@@ -1925,17 +1970,8 @@ end;
 
 function TEntity.ToString: string;
 begin
-  Result := '(' + FDefinition.Name + ') ' + IntToStr(FID) + ': ' + GetAnyFieldValue('Name') +
-    ' [' + IntToHex(Integer(Self), 8) + ']';
-end;
-
-{ TNamedEntity }
-
-constructor TNamedEntity.Create(const AName: string; const AEntity: TEntity);
-begin
-  inherited Create;
-  FName := AName;
-  FEntity := AEntity;
+  Result := '(' + FDefinition.Name + ') ' + IntToStr(FID) + ': ' + GetAnyFieldValue('Name') + ' [' +
+    IntToHex(NativeInt(Self), 8) + ']';
 end;
 
 end.

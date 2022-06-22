@@ -188,7 +188,7 @@ begin
 
   vInputParams := TEntity.Create(AInteractor.Domain, AReport);
   try
-    vInputParams.SubscribeFields;
+    vInputParams.SubscribeFields(vDomain.DomainHolder);
     if not ((vInputParams.VisibleFieldCount(AInteractor.Session) > 0)
       and not AInteractor.EditParams(vInputParams)) then
     begin

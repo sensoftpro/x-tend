@@ -49,6 +49,7 @@ type
     [Weak] FMainDefinition: TDefinition;
     [Weak] FContentDefinitions: TList<TDefinition>;
     FList: TList<TEntity>;
+    FHash: TDictionary<TEntity,Char>;
     FSelection: TList<TEntity>;
     FUIListeners: TList<TObject>;
     FQuery: TQueryExecutor;
@@ -65,17 +66,17 @@ type
     function CompareOrders(const Left, Right: TEntity): Integer;
     procedure SubscribeList;
     procedure UnsubscribeList;
-    procedure NotifyView(const AChangeKind: Word; const AParameter: TEntity);
+    procedure NotifyView(const AHolder: TObject; const AChangeKind: Word; const AParameter: TEntity);
     function GetDefinitionName: string;
   protected
     procedure DM_DomainChanged(var AMessage: TDomainChangedMessage); message DM_DOMAIN_CHANGED;
   public
     // New methods for UI handling
-    function AddEntity(const AHolder: TChangeHolder; const ACollectionName: string;
+    function AddEntity(const AHolder: TObject; const ACollectionName: string;
       const AFieldNames: string; const AValues: array of Variant): TEntity;
     ///todo Заглушка, нужно будет удалить, когда список начнет обрабатывать уведомления от модели
-    procedure CheckAndAdd(const AEntity: TEntity);
-    procedure _Remove(const AEntity: TEntity);
+    procedure CheckAndAdd(const AHolder: TObject; const AEntity: TEntity);
+    procedure _Remove(const AHolder: TObject; const AEntity: TEntity);
     // Subscription
     procedure AddUIListener(const AView: TObject);
     procedure RemoveUIListener(const AView: TObject);
@@ -121,29 +122,34 @@ uses
 
 { TEntityList }
 
-procedure TEntityList.CheckAndAdd(const AEntity: TEntity);
+procedure TEntityList.CheckAndAdd(const AHolder: TObject; const AEntity: TEntity);
 begin
-  if not AEntity.IsRemote and not FList.Contains(AEntity) then
+  if not AEntity.IsRemote and not FHash.ContainsKey(AEntity) then
   begin
     FList.Add(AEntity);
-    NotifyView(dckListAdded, AEntity);
+    FHash.Add(AEntity, '0');
+    NotifyView(AHolder, dckListAdded, AEntity);
   end;
 end;
 
-procedure TEntityList._Remove(const AEntity: TEntity);
+procedure TEntityList._Remove(const AHolder: TObject; const AEntity: TEntity);
 begin
   if FList.Remove(AEntity) >= 0 then
-    NotifyView(dckListRemoved, AEntity);
+    NotifyView(AHolder, dckListRemoved, AEntity);
+  FHash.Remove(AEntity);
   FSelection.Remove(AEntity);
 end;
 
 procedure TEntityList.Add(const AEntity: TEntity);
 begin
   if not AEntity.IsRemote then
+  begin
     FList.Add(AEntity);
+    FHash.Add(AEntity, '0');
+  end;
 end;
 
-function TEntityList.AddEntity(const AHolder: TChangeHolder; const ACollectionName: string;
+function TEntityList.AddEntity(const AHolder: TObject; const ACollectionName: string;
   const AFieldNames: string; const AValues: array of Variant): TEntity;
 begin
   Result := nil;
@@ -159,6 +165,7 @@ end;
 procedure TEntityList.AddFirst(const AEntity: TEntity);
 begin
   FList.Insert(0, AEntity);
+  FHash.Add(AEntity, '0');
 end;
 
 procedure TEntityList.AddUIListener(const AView: TObject);
@@ -169,6 +176,7 @@ end;
 
 procedure TEntityList.Clear;
 begin
+  FHash.Clear;
   FList.Clear;
   FSelection.Clear;
 end;
@@ -236,6 +244,7 @@ begin
   FDomain := ADomain;
   FSession := ASession;
   FList := TList<TEntity>.Create;
+  FHash := TDictionary<TEntity,Char>.Create;
   FSelection := TList<TEntity>.Create;
   FUIListeners := TList<TObject>.Create;
   FQuery := nil;
@@ -257,6 +266,7 @@ begin
   FreeAndNil(FSelection);
   FreeAndNil(FUIListeners);
   FFiller := nil;
+  FreeAndNil(FHash);
   FreeAndNil(FList);
   FDomain := nil;
   inherited Destroy;
@@ -270,54 +280,54 @@ begin
   if not Assigned(vEntity) then
   begin
     if AMessage.Kind = dckFilterChanged then
-      NotifyView(AMessage.Kind, vEntity);
+      NotifyView(AMessage.Holder, AMessage.Kind, vEntity);
     Exit;
   end;
 
   if AMessage.Kind = dckEntitySaved then
   begin
-    if FList.IndexOf(vEntity) >= 0 then
-      NotifyView(dckEntitySaved, vEntity)
+    if FHash.ContainsKey(vEntity) then
+      NotifyView(AMessage.Holder, dckEntitySaved, vEntity)
   end
   else if AMessage.Kind = dckEntityChanged then
   begin
-    if FList.IndexOf(vEntity) >= 0 then
+    if FHash.ContainsKey(vEntity) then
     begin
       if Assigned(FQuery) and not FQuery.IsMatch(FSession, vEntity) then
-        _Remove(vEntity)
+        _Remove(AMessage.Holder, vEntity)
       else
-        NotifyView(dckEntityChanged, vEntity);
+        NotifyView(AMessage.Holder, dckEntityChanged, vEntity);
     end
     else if Assigned(FQuery) then
     begin
       if FQuery.IsMatch(FSession, vEntity) then
-        CheckAndAdd(vEntity);
+        CheckAndAdd(AMessage.Holder, vEntity);
     end
     else
-      CheckAndAdd(vEntity);
+      CheckAndAdd(AMessage.Holder, vEntity);
   end
   else if AMessage.Kind = dckListRemoved then
-    _Remove(vEntity)
+    _Remove(AMessage.Holder, vEntity)
   else if AMessage.Kind = dckListAdded then
   begin
-    if FList.IndexOf(vEntity) >= 0 then
+    if FHash.ContainsKey(vEntity) then
       Exit;
 
     if Assigned(FQuery) then
     begin
       if FQuery.IsMatch(FSession, vEntity) then
-        CheckAndAdd(vEntity);
+        CheckAndAdd(AMessage.Holder, vEntity);
     end
     else
-      CheckAndAdd(vEntity);
+      CheckAndAdd(AMessage.Holder, vEntity);
   end
   else if AMessage.Kind = dckViewStateChanged then
   begin
     FViewState := TEntity(AMessage.Sender).ViewState;
-    NotifyView(AMessage.Kind, vEntity);
+    NotifyView(AMessage.Holder, AMessage.Kind, vEntity);
   end
   else
-    NotifyView(AMessage.Kind, vEntity);
+    NotifyView(AMessage.Holder, AMessage.Kind, vEntity);
 end;
 
 function TEntityList.GetCount: Integer;
@@ -354,7 +364,7 @@ begin
     TListField(FFiller).LinkListEntity(AHolder, AEntity);
 end;
 
-procedure TEntityList.NotifyView(const AChangeKind: Word; const AParameter: TEntity);
+procedure TEntityList.NotifyView(const AHolder: TObject; const AChangeKind: Word; const AParameter: TEntity);
 var
   vMessage: TDomainChangedMessage;
   i: Integer;
@@ -367,6 +377,7 @@ begin
   vMessage.Kind := AChangeKind;
   vMessage.Sender := Self;
   vMessage.Parameter := AParameter;
+  vMessage.Holder := AHolder;
 
   for i := FUIListeners.Count - 1 downto 0 do
   begin
@@ -431,7 +442,7 @@ begin
 
   FSelection.Clear;
   FSelection.AddRange(AList);
-  NotifyView(dckSelectionChanged, Selected);
+  NotifyView(TDomain(FDomain).DomainHolder, dckSelectionChanged, Selected);
 end;
 
 function TEntityList.SelectEntity(const AEntity: TEntity): TEntity;
@@ -444,7 +455,7 @@ begin
   FSelection.Clear;
   if Assigned(AEntity) then
     FSelection.Add(AEntity);
-  NotifyView(dckSelectionChanged, AEntity);
+  NotifyView(TDomain(FDomain).DomainHolder, dckSelectionChanged, AEntity);
 end;
 
 procedure TEntityList.SetDefinition(const Value: TObject);
@@ -534,7 +545,10 @@ begin
 
   vHasNullForSelect := (FFillerKind = lfkSelector) and not Assigned(GetEntity(0));
   if vHasNullForSelect then
+  begin
+    FHash.Remove(nil);
     FList.Delete(0);
+  end;
 
   FSortType := ASortType;
   case FSortType of
@@ -549,6 +563,12 @@ begin
         FList.Sort(TComparer<TEntity>.Construct(CompareField));
       end;
     estSortByOrder: FList.Sort(TComparer<TEntity>.Construct(CompareOrders));
+    estSortByField:
+      if ASortFieldName <> '' then
+      begin
+        FSortFieldName := ASortFieldName;
+        FList.Sort(TComparer<TEntity>.Construct(CompareField));
+      end;
   else
     Assert(False, 'The sorting isn''t supported');
   end;

@@ -42,7 +42,7 @@ uses
   Buttons, vclArea, vclPopupForm, uUIBuilder, uView, uEntity, uEntityList, uDefinition;
 
 type
-  TVCLEntitySelector = class (TVCLFieldArea)
+  TVCLEntitySelector = class(TVCLFieldArea)
   private
     FFlat: Boolean;
     FEntities: TEntityList;
@@ -57,7 +57,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TVCLEntityFieldEditor = class (TVCLFieldArea)
+  TVCLEntityFieldEditor = class(TVCLFieldArea)
   private
     FBasePanel: TPanel;
     FSelectButton: TcxComboBox;
@@ -88,7 +88,7 @@ type
     procedure DoDeinit; override;
   end;
 
-  TRadioEntitySelector = class (TVCLFieldArea)
+  TRadioEntitySelector = class(TVCLFieldArea)
   private
     FEntities: TEntityList;
     procedure FillList;
@@ -100,7 +100,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TVCLLinkedEntityFieldEditor = class (TVCLEntityFieldEditor)
+  TVCLLinkedEntityFieldEditor = class(TVCLEntityFieldEditor)
   private
     FLabel: TcxLabel;
     procedure OnLabelClick(Sender: TObject);
@@ -122,12 +122,13 @@ type
     procedure FillEditor; override;
   end;
 
-  TEntityFieldListEditor = class (TVCLFieldArea) // редактор нескольких полей сущности одновременно
+  TEntityFieldListEditor = class(TVCLFieldArea) // property editor
   private
     FEditor: TcxVerticalGrid;
     FDomainObject: TEntity;
     FChildViews: TList<TView>;
     FDisplayFields: TStringList;
+    FReadOnly: Boolean;
     procedure CleanChildViews;
     function CreateEditRow(const ARootEntity: TEntity; const AFieldDef: TFieldDef;
       const AViewPath: string; const AOverriddenCaption: string = ''): TcxEditorRow;
@@ -148,8 +149,8 @@ implementation
 
 uses
   Graphics, SysUtils, Windows, Messages, Forms, cxInplaceContainer, cxCalendar, cxSpinEdit, cxControls, cxRadioGroup,
-  Menus, uInteractor, uDomain, uChangeManager, uObjectField, uConsts, uSession,  Variants,
-  uPresenter, uWinVCLPresenter, StrUtils, uUtils;
+  Menus, uInteractor, uDomain, uChangeManager, uObjectField, uConsts, uSession,  Variants, uCollection,
+  uPresenter, uWinVCLPresenter, StrUtils, uUtils, uEnumeration;
 
 type
   TRowData = class
@@ -310,7 +311,7 @@ begin
   Assert(vSelectedIndex >= 0, 'Выбран неизвестный пункт меню');
   if Assigned(FButtonView) then
   begin
-    TEntity(FButtonView.DomainObject)._SetFieldValue(nil, 'SelectedIndex', vSelectedIndex);
+    TEntity(FButtonView.DomainObject)._SetFieldValue(FSession.NullHolder, 'SelectedIndex', vSelectedIndex);
     FUIBuilder.LastArea := Self;
     ExecuteUIAction(FButtonView);
   end;
@@ -330,7 +331,15 @@ begin
   inherited;
 
   vEntity := TEntity(FView.FieldEntity);
-  vDefinition := TDefinition(TObjectFieldDef(FView.Definition).ContentDefinitions[0]);
+  if TObjectFieldDef(FView.Definition).ContentDefinitionName = '-' then
+  begin
+    if FView.ParentDomainObject is TEntity then
+      vDefinition := TEntityField(FView.ExtractEntityField).ContentDefinition
+    else
+      vDefinition := TDefinition(TObjectFieldDef(FView.Definition).ContentDefinitions[0]);
+  end
+  else
+    vDefinition := TDefinition(TObjectFieldDef(FView.Definition).ContentDefinitions[0]);
 
   with FSelectButton do
   begin
@@ -367,7 +376,7 @@ begin
   SetFocused(True);
   if Assigned(FButtonView) then
   begin
-    TEntity(FButtonView.DomainObject)._SetFieldValue(nil, 'SelectedIndex', 0);
+    TEntity(FButtonView.DomainObject)._SetFieldValue(FSession.NullHolder, 'SelectedIndex', 0);
     FUIBuilder.LastArea := Self;
     ExecuteUIAction(FButtonView);
     //if vSaved then
@@ -693,8 +702,7 @@ var
   vEntity: TEntity;
 begin
   vEntity := TEntity(TcxComboBox(FControl).ItemObject);
-  if Assigned(vEntity) then
-    SetFieldEntity(vEntity);
+  SetFieldEntity(vEntity);
 end;
 
 procedure TVCLEntitySelector.FillEditor;
@@ -784,6 +792,7 @@ function TEntityFieldListEditor.CreateCategoryRow(const ARootEntity: TEntity; co
 begin
   Result := TcxCategoryRow(FEditor.Add(TcxCategoryRow));
   Result.Properties.Caption := GetFieldTranslation(AFieldDef);
+  Result.Properties.Hint := GetFieldTranslation(AFieldDef, tpHint);
   Result.Tag := Integer(TRowData.Create(ARootEntity, AFieldDef));
 end;
 
@@ -807,14 +816,14 @@ begin
     fkNotDefined: ;
     fkString: ;
     fkInteger: Result.Properties.EditPropertiesClassName := 'TcxSpinEditProperties';
-    fkEnum: ;
+    fkEnum: Result.Properties.EditPropertiesClassName := 'TcxComboBoxProperties';
     fkFlag: ;
     fkFloat:
     begin
       Result.Properties.EditPropertiesClassName := 'TcxSpinEditProperties';
       TcxSpinEditProperties(Result.Properties.EditProperties).ValueType := vtFloat;
-      if vStyleName = 'formatted' then
-        TcxSpinEditProperties(Result.Properties.EditProperties).DisplayFormat := GetUrlParam(AFieldDef.StyleName, 'format');
+      if Length(AFieldDef.Format) > 0 then
+        TcxSpinEditProperties(Result.Properties.EditProperties).DisplayFormat := AFieldDef.Format;
     end;
     fkDateTime:
     begin
@@ -834,14 +843,13 @@ begin
   vFieldView := FView.BuildView(AViewPath + AFieldDef.Name);
   vFieldView.AddListener(Self);
   FChildViews.Add(vFieldView);
-  Result.Properties.EditProperties.ReadOnly := vFieldView.State < vsSelectOnly;
+  Result.Properties.EditProperties.ReadOnly := (vFieldView.State < vsSelectOnly);
   Result.Properties.EditProperties.ValidationOptions := [evoShowErrorIcon];
 
   if Result.Properties.EditProperties.ReadOnly then
     Result.Properties.Options.ShowEditButtons := eisbNever
   else
     Result.Properties.EditProperties.OnChange := OnFieldChange;
-
 end;
 
 procedure TEntityFieldListEditor.CreateRows(const ARootEntity: TEntity; const ARootRow: TcxCustomRow;
@@ -874,7 +882,7 @@ begin
     end
     else
     begin
-      if TInteractor(FView.Interactor).NeedSkipColumn(ARootEntity, vFieldDef) or vFieldDef.HasFlag(cHideInEdit) then
+      if vFieldDef.HasFlag(cHideInEdit) or (vFieldDef.UIState < vsDisabled) then
         Continue;
       CreateEditRow(ARootEntity, vFieldDef, AViewPath, GetFieldTranslation(vFieldDef) + ' ' + IfThen(ARootEntityIndex > -1, IntToStr(ARootEntityIndex + 1))).Parent := ARootRow;
     end;
@@ -918,6 +926,12 @@ begin
     FDisplayFields.Delimiter := ',';
     FDisplayFields.DelimitedText := FCreateParams.Values['Fields'];
   end;
+
+  FReadOnly := FCreateParams.Values['ViewState'] = 'ReadOnly';
+  FEditor.OptionsData.Editing := not FReadOnly;
+
+  FDomainObject := TEntity(FView.DomainObject);
+  CreateRows(FDomainObject, nil, '');
 end;
 
 procedure TEntityFieldListEditor.DoDisableContent;
@@ -934,15 +948,13 @@ var
   vEntities: TEntityList;
   vInteractor: TInteractor;
   vLevelEntity: TEntity;
+  vEnum: TEnumeration;
+  vEnumItem: TEnumItem;
 //  vList: TList<TEntity>;
 begin
   FEditor.BeginUpdate;
 
   try
-    FDomainObject := TEntity(FView.DomainObject);
-    FreeEditors;
-    CreateRows(FDomainObject, nil, '');
-
     vInteractor := TInteractor(FView.Interactor);
     for i := 0 to FEditor.Rows.Count - 1 do
     begin
@@ -956,13 +968,34 @@ begin
         {fkNotDefined: ;
         fkString: ;
         fkInteger: vRow.Properties.EditPropertiesClassName := 'TcxSpinEditProperties';
-        fkEnum: ;
         fkFlag: ;
         fkFloat: ;
         fkDateTime: vRow.Properties.EditPropertiesClassName := 'TcxDateEditProperties';
         fkBoolean: vRow.Properties.EditPropertiesClassName := 'TcxCheckBoxProperties';
         fkColor: vRow.Properties.EditPropertiesClassName := 'TdxColorEditProperties';
         fkCurrency: ; }
+        fkEnum:
+          begin
+            vEnum := TDomain(FView.Domain).Configuration.Enumerations.ObjectByName(TSimpleFieldDef(vFieldDef).Dictionary);
+            if not Assigned(vEnum) then
+              vEnum := TDomain(FView.Domain).Configuration.StateMachines.ObjectByName(TSimpleFieldDef(vFieldDef).Dictionary);
+            vRow.Properties.EditProperties.BeginUpdate;
+            try
+              TcxComboBoxProperties(vRow.Properties.EditProperties).Items.Clear;
+              for j := 0 to vEnum.Count - 1 do
+              begin
+                vEnumItem := vEnum[j];
+                if not vFieldDef.HasFlag(cRequired) or (vEnumItem.ID > 0) then
+                begin
+                  TcxComboBoxProperties(vRow.Properties.EditProperties).Items.AddObject(vEnumItem.DisplayText, TObject(vEnumItem.ID));
+                  if vEnumItem.ID = vLevelEntity.FieldByName(vFieldDef.Name).Value then
+                    vRow.Properties.Value := vEnumItem.DisplayText;
+                end;
+              end;
+            finally
+              vRow.Properties.EditProperties.EndUpdate;
+            end;
+          end;
         fkObject:
           begin
             if vRow.Properties.DataBinding.Data = nil then
@@ -976,13 +1009,17 @@ begin
             vEntityField := TEntityField(vLevelEntity.FieldByName(vFieldDef.Name));
 
             vEntityField.GetEntitiesForSelect(vInteractor.Session, vEntities);
-
-            TcxComboBoxProperties(vRow.Properties.EditProperties).Items.Clear;
-            for j := 0 to vEntities.Count - 1 do
-            begin
-              TcxComboBoxProperties(vRow.Properties.EditProperties).Items.AddObject(SafeDisplayName(vEntities[j]), vEntities[j]);
-              if vEntities[j] = vEntityField.Entity then
-                vRow.Properties.Value := vEntityField.Entity.DisplayName;
+            vRow.Properties.EditProperties.BeginUpdate;
+            try
+              TcxComboBoxProperties(vRow.Properties.EditProperties).Items.Clear;
+              for j := 0 to vEntities.Count - 1 do
+              begin
+                TcxComboBoxProperties(vRow.Properties.EditProperties).Items.AddObject(SafeDisplayName(vEntities[j]), vEntities[j]);
+                if vEntities[j] = vEntityField.Entity then
+                  vRow.Properties.Value := vEntityField.Entity.DisplayName;
+              end;
+            finally
+              vRow.Properties.EditProperties.EndUpdate;
             end;
           end;
         fkList:
@@ -1051,7 +1088,7 @@ var
   vValue: Variant;
 //  vInteractor: TInteractor;
   vEntity, vLevelEntity: TEntity;
-  vIndex: Integer;
+  vIndex, vId: Integer;
 begin
   vEditor := TcxCustomEdit(Sender);
 //  vInteractor := TInteractor(FView.Interactor);
@@ -1066,7 +1103,21 @@ begin
       fkNotDefined: ;
       fkString: ;
       fkInteger: ;
-      fkEnum: ;
+      fkEnum:
+        begin
+          vIndex := TcxComboBoxProperties(TcxEditorRow(vRow).Properties.EditProperties).Items.IndexOf(vValue);
+          if vIndex > -1 then
+          begin
+            vId := Integer(TcxComboBoxProperties(TcxEditorRow(vRow).Properties.EditProperties).Items.Objects[vIndex]);
+
+            TUserSession(FView.Session).DomainWrite(procedure
+              begin
+                vLevelEntity._SetFieldValue(TChangeHolder(Holder), vFieldDef.Name, vId);
+              end);
+          end;
+
+          Exit;
+        end;
       fkFlag: ;
       fkFloat: vValue := Double(vValue);
       fkDateTime: ;

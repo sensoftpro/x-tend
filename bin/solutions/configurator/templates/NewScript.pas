@@ -25,7 +25,7 @@ type
 implementation
 
 uses
-  SysUtils, DateUtils, StrUtils, Variants, uDefinition, uDomain, uUtils;
+  SysUtils, DateUtils, StrUtils, Variants, uDomain, uUtils;
 
 const
   cAdminID = 1;
@@ -46,8 +46,7 @@ end;
 
 // Handlers
 
-procedure OnSomethingChanged(const ASession: TUserSession; const AHolder: TChangeHolder;
-  const AFieldChain: string; const AEntity, AParam: TEntity);
+procedure OnSomethingChanged(const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParam: TEntity);
 begin
 end;
 
@@ -59,8 +58,7 @@ begin
   Result := True;
 end;
 
-procedure TNewApplicationScript.DoAfterEntityCreation(const AHolder: TChangeHolder;
-  const AOwnerContext: TObject; const AEntity: TEntity);
+procedure TNewApplicationScript.DoAfterEntityCreation(const AHolder: TChangeHolder; const AOwnerContext: TObject; const AEntity: TEntity);
 var
   vCollectionName: string;
 begin

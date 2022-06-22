@@ -62,7 +62,7 @@ object SplashFm: TSplashFm
     Top = 269
     Width = 157
     Height = 16
-    Caption = 'Copyright '#169' 2021 Sensoft. '
+    Caption = 'Copyright '#169' 2022 Sensoft. '
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWhite
     Font.Height = -13
@@ -77,7 +77,7 @@ object SplashFm: TSplashFm
     Width = 368
     Height = 16
     AutoSize = False
-    Caption = 'Copyright '#169' 2021 Sensoft. '
+    Caption = 'Copyright '#169' 2022 Sensoft. '
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWhite
     Font.Height = -12

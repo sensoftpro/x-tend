@@ -379,8 +379,6 @@ var
   vLightArea: TLightArea;
   vYAxisName: string;
   vOptions: TChartPaintOptions;
-  i: Integer;
-  vPoints: array of TPointF;
 begin
   Result := ARect;
 

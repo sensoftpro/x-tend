@@ -810,7 +810,7 @@ end;
 
 function TComplexField.DoGetValue: Variant;
 begin
-  Result := Integer(FComplexObject);
+  Result := NativeInt(FComplexObject);
 end;
 
 procedure TComplexField.DoLoad(const AStorage: TStorage);
@@ -846,7 +846,7 @@ procedure TComplexField.ComplexObjectChanged(Sender: TObject);
 var
   vHolder: TChangeHolder absolute Sender;
 begin
-  if not FInstance.IsNew and Assigned(vHolder) then
+  if not FInstance.IsNew then
     vHolder.KeepOldData(TEntity(FInstance), GetFieldName);
 
   FInstance.ProcessFieldChanged(vHolder, dckFieldChanged, GetFieldName, nil);
@@ -859,7 +859,7 @@ end;
 
 procedure TComplexField.SetObject(const AHolder: TObject; const AValue: TComplexObject);
 begin
-  SetValue(AHolder, Integer(AValue));
+  SetValue(AHolder, NativeInt(AValue));
 end;
 
 procedure TComplexField.UpdateInitialJSON;

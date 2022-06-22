@@ -2169,7 +2169,7 @@ begin
   Assert(Assigned(FContentDefinition), 'Wrong content type name [' + FContentDefinitionName + ']');
 
   vDefinitions := GetContentDefinitions;
-  FIsSelector := vDefinitions.Count > 1;
+  FIsSelector := (vDefinitions.Count > 1) or (FContentDefinition.Name = '-');
 
   if not Assigned(FQueryDef) then
     FQueryDef := TQueryDef.Create(DefinitionsToText(GetContentDefinitions), FQueryString);

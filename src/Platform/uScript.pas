@@ -74,7 +74,7 @@ type
     procedure RegisterReaction(const ADefinitionNames, AReactiveFields, AFieldChain: string; const AReactionProc: TReactionProc);
     procedure AddPlannedJob(const AName: string; const APeriod: Integer; const AHandler: TSchedulerProc;
       const ARefFieldName: string = ''; const ASnapToPeriod: Boolean = False);
-    procedure AddSecuritySettings(const ACollection: TCollection; const AHolder: TChangeHolder;
+    procedure AddSecuritySettings(const AHolder: TChangeHolder; const ACollection: TCollection;
       const ASubject: string; const AObject: string; const AStateName: string; const AFlags: Integer);
 
     function GetParentListView(const AView: TView): TView;
@@ -478,8 +478,8 @@ begin
   vAction.AddSimpleFieldDef('IsActive', '', 'период', True, Null, Null, fkBoolean);
   vAction.AddSimpleFieldDef('FromDate', '', 'с', cDateNow, Null, Null, fkDateTime);
   vAction.AddSimpleFieldDef('ToDate', '', 'по', cDateNow, Null, Null, fkDateTime);
-  vAction.RegisterReaction('@FromDate;@ToDate', 'IsActive', TProc(procedure(const ASession: TUserSession;
-      const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParam: TEntity)
+  vAction.RegisterReaction('@FromDate;@ToDate', 'IsActive', TProc(procedure(const AHolder: TChangeHolder;
+      const AFieldChain: string; const AEntity, AParam: TEntity)
     begin
       if AEntity['IsActive'] then
       begin
@@ -513,6 +513,9 @@ begin
   AddAction('ApplyAllUpdates', 'Применить обновления', -1);
   // При необходимости дописывать сюда действия для актуализации состояния модели
   AddAction('ActualizeData', 'Актуализировать данные', -1);
+
+  // Любая сущность, которая будет определена позже
+  AddDefinition('-', '', 'Неизвестная', cNullItemName, ccSystem or ccHideInMenu or ccNotSave);
 
   // Управление идентификацией
   vDefinition := AddDefinition('Numerators', '', 'Нумератор', cNullItemName, ccSystem or ccHideInMenu or ccLazyLoad);
@@ -549,8 +552,8 @@ begin
   //vDefinition.AddListFieldDef('Notifications', 'User', 'Уведомления пользователя', 'SysUsersNotifications', '', '', vsReadOnly, cAnalytic, estUserSort, '', rpStrong);
   vDefinition.AddUniqueIndex('Login');
   vDefinition.AddAction('GeneratePassword', 'Сгенерировать пароль', 24);
-  vDefinition.RegisterReaction('Password', 'PasswordText', TProc(procedure(const ASession: TUserSession;
-      const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParam: TEntity)
+  vDefinition.RegisterReaction('Password', 'PasswordText', TProc(procedure(const AHolder: TChangeHolder;
+      const AFieldChain: string; const AEntity, AParam: TEntity)
     begin
       AEntity._SetFieldValue(AHolder, 'Password', MD5Hash(AEntity['PasswordText']));
     end));
@@ -565,8 +568,8 @@ begin
   vDefinition.AddEntityFieldDef('User', 'user', 'Пользователь', '', 'SysUsers', 0, vsHidden);
   vDefinition.AddEntityFieldDef('Role', 'role', 'Роль', '', 'SysRoles', 0, vsSelectOnly, cRequired);
   vDefinition.AddUniqueIndex('User,Role');
-  vDefinition.RegisterReaction('Name', 'Name.User;User;Name.Role;Role', TProc(procedure(const ASession: TUserSession;
-      const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParameter: TEntity)
+  vDefinition.RegisterReaction('Name', 'Name.User;User;Name.Role;Role', TProc(procedure(const AHolder: TChangeHolder;
+      const AFieldChain: string; const AEntity, AParam: TEntity)
     begin
       AEntity._SetFieldValue(AHolder, 'Name', SafeDisplayName(AEntity.ExtractEntity('User')) + ' : ' + SafeDisplayName(AEntity.ExtractEntity('Role')));
     end));
@@ -629,8 +632,8 @@ begin
   vAction := vDefinition.AddAction('Load', 'Загрузить документ', 23);
   vAction.AddSimpleFieldDef('FileName', 'file_name', 'Путь к файлу', Null, Null, 255, fkString, 'file?filter=Все файлы (*.*)|*.*', '', vsSelectOnly, cRequired);
   vDefinition.AddAction('ClearDocument', 'Очистить документ', 4);
-  vDefinition.RegisterReaction('FileName;Name;Content', 'FullPathName', TProc(procedure(const ASession: TUserSession;
-      const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParam: TEntity)
+  vDefinition.RegisterReaction('FileName;Name;Content', 'FullPathName', TProc(procedure(const AHolder: TChangeHolder;
+      const AFieldChain: string; const AEntity, AParam: TEntity)
     var
       vFilePath: string;
       vFileName: string;
@@ -677,8 +680,7 @@ begin
   vDefinition.AddUniqueIndex('Code');
   vDefinition.AddAction('CheckEmailConnection', 'Проверить SMTP соединение', 25);
   vDefinition.RegisterReaction('IsMailVerified', 'MailService;MailLogin;MailPassword',
-    TProc(procedure(const ASession: TUserSession; const AHolder: TChangeHolder;
-      const AFieldChain: string; const AEntity, AParam: TEntity)
+    TProc(procedure(const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParam: TEntity)
     begin
       if AEntity['IsMailVerified'] then
         AEntity._SetFieldValue(AHolder, 'IsMailVerified', False);
@@ -794,6 +796,7 @@ end;
 function TScript.ExecuteAction(const AView: TView; const AParentHolder: TChangeHolder): Boolean;
 var
   vInteractor: TInteractor;
+  vSession: TUserSession;
   vAction: TActionDef;
   vActionName: string;
   vContextView: TView;
@@ -817,6 +820,7 @@ begin
   Result := False;
 
   vInteractor := TInteractor(AView.Interactor);
+  vSession := TUserSession(AView.Session);
 
   vAction := TActionDef(AView.Definition);
   vActionName := vAction.Name;
@@ -829,13 +833,13 @@ begin
     if Assigned(vParams) then
     begin
       FillActionParams(AView, vActionName, vContext, vParams);
-      vVisibleFieldCount := vParams.VisibleFieldCount(vInteractor.Session);
+      vVisibleFieldCount := vParams.VisibleFieldCount(vSession);
       vNeedShowParams := (vVisibleFieldCount > 0) and vAction.HasFlag(ccAlwaysShowParameters);
       if vVisibleFieldCount = 1 then
       begin
         vField := nil;
         for i := 0 to vParams.FieldCount - 1 do
-          if (vParams.Fields[i].GetUIState(vInteractor.Session) > vsHidden)
+          if (vParams.Fields[i].GetUIState(vSession) > vsHidden)
             and not vParams.Fields[i].FieldDef.HasFlag(cHideInEdit) then
           begin
             vField := vParams.Fields[i];
@@ -855,7 +859,7 @@ begin
             if TPresenter(vInteractor.Presenter).ShowOpenDialog(vFileName, 'Выберите файл', vFilter, '', '') then
             begin
               vDone := True;
-              vParams._SetFieldValue(nil, vField.FieldName, vFileName);
+              vParams._SetFieldValue(vSession.NullHolder, vField.FieldName, vFileName);
             end
             else
               Exit;
@@ -934,7 +938,7 @@ begin
         Result := False;
   finally
     if vNeedClearParams then
-      vParams.ResetToDefault;
+      vParams.ResetToDefault(vSession.NullHolder);
   end;
 end;
 
@@ -1274,9 +1278,15 @@ const
   end;
 
   procedure InternalEdit(const AEntity: TEntity);
+  var
+    vLayout: string;
   begin
-    if Assigned(AEntity) then
-      AInteractor.AtomicEditEntity(AView.Parent, AParentHolder);
+    if not Assigned(AEntity) then Exit;
+
+    vLayout := '';
+    if AEntity.FieldExists('_Layout') then
+      vLayout := AEntity['_Layout'];
+    AInteractor.AtomicEditEntity(AView.Parent, AParentHolder, vLayout);
   end;
 
   procedure InternalOpen(const AEntity: TEntity);
@@ -1313,7 +1323,7 @@ const
       var
         vNewEntity: TEntity;
       begin
-        vNewEntity := AEntityList.AddEntity(TChangeHolder(AHolder), vDefinitionName, '', []);
+        vNewEntity := AEntityList.AddEntity(AHolder, vDefinitionName, '', []);
         AEntityList.SelectEntity(vNewEntity);
         Result := AView.Parent.ViewByName('Selected');
         if not Assigned(Result) then
@@ -1348,51 +1358,21 @@ const
     vHolder := nil;
     vNewEntity := nil;
     vSession.DomainWrite(procedure
-      //var
-      //  i: Integer;
       begin
         vHolder := vSession.RetainChangeHolder(TChangeHolder(AParentHolder));
         if not Assigned(AView.Parent.ParentDomainObject) then
-          vNewEntity := TDomain(AView.Domain).CreateNewEntity(vDefinitionName, vHolder, cNewID)
+          vNewEntity := TDomain(AView.Domain).CreateNewEntity(vHolder, vDefinitionName, cNewID)
         else begin
           vMasterEntity := TEntity(AView.Parent.ParentDomainObject);
           vNewEntity := TDomain(AView.Domain)[vDefinitionName]._CreateNewEntity(vHolder, cNewID,
             '', [], vMasterEntity.FieldByName(vFieldDef.Name));
         end;
-
-        {  vMasterEntity := TEntity(AView.Parent.ParentDomainObject);
-          vMasterEntity._SetFieldEntity(vHolder, vFieldDef.Name, vNewEntity);
-          for i := 0 to vFieldDef.SelectiveFields.Count - 1 do
-          begin
-            vDependentField := Trim(vFieldDef.SelectiveFields.Names[i]);
-            vMasterField := Trim(vFieldDef.SelectiveFields.ValueFromIndex[i]);
-            if vMasterEntity.FieldExists(vMasterField) and vNewEntity.FieldExists(vDependentField) then
-            begin
-              vNewEntity._SetFieldEntity(vHolder, vDependentField, vMasterEntity.ExtractEntity(vMasterField));
-              vNewEntity.FieldByName(vDependentField).SetUIState(vsReadOnly);
-            end;
-          end;
-
-          TEntityCreationProc(TDomain(AInteractor.Domain).Configuration.AfterEntityCreationProc)(vHolder,
-            vMasterEntity.FieldByName(vFieldDef.Name), Result); }
       end);
 
     try
       vResult := AInteractor.ShowEntityEditor(AView.Parent, vHolder, '');
       if vResult then
         AView.Parent.SetDomainObject(vNewEntity);
-      {else begin
-        // Убираем привязки
-        if Assigned(vMasterEntity) then
-        begin
-          for i := 0 to vFieldDef.SelectiveFields.Count - 1 do
-          begin
-            vDependentField := Trim(vFieldDef.SelectiveFields.Names[i]);
-            if vNewEntity.FieldExists(vDependentField) then
-              vNewEntity._SetFieldEntity(vHolder, vDependentField, nil);
-          end;
-        end;
-      end;}
     finally
       vSession.DomainWrite(procedure
         begin
@@ -1485,7 +1465,7 @@ begin
   end
   else if AActionName = 'LoadChanges' then
   begin
-    TUserSession(AInteractor.Session).ReloadDomainChanges(nil);
+    TUserSession(AInteractor.Session).ReloadDomainChanges(TUserSession(AInteractor.Session).NullHolder);
     Exit;
   end
   else if AActionName = 'ShowStartPage' then
@@ -1494,7 +1474,7 @@ begin
     if (vStartPageName <> '')
       and FileExists(TDomain(AInteractor.Domain).Configuration.FindLayoutFile(vStartPageName, LAYOUT_DFM_EXT))
     then
-      AInteractor.UIBuilder.Navigate(nil, 'WorkArea', vStartPageName);
+      AInteractor.UIBuilder.Navigate(nil, 'WorkArea', vStartPageName, '', TUserSession(AInteractor.Session).NullHolder);
 
     Exit;
   end
@@ -1628,7 +1608,7 @@ begin
   begin
     // Должно самостоятельно обновить UI
     if (AContext is TEntityList) and (TEntityList(AContext).FillerKind = lfkDefinition) then
-      TUserSession(AInteractor.Session).ReloadDomainChanges(nil);
+      TUserSession(AInteractor.Session).ReloadDomainChanges(TUserSession(AInteractor.Session).NullHolder);
   end
   else if (AActionName = 'View') then
   begin
@@ -1651,7 +1631,7 @@ begin
 
       TUserSession(AInteractor.Session).AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
         begin
-          AHolder.SetFieldValue(vEntity, 'PasswordText', vNewPassword);
+          vEntity._SetFieldValue(AHolder, 'PasswordText', vNewPassword);
           Result := True;
         end, AParentHolder);
 
@@ -1663,7 +1643,7 @@ begin
 
       TUserSession(AInteractor.Session).AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
         begin
-          AHolder.SetFieldValue(vEntity, 'IsMailVerified', vMessage = '');
+          vEntity._SetFieldValue(AHolder, 'IsMailVerified', vMessage = '');
           Result := True;
         end, AParentHolder);
 
@@ -1783,7 +1763,7 @@ begin
   TConfiguration(FConfiguration).PlannedJobs.Add(vPlannedJob);
 end;
 
-procedure TBaseScript.AddSecuritySettings(const ACollection: TCollection; const AHolder: TChangeHolder;
+procedure TBaseScript.AddSecuritySettings(const AHolder: TChangeHolder; const ACollection: TCollection;
   const ASubject: string; const AObject: string; const AStateName: string; const AFlags: Integer);
 var
   vDomain: TDomain;
@@ -1833,7 +1813,7 @@ begin
     for j := 0 to vObjects.Count - 1 do
       for k := 0 to vStates.Count - 1 do
         ACollection.CreateDefaultEntity(AHolder, 0, '!Subject;!ObjectName;!StateName;!AccessFlags',
-          [Integer(vSubject), vObjectPrefix + vObjects[j], vStatePrefix + vStates[k], AFlags]);
+          [NativeInt(vSubject), vObjectPrefix + vObjects[j], vStatePrefix + vStates[k], AFlags]);
   end;
 
   FreeAndNil(vSubjects);
@@ -2009,10 +1989,9 @@ procedure TBaseScript.RegisterReaction(const ADefinitionNames, AReactiveFields, 
   const AReactionProc: TReactionProc);
 begin
   TConfiguration(FConfiguration).RegisterReaction(ADefinitionNames, AReactiveFields, AFieldChain, TProc(
-    procedure (const ASession: TUserSession; const AHolder: TChangeHolder; const AFieldChain: string;
-      const AEntity, AParameter: TEntity)
+    procedure(const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParameter: TEntity)
     begin
-      AReactionProc(ASession, AHolder, AFieldChain, AEntity, AParameter);
+      AReactionProc(AHolder, AFieldChain, AEntity, AParameter);
     end));
 end;
 

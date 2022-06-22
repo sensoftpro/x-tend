@@ -41,7 +41,7 @@ uses
 type
   TStringDictionary<T> = class(TEnumerable<T>)
   private
-    // Данные
+    // Data
     FDict: TDictionary<string, Integer>;
     FObjects: TList<T>;
     function GetCount: Integer;
@@ -252,7 +252,7 @@ begin
   FDict.Remove(AKey);
   FObjects.Delete(vRemovingIndex);
 
-  // Обновление индексации
+  // Index update
   for vKey in FDict.Keys do
   begin
     vIndex := FDict[vKey];

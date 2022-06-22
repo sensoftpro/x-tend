@@ -47,12 +47,14 @@ const
   DM_VIEW_CHANGED = $0438;
 
 type
+  TBulkUpdateViewList = TList<TObject>;
+
   TDomainChangedMessage = packed record
     Msg: Word;
     Kind: Word;
     Sender: TObject;
     Parameter: TObject;
-    Reserved: Integer;
+    Holder: TObject;
   end;
 
   TViewChangedMessage = packed record
@@ -159,6 +161,9 @@ const
   dckFilterChanged       = 128;
   dckEntitySaved         = 256;
   dckNameChanged         = 512;
+  dckContentTypeChanged  = 1024;
+  dckListBeginUpdate     = 2048;
+  dckListEndUpdate       = 4096;
 
 type
   TViewStates = (_vsHidden, _vsDisabled, _vsReadOnly, _vsSelectOnly, _vsFullAccess, _vsUndefined);
@@ -198,7 +203,7 @@ type
 
   TValidateStatus = (vsValid, vsInvalid, vsRequiredIsNull);
   TEntitySortType = (estUserSort, estSortByID, estSortByName,
-    estSortByTypeAndName, estSortByColorFieldID, estSortByOrder);
+    estSortByTypeAndName, estSortByColorFieldID, estSortByOrder, estSortByField);
   TSearchType = (stSearchNone, stSearchFromBegin, stSearchEverywhere,
     stSearchMultiEntrance);
 
@@ -299,7 +304,7 @@ const
   cSearchTypeNames: array[TSearchType] of string =
     ('<undefined>', 'from begin', 'everywhere', 'everywhere all');
   cSortTypeNames: array[TEntitySortType] of string =
-    ('UI', 'by ID', 'by Name', 'by Type & Name', 'by Color', 'by Order');
+    ('UI', 'by ID', 'by Name', 'by Type & Name', 'by Color', 'by Order', 'by field');
   cRelationPowerNames: array[TRelationPower] of string =
     ('Weak', 'Strong');
   cBlobFormatNames: array[TBlobFormat] of string =

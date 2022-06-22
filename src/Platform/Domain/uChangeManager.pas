@@ -36,7 +36,7 @@ unit uChangeManager;
 interface
 
 uses
-  Classes, Generics.Collections, uStorage, uEntity, uComplexObject, uReaction, uJSON;
+  Classes, Generics.Collections, uStorage, uEntity, uComplexObject, uReaction, uJSON, uConsts;
 
 type
   PCalcWaiter = ^TCalcWaiter;
@@ -97,6 +97,7 @@ type
     // Каждая сущность может сохраняться только один раз
     [Weak] FDomain: TObject;
     [Weak] FSession: TObject;
+    [Weak] FInteractor: TObject;
     [Weak] FParentHolder: TChangeHolder;
     FChangedEntities: TObjectList<TChangedEntity>;
     // Очередь ожидания
@@ -104,6 +105,10 @@ type
     // статус
     FIsCalculating: Boolean;
     FIsCancelling: Boolean;
+    FIsAnemic: Boolean;
+    FViewLockCount: Integer;
+    FViewList: TBulkUpdateViewList;
+
     function NeedSkipProcessing(const AEntity: TEntity): Boolean; inline;
     procedure DeleteChangedEntity(const AIndex: Integer);
     function IndexOfChangedEntity(const AEntity: TEntity): Integer;
@@ -117,7 +122,7 @@ type
 
     function AddTransferred(const ATransferedEntity: TChangedEntity): Boolean;
   public
-    constructor Create(const ASession: TObject; const AParentHolder: TChangeHolder);
+    constructor Create(const ASession: TObject; const AParentHolder: TChangeHolder; const AIsAnemic: Boolean);
     destructor Destroy; override;
 
     procedure RegisterEntityCreating(const AEntity: TEntity);
@@ -129,16 +134,8 @@ type
     procedure ProcessUpdatingEntity(const AInteractor: TObject; const AEntity: TEntity;
       const AFields: TJSONObject; const AContext: string);
 
-    procedure SetFieldValue(const AEntity: TEntity; const AFieldName: string; const AValue: Variant);
-    procedure SetFieldEntity(const AEntity: TEntity; const AFieldName: string; const AValue: TEntity);
-    procedure SetFieldStream(const AEntity: TEntity; const AFieldName: string; const AStream: TStream);
-    procedure SetFieldObject(const AEntity: TEntity; const AFieldName: string; const AObject: TComplexObject);
-    procedure SetFieldState(const AEntity: TEntity; const AFieldName: string; const AValue: Variant);
     procedure RevertField(const AEntity: TEntity; const AFieldName: string);
 
-    function OldEntityValue(const AEntity: TEntity; const AFieldName: string): string;
-
-    function NeedStoring: Boolean;
     function ApplyChanges(const ASkipLogging: Boolean = False): Integer;
     procedure TransferChanges;
     procedure RevertChanges;
@@ -148,17 +145,23 @@ type
       const AInstance, AParameter: TEntity);
     function IsModified: Boolean;
 
+    procedure BeginUpdate;
+    procedure EndUpdate;
+
     function IsVisibleModified: Boolean;
     function GetDebugInfo: string;
 
     property ParentHolder: TChangeHolder read FParentHolder;
     property Session: TObject read FSession;
+    property Interactor: TObject read FInteractor;
+    property IsAnemic: Boolean read FIsAnemic;
+    property ViewList: TBulkUpdateViewList read FViewList;
   end;
 
 implementation
 
 uses
-  SysUtils, Variants, Math, uDomain, uDefinition, uCollection, uSession, uConsts,
+  SysUtils, Variants, Math, uDomain, uDefinition, uCollection, uSession,
   uDomainUtils, uInteractor, uSimpleField;
 
 { TChangeHolder }
@@ -250,8 +253,8 @@ begin
         vNextLogActionID := -1;
       end
       else begin
-        vLogRecord := TDomain(FDomain).CreateNewEntity('SysLog', Self);
-        SetFieldValue(vLogRecord, 'UserName', TUserSession(FSession).CurrentUserName);
+        vLogRecord := TDomain(FDomain).CreateNewEntity(Self, 'SysLog');
+        vLogRecord._SetFieldValue(Self, 'UserName', TUserSession(FSession).CurrentUserName);
         vNextLogActionID := vStorage.CreateIDs('sys_log_actions', vInitialCount);
         vCurrentLogActionID := vNextLogActionID - vInitialCount + 1;
       end;
@@ -265,7 +268,7 @@ begin
         if vChangedEntity.DefinitionName = 'SysLog' then
         begin
           vLogRecord := vChangedEntity.Entity;
-          SetFieldValue(vLogRecord, 'Description', vFullDescription);
+          vLogRecord._SetFieldValue(Self, 'Description', vFullDescription);
           vChangedEntity.Apply(vLogRecord, -1);
 
           Result := SafeID(vLogRecord);
@@ -310,17 +313,30 @@ begin
   end;
 end;
 
-constructor TChangeHolder.Create(const ASession: TObject; const AParentHolder: TChangeHolder);
+procedure TChangeHolder.BeginUpdate;
+begin
+  if FViewLockCount = 0 then
+    FViewList := TBulkUpdateViewList.Create;
+  Inc(FViewLockCount);
+end;
+
+constructor TChangeHolder.Create(const ASession: TObject; const AParentHolder: TChangeHolder; const AIsAnemic: Boolean);
 begin
   inherited Create;
 
   FSession := ASession;
+  FInteractor := TUserSession(FSession).Interactor;
   FDomain := TUserSession(FSession).Domain;
   FParentHolder := AParentHolder;
+  FIsAnemic := AIsAnemic;
+  
   FChangedEntities := TObjectList<TChangedEntity>.Create;
   FIsCancelling := False;
   FCalcQueue := TList<TCalcWaiter>.Create;
   FIsCalculating := False;
+
+  FViewList := nil;
+  FViewLockCount := 0;
 end;
 
 procedure TChangeHolder.DeleteChangedEntity(const AIndex: Integer);
@@ -333,6 +349,7 @@ destructor TChangeHolder.Destroy;
 begin
   FreeAndNil(FCalcQueue);
   FreeAndNil(FChangedEntities);
+  FreeAndNil(FViewList);
 
   FParentHolder := nil;
   FDomain := nil;
@@ -356,13 +373,38 @@ begin
   FCalcQueue.Add(vWaiter);
 end;
 
+procedure TChangeHolder.EndUpdate;
+var
+  i: Integer;
+  vMessage: TDomainChangedMessage;
+begin
+  Dec(FViewLockCount);
+  if FViewLockCount > 0 then
+    Exit;
+
+  Assert(FViewLockCount = 0, 'Слишком много вызовов EndUpdate()');
+
+  vMessage.Msg := DM_DOMAIN_CHANGED;
+  vMessage.Kind := dckListEndUpdate;
+  vMessage.Sender := Self;
+  vMessage.Parameter := nil;
+  vMessage.Holder := nil;
+
+  try
+    for i := 0 to FViewList.Count - 1 do
+      FViewList[i].Dispatch(vMessage);
+  finally
+    FreeAndNil(FViewList);
+  end;
+end;
+
 procedure TChangeHolder.ExecuteReactions(const AHandlers: THandlers; const AFieldChain: string;
   const AInstance, AParameter: TEntity);
 var
   vHandler: TProc;
 begin
   for vHandler in AHandlers do
-    TReactionProcRef(vHandler)(TUserSession(FSession), Self, AFieldChain, AInstance, AParameter);
+    TReactionProcRef(vHandler)(Self, AFieldChain, AInstance, AParameter);
 end;
 
 function TChangeHolder.GetDebugInfo: string;
@@ -444,7 +486,7 @@ var
   vChangedEntity: TChangedEntity;
 begin
   Result := False;
-  if FIsCancelling then
+  if FIsAnemic or FIsCancelling then
     Exit;
 
   vIndex := IndexOfChangedEntity(AEntity);
@@ -469,34 +511,12 @@ begin
     Result := AEntity.Definition.HasFlag(ccNotSave);
 end;
 
-function TChangeHolder.NeedStoring: Boolean;
-begin
-  Result := not Assigned(FParentHolder);
-end;
-
-function TChangeHolder.OldEntityValue(const AEntity: TEntity; const AFieldName: string): string;
-var
-  vIndex: Integer;
-  vChangedEntity: TChangedEntity;
-begin
-  Result := '';
-  if FIsCancelling then
-    Exit;
-
-  vIndex := IndexOfChangedEntity(AEntity);
-  if vIndex < 0 then
-    Exit;
-
-  vChangedEntity := TChangedEntity(FChangedEntities[vIndex]);
-  Result := vChangedEntity.OldFieldValue(AFieldName);
-end;
-
 procedure TChangeHolder.RegisterFieldChanges(const AEntity: TEntity; const AFieldName: string);
 var
   vIndex: Integer;
   vChangedEntity: TChangedEntity;
 begin
-  if FIsCancelling then
+  if FIsAnemic or FIsCancelling then
     Exit;
 
   vIndex := IndexOfChangedEntity(AEntity);
@@ -538,6 +558,9 @@ procedure TChangeHolder.ProcessDeletingEntity(const AEntity: TEntity);
 var
   vIndex: Integer;
 begin
+  if FIsAnemic then
+    Exit;
+
   vIndex := IndexOfChangedEntity(AEntity);
   if vIndex >= 0 then
     DeleteChangedEntity(vIndex);
@@ -558,6 +581,9 @@ var
   vCurrentUser: TEntity;
   vCollisionActionID: Integer;
 begin
+  if FIsAnemic then
+    Exit;
+
   vIndex := IndexOfChangedEntity(AEntity);
   if vIndex < 0 then
     Exit;
@@ -629,7 +655,7 @@ end;
 
 procedure TChangeHolder.RegisterEntityCreating(const AEntity: TEntity);
 begin
-  if NeedSkipProcessing(AEntity) then
+  if FIsAnemic or NeedSkipProcessing(AEntity) then
     Exit;
   FChangedEntities.Add(TChangedEntity.Create(Self, AEntity, True, False));
   TDomain(FDomain).Logger.AddMessage('$$$ NEW ENTITY, type: ' + AEntity.Definition.Name);
@@ -640,7 +666,7 @@ var
   vIndex: Integer;
   vChangedEntity: TChangedEntity;
 begin
-  if NeedSkipProcessing(AEntity) then
+  if FIsAnemic or NeedSkipProcessing(AEntity) then
     Exit;
 
   vIndex := IndexOfChangedEntity(AEntity);
@@ -678,6 +704,9 @@ var
   vIndex: Integer;
   vChangedEntity: TChangedEntity;
 begin
+  if FIsAnemic then
+    Exit;
+
   vIndex := IndexOfChangedEntity(AEntity);
   if vIndex >= 0 then
   begin
@@ -700,36 +729,6 @@ begin
     ExecuteReactions(vHandlers, AFieldChain, AInstance, AParameter)
   else
     DoScheduleCalculation(vHandlers, AFieldChain, AInstance, AParameter);
-end;
-
-procedure TChangeHolder.SetFieldEntity(const AEntity: TEntity; const AFieldName: string; const AValue: TEntity);
-begin
-  TUserSession(FSession).CheckLocking;
-  AEntity._SetFieldEntity(Self, AFieldName, AValue);
-end;
-
-procedure TChangeHolder.SetFieldObject(const AEntity: TEntity; const AFieldName: string; const AObject: TComplexObject);
-begin
-  TUserSession(FSession).CheckLocking;
-  AEntity._SetFieldObject(Self, AFieldName, AObject);
-end;
-
-procedure TChangeHolder.SetFieldState(const AEntity: TEntity; const AFieldName: string; const AValue: Variant);
-begin
-  TUserSession(FSession).CheckLocking;
-  AEntity._SetState(Self, AValue);
-end;
-
-procedure TChangeHolder.SetFieldStream(const AEntity: TEntity; const AFieldName: string; const AStream: TStream);
-begin
-  TUserSession(FSession).CheckLocking;
-  AEntity._SetFieldStream(Self, AFieldName, AStream);
-end;
-
-procedure TChangeHolder.SetFieldValue(const AEntity: TEntity; const AFieldName: string; const AValue: Variant);
-begin
-  TUserSession(FSession).CheckLocking;
-  AEntity._SetFieldValue(Self, AFieldName, AValue);
 end;
 
 procedure TChangeHolder.TransferChanges;
@@ -775,12 +774,12 @@ var
       Exit;
 
     vCaption := AEntity.GetCaption(nil);
-    vLogAction := vDomain.CreateNewEntity('SysLogActions', FHolder);
+    vLogAction := vDomain.CreateNewEntity(FHolder, 'SysLogActions');
     vLogAction.SetID(ALogActionID);
-    FHolder.SetFieldEntity(vLogAction, 'SysLog', ALogRecord);
-    FHolder.SetFieldValue(vLogAction, 'CollectionName', AEntity.CollectionName);
-    FHolder.SetFieldValue(vLogAction, 'EntityID', AEntity.ID);
-    FHolder.SetFieldEntity(vLogAction, 'ActionKind', vDomain.EntityByID('SysLogActionKinds', Integer(AActionKind)));
+    vLogAction._SetFieldEntity(FHolder, 'SysLog', ALogRecord);
+    vLogAction._SetFieldValue(FHolder, 'CollectionName', AEntity.CollectionName);
+    vLogAction._SetFieldValue(FHolder, 'EntityID', AEntity.ID);
+    vLogAction._SetFieldEntity(FHolder, 'ActionKind', vDomain.EntityByID('SysLogActionKinds', Integer(AActionKind)));
 
     vDescription := '';
     vJSONObject := TJSONObject.Create;
@@ -820,8 +819,8 @@ var
           end;
       end;
 
-      FHolder.SetFieldValue(vLogAction, 'Description', vDescription);
-      FHolder.SetFieldValue(vLogAction, 'JSON', vJSONObject.ToString);
+      vLogAction._SetFieldValue(FHolder, 'Description', vDescription);
+      vLogAction._SetFieldValue(FHolder, 'JSON', vJSONObject.ToString);
       Result := Result + vDescription;
     finally
       FreeAndNil(vJSONObject);

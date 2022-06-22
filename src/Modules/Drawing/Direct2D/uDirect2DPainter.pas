@@ -1061,7 +1061,6 @@ var
   vStream: IWICStream;
   vEncoder: IWICBitmapEncoder;
   vFrameEncode: IWICBitmapFrameEncode;
-  vWidth, vHeight: Cardinal;
   vFormat: TGUID;
   vBitmap: IWICBitmap;
   vEncoderOptions: IPropertyBag2;
@@ -1101,7 +1100,7 @@ begin
   OleCheck(vEncoder.CreateNewFrame(vFrameEncode, vEncoderOptions));
   OleCheck(vFrameEncode.Initialize(nil));
 
-  vFrameEncode.SetSize(vWidth, vHeight);
+  vFrameEncode.SetSize(Width, Height);
   vFrameEncode.SetPixelFormat(vFormat);
   vFrameEncode.WriteSource(vBitmap, nil);
 

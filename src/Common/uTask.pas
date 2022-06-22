@@ -121,7 +121,7 @@ type
     constructor Create(const ADomain: TObject; const AName: string); override;
     destructor Destroy; override;
 
-    // Создание и запуск на исполнение
+    // Creation and launch for an execution
     function Execute(const AName: string; const AExecutionProc: TExecutionProc): TTaskHandle;
     procedure ExecuteManaged(const AName: string; const AExecutionProc: TExecutionProc);
   end;
@@ -183,7 +183,7 @@ const
 
 procedure TExecutor.CancelTask;
 begin
-  // TODO: Синхронизировать FCurrentTask
+  // TODO: Sychronize FCurrentTask
   if Assigned(FCurrentTask) then
     FCurrentTask.Cancel;
 end;

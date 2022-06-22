@@ -48,8 +48,8 @@ type
     function GetFullText(const AEntity: TEntity; var AHandled: Boolean): string; override;
     function DoCheckActionFlags(const AView: TView; const AActionName: string;
       const AContext: TObject; const AParams: TEntity): TViewState; override;
-    function CheckCanChangeField(const AView: TView; const AEntity: TEntity;
-      const AFieldName: string; const ANewValue: Variant; var AHandled: Boolean): Boolean; override;
+    function CheckCanChangeField(const AView: TView; const AEntity: TEntity; const AFieldName: string;
+      const ANewValue: Variant; var AHandled: Boolean): Boolean; override;
     procedure DoAfterEntityCreation(const AHolder: TChangeHolder; const AOwnerContext: TObject; const AEntity: TEntity); override;
     function DoExecuteAction(const AView: TView; const AActionName: string;
       const AContext: TObject; const AParams: TEntity; const AParentHolder: TChangeHolder): Boolean; override;
@@ -168,13 +168,15 @@ begin
   vIniFile := TIniFile.Create(TPath.Combine(vBinPath, 'settings.ini'));
   try
     if not vIniFile.ValueExists('Core', 'Deployment') then
-      vIniFile.WriteString('Core', 'Deployment', 'prod');
+      vIniFile.WriteString('Core', 'Deployment', 'dev');
     if not vIniFile.ValueExists('Core', 'EnvironmentID') then
       vIniFile.WriteString('Core', 'EnvironmentID', UpperCase(GUIDToString(vGUID)));
     if not vIniFile.ValueExists('Core', 'AutoLogin') then
       vIniFile.WriteString('Core', 'AutoLogin', '1');
     if not vIniFile.ValueExists('MSAccess', 'Database') then
       vIniFile.WriteString('MSAccess', 'Database', vDBName);
+    if not vIniFile.ValueExists('SQLite', 'Database') then
+      vIniFile.WriteString('SQLite', 'Database', LowerCase(AProjectName) + '.db');
     if not vIniFile.ValueExists('Modules', 'DataStorage') then
       vIniFile.WriteString('Modules', 'DataStorage', 'SQLite');
     if not vIniFile.ValueExists('Modules', 'ReportEngine') then
