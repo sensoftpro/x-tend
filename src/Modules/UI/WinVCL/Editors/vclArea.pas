@@ -3368,7 +3368,7 @@ end;
 
 function TMainMenuArea.DoCreateItem(const AParentObj: TObject): TObject;
 begin
-  FMenuItem := TMenuItem.Create(FMenu);
+  FMenuItem := TMenuItem.Create(nil);
   Result := nil;
   if FCurrentLevel = 0 then
   begin
@@ -3478,7 +3478,7 @@ begin
   begin
     if Assigned(AParentObj) then
     begin
-      FMenuItem := TMenuItem.Create(FToolBar);
+      FMenuItem := TMenuItem.Create(nil);
 
       if AParentObj is TToolButton then
       begin
