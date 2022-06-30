@@ -521,7 +521,7 @@ begin
     vTextRect.Top := vTextRect.Top + (vTextRect.Bottom - vTextRect.Top - vTextWidth) / 2;
     vTextRect.Bottom := vTextRect.Top + vTextWidth;
 
-    APainter.DrawText(FStyle, 'y.title', vYAxisName, vTextRect, 270);
+    APainter.DrawText(FStyle, 'y.title', vYAxisName, vTextRect, 270, 270);
   end;
 
   DrawValues(APainter, Result, vViewportStart, vViewportWidth);
