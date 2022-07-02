@@ -3,12 +3,6 @@
 uses
   Dialogs,
   SysUtils,
-
-  //1. Сделать настраиваемые подключаемые стили для Actions
-  //3. Сделать редактор лейаутов, привести все названия настроек к единому виду
-  //4. Убрать TButtonDesc
-
-  // COMMON
   uConsts in '..\..\Common\uConsts.pas',
   uUtils in '..\..\Common\uUtils.pas',
   uJSON in '..\..\Common\uJSON.pas',
@@ -22,8 +16,6 @@ uses
   uChartUtils in '..\..\Common\Scene\uChartUtils.pas',
   uSimpleChart in '..\..\Common\Scene\uSimpleChart.pas',
   uPlatform in '..\..\Platform\uPlatform.pas',
-
-  // CONFIGURATION
   uLocalizator in '..\..\Platform\Configuration\uLocalizator.pas',
   uQueryDef in '..\..\Platform\Configuration\uQueryDef.pas',
   uIcon in '..\..\Platform\Configuration\uIcon.pas',
@@ -33,8 +25,6 @@ uses
   uDefinition in '..\..\Platform\Configuration\uDefinition.pas',
   uConfiguration in '..\..\Platform\Configuration\uConfiguration.pas',
   uCodeConfiguration in '..\..\Platform\Configuration\uCodeConfiguration.pas',
-
-  // RUNTIME
   uScheduler in '..\..\Platform\Domain\uScheduler.pas',
   uTranslator in '..\..\Platform\Domain\uTranslator.pas',
   uQuery in '..\..\Platform\Domain\uQuery.pas',
@@ -47,31 +37,21 @@ uses
   uEntity in '..\..\Platform\Domain\uEntity.pas',
   uCollection in '..\..\Platform\Domain\uCollection.pas',
   uDomain in '..\..\Platform\Domain\uDomain.pas',
-
-  // MODULE INTERFACES
   uModule in '..\..\Modules\uModule.pas',
   uLogger in '..\..\Platform\uLogger.pas',
   uCodeParser in '..\..\Common\uCodeParser.pas',
   uScriptExecutor in '..\..\Platform\uScriptExecutor.pas',
   uScript in '..\..\Platform\uScript.pas',
-  // UI common
   uPresenter in '..\..\Modules\UI\uPresenter.pas',
   uView in '..\..\Modules\UI\uView.pas',
   uLayout in '..\..\Modules\UI\uLayout.pas',
   uUIBuilder in '..\..\Modules\UI\uUIBuilder.pas',
   uInteractor in '..\..\Modules\UI\uInteractor.pas',
-  // Storage common
   uStorage in '..\..\Modules\Storage\uStorage.pas',
   uParameters in '..\..\Modules\Storage\uParameters.pas',
-  // Painting common
   uDrawStyles in '..\..\Modules\Drawing\uDrawStyles.pas',
   uScene in '..\..\Modules\Drawing\uScene.pas',
-  // Reporting common
   uReport in '..\..\Modules\Reporting\uReport.pas',
-
-  // MODULE IMPLEMENTATIONS
-
-  // UI: Win.DevExpress classes
   uWinVCLPresenter in '..\..\Modules\UI\WinVCL\uWinVCLPresenter.pas',
   uWinScene in '..\..\Modules\UI\WinVCL\uWinScene.pas',
   vclArea in '..\..\Modules\UI\WinVCL\Editors\vclArea.pas',
@@ -80,7 +60,6 @@ uses
   vclListEditors in '..\..\Modules\UI\WinVCL\Editors\vclListEditors.pas',
   vclBlobEditors in '..\..\Modules\UI\WinVCL\Editors\vclBlobEditors.pas',
   vclPopupForm in '..\..\Modules\UI\WinVCL\Editors\vclPopupForm.pas',
-  // ... and forms
   uManagedForm in '..\..\Modules\UI\WinVCL\Forms\uManagedForm.pas',
   StartForm in '..\..\Modules\UI\WinVCL\Forms\StartForm.pas' {StartFm},
   LoginForm in '..\..\Modules\UI\WinVCL\Forms\LoginForm.pas' {LoginFm},
@@ -91,12 +70,6 @@ uses
   ReportConfigureForm in '..\..\Modules\UI\WinVCL\Forms\ReportConfigureForm.pas' {ReportConfigureFm},
   DebugInfoForm in '..\..\Modules\UI\WinVCL\Forms\DebugInfoForm.pas' {DebugFm},
   SplashForm in '..\..\Modules\UI\WinVCL\Forms\SplashForm.pas' {SplashFm},
-
-  //uSampleArea in '..\..\Modules\UI\uSampleArea.pas',
-  //uSamplePresenter in '..\..\Modules\UI\uSamplePresenter.pas',
-
-  //UI: Win.VCL
-
   uVCLPresenter in '..\..\Modules\UI\Windows\VCL\uVCLPresenter.pas',
   uVCLScene in '..\..\Modules\UI\Windows\VCL\uVCLScene.pas',
   vclnArea in '..\..\Modules\UI\Windows\VCL\Editors\vclnArea.pas',
@@ -115,22 +88,14 @@ uses
   ReportConfigureVclForm in '..\..\Modules\UI\Windows\VCL\Forms\ReportConfigureVclForm.pas' {ReportConfigureFm},
   DebugInfoVclForm in '..\..\Modules\UI\Windows\VCL\Forms\DebugInfoVclForm.pas' {DebugFm},
   SplashVclForm in '..\..\Modules\UI\Windows\VCL\Forms\SplashVclForm.pas' {SplashFm},
-
-  // Storage: OLEDB
+  uWebUniGUIPresenter in '..\..\Modules\UI\Web\uniGUI\uWebUniGUIPresenter.pas',
   ADOX_TLB in '..\..\Modules\Storage\OLEDB\ADOX_TLB.pas',
   uDBConnector in '..\..\Modules\Storage\OLEDB\uDBConnector.pas',
   uOLEDBStorage in '..\..\Modules\Storage\OLEDB\uOLEDBStorage.pas',
-  // Storage: SQLite
   uSQLite3 in '..\..\Modules\Storage\SQLite\uSQLite3.pas',
   uSQLiteStorage in '..\..\Modules\Storage\SQLite\uSQLiteStorage.pas',
-
-  // Painting: VCL
   uVCLPainter in '..\..\Modules\Drawing\VCL\uVCLPainter.pas',
-
-  // Reporting: FastReport
   uFRReport in '..\..\Modules\Reporting\FastReport\uFRReport.pas',
-
-  // Script modules
   uConfiguratorScript in 'uConfiguratorScript.pas';
 
 {$R *.res}

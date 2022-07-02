@@ -222,6 +222,7 @@
         <DCCReference Include="..\..\Modules\UI\Windows\VCL\Forms\SplashVclForm.pas">
             <Form>SplashFm</Form>
         </DCCReference>
+        <DCCReference Include="..\..\Modules\UI\Web\uniGUI\uWebUniGUIPresenter.pas"/>
         <DCCReference Include="..\..\Modules\Storage\OLEDB\ADOX_TLB.pas"/>
         <DCCReference Include="..\..\Modules\Storage\OLEDB\uDBConnector.pas"/>
         <DCCReference Include="..\..\Modules\Storage\OLEDB\uOLEDBStorage.pas"/>
