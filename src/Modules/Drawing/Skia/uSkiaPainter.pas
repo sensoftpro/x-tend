@@ -362,8 +362,32 @@ begin
 end;
 
 procedure TSkiaPainter.DoDrawLine(const AStroke: TStylePen; const APoint1, APoint2: TPointF);
+var
+  vWidth: integer;
+  procedure DrawLine(const AX1: Double = 0; const AY1: Double = 0; const AX2: Double = 0; const AY2: Double = 0);
+  begin
+    FCanvas.DrawLine(PointF(APoint1.X + AX1, APoint1.Y + AY1), PointF(APoint2.X + AX2, APoint2.Y + AY2), TSkiaPen(AStroke.NativeObject).Pen);
+  end;
 begin
-  FCanvas.DrawLine(APoint1, APoint2, TSkiaPen(AStroke.NativeObject).Pen);
+  vWidth := Round(AStroke.Width);
+  if vWidth = 2 then
+    DrawLine(-0.5, -0.5, -0.5, -0.5)
+  else if vWidth = 3 then
+  begin
+    if APoint1.X = APoint2.X then
+      DrawLine(0, -0.5, 0, -0.5)
+    else if APoint1.Y = APoint2.Y then
+      DrawLine(-0.5, 0, -0.5, 0);
+  end
+  else if vWidth mod 4 in [1, 3] then
+  begin
+    if APoint1.Y = APoint2.Y then
+      DrawLine(0, -0.5, 0, -0.5)
+    else if APoint1.X = APoint2.X then
+      DrawLine(-0.5, 0, -0.5, 0);
+  end
+  else
+    DrawLine;
 end;
 
 procedure TSkiaPainter.DoDrawPath(const AFill: TStyleBrush; const AStroke: TStylePen; const APath: TObject);
