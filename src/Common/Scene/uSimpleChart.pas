@@ -216,15 +216,15 @@ begin
     FStyle.AddFontParams('info.text', 'Tahoma', 8, $FF303030);
     FStyle.AddStrokeParams('peak', TAlphaColorRec.Skyblue);
     FStyle.AddFontParams('peak', 'Tahoma', 8, $FF303030);
-    FStyle.AddImageParams('peak', 'panel_peak.png', False).CutRect := Rect(7, 27, 8, 28);
+    FStyle.AddImageParams('peak', 'modules\aswcore\images\panel_peak.png', False).CutRect := Rect(7, 27, 8, 28);
     FStyle.AddStrokeParams('gaussian', $FF00A0FF, 2);
     FStyle.AddFillParams('geometry', MakeColor(TAlphaColorRec.Red, 20/255));
     FStyle.AddFontParams('geometry', 'Tahoma', 7, TAlphaColorRec.Maroon);
-    FStyle.AddStrokeParams('nuclide', TAlphaColorRec.Deeppink, 1);
-    FStyle.AddFillParams('nuclide', MakeColor(TAlphaColorRec.Deeppink, 0.5));
+    FStyle.AddStrokeParams('nuclide', TAlphaColorRec.Green, 1);
+    FStyle.AddFillParams('nuclide', MakeColor(TAlphaColorRec.Green, 0.5));
     FStyle.AddFillParams('_nuclide', TAlphaColorRec.Deeppink);
-    FStyle.AddFontParams('nuclide', 'Tahoma', 8, TAlphaColorRec.Deeppink);
-    FStyle.AddFontParams('yield', 'Tahoma', 7, TAlphaColorRec.Deeppink);
+    FStyle.AddFontParams('nuclide', 'Tahoma', 8, TAlphaColorRec.Green);
+    FStyle.AddFontParams('yield', 'Tahoma', 7, TAlphaColorRec.Green);
 
     FStyle.CreateDrawObjects(AScene.Painter);
   end;
@@ -287,9 +287,9 @@ begin
   // Отрисовываем дочерние объекты
   inherited DoRenderStatic(APainter, ARect, AMode);
 
-  APainter.DrawImage(FStyle, 'peak', RectF(200, 100, 450, 300), 0.7);
-  APainter.DrawEllipse(FStyle, '_nuclide', 'peak', RectF(500, 100, 650, 200));
-  APainter.DrawPie(FStyle, '_nuclide', 'peak', RectF(100, 350, 350, 420), 360, 320);
+//  APainter.DrawImage(FStyle, 'peak', RectF(200, 100, 450, 300), 0.7);
+//  APainter.DrawEllipse(FStyle, '_nuclide', 'peak', RectF(500, 100, 650, 200));
+//  APainter.DrawPie(FStyle, '_nuclide', 'peak', RectF(100, 350, 350, 420), 360, 320);
 end;
 
 procedure TSimpleChart.DoRenderDynamic(const APainter: TPainter; const ARect: TRectF);
@@ -521,7 +521,7 @@ begin
     vTextRect.Top := vTextRect.Top + (vTextRect.Bottom - vTextRect.Top - vTextWidth) / 2;
     vTextRect.Bottom := vTextRect.Top + vTextWidth;
 
-    APainter.DrawText(FStyle, 'y.title', vYAxisName, vTextRect, 270, 270);
+    APainter.DrawText(FStyle, 'y.title', vYAxisName, vTextRect, 270);
   end;
 
   DrawValues(APainter, Result, vViewportStart, vViewportWidth);

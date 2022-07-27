@@ -450,7 +450,7 @@ begin
     fkObject: Result := SafeDisplayName(EntityFromVariant(vValue.Value));
     fkList: begin
       Result := '';
-      vListField := TListField(Integer(vValue.Value));
+      vListField := TListField(NativeInt(vValue.Value));
       if not Assigned(vListField) then
         Exit;
       for i := 0 to vListField.Count - 1 do

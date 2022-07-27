@@ -836,7 +836,7 @@ begin
   end
   else if vCommandName = 'ADD_LIST_ENTITY' then
   begin
-    vEntity := TEntity(Integer(ACommand['Object']));
+    vEntity := TEntity(NativeInt(ACommand['Object']));
     vObject := nil;
     if Assigned(vEntity) then
     begin
@@ -1614,7 +1614,7 @@ begin
   else if vFuncName = 'random' then
     Result := Random
   else if (vFuncName = 'assigned') and (vParamsCount = 1) then
-    Result := Assigned(TObject(Integer(AParams[0])))
+    Result := Assigned(TObject(NativeInt(AParams[0])))
   else if (vFuncName = 'float') and (vParamsCount = 1) then
     Result := Double(AParams[0])
   else if (vFuncName = 'int') and (vParamsCount = 1) then
@@ -1631,10 +1631,10 @@ begin
       vVarName := Copy(AFuncName, 1, vPos - 1);
       vPath := Copy(AFuncName, vPos + 1, Length(AFuncName) - vPos);
       vVariable := FVariables.ObjectByName(vVarName);
-      if Assigned(vVariable) and (Integer(vVariable.Value) > 0) then
+      if Assigned(vVariable) and (NativeInt(vVariable.Value) > 0) then
       begin
-        vObject := TEntity(Integer(vVariable.Value));
-        Result := Integer(TListField(vObject.FieldByName(vPath))[Integer(AParams[0])]);
+        vObject := TEntity(NativeInt(vVariable.Value));
+        Result := NativeInt(TListField(vObject.FieldByName(vPath))[NativeInt(AParams[0])]);
       end;
     end;
   end
@@ -1661,7 +1661,7 @@ begin
       vVariable := FVariables.ObjectByName(vVarName);
       if Assigned(vVariable) then
       begin
-        vObject := TEntity(Integer(vVariable.Value));
+        vObject := TEntity(NativeInt(vVariable.Value));
         if Assigned(vObject) then
         begin
           vPath := Copy(AVarName, vPos + 1, Length(AVarName) - vPos);
@@ -1699,7 +1699,7 @@ begin
       vVariable := FVariables.ObjectByName(vVarName);
       if Assigned(vVariable) then
       begin
-        vObject := TEntity(Integer(vVariable.Value));
+        vObject := TEntity(NativeInt(vVariable.Value));
         if Assigned(vObject) then
         begin
           vPath := Copy(AVarName, vPos + 1, Length(AVarName) - vPos);

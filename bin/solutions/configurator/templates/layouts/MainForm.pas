@@ -9,26 +9,16 @@ uses
 type
   TEditForm = class(TFrame)
     WorkArea: TPanel;
-    MainMenu: TPopupMenu;
-    SystemCaption1: TMenuItem;
-    MenuItem1: TMenuItem;
-    MenuItem2: TMenuItem;
-    DetectorsLayoutDetectorsCollectionContentWorkAreamodal1: TMenuItem;
-    N5: TMenuItem;
-    MenuItem3: TMenuItem;
-    MenuItem4: TMenuItem;
-    WindowsCaption1: TMenuItem;
-    ArrangeCascade1: TMenuItem;
-    ArrangeVert1: TMenuItem;
-    ArrangeHorz1: TMenuItem;
-    N8: TMenuItem;
-    CloseAllWindows2: TMenuItem;
-    ShowAbout2: TMenuItem;
-    ShowSysLog2: TMenuItem;
-    Panel6: TPanel;
+    MainMenu1: TMainMenu;
+    System1: TMenuItem;
+    ShowOptions1: TMenuItem;
+    N1: TMenuItem;
+    Quit1: TMenuItem;
+    ShowAbout1: TMenuItem;
+    ShowSettings1: TMenuItem;
     ToolBar: TPopupMenu;
+    SysUsersWorkAreaWorkAreaLayoutCollection1: TMenuItem;
     Panel1: TPanel;
-    SysUsers1: TMenuItem;
   end;
 
 implementation
