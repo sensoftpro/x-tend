@@ -8,19 +8,28 @@ uses
   Vcl.ComCtrls;
 
 type
+  TLayoutType = (ltAbsolute, ltGrid, ltFlow, ltOverlap);
+
   TLayout = class
   private
     FLeft: Integer;
     FTop: Integer;
     FWidth: Integer;
     FHeight: Integer;
+    [Weak] FParent: TLayout;
+    FGridRect: TGridRect;
+    FChildren: TList<TLayout>;
   public
-    constructor Create(const ALeft, ATop, AWidth, AHeight: Integer);
+    constructor Create(const AParent: TLayout; const ALeft, ATop, AWidth, AHeight: Integer);
+    destructor Destroy; override;
+
+    procedure SetGridRect(const ALeft, ATop, ARight, ABottom: Integer);
 
     property Left: Integer read FLeft;
     property Top: Integer read FTop;
     property Width: Integer read FWidth;
     property Height: Integer read FHeight;
+    property GridRect: TGridRect read FGridRect;
   end;
 
   TGridSizeKind = (gskAbsolute, gskRelative);
@@ -71,6 +80,13 @@ type
     edtRow: TEdit;
     udnRow: TUpDown;
     btnApply: TButton;
+    Label5: TLabel;
+    edtWidth: TEdit;
+    udnWidth: TUpDown;
+    Label6: TLabel;
+    edtHeight: TEdit;
+    udnHeight: TUpDown;
+    btnAddArea: TButton;
     procedure btnNewLayoutClick(Sender: TObject);
     procedure btnAddGridClick(Sender: TObject);
     procedure btnAddRowClick(Sender: TObject);
@@ -204,6 +220,9 @@ begin
     FLayout.Rows[FSelection.Top - 1].Value := udnRow.Position;
   end;
 
+  FPanel.ClientWidth := udnWidth.Position;
+  FPanel.ClientHeight := udnHeight.Position;
+
   ApplyLayout(FGrid, FLayout);
 end;
 
@@ -216,6 +235,9 @@ begin
   FPanel.ParentColor := False;
   FPanel.ParentBackground := False;
   FPanel.Color := clBtnFace;
+
+  udnWidth.Position := FPanel.ClientWidth;
+  udnHeight.Position := FPanel.ClientHeight;
 
   FLayout := TGridLayout.Create(0, 0, FPanel.ClientWidth, FPanel.ClientHeight);
 end;
@@ -261,6 +283,9 @@ begin
   end
   else
     cbxRow.ItemIndex := 0;
+
+
+
 end;
 
 procedure TfrMain.GridMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -336,7 +361,7 @@ end;
 
 constructor TGridLayout.Create(const ALeft, ATop, AWidth, AHeight: Integer);
 begin
-  inherited Create(ALeft, ATop, AWidth, AHeight);
+  inherited Create(nil, ALeft, ATop, AWidth, AHeight);
 
   FColumns := TGridSizes.Create;
   FRows := TGridSizes.Create;
@@ -354,13 +379,28 @@ end;
 
 { TLayout }
 
-constructor TLayout.Create(const ALeft, ATop, AWidth, AHeight: Integer);
+constructor TLayout.Create(const AParent: TLayout; const ALeft, ATop, AWidth, AHeight: Integer);
 begin
   inherited Create;
   FLeft := ALeft;
   FTop := ATop;
   FWidth := AWidth;
   FHeight := AHeight;
+  FParent := AParent;
+  FChildren := TObjectList<TLayout>.Create;
+end;
+
+destructor TLayout.Destroy;
+begin
+  FParent := nil;
+  FreeAndNil(FChildren);
+
+  inherited Destroy;
+end;
+
+procedure TLayout.SetGridRect(const ALeft, ATop, ARight, ABottom: Integer);
+begin
+
 end;
 
 { TGridSize }

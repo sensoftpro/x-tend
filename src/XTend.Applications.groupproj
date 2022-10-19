@@ -6,9 +6,6 @@
         <Projects Include="Solutions\Configurator\Configurator.dproj">
             <Dependencies/>
         </Projects>
-        <Projects Include="..\..\..\Test\unigui\Project1.dproj">
-            <Dependencies/>
-        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -26,23 +23,14 @@
     <Target Name="Configurator:Make">
         <MSBuild Projects="Solutions\Configurator\Configurator.dproj" Targets="Make"/>
     </Target>
-    <Target Name="Project1">
-        <MSBuild Projects="..\..\..\Test\unigui\Project1.dproj"/>
-    </Target>
-    <Target Name="Project1:Clean">
-        <MSBuild Projects="..\..\..\Test\unigui\Project1.dproj" Targets="Clean"/>
-    </Target>
-    <Target Name="Project1:Make">
-        <MSBuild Projects="..\..\..\Test\unigui\Project1.dproj" Targets="Make"/>
-    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Configurator;Project1"/>
+        <CallTarget Targets="Configurator"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Configurator:Clean;Project1:Clean"/>
+        <CallTarget Targets="Configurator:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Configurator:Make;Project1:Make"/>
+        <CallTarget Targets="Configurator:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
