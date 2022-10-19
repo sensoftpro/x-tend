@@ -472,8 +472,8 @@ end;
 
 function TBooleanField.DoCompare(const AValue: Variant): Integer;
 begin
-  Result := CompareValue(NativeInt(BooleanFromVariant(DoGetValue)),
-    NativeInt(BooleanFromVariant(AValue)));
+  Result := CompareValue(Integer(BooleanFromVariant(DoGetValue)),
+    Integer(BooleanFromVariant(AValue)));
 end;
 
 function TBooleanField.DoExtractFieldValue(const AFieldName: string): Variant;
@@ -496,7 +496,7 @@ end;
 
 function TBooleanField.GetJSONValue: TJSONValue;
 begin
-  Result := TJSONNumber.Create(NativeInt(FValue));
+  Result := TJSONNumber.Create(Integer(FValue));
 end;
 
 procedure TBooleanField.SetJSONValue(const AJSONValue: TJSONValue);
@@ -628,7 +628,7 @@ end;
 
 function TBlobField.DoGetValue: Variant;
 begin
-  Result := NativeInt(FStream);
+  Result := Integer(FStream);
 end;
 
 procedure TBlobField.DoLoad(const AStorage: TStorage);
@@ -653,7 +653,7 @@ begin
     { TODO -owa -cspeed : Долгая операция }
     vStream := AStorage.ReadStream(StorageName);
 
-  DoSetValue(NativeInt(vStream));
+  DoSetValue(Integer(vStream));
 end;
 
 procedure TBlobField.DoSetValue(const AValue: Variant);
@@ -740,12 +740,12 @@ begin
   if (not Assigned(AJSONValue)) or AJSONValue.Null then
     DoSetValue(0)
   else
-    DoSetValue(NativeInt(StringToStream(TJSONString(AJSONValue).Value)));
+    DoSetValue(Integer(StringToStream(TJSONString(AJSONValue).Value)));
 end;
 
 procedure TBlobField.SetStream(const AHolder: TObject; const AValue: TStream);
 begin
-  SetValue(AHolder, NativeInt(AValue));
+  SetValue(AHolder, Integer(AValue));
 end;
 
 { TComplexField }

@@ -337,7 +337,6 @@ type
     FExclusiveQueryDef: TQueryDef;
     FContentDefinitionName: string;
     FContentDefinition: TDefinition;
-    FContentTypeLocator: string;
     FFilter: string;
     function GetContentDefinitions: TList<TDefinition>;
     function GetDefaultDefinitionName: string;
@@ -375,7 +374,6 @@ type
 
     property ContentDefinitionName: string read FContentDefinitionName;
     property _ContentDefinition: TDefinition read FContentDefinition;
-    property ContentTypeLocator: string read FContentTypeLocator;
     property Filter: string read FFilter;
     property ContentDefinitions: TList<TDefinition> read GetContentDefinitions;
     property ContentDefinitionsText: string read GetContentDefinitionsText;
@@ -790,10 +788,6 @@ implementation
 
 uses
   IOUtils, Variants, IniFiles, Character, uConfiguration, uUtils;
-
-type
-  TCreateContentTypeReactionProc = procedure(const ADefinition: TDefinition; const ATargetFieldName,
-    AContentTypePath: string) of object;
 
 { TDefinition }
 
@@ -2135,18 +2129,7 @@ begin
   inherited Create(AOwner, AFieldKind, AFieldName,
     AStorageName, ACaption, AHint, AViewName, AUIState, AFlags);
 
-  if Pos('~', AContentTypeName) = 1 then
-  begin
-    FContentDefinitionName := '~';
-    FContentTypeLocator := Trim(Copy(AContentTypeName, 2, Length(AContentTypeName) - 1));
-    if FContentTypeLocator <> '' then
-      TCreateContentTypeReactionProc(TConfiguration(AOwner.Configuration).CreateContentTypeReactionProc)(AOwner, AFieldName, FContentTypeLocator);
-  end
-  else begin
-    FContentDefinitionName := AContentTypeName;
-    FContentTypeLocator := '';
-  end;
-
+  FContentDefinitionName := AContentTypeName;
   FDefaultTypeName := '';
   FDefaultTypeID := 0;
   FHiddenFieldsText := AHiddenFields;
@@ -2186,7 +2169,7 @@ begin
   Assert(Assigned(FContentDefinition), 'Wrong content type name [' + FContentDefinitionName + ']');
 
   vDefinitions := GetContentDefinitions;
-  FIsSelector := (vDefinitions.Count > 1) or (FContentDefinition.Name = '~');
+  FIsSelector := (vDefinitions.Count > 1) or (FContentDefinition.Name = '-');
 
   if not Assigned(FQueryDef) then
     FQueryDef := TQueryDef.Create(DefinitionsToText(GetContentDefinitions), FQueryString);

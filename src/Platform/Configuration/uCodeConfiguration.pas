@@ -86,7 +86,6 @@ begin
   FCalculateStyleFunc := MakeScriptMethod(@TScript.CalculateStyle);
   FCanChangeFieldFunc := MakeScriptMethod(@TScript.CanChangeField);
   FGetParamValueFunc := MakeScriptMethod(@TScript.GetParamValue);
-  FCreateContentTypeReactionProc := MakeScriptMethod(@TScript.CreateContentTypeChangeHandler);
 end;
 
 destructor TCodeConfiguration.Destroy;

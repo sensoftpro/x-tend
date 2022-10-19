@@ -42,7 +42,7 @@ uses
 
   uDefinition, uPresenter, uInteractor, uView, uSettings,
 
-  StartVclForm, DebugInfoForm, SplashVclForm, uUIBuilder;
+  StartVclForm, DebugInfoVclForm, SplashVclForm, uUIBuilder;
 
 type
   TImageResolution = (ir16x16, ir24x24, ir32x32);
@@ -62,7 +62,7 @@ type
     FTrayIcon: TTrayIcon;
     FStartForm: TStartVclFm;
     [Weak]
-    FDebugForm: TDebugFm;
+    FDebugForm: TDebugVclFm;
     [Weak]
     FSplashForm: TSplashVclFm;
     function ShowLoginForm(const AAppTitle: string; var ALoginName, APass { , ARFID } : string): Boolean;
@@ -725,7 +725,7 @@ begin
     begin
       if not Assigned(FDebugForm) then
       begin
-        FDebugForm := TDebugFm.Create(nil);
+        FDebugForm := TDebugVclFm.Create(nil);
         FDebugForm.AddInteractor(AInteractor);
         FDebugForm.OnClose := DoDebugFormClose;
         FDebugForm.Show;

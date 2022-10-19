@@ -371,15 +371,7 @@ var
   vSelectedView: TView;
   vActiveView: TView;
 begin
-  if AMessage.Kind = dckSelectionChanged then
-  begin
-    Assert(FDefinitionKind in [dkListField, dkCollection]);
-    vSelectedView := ViewByName('Selected');
-    if Assigned(vSelectedView) then
-      vSelectedView.DoParentChanged(FDomainObject);
-    Exit;
-  end
-  else if Assigned(AMessage.Holder) and Assigned(TChangeHolder(AMessage.Holder).ViewList) then
+  if Assigned(AMessage.Holder) and Assigned(TChangeHolder(AMessage.Holder).ViewList) then
   begin
     if TChangeHolder(AMessage.Holder).ViewList.IndexOf(Self) < 0 then
     begin
@@ -437,6 +429,16 @@ begin
   begin
     if FDefinitionKind in [dkListField, dkCollection] then
       NotifyUI(AMessage.Kind, AMessage.Parameter);
+  end
+  else if AMessage.Kind = dckSelectionChanged then
+  begin
+    Assert(FDefinitionKind in [dkListField, dkCollection]);
+    vSelectedView := ViewByName('Selected');
+    if Assigned(vSelectedView) then
+    begin
+      vSelectedView.DoParentChanged(FDomainObject);
+      TInteractor(FInteractor).PrintHierarchy;
+    end;
   end
   else if AMessage.Kind in [dckListAdded, dckListRemoved] then
   begin
@@ -1005,9 +1007,7 @@ var
   vMessage: TViewChangedMessage;
   vListener: TObject;
 begin
-  //Assert(FFreezeCount = 0, 'Почему-то FFreezeCount не равен нулю');
-  if FFreezeCount > 0 then
-    Exit;
+  Assert(FFreezeCount = 0, 'Почему-то FFreezeCount не равен нулю');
 
   vMessage.Msg := DM_VIEW_CHANGED;
   vMessage.Kind := AKind;
@@ -1210,7 +1210,6 @@ end;
 procedure TView.UnsubscribeDomainObject;
 var
   vChildView: TView;
-  vClassName: string;
 begin
   if not Assigned(FDomainObject) then
     Exit;
@@ -1224,10 +1223,8 @@ begin
       vChildView.UnsubscribeField(TEntity(FDomainObject));
     TEntity(FDomainObject).RemoveUIListener('', Self);
   end
-  else begin
-    vClassName := FDomainObject.ClassName;
-    Assert(False, 'Тип доменного объекта не поддерживается для отписки^ ' + vClassName);
-  end;
+  else
+    Assert(False, 'Тип доменного объекта не поддерживается для отписки');
 end;
 
 procedure TView.UnsubscribeField(const AParentEntity: TEntity);

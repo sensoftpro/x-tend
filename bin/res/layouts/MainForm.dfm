@@ -6,9 +6,9 @@ object EditForm: TEditForm
   TabOrder = 0
   object WorkArea: TPanel
     Left = 0
-    Top = 65
+    Top = 24
     Width = 1080
-    Height = 645
+    Height = 686
     Align = alClient
     Caption = '@WorkArea?ViewType=Paged'
     Font.Charset = DEFAULT_CHARSET
@@ -18,18 +18,28 @@ object EditForm: TEditForm
     Font.Style = []
     ParentFont = False
     TabOrder = 0
-    ExplicitTop = 62
-    ExplicitHeight = 648
   end
-  object Panel1: TPanel
+  object ToolBar1: TToolBar
     Left = 0
     Top = 0
     Width = 1080
-    Height = 65
-    Align = alTop
-    Caption = '@NavigationArea?ViewType=ToolBar'
-    PopupMenu = ToolBar
+    Height = 24
+    AutoSize = True
+    ButtonHeight = 24
+    ButtonWidth = 163
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -13
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
     TabOrder = 1
+    object ToolButton1: TToolButton
+      Left = 0
+      Top = 0
+      Caption = 'ShowSettings'
+      ImageIndex = 2
+    end
   end
   object MainMenu1: TMainMenu
     Left = 340
@@ -72,13 +82,6 @@ object EditForm: TEditForm
     end
     object ShowAbout1: TMenuItem
       Caption = 'ShowAbout'
-    end
-  end
-  object ToolBar: TPopupMenu
-    Left = 864
-    Top = 16
-    object SysUsers1: TMenuItem
-      Caption = 'SysUsers'
     end
   end
 end

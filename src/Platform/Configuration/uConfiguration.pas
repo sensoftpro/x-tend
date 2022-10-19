@@ -98,7 +98,6 @@ type
     FCalculateStyleFunc: TMethod;
     FCanChangeFieldFunc: TMethod;
     FGetParamValueFunc: TMethod;
-    FCreateContentTypeReactionProc: TMethod;
 
     function LoadConfiguration: string; virtual;
     function GetTitle: string; virtual;
@@ -157,7 +156,6 @@ type
     property CalculateStyleFunc: TMethod read FCalculateStyleFunc;
     property CanChangeFieldFunc: TMethod read FCanChangeFieldFunc;
     property GetParamValueFunc: TMethod read FGetParamValueFunc;
-    property CreateContentTypeReactionProc: TMethod read FCreateContentTypeReactionProc;
   end;
 
   {TConfiguration = class

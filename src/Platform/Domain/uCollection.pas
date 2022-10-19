@@ -72,12 +72,8 @@ type
   private
     [Weak] FContentDefinition: TDefinition;
     FEntityClass: TEntityClass;
-
     // Список инстанцированных сущностей
-    FSparseList: TList<TEntity>;
-    FDict: TDictionary<TEntity, Integer>;
-    FList_: TList<TEntity>;
-
+    FList: TObjectList<TEntity>;
     // Быстрый доступ к сущностям по ID
     FIndexMap: TIndexMap;
     FLoaded: Boolean;
@@ -115,8 +111,6 @@ type
     procedure ExportAll(const AJSONArray: TJSONArray);
     procedure Subscribe;
     procedure Unsubscribe;
-
-    procedure Shrink;
 
     function CreateEntityFromJSON(const AEntityID: Integer;
       const AJSONObject: TJSONObject): TEntity;
@@ -364,9 +358,7 @@ begin
   FEntityClass := TEntity;
 
   FIndexMap := TIndexMap.Create(Self, 4);
-  FDict := TDictionary<TEntity, Integer>.Create;
-  FSparseList := TList<TEntity>.Create;
-  FList_ := TList<TEntity>.Create;
+  FList := TObjectList<TEntity>.Create;
   FListeners := TList<TObject>.Create;
   FLoaded := False;
   FMaxID := -1;
@@ -461,10 +453,10 @@ begin
   // Для локальных коллекций в параметре AID можно передать доп. информацию
   if FContentDefinition.HasFlag(ccLocalOnly) then
   begin
-    for i := 0 to FSparseList.Count - 1 do
+    for i := 0 to FList.Count - 1 do
     begin
       Result := GetEntity(i);
-      if Assigned(Result) and not Result.IsRemote then
+      if not Result.IsRemote then
       begin
         Result.IsService := AIsService;
         Exit;
@@ -491,21 +483,9 @@ begin
 end;
 
 destructor TCollection.Destroy;
-var
-  i: Integer;
-  vEntity: TEntity;
 begin
   FreeAndNil(FListeners);
-  FreeAndNil(FList_);
-  FreeAndNil(FDict);
-
-  for i := FSparseList.Count - 1 downto 0 do
-  begin
-    vEntity := FSparseList[i];
-    if Assigned(vEntity) then
-      vEntity.DisposeOf;
-  end;
-  FreeAndNil(FSparseList);
+  FreeAndNil(FList);
   FreeAndNil(FIndexMap);
 
   FContentDefinition := nil;
@@ -590,15 +570,11 @@ end;
 
 function TCollection.EntityByName(const AName: string): TEntity;
 var
-  i: Integer;
   vEntity: TEntity;
 begin
-  for i := 0 to FSparseList.Count - 1 do
-  begin
-    vEntity := FSparseList[i];
-    if Assigned(vEntity) and SameText(AName, vEntity['Name']) then
+  for vEntity in FList do
+    if SameText(AName, vEntity['Name']) then
       Exit(vEntity);
-  end;
   Result := nil;
 end;
 
@@ -614,12 +590,9 @@ begin
   if vIndex < 0 then
     Exit(nil);
 
-  for i := 0 to FSparseList.Count - 1 do
+  for i := 0 to FList.Count - 1 do
   begin
-    Result := TEntity(FSparseList[i]);
-    if not Assigned(Result) then
-      Continue;
-
+    Result := TEntity(FList[i]);
     if TStringField(Result.Fields[vIndex]).Value = AValue then
     begin
       if vGroupingIndex < 0 then
@@ -638,7 +611,7 @@ var
   vEntity: TEntity;
   vEntityData: TJSONObject;
 begin
-  for i := 0 to FSparseList.Count - 1 do
+  for i := 0 to FList.Count - 1 do
   begin
     vEntity := GetEntity(i);
     if Assigned(vEntity) and (vEntity.ID > 0) then
@@ -696,12 +669,9 @@ begin
       end;
     end;
 
-    for i := 0 to FSparseList.Count - 1 do
+    for i := 0 to FList.Count - 1 do
     begin
       vEntity := GetEntity(i);
-      if not Assigned(vEntity) then
-        Continue;
-
       if not vEntity.IsRemote and vQuery.IsMatch(ASession, vEntity) then
       begin
         AList.Add(vEntity);
@@ -744,11 +714,10 @@ begin
   vCheckUniqueQuery := TQueryExecutor.Create(FContentDefinition.CheckUniqueQuery);
   try
     vCheckUniqueQuery.SetParameters(ASession, AEntity);
-    for i := 0 to FSparseList.Count - 1 do
+    for i := 0 to FList.Count - 1 do
     begin
-      vEntity := FSparseList[i];
-      if not Assigned(vEntity) then
-        Continue;
+      vEntity := FList[i];
+      Assert(Assigned(vEntity), 'Wrong behaviour');
 
       if not vEntity.IsRemote and vCheckUniqueQuery.IsMatch(ASession, vEntity) then
       begin
@@ -765,10 +734,10 @@ function TCollection.First: TEntity;
 var
   i: Integer;
 begin
-  for i := 0 to FSparseList.Count - 1 do
+  for i := 0 to FList.Count - 1 do
   begin
-    Result := FSparseList[i];
-    if Assigned(Result) and not Result.IsRemote then
+    Result := FList[i];
+    if not Result.IsRemote then
       Exit;
   end;
 
@@ -796,17 +765,17 @@ end;
 
 function TCollection.GetCount: Integer;
 begin
-  Result := FList_.Count;
+  Result := FList.Count;
 end;
 
 function TCollection.GetEntity(const AIndex: Integer): TEntity;
 begin
-  Result := FList_[AIndex];
+  Result := FList[AIndex];
 end;
 
 function TCollection.GetEnumerator: TEnumerator<TEntity>;
 begin
-  Result := FList_.GetEnumerator;
+  Result := FList.GetEnumerator;
 end;
 
 function TCollection.GetName: string;
@@ -820,12 +789,8 @@ begin
 end;
 
 procedure TCollection.InternalAdd(const AEntity: TEntity);
-var
-  vIndex: Integer;
 begin
-  vIndex := FSparseList.Add(AEntity);
-  FDict.Add(AEntity, vIndex);
-  FList_.Add(AEntity);
+  FList.Add(AEntity);
   FIndexMap.AddEntity(AEntity.ID, AEntity);
 end;
 
@@ -872,7 +837,6 @@ end;
 
 procedure TCollection.MarkEntityAsDeleted(const AHolder: TObject; const AEntity: TEntity);
 var
-  i: Integer;
   vFieldDef: TFieldDef;
 begin
   if not Assigned(AEntity) then
@@ -887,12 +851,9 @@ begin
   //  AddToSearchIndexes(AEntity);
 
   // Транзитные листовые поля тоже необходимо пометить
-  for i := 0 to FContentDefinition.Fields.Count - 1 do
-  begin
-    vFieldDef := FContentDefinition.Fields[i];
+  for vFieldDef in FContentDefinition.Fields do
     if vFieldDef.Kind = fkList then
       TListField(AEntity.FieldByName(vFieldDef.Name)).ClearList(AHolder);
-  end;
 
   TEntityChangingProc(TDomain(FDomain).Configuration.BeforeEntityRemovingProc)(TChangeHolder(AHolder), AEntity);
 
@@ -927,9 +888,6 @@ begin
 end;
 
 procedure TCollection.RemoveEntity(const AEntity: TEntity);
-var
-  vIndex: Integer;
-  i: Integer;
 begin
   if not Assigned(AEntity) then
     Exit;
@@ -938,26 +896,10 @@ begin
     Exit;
 
   FIndexMap.DeleteEntity(AEntity.ID);
-  if FDict.TryGetValue(AEntity, vIndex) then
-  begin
-    FDict.Remove(AEntity);
-    FSparseList[vIndex] := nil;
-
-    if vIndex >= FList_.Count then
-      vIndex := FList_.Count - 1;
-    // Индекc должен быть меньше или равен индексу в FSparseList
-    for i := vIndex downto 0 do
-      if AEntity = FList_[i] then
-      begin
-        FList_.Delete(i);
-        Break;
-      end;
-
+  if FList.Remove(AEntity) < 0 then
     AEntity.DisposeOf;
-  end;
 
-  if FList_.Count = 0 then
-    FSparseList.Clear;
+  TDomain(Domain).Logger.AddMessage('Real deletion of entity');
 end;
 
 procedure TCollection.RemoveViewListener(const AListener: TObject);
@@ -983,53 +925,20 @@ begin
   NotifyListeners(nil, dckViewStateChanged, Self);
 end;
 
-procedure TCollection.Shrink;
-var
-  i: Integer;
-  vIndex: Integer;
-  vEntity: TEntity;
-begin
-  FList_.Clear;
-  FDict.Clear;
-  for i := 0 to FSparseList.Count - 1 do
-  begin
-    vEntity := FSparseList[i];
-    if Assigned(vEntity) then
-    begin
-      vIndex := FList_.Add(vEntity);
-      FDict.Add(vEntity, vIndex);
-    end;
-  end;
-
-  FSparseList.Clear;
-  for i := 0 to FList_.Count - 1 do
-    FSparseList.Add(FList_[i]);
-end;
-
 procedure TCollection.Subscribe;
 var
   i: Integer;
-  vEntity: TEntity;
 begin
-  for i := 0 to FSparseList.Count - 1 do
-  begin
-    vEntity := FSparseList[i];
-    if Assigned(vEntity) then
-      vEntity.SubscribeFields(TDomain(FDomain).DomainHolder);
-  end;
+  for i := 0 to FList.Count - 1 do
+    FList[i].SubscribeFields(TDomain(FDomain).DomainHolder);
 end;
 
 procedure TCollection.Unsubscribe;
 var
-  i: Integer;
   vEntity: TEntity;
 begin
-  for i := 0 to FSparseList.Count - 1 do
-  begin
-    vEntity := FSparseList[i];
-    if Assigned(vEntity) then
-      vEntity.RemoveAllListeners;
-  end;
+  for vEntity in FList do
+    vEntity.RemoveAllListeners;
 end;
 
 end.

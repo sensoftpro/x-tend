@@ -164,7 +164,6 @@ type
     function CheckActionFlags(const AView: TView): TViewState;
     function ExecuteAction(const AView: TView; const AParentHolder: TChangeHolder): Boolean;
     function ExecuteCommand(const AExecutor: TObject; const ATask: TTaskHandle; const AFiber, ACommand: TObject): Boolean;
-    procedure CreateContentTypeChangeHandler(const ADefinition: TDefinition; const ATargetFieldName, AContentTypePath: string);
 
     // Триггеры-обработчики начала/окончания действий
     procedure AfterEntityCreation(const AHolder: TChangeHolder; const AOwnerContext: TObject; const AEntity: TEntity);
@@ -192,7 +191,7 @@ procedure RegisterInclusion(const AInclusionName: string; const AClass: TInclusi
 implementation
 
 uses
-  Variants, IOUtils, Math, uConfiguration, uDomain, uObjectField, uEntityList, uJSON, uUtils,
+  Variants, IOUtils, Math, uConfiguration, uDomain, uEntityList, uJSON, uUtils,
   uDomainUtils, uReaction, uPresenter, idUri;
 
 procedure RegisterScript(const AConfigurationName: string; const AClass: TScriptClass; const AIncludes: string = '');
@@ -516,7 +515,7 @@ begin
   AddAction('ActualizeData', 'Актуализировать данные', -1);
 
   // Любая сущность, которая будет определена позже
-  AddDefinition('~', '', 'Неизвестная', cNullItemName, ccSystem or ccHideInMenu or ccNotSave);
+  AddDefinition('-', '', 'Неизвестная', cNullItemName, ccSystem or ccHideInMenu or ccNotSave);
 
   // Управление идентификацией
   vDefinition := AddDefinition('Numerators', '', 'Нумератор', cNullItemName, ccSystem or ccHideInMenu or ccLazyLoad);
@@ -703,54 +702,6 @@ begin
   end;
 
   Result := FVersion;
-end;
-
-procedure TScript.CreateContentTypeChangeHandler(const ADefinition: TDefinition; const ATargetFieldName,
-  AContentTypePath: string);
-var
-  vFieldChain: string;
-
-  function BuildFieldChain(const AFieldPath: string): string;
-  var
-    vFieldPath: TStrings;
-    vChain: string;
-    i, j: Integer;
-  begin
-    Result := '';
-    vFieldPath := CreateDelimitedList(AFieldPath, '.');
-    try
-      for i := vFieldPath.Count - 1 downto 0 do
-      begin
-        vChain := '';
-        for j := i downto 0 do
-          if j > 0 then
-            vChain := vChain + vFieldPath[j] + '.'
-          else
-            vChain := vChain + vFieldPath[j];
-        if i > 0 then
-          Result := Result + vChain + ';'
-        else
-          Result := Result + vChain;
-      end;
-    finally
-      FreeAndNil(vFieldPath);
-    end;
-  end;
-begin
-  vFieldChain := BuildFieldChain(AContentTypePath);
-
-  ADefinition.RegisterReaction(ATargetFieldName, vFieldChain, TProc(procedure(
-      const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParameter: TEntity)
-    var
-      vContentTypeName: string;
-    begin
-      vContentTypeName := SafeDisplayName(AEntity.ExtractEntity(AContentTypePath));
-      if vContentTypeName <> '' then
-        TEntityField(AEntity.FieldByName(ATargetFieldName)).SetContentDefinition(AHolder,
-          TDomain(AEntity.Domain).Configuration[vContentTypeName])
-      else
-        TEntityField(AEntity.FieldByName(ATargetFieldName)).SetContentDefinition(AHolder, nil);
-    end));
 end;
 
 procedure TScript.CreateDefaultEntities(const ADomain: TObject);
