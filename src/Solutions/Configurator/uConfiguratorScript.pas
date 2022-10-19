@@ -243,10 +243,14 @@ begin
   vCollection := vDomain['SysUsers'];
   vCollection.CreateDefaultEntity(AHolder, 1, 'Login;Name;!Password',
     ['admin', 'Администратор', Md5Hash('')], True);
+  vCollection.CreateDefaultEntity(AHolder, 2, 'Login;Name;!Password',
+    ['user', 'Пользователь', Md5Hash('')]);
 
   vCollection := vDomain['SysUsersRoles'];
   vCollection.CreateDefaultEntity(AHolder, 1, 'User;Role;Flags', [
     Integer(vDomain.EntityByID('SysUsers', 1)), Integer(vDomain.EntityByID('SysRoles', 1))], True);
+  vCollection.CreateDefaultEntity(AHolder, 2, 'User;Role;Flags', [
+    Integer(vDomain.EntityByID('SysUsers', 2)), Integer(vDomain.EntityByID('SysRoles', 1))]);
 
   vCollection := vDomain['SysConstants'];
   vCollection.CreateDefaultEntity(AHolder, 1, 'Code;MailLogin;MailPassword', ['debug', 'noname@mail.ru', '']);

@@ -209,7 +209,6 @@ type
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); virtual; abstract;
     function DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult; virtual; abstract;
     procedure DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False); virtual;
-    function DoSelectFile(var AFileName: string; const ADirectory: string = ''): Boolean; virtual;
     function DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean; virtual;
     function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; virtual;
     procedure DoSetCursor(const ACursorType: TCursorType); virtual;
@@ -279,6 +278,9 @@ type
   end;
 
   TPresenterClass = class of TPresenter;
+
+  TLoginedProc = procedure(const AInteractor: TInteractor) of object;
+  TBeforeUIClosingFunc = function(const AInteractor: TInteractor): Boolean of object;
 
 implementation
 
@@ -450,11 +452,6 @@ end;
 
 procedure TPresenter.DoRun;
 begin
-end;
-
-function TPresenter.DoSelectFile(var AFileName: string; const ADirectory: string): Boolean;
-begin
-  Result := False;
 end;
 
 procedure TPresenter.DoSetCursor(const ACursorType: TCursorType);

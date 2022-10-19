@@ -130,10 +130,6 @@ uses
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity, uEntityList, vclArea, uSession,
   uManagedForm, AboutForm, ReportConfigureForm, OptionsForm, LoginForm;
 
-type
-  TLoginedProc = procedure(const AInteractor: TInteractor) of object;
-  TBeforeUIClosingFunc = function(const AInteractor: TInteractor): Boolean of object;
-
 { TWinVCLPresenter }
 
 procedure TWinVCLPresenter.ArrangeMozaic(const AMDIForm: TForm);

@@ -253,6 +253,7 @@ type
     procedure CloseCurrentArea(const AModalResult: Integer);
     procedure PrintHierarchy;
     procedure ProcessAreaDeleting(const AArea: TUIArea);
+    procedure SetRootArea(const AArea: TUIArea);
 
     property RootView: TView read FRootView;
     property RootArea: TUIArea read FRootArea;
@@ -572,9 +573,7 @@ begin
     try
       if vAreaName = '' then
       begin
-        TPresenter(FPresenter).CloseUIArea(TInteractor(FInteractor), FRootArea, vUIArea);
-
-        FRootArea := vUIArea;
+        SetRootArea(vUIArea);
         ApplyLayout(vUIArea, vView, vLayoutName, AOptions);
         vIsMainForm := True;
       end
@@ -797,6 +796,13 @@ procedure TUIBuilder.SetPagedArea(const Value: TUIArea);
 begin
   Assert(not Assigned(FPagedArea), 'Область страниц инициализирована дважды!');
   FPagedArea := Value;
+end;
+
+procedure TUIBuilder.SetRootArea(const AArea: TUIArea);
+begin
+  TPresenter(FPresenter).CloseUIArea(TInteractor(FInteractor), FRootArea, AArea);
+  FRootArea := AArea;
+  FCurrentArea := AArea;
 end;
 
 { TUIArea }

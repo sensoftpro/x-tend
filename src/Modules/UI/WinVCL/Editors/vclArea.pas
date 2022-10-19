@@ -337,7 +337,7 @@ end;
 procedure TVCLArea.AppendServiceArea(const ALayoutName: string);
 var
   vPanel: TPanel;
-  vArea: TVCLArea;
+  vArea: TUIArea;
 begin
   vPanel := TPanel.Create(nil);
   vPanel.BevelOuter := bvNone;
@@ -2144,7 +2144,8 @@ begin
         vPanel.ParentColor := False;
         vPanel.ParentBackground := False;
       end;
-      Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), False, vPanel, nil, AParams);
+      //Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), False, vPanel, nil, AParams);
+      Result := TUIAreaClass(Self.ClassType).Create(Self, AView, Trim(vSourcePanel.Caption), False, vPanel, nil, AParams);
     end;
 
     Result.AddParams(vParams);
