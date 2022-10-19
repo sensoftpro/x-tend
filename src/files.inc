@@ -46,6 +46,7 @@
   uScriptExecutor in '..\..\Platform\uScriptExecutor.pas',
   uScript in '..\..\Platform\uScript.pas',
   // UI common
+  uBaseLayout in '..\..\Modules\UI\uBaseLayout.pas',
   uPresenter in '..\..\Modules\UI\uPresenter.pas',
   uView in '..\..\Modules\UI\uView.pas',
   uUIBuilder in '..\..\Modules\UI\uUIBuilder.pas',
@@ -58,3 +59,11 @@
   uScene in '..\..\Modules\Drawing\uScene.pas',
   // Reporting common
   uReport in '..\..\Modules\Reporting\uReport.pas',
+
+  // MODULE IMPLEMENTATIONS
+  // UI: Common VCL                           ,
+  uVCLScene in '..\..\Modules\UI\uVCLScene.pas',
+  uCustomVCLPresenter in '..\..\Modules\UI\uCustomVCLPresenter.pas',
+  uCustomVCLArea in '..\..\Modules\UI\uCustomVCLArea.pas',
+  DebugInfoForm in '..\..\Modules\UI\DebugInfoForm.pas' {DebugFm},
+  OptionsForm in '..\..\Modules\UI\OptionsForm.pas' {OptionsFm},

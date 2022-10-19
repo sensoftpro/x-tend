@@ -36,7 +36,7 @@ unit uPresenter;
 interface
 
 uses
-  Classes, Generics.Collections, SysUtils, uModule, uSettings, uInteractor, uView, uConsts, uUIBuilder, uIcon;
+  Classes, Generics.Collections, SysUtils, uModule, uSettings, uInteractor, uView, uConsts, uUIBuilder, uIcon, uBaseLayout;
 
 type
   { НАВИГАЦИЯ И ИДЕНТИФИКАЦИЯ ПОЛЕЙ }
@@ -221,11 +221,10 @@ type
     procedure StoreUILayout(const AInteractor: TInteractor); virtual;
     procedure RestoreUILayout(const AInteractor: TInteractor); virtual;
 
-    function GetViewNameByLayoutType(const ALayout: TObject): string; virtual;
-    procedure DoEnumerateControls(const ALayout: TObject; const AControls: TList<TObject>); virtual;
-    procedure DoSetLayoutCaption(const ALayout: TObject; const ACaption: string); virtual;
-    function DoGetLayoutCaption(const ALayout: TObject): string; virtual;
-    function DoGetLayoutKind(const ALayout: TObject): TLayoutKind; virtual;
+    function GetViewNameByLayoutType(const ALayout: TBaseLayout): string; virtual;
+    procedure DoSetLayoutCaption(const ALayout: TBaseLayout; const ACaption: string); overload; virtual;
+    function DoGetLayoutCaption(const ALayout: TBaseLayout): string; overload; virtual;
+    function DoGetLayoutKind(const ALayout: TBaseLayout): TLayoutKind; virtual;
 
     function ActiveInteractor: TInteractor;
   public
@@ -244,17 +243,16 @@ type
     procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); virtual;
 
     // Layouts operations
-    function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
+    function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TBaseLayout;
       const AView: TView; const AStyleName, AParams: string): TUIArea;
-    function CreateActionArea(const AParentArea: TUIArea; const ALayout: TObject;
+    function CreateActionArea(const AParentArea: TUIArea; const ALayout: TBaseLayout;
       const AView: TView; const AStyleName, AParams: string): TUIArea;
-    function CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject;
+    function CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TBaseLayout;
       const AView: TView; const AStyleName, AParams: string): TUIArea;
     procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
-    procedure EnumerateControls(const ALayout: TObject; const AControls: TList<TObject>);
-    procedure SetLayoutCaption(const ALayout: TObject; const ACaption: string);
-    function GetLayoutCaption(const ALayout: TObject): string;
-    function GetLayoutKind(const ALayout: TObject): TLayoutKind;
+    procedure SetLayoutCaption(const ALayout: TBaseLayout; const ACaption: string);
+    function GetLayoutCaption(const ALayout: TBaseLayout): string;
+    function GetLayoutKind(const ALayout: TBaseLayout): TLayoutKind;
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; virtual;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
@@ -341,7 +339,7 @@ begin
   FProgressInfo := TProgressInfo.Create;
 end;
 
-function TPresenter.CreateActionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView;
+function TPresenter.CreateActionArea(const AParentArea: TUIArea; const ALayout: TBaseLayout; const AView: TView;
   const AStyleName, AParams: string): TUIArea;
 var
   vParams, vViewName: string;
@@ -355,7 +353,7 @@ begin
   Result := vActionAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
 end;
 
-function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView; const AStyleName,
+function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TBaseLayout; const AView: TView; const AStyleName,
   AParams: string): TUIArea;
 var
   //vParams, vViewName: string;
@@ -369,7 +367,7 @@ begin
   Result := vCollectionAreaClass.Create(AParentArea, AView, 'List', False, nil, ALayout, AParams);
 end;
 
-function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TObject;
+function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TBaseLayout;
   const AView: TView; const AStyleName, AParams: string): TUIArea;
 var
   vParams, vViewName: string;
@@ -413,16 +411,12 @@ begin
   inherited Destroy;
 end;
 
-procedure TPresenter.DoEnumerateControls(const ALayout: TObject; const AControls: TList<TObject>);
-begin
-end;
-
-function TPresenter.DoGetLayoutCaption(const ALayout: TObject): string;
+function TPresenter.DoGetLayoutCaption(const ALayout: TBaseLayout): string;
 begin
   Result := '';
 end;
 
-function TPresenter.DoGetLayoutKind(const ALayout: TObject): TLayoutKind;
+function TPresenter.DoGetLayoutKind(const ALayout: TBaseLayout): TLayoutKind;
 begin
   Result := lkFrame;
 end;
@@ -458,7 +452,7 @@ procedure TPresenter.DoSetCursor(const ACursorType: TCursorType);
 begin
 end;
 
-procedure TPresenter.DoSetLayoutCaption(const ALayout: TObject; const ACaption: string);
+procedure TPresenter.DoSetLayoutCaption(const ALayout: TBaseLayout; const ACaption: string);
 begin
 end;
 
@@ -481,17 +475,12 @@ procedure TPresenter.DoUnfreeze;
 begin
 end;
 
-procedure TPresenter.EnumerateControls(const ALayout: TObject; const AControls: TList<TObject>);
-begin
-  DoEnumerateControls(ALayout, AControls);
-end;
-
-function TPresenter.GetLayoutCaption(const ALayout: TObject): string;
+function TPresenter.GetLayoutCaption(const ALayout: TBaseLayout): string;
 begin
   Result := DoGetLayoutCaption(ALayout)
 end;
 
-function TPresenter.GetLayoutKind(const ALayout: TObject): TLayoutKind;
+function TPresenter.GetLayoutKind(const ALayout: TBaseLayout): TLayoutKind;
 begin
   Result := DoGetLayoutKind(ALayout);
 end;
@@ -533,7 +522,7 @@ begin
     '", View Name: "' + vViewName + '" in UI: ' + ClassName);
 end;
 
-function TPresenter.GetViewNameByLayoutType(const ALayout: TObject): string;
+function TPresenter.GetViewNameByLayoutType(const ALayout: TBaseLayout): string;
 begin
   Result := '';
 end;
@@ -639,7 +628,7 @@ begin
   DoSetCursor(FCursorType);
 end;
 
-procedure TPresenter.SetLayoutCaption(const ALayout: TObject; const ACaption: string);
+procedure TPresenter.SetLayoutCaption(const ALayout: TBaseLayout; const ACaption: string);
 begin
   DoSetLayoutCaption(ALayout, ACaption);
 end;

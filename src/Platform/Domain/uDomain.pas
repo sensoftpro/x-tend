@@ -1154,7 +1154,7 @@ begin
       for vSyncDefinition in FConfiguration.Definitions do
       begin
         if (vSyncDefinition.Kind = clkMixin) or (vSyncDefinition.Name = 'Numerators')
-          //or (vSyncDefinition.Name = '-')
+          //or (vSyncDefinition.Name = '~')
         then
           Continue;
 

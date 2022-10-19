@@ -38,7 +38,7 @@ interface
 uses
   Generics.Collections, Graphics, Classes, Controls, Types, CheckLst, ExtCtrls, ComCtrls,
 
-  uEntity, uEntityList, vclArea, uView, uUIBuilder, uDefinition, uConsts,
+  uEntity, uEntityList, uView, uUIBuilder, uDefinition, uConsts, uCustomVCLArea, uDevExpressArea, uBaseLayout,
 
   cxCheckListBox, cxLookAndFeelPainters, dxColorEdit,
   cxTL, cxGrid, cxGridTableView, cxCustomData, cxGridLevel, cxGridCustomTableView, cxGridChartView, cxStyles,
@@ -47,13 +47,13 @@ uses
   cxExportPivotGridLink, cxTLData, cxButtonEdit, cxEditRepositoryItems, cxPC;
 
 type
-  TEntityListSelector = class (TVCLFieldArea)
+  TEntityListSelector = class (TDevExpressFieldArea)
   private
     FListBox: TCheckListBox;
     FEntityList: TEntityList;
     procedure OnWinControlKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -62,13 +62,13 @@ type
     procedure DoOnChange; override;
   end;
 
-  TEntityListSelector2 = class(TVCLFieldArea)
+  TEntityListSelector2 = class(TDevExpressFieldArea)
   private
     FListBox: TcxCheckListBox;
     FEntityList: TEntityList;
     procedure OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -77,14 +77,14 @@ type
     procedure DoOnChange; override;
   end;
 
-  TPagedEntityListSelector = class(TVCLFieldArea)
+  TPagedEntityListSelector = class(TDevExpressFieldArea)
   private
     FPages: TcxPageControl;
     FEntityList: TEntityList;
     FInUpdate: Boolean;
     FCreatedViews: TList<TView>;
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -93,7 +93,7 @@ type
     procedure DoOnChange; override;
   end;
 
-  TEntityListSelectorMTM = class(TVCLFieldArea) // many to many link
+  TEntityListSelectorMTM = class(TDevExpressFieldArea) // many to many link
   private
     FListBox: TcxCheckListBox;
     FEntityList: TEntityList;
@@ -101,7 +101,7 @@ type
     procedure FillList;
     procedure OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -111,7 +111,7 @@ type
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
   end;
 
-  TParametersEditor = class(TVCLFieldArea)
+  TParametersEditor = class(TDevExpressFieldArea)
   private
     FGrid: TcxVerticalGrid;
     FParams: TList<TEntity>;
@@ -119,7 +119,7 @@ type
     procedure AddRow(const AName: string; const AValue: Variant; const AType: TEntity);
     procedure OnValueChanged(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -147,7 +147,7 @@ type
     FEntities: TList<TEntity>;
     FColumns: TObjectList<TColumnBinding>;
     FIsLoading: Boolean;
-    FEditor: TVCLArea;
+    FEditor: TCustomVCLArea;
   protected
     function AppendRecord: TcxDataRecordHandle; override;
     procedure DeleteRecord(ARecordHandle: TcxDataRecordHandle); override;
@@ -159,7 +159,7 @@ type
     function IsNativeCompare: Boolean; override;
     procedure SetValue(ARecordHandle: TcxDataRecordHandle; AItemHandle: TcxDataItemHandle; const AValue: Variant); override;
   public
-    constructor Create(const AEditor: TVCLArea);
+    constructor Create(const AEditor: TCustomVCLArea);
     destructor Destroy; override;
 
     procedure DataChanged; override;
@@ -176,7 +176,7 @@ type
     property IsLoading: Boolean read FIsLoading;
   end;
 
-  TCollectionEditor = class(TVCLArea)
+  TCollectionEditor = class(TCustomVCLArea)
   private
     FGrid: TcxGrid;
     FMasterTableView: TcxGridTableView;
@@ -222,11 +222,11 @@ type
     procedure DoExecuteUIAction(const AView: TView); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
+      const AControl: TObject = nil; const ALayout: TBaseLayout = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
-  TColumnListEditor = class (TVCLFieldArea)
+  TColumnListEditor = class (TDevExpressFieldArea)
   private
     FGrid: TcxGrid;
     FMasterTableView: TcxGridTableView;
@@ -262,7 +262,7 @@ type
       AState: TOwnerDrawState);
     procedure GetPropertiesForEdit(Sender: TcxCustomGridTableItem; ARecord: TcxCustomGridRecord; var AProperties: TcxCustomEditProperties);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout); override;
     procedure DoBeforeFreeControl; override;
     function GetLayoutPositionCount: Integer; override;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
@@ -270,13 +270,13 @@ type
     destructor Destroy; override;
   end;
 
-  TListEditor = class (TVCLFieldArea)
+  TListEditor = class (TDevExpressFieldArea)
   private
     FList: TcxTreeList;
     procedure OnSelectionChanged(Sender: TObject);
     procedure OnDblClick(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -300,7 +300,7 @@ type
     property Data: TList<TEntity> read FEntities;
   end;
 
-  TPivotGrid = class (TVCLArea)
+  TPivotGrid = class (TCustomVCLArea)
   private
     FPivot: TcxPivotGrid;
     FCube: TDataCube;
@@ -316,7 +316,7 @@ type
     procedure DoExecuteUIAction(const AView: TView); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
+      const AControl: TObject = nil; const ALayout: TBaseLayout = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -329,7 +329,7 @@ type
     destructor Destroy; override;
   end;
 
-  TTreeCollectionEditor = class (TVCLArea)
+  TTreeCollectionEditor = class (TCustomVCLArea)
   private
     FTreeList: TcxVirtualTreeList;
     FBGStyle: TcxStyle;
@@ -367,7 +367,7 @@ type
 //    procedure FullExpand1Click(Sender: TObject);
     procedure TreeListGetChildCount(Sender: TcxCustomTreeList; AParentNode: TcxTreeListNode; var ACount: Integer);
     procedure TreeListGetNodeValue(Sender: TcxCustomTreeList; ANode: TcxTreeListNode; AColumn: TcxTreeListColumn; var AValue: Variant);
-    procedure CreateLevels(const ALayout: TObject);
+    procedure CreateLevels(const ALayout: TBaseLayout);
     function GetLevel(const AIndex: Integer): TTreeLevel;
     function GetEntityCount(const ANode: TcxTreeListNode): Integer;
     function GetEntity(const ANode: TcxTreeListNode; const ACurrLevel: Integer): TEntity;
@@ -376,7 +376,7 @@ type
     procedure DoExecuteUIAction(const AView: TView); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
+      const AControl: TObject = nil; const ALayout: TBaseLayout = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -385,7 +385,7 @@ implementation
 uses
   TypInfo, Windows, SysUtils, Messages, Math, Variants, DateUtils, Dialogs, Menus, ShellApi, IOUtils, StrUtils,
 
-  uWinVCLPresenter, uObjectField, uInteractor, uEnumeration, uSession, uChangeManager,
+  uCustomVCLPresenter, uDevExpressVCLPresenter, uObjectField, uInteractor, uEnumeration, uSession, uChangeManager,
   uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings,
 
   dxCore, cxGridStrs, cxPivotGridStrs, cxDataStorage, cxGridCustomView, cxImageComboBox, cxDateUtils,
@@ -506,7 +506,7 @@ begin
   //vDblClickView.ExecuteAction(AArea.Holder);
 end;
 
-procedure GetContentStyle(const AArea: TVCLArea; const AList: TEntityList; const AColorFieldName: string;
+procedure GetContentStyle(const AArea: TCustomVCLArea; const AList: TEntityList; const AColorFieldName: string;
   const AFilteredList: TList<TEntity>; Sender: TcxCustomGridTableView; ARecord: TcxCustomGridRecord;
   AItem: TcxCustomGridTableItem; var AStyle: TcxStyle);
 var
@@ -517,7 +517,7 @@ var
   vColor: TColor;
   vStyle: TcxStyle;
 begin
-  vStyle := TcxStyle(TWinVCLPresenter(AArea.Presenter).RowStyle);
+  vStyle := TcxStyle(TDevExpressVCLPresenter(AArea.Presenter).RowStyle);
   vStyle.Color := clDefault;
   vStyle.TextColor := clDefault;
 
@@ -840,7 +840,7 @@ begin
   FreeAndNil(FListBox);
 end;
 
-procedure TEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+procedure TEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout);
 begin
   FListBox := TCheckListBox.Create(nil);
   FControl := FListBox;
@@ -939,7 +939,7 @@ begin
   FreeAndNil(FListBox);
 end;
 
-procedure TEntityListSelector2.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+procedure TEntityListSelector2.DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout);
 begin
   FListBox := TcxCheckListBox.Create(nil);
   FEntityList := nil;
@@ -1026,7 +1026,7 @@ begin
   inherited;
 end;
 
-procedure TListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+procedure TListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout);
 begin
   FList := TcxTreeList.Create(nil);
   FControl := FList;
@@ -1099,11 +1099,11 @@ procedure TListEditor.OnDblClick(Sender: TObject);
 var
   vSelectedView: TView;
   vActionView: TView;
-  vArea: TVCLArea;
+  vArea: TCustomVCLArea;
   vHolder: TObject;
 begin
   if not TcxTreeList(Sender).HitTest.HitAtNode then Exit;
-  vArea := TVCLArea(TComponent(Sender).Tag);
+  vArea := TCustomVCLArea(TComponent(Sender).Tag);
   Assert(Assigned(vArea), 'Нет холдера для грида');
 
   vHolder := vArea.Holder;
@@ -1213,7 +1213,7 @@ procedure TCollectionEditor.BeforeContextMenuShow(Sender: TObject);
 var
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
-  vArea: TVCLArea;
+  vArea: TCustomVCLArea;
   vParams: TEntity;
   i: Integer;
 begin
@@ -1224,7 +1224,7 @@ begin
   for i := 0 to vMenu.Items.Count - 1 do
   begin
     vMenuItem := vMenu.Items[i];
-    vArea := TVCLArea(vMenuItem.Tag);
+    vArea := TCustomVCLArea(vMenuItem.Tag);
     if not Assigned(vArea) then
       Continue;
 
@@ -1248,12 +1248,12 @@ begin
 end;
 
 constructor TCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
+  const AControl: TObject = nil; const ALayout: TBaseLayout = nil; const AParams: string = '');
 var
   vDefinition: TDefinition;
   vView: TView;
   vColumn: TcxGridColumn;
-  vPopupArea: TVCLArea;
+  vPopupArea: TCustomVCLArea;
   vPopupMenu: TPopupMenu;
   vFields: string;
 begin
@@ -1299,12 +1299,12 @@ begin
   FMasterTableView.Styles.Background := FBGStyle;
   FMasterTableView.Styles.Header := FHeaderStyle;
 
-  if Assigned(ALayout) and (ALayout is TPanel) and Assigned(TPanel(ALayout).PopupMenu) then
+  if Assigned(ALayout) and (ALayout.LayoutClass = 'TPanel') and Assigned(ALayout.Menu) then
   begin
-    vPopupArea := TVCLArea(AParent.AreaById('Popup'));
+    vPopupArea := TCustomVCLArea(AParent.AreaById('Popup'));
     { TODO -owa : Нужно найти другой способ привязки меню }
     if not Assigned(vPopupArea) and Assigned(AParent.Parent) then
-      vPopupArea := TVCLArea(AParent.Parent.AreaById('Popup'));
+      vPopupArea := TCustomVCLArea(AParent.Parent.AreaById('Popup'));
     if Assigned(vPopupArea) then
     begin
       vPopupMenu := TPopupMenu(vPopupArea.Component);
@@ -1317,8 +1317,8 @@ begin
   FGrid.LookAndFeel.NativeStyle := False;
   FGrid.LookAndFeel.Kind := lfFlat;
 
-  if ALayout is TPanel then
-    FGrid.Align := TPanel(ALayout).Align
+  if ALayout.LayoutClass = 'TPanel' then
+    FGrid.Align := ALayout.Align
   else
     FGrid.Align := alClient;
   FGrid.Levels.Add.GridView := FMasterTableView;
@@ -1409,7 +1409,7 @@ begin
         if TInteractor(FView.Interactor).NeedSkipColumn(FAllData, vFieldDef) then
           Continue;
 
-        vWidth := TWinVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
+        vWidth := TCustomVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
         { TODO -cUI refactoring : Перенести описание аггрегаций в слой описания UI }
         vAggType := vMainDefinition.Reductions.ReductionForField(vFieldDef.Name);
         CreateColumn(vFieldDef, vFieldDef.Name, GetFieldTranslation(vFieldDef),
@@ -1429,7 +1429,7 @@ begin
           vFieldDef := vMainDefinition.ExtractFieldDef(vFieldName);
           if Assigned(vFieldDef) then
           begin
-            vWidth := TWinVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
+            vWidth := TCustomVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
             vAggType := TDefinition(vFieldDef.Definition).Reductions.ReductionForField(vFieldName);
 
             CreateColumn(vFieldDef, vFieldName, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
@@ -2045,7 +2045,7 @@ begin
   Result := TcxDataRecordHandle(FEntities.Last);
 end;
 
-constructor TUserDataSource.Create(const AEditor: TVCLArea);
+constructor TUserDataSource.Create(const AEditor: TCustomVCLArea);
 begin
   FEntities := TList<TEntity>.Create;
   FColumns := TObjectList<TColumnBinding>.Create;
@@ -2309,7 +2309,7 @@ procedure TColumnListEditor.BeforeContextMenuShow(Sender: TObject);
 var
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
-  vArea: TVCLArea;
+  vArea: TCustomVCLArea;
   vParams: TEntity;
   i: Integer;
 begin
@@ -2320,7 +2320,7 @@ begin
   for i := 0 to vMenu.Items.Count - 1 do
   begin
     vMenuItem := vMenu.Items[i];
-    vArea := TVCLArea(vMenuItem.Tag);
+    vArea := TCustomVCLArea(vMenuItem.Tag);
     if not Assigned(vArea) then
       Continue;
 
@@ -2575,7 +2575,7 @@ begin
         if TInteractor(FView.Interactor).NeedSkipColumn(FAllData, vFieldDef) then
           Continue;
 
-        vWidth := TWinVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
+        vWidth := TCustomVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
         { TODO -cUI refactoring : Перенести описание аггрегаций в слой описания UI }
         vAggType := vMainDefinition.Reductions.ReductionForField(vFieldDef.Name);
         CreateColumn(vFieldDef, vFieldDef.Name, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
@@ -2594,7 +2594,7 @@ begin
           if not Assigned(vFieldDef) then
             Continue;
 
-          vWidth := TWinVCLPresenter(Presenter).GetWidthByType(100, vFieldDef);
+          vWidth := TCustomVCLPresenter(Presenter).GetWidthByType(100, vFieldDef);
           vAggType := TDefinition(vFieldDef.Definition).Reductions.ReductionForField(vFieldName);
 
           CreateColumn(vFieldDef, vFieldName, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
@@ -2632,10 +2632,10 @@ begin
   FreeAndNil(FHeaderStyle);
 end;
 
-procedure TColumnListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+procedure TColumnListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout);
 var
   vFields: string;
-  vPopupArea: TVCLArea;
+  vPopupArea: TCustomVCLArea;
   vPopupMenu: TPopupMenu;
   vListField: TListField;
 begin
@@ -2683,12 +2683,12 @@ begin
   FMasterTableView.Styles.Background := FBGStyle;
   FMasterTableView.Styles.Header := FHeaderStyle;
 
-  if Assigned(ALayout) and (ALayout is TPanel) and Assigned(TPanel(ALayout).PopupMenu) then
+  if Assigned(ALayout) and (ALayout.LayoutClass = 'TPanel') and Assigned(ALayout.Menu) then
   begin
-    vPopupArea := TVCLArea(AParent.AreaById('Popup'));
+    vPopupArea := TCustomVCLArea(AParent.AreaById('Popup'));
     { TODO -owa : Нужно найти другой способ привязки меню }
     if not Assigned(vPopupArea) and Assigned(Parent.Parent) then
-      vPopupArea := TVCLArea(Parent.Parent.AreaById('Popup'));
+      vPopupArea := TCustomVCLArea(Parent.Parent.AreaById('Popup'));
     if Assigned(vPopupArea) then
     begin
       vPopupMenu := TPopupMenu(vPopupArea.Component);
@@ -3029,7 +3029,7 @@ begin
   inherited;
 end;
 
-procedure TParametersEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+procedure TParametersEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout);
 begin
   FGrid := TcxVerticalGrid.Create(nil);
   FGrid.Width := 400;
@@ -3169,7 +3169,7 @@ procedure TPivotGrid.BeforeContextMenuShow(Sender: TObject);
 var
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
-  vArea: TVCLArea;
+  vArea: TCustomVCLArea;
   //vParams: TEntity;
   i: Integer;
 begin
@@ -3180,7 +3180,7 @@ begin
   for i := 0 to vMenu.Items.Count - 1 do
   begin
     vMenuItem := vMenu.Items[i];
-    vArea := TVCLArea(vMenuItem.Tag);
+    vArea := TCustomVCLArea(vMenuItem.Tag);
     if not Assigned(vArea) then
       Continue;
 
@@ -3204,25 +3204,25 @@ begin
 end;
 
 constructor TPivotGrid.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
+  const AControl: TObject = nil; const ALayout: TBaseLayout = nil; const AParams: string = '');
 var
-  vPopupArea: TVCLArea;
+  vPopupArea: TCustomVCLArea;
   vPopupMenu: TPopupMenu;
 begin
   FPivot := TcxPivotGrid.Create(nil);
   FId := 'Pivot';
 
-  if ALayout is TPanel then
-    FPivot.Align := TPanel(ALayout).Align
+  if ALayout.LayoutClass = 'TPanel' then
+    FPivot.Align := ALayout.Align
   else
     FPivot.Align := alClient;
 
-  if Assigned(ALayout) and (ALayout is TPanel) and Assigned(TPanel(ALayout).PopupMenu) then
+  if Assigned(ALayout) and (ALayout.LayoutClass = 'TPanel') and Assigned(ALayout.Menu) then
   begin
-    vPopupArea := TVCLArea(AParent.AreaById('Popup'));
+    vPopupArea := TCustomVCLArea(AParent.AreaById('Popup'));
     { TODO -owa : Нужно найти другой способ привязки меню }
     if not Assigned(vPopupArea) and Assigned(AParent.Parent) then
-      vPopupArea := TVCLArea(AParent.Parent.AreaById('Popup'));
+      vPopupArea := TCustomVCLArea(AParent.Parent.AreaById('Popup'));
     if Assigned(vPopupArea) then
     begin
       vPopupMenu := TPopupMenu(vPopupArea.Component);
@@ -3517,9 +3517,9 @@ begin
 end;
 
 constructor TTreeCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
+  const AControl: TObject = nil; const ALayout: TBaseLayout = nil; const AParams: string = '');
 var
-  vPopupArea: TVCLArea;
+  vPopupArea: TCustomVCLArea;
   vPopupMenu: TPopupMenu;
   vFields: string;
 begin
@@ -3557,12 +3557,12 @@ begin
   FTreeList.Styles.Background := FBGStyle;
   FTreeList.Styles.ColumnHeader := FHeaderStyle;
 
-  if Assigned(ALayout) and (ALayout is TPanel) and Assigned(TPanel(ALayout).PopupMenu) then
+  if Assigned(ALayout) and (ALayout.LayoutClass = 'TPanel') and Assigned(ALayout.Menu) then
   begin
-    vPopupArea := TVCLArea(AParent.AreaById('Popup'));
+    vPopupArea := TCustomVCLArea(AParent.AreaById('Popup'));
     { TODO -owa : Нужно найти другой способ привязки меню }
     if not Assigned(vPopupArea) and Assigned(AParent.Parent) then
-      vPopupArea := TVCLArea(AParent.Parent.AreaById('Popup'));
+      vPopupArea := TCustomVCLArea(AParent.Parent.AreaById('Popup'));
     if Assigned(vPopupArea) then
     begin
       vPopupMenu := TPopupMenu(vPopupArea.Component);
@@ -3574,8 +3574,8 @@ begin
   FTreeList.LookAndFeel.NativeStyle := False;
   FTreeList.LookAndFeel.Kind := lfFlat;
 
-  if ALayout is TPanel then
-    FTreeList.Align := TPanel(ALayout).Align
+  if ALayout.LayoutClass = 'TPanel' then
+    FTreeList.Align := ALayout.Align
   else
     FTreeList.Align := alClient;
 
@@ -3671,7 +3671,7 @@ begin
         if TInteractor(FView.Interactor).NeedSkipColumn(FAllData, vFieldDef) then
           Continue;
 
-        vWidth := TWinVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
+        vWidth := TCustomVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
         { TODO -cUI refactoring : Перенести описание аггрегаций в слой описания UI }
         vAggType := vMainDefinition.Reductions.ReductionForField(vFieldDef.Name);
         CreateColumn(vFieldDef, vFieldDef.Name, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
@@ -3690,7 +3690,7 @@ begin
           if not Assigned(vFieldDef) then
             Continue;
 
-          vWidth := TWinVCLPresenter(Presenter).GetWidthByType(100, vFieldDef);
+          vWidth := TCustomVCLPresenter(Presenter).GetWidthByType(100, vFieldDef);
           vAggType := TDefinition(vFieldDef.Definition).Reductions.ReductionForField(vFieldName);
 
           CreateColumn(vFieldDef, vFieldName, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
@@ -3705,7 +3705,7 @@ begin
   end;
 end;
 
-procedure TTreeCollectionEditor.CreateLevels(const ALayout: TObject);
+procedure TTreeCollectionEditor.CreateLevels(const ALayout: TBaseLayout);
 var
   vLayout: TPanel absolute ALayout;
   vTreeLevels: string;
@@ -4005,7 +4005,7 @@ begin
   FreeAndNil(FListBox);
 end;
 
-procedure TEntityListSelectorMTM.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+procedure TEntityListSelectorMTM.DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout);
 var
   vListFieldDef: TListFieldDef;
   vTransitFieldName: string;
@@ -4218,7 +4218,7 @@ begin
   FreeAndNil(FCreatedViews);
 end;
 
-procedure TPagedEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+procedure TPagedEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TBaseLayout);
 begin
   FPages := TcxPageControl.Create(nil);
   FEntityList := nil;
@@ -4237,7 +4237,7 @@ procedure TPagedEntityListSelector.FillEditor;
 var
   i: Integer;
   vSelectedList: TEntityList;
-  vTab: TObject;
+  vTab: TBaseLayout;
   vTabArea, vArea: TUIArea;
   vView: TView;
   vTabParams: string;
@@ -4264,9 +4264,9 @@ begin
       else
         vTabParams := 'caption=' + vSelectedList[i][FCreateParams.Values['DisplayName']];
 
-      vTab := TPresenter(Presenter).CreateLayoutArea(lkPage, vTabParams);
+      vTab := TBaseLayout(TPresenter(Presenter).CreateLayoutArea(lkPage, vTabParams));
       try
-        TComponent(vTab).Tag := 0;
+        vTab.Tag := 0;
         vView := FView.BuildView(IntToStr(i));
         vView.AddListener(Self);
         FCreatedViews.Add(vView);

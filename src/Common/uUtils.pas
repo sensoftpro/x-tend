@@ -36,7 +36,7 @@ unit uUtils;
 interface
 
 uses
-  Classes, Types, UITypes, XMLIntf;
+  Classes, Types, UITypes, XMLIntf, Vcl.Graphics;
 
 type
   TWordCase = (wcRod, wcDat, wcVin);
@@ -58,6 +58,10 @@ function DefineNameCase(const ASurName, AFirstName, APatronymicName: string;
 // Работа с Base64
 function EncodeBase64(const AInput: string): string;
 function DecodeBase64(const AInput: string): string;
+
+function PictureGraphicToString(const AGraphic: TGraphic): string;
+function StringToPictureGraphic(const APictureString: string): TGraphic;
+
 
 function MoneyToStringEng(const AMoney: Currency; const ACurrName, ACentName: string): string;
 
@@ -138,7 +142,7 @@ procedure Print(const AText: string; const AParams: array of const);
 implementation
 
 uses
-  Math, Variants, SysUtils, RTTI, RegularExpressions, ZLib, NetEncoding, Hash, XMLDoc, StrUtils, IdURI, Windows, IOUtils;
+  Math, Variants, SysUtils, RTTI, RegularExpressions, ZLib, NetEncoding, Hash, XMLDoc, StrUtils, IdURI, Windows, IOUtils, JPEG, PNGImage;
 
 function MakeMethod(const ACode, AData: Pointer): TMethod;
 begin
@@ -973,6 +977,55 @@ begin
   end;
 end;
 
+function PictureGraphicToString(const AGraphic: TGraphic): string;
+var
+  vMemStream: TMemoryStream;
+  vStrStream: TStringStream;
+begin
+  vMemStream := TMemoryStream.Create;
+  AGraphic.SaveToStream(vMemStream);
+  vStrStream := TStringStream.Create;
+  vStrStream.CopyFrom(vMemStream, -1);
+  vStrStream.Position := 0;
+  Result := EncodeBase64(vStrStream.DataString);
+  vMemStream.Free;
+  vStrStream.Free;
+end;
+
+function StringToPictureGraphic(const APictureString: string): TGraphic;
+var
+  vStrStream: TStringStream;
+  vMemStream: TMemoryStream;
+  vDecodedString: string;
+begin
+  vDecodedString := DecodeBase64(APictureString);
+  Result := nil;
+  if (vDecodedString[1] + vDecodedString[2]) = 'BM' then
+    Result := TGraphic(Vcl.Graphics.TBitmap.Create)
+  else if (vDecodedString[1] + vDecodedString[2] + vDecodedString[3] + vDecodedString[4]) = 'яШяа' then
+    Result := TGraphic(TJPEGImage.Create)
+  else if (vDecodedString[2] + vDecodedString[3] + vDecodedString[4]) = 'PNG' then
+    Result := TGraphic(TPngImage.Create);
+  if Assigned(Result) then
+  begin
+    vMemStream := TMemoryStream.Create;
+    vStrStream := TStringStream.Create;
+    vMemStream.Clear;
+    vStrStream.Clear;
+    vMemStream.Position := 0;
+    vStrStream.Position := 0;
+    try
+      vStrStream.WriteString(vDecodedString);
+      vMemStream.CopyFrom(vStrStream, -1);
+      vMemStream.Position := 0;
+      Result.LoadFromStream(vMemStream);
+    finally
+      vMemStream.Free;
+      vStrStream.Free;
+    end;
+  end;
+end;
+
 function MoneyToStringEng(const AMoney: Currency; const ACurrName, ACentName: string): string;
 const
   M_Ed: array [1..9] of string =
@@ -1115,7 +1168,7 @@ function CompressStream(InStream, OutStream: TStream; const Level: TCompLevel = 
 begin
   InStream.Position := 0;
   OutStream.Position := 0;
-  with TCompressionStream.Create(TCompressionLevel(Level), OutStream) do
+  with TCompressionStream.Create(System.ZLib.TCompressionLevel(Level), OutStream) do
     try
       CopyFrom(InStream, InStream.Size);
       Free;
