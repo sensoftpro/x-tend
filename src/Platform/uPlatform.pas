@@ -160,7 +160,7 @@ var
   end;
 begin
 {$IFDEF DEBUG}
-  //ReportMemoryLeaksOnShutdown := True;
+  ReportMemoryLeaksOnShutdown := True;
 {$ENDIF}
 
   inherited Create;
@@ -415,7 +415,8 @@ begin
           raise Exception.Create('Ошибка приложения: ' + E.Message + #13#10'Дальнейшая работа невозможна');
       end;
     finally
-      FreeAndNil(_Platform);
+      _Platform.Free;  // в деструкторе ещё может быть использована переменная _Platform
+      _Platform := nil;//
     end;
   finally
     FreeAndNil(vProcessMediator);

@@ -134,10 +134,11 @@ end;
 
 procedure TEntityList._Remove(const AHolder: TObject; const AEntity: TEntity);
 begin
+  FHash.Remove(AEntity);
+  if FSelection.Remove(AEntity) >= 0 then
+    NotifyView(AHolder, dckSelectionChanged, AEntity);
   if FList.Remove(AEntity) >= 0 then
     NotifyView(AHolder, dckListRemoved, AEntity);
-  FHash.Remove(AEntity);
-  FSelection.Remove(AEntity);
 end;
 
 procedure TEntityList.Add(const AEntity: TEntity);

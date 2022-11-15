@@ -178,6 +178,7 @@ type
     FQueryString: string;
     FCollectionNames: TStrings;
     FSortFields: TStrings;
+    FFilterFields: TStrings;
     FParameters: TStrings;
     FRootCriteria: TBaseCriteria;
     procedure ParseComplexCriteria(const vCriteria: TComplexCriteria;
@@ -195,6 +196,7 @@ type
 
     property CollectionNames: TStrings read FCollectionNames;
     property SortFields: TStrings read FSortFields;
+    property FilterFields: TStrings read FFilterFields;
     property QueryString: string read FQueryString;
     property RootCriteria: TBaseCriteria read FRootCriteria;
     property Parameters: TStrings read FParameters;
@@ -215,6 +217,7 @@ begin
   inherited Create;
 
   FParameters := TStringList.Create;
+  FFilterFields := TStringList.Create;
 
   FQueryString := AWhereClause;
   if AWhereClause <> '' then
@@ -242,8 +245,9 @@ destructor TQueryDef.Destroy;
 begin
   FreeAndNil(FParameters);
   FreeAndNil(FRootCriteria);
+  FreeAndNil(FFilterFields);
   FreeAndNil(FSortFields);
-  FCollectionNames.Free;
+  FreeAndNil(FCollectionNames);
   inherited Destroy;
 end;
 
@@ -361,6 +365,9 @@ begin
     Result := TParamCriteria.Create(Self, ANotModifier xor vIsNot, vVariable, vModifier, vCondition, vValue);
     FParameters.Add(TParamCriteria(Result).ParamName);
   end;
+
+  if Result is TSimpleCriteria then
+    FFilterFields.Add(TSimpleCriteria(Result).Variable);
 end;
 
 function TQueryDef.PrintText: string;

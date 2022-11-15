@@ -121,6 +121,7 @@ type
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
+    procedure DoOnExit(Sender: TObject); override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
@@ -135,7 +136,7 @@ type
 
   TDEFloatFieldEditor = class (TDEEditor)
   private
-    FAfterPoint: Integer; // знаков после запятой
+//    FAfterPoint: Integer; // знаков после запятой
   protected
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
@@ -271,6 +272,17 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
+  TSelectedCaptionBoolFieldEditor = class(TDEEditor)
+  private
+    FSelected: Boolean;
+    FSelectBackColor, FDefaultTextColor: TColor;
+    procedure OnClick(Sender: TObject);
+    procedure UpdateView;
+  protected
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure FillEditor; override;
+  end;
+
   TDEImagedAction = class(TDEEditor)
   private
     FTrueImageID: Integer;
@@ -376,7 +388,7 @@ type
   protected
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure FillEditor; override;
-    procedure AssignFromLayout(const ALayout: TObject); override;
+    procedure AssignFromLayout(const ALayout: TObject; const AParams: string); override;
   end;
 
   // определённый по времени процесс
@@ -446,6 +458,7 @@ var
   vEnum: TEnumeration;
   vEntity: TEntity;
   vColorField: TBaseField;
+  vValue: Variant;
 begin
   inherited;
   if VarIsNull(FView.FieldValue) then
@@ -453,23 +466,26 @@ begin
   else if FFieldDef.Kind = fkCurrency then
   begin
     if FFieldDef.Format <> '' then
-      TcxLabel(FControl).Caption := FormatFloat(FFieldDef.Format, FView.FieldValue)
+      TcxLabel(FControl).Caption := FormatFloat(GetFormat, FView.FieldValue)
     else
       TcxLabel(FControl).Caption := FormatFloat('#,##0.00;;0', FView.FieldValue);
   end
   else if FFieldDef.Kind = fkFloat then
   begin
     if FFieldDef.Format <> '' then
-      TcxLabel(FControl).Caption := FormatFloat(FFieldDef.Format, FView.FieldValue)
+      TcxLabel(FControl).Caption := FormatFloat(GetFormat, FView.FieldValue)
     else
       TcxLabel(FControl).Caption := FView.FieldValue;
   end
   else if FFieldDef.Kind = fkDateTime then
   begin
-    if FFieldDef.Format <> '' then
-      TcxLabel(FControl).Caption := FormatDateTime(FFieldDef.Format, FView.FieldValue)
+    vValue := FView.FieldValue;
+    if IsZero(vValue, 1e-6) then
+      TcxLabel(FControl).Caption := ''
+    else if FFieldDef.Format <> '' then
+      TcxLabel(FControl).Caption := FormatDateTime(GetFormat, vValue)
     else
-      TcxLabel(FControl).Caption := FormatDateTime('dd.mm.yyyy hh:nn:ss', FView.FieldValue);
+      TcxLabel(FControl).Caption := FormatDateTime('dd.mm.yyyy hh:nn:ss', vValue);
   end
   else if FFieldDef.Kind = fkEnum then
   begin
@@ -526,6 +542,9 @@ begin
       MinValue := TSimpleFieldDef(FFieldDef).MinValue;
       AssignedValues.MinValue := True;
     end;
+
+    if (Length(FFieldDef.Format) > 0) or FFieldDef.Definition.FieldExists('Format') then
+      DisplayFormat := GetFormat;
   end;
 end;
 
@@ -566,7 +585,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
     end;
   end;
 
@@ -595,7 +614,7 @@ end;
 
 procedure TDEFloatFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
-  FControl := TcxMaskEdit.Create(nil);
+  {FControl := TcxMaskEdit.Create(nil);
   FAfterPoint := 4;
   if Length(FFieldDef.Format) > 0 then
     FAfterPoint := Length(FFieldDef.Format) - Pos('.', FFieldDef.Format);
@@ -614,11 +633,40 @@ begin
       MaxValue := TSimpleFieldDef(FFieldDef).MaxValue;
     if not VarIsNull(TSimpleFieldDef(FFieldDef).MinValue) then
       MinValue := TSimpleFieldDef(FFieldDef).MinValue;
+
+    if (Length(FFieldDef.Format) > 0) or FFieldDef.Definition.FieldExists('Format') then
+      DisplayFormat := GetFormat;
+  end; }
+  FControl := TcxSpinEdit.Create(nil);
+
+  with TcxSpinEdit(FControl).Properties do
+  begin
+    ImmediatePost := True;
+    UseNullString := True;
+    ValueType := vtFloat;
+  end;
+
+  with TcxSpinEdit(FControl).Properties do
+  begin
+    if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
+    begin
+      MaxValue := TSimpleFieldDef(FFieldDef).MaxValue;
+      AssignedValues.MaxValue := True;
+    end;
+
+    if not VarIsNull(TSimpleFieldDef(FFieldDef).MinValue) then
+    begin
+      MinValue := TSimpleFieldDef(FFieldDef).MinValue;
+      AssignedValues.MinValue := True;
+    end;
+
+    if (Length(FFieldDef.Format) > 0) or FFieldDef.Definition.FieldExists('Format') then
+      DisplayFormat := GetFormat;
   end;
 end;
 
 procedure TDEFloatFieldEditor.DoOnChange;
-var
+{var
   vValue: Double;
   function ToFloatDef(const AStr: string): Double;
   var
@@ -629,9 +677,9 @@ var
     else
       vStr := StringReplace(Trim(AStr), '.', FormatSettings.DecimalSeparator, [rfReplaceAll]);
     Result := StrToFloatDef(vStr, 0);
-  end;
+  end;  }
 begin
-  if TcxMaskEdit(FControl).EditingValue = '' then
+  {if TcxMaskEdit(FControl).EditingValue = '' then
     vValue := 0
   else
     vValue := ToFloatDef(TcxMaskEdit(FControl).EditingValue);
@@ -640,14 +688,18 @@ begin
     vValue := TcxMaskEdit(FControl).Properties.MinValue;
   if (not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue)) and (vValue > TcxMaskEdit(FControl).Properties.MaxValue) then
     vValue := TcxMaskEdit(FControl).Properties.MaxValue;
-  SetFieldValue(vValue);
+  SetFieldValue(vValue);  }
+  if TcxSpinEdit(FControl).EditingValue = 0 then
+    SetFieldValue(Null)
+  else
+    SetFieldValue(TcxSpinEdit(FControl).EditingValue);
 end;
 
 procedure TDEFloatFieldEditor.FillEditor;
 var
-  vEdit: TcxMaskEdit;
+  vEdit: TcxSpinEdit;
 begin
-  vEdit := TcxMaskEdit(FControl);
+  vEdit := TcxSpinEdit(FControl);
 
   if VarIsNull(FView.FieldValue) then
   begin
@@ -658,7 +710,7 @@ begin
   else
   begin
     vEdit.Enabled := True;
-    vEdit.EditValue := RoundTo(FView.FieldValue, -FAfterPoint);
+    vEdit.EditValue := FView.FieldValue;
     vEdit.Properties.ReadOnly := FView.State < vsFullAccess;
 
     if vEdit.Properties.ReadOnly then
@@ -667,12 +719,14 @@ begin
       vEdit.Style.ButtonTransparency := ebtAlways;
       vEdit.Style.Color := clBtnFace;
       vEdit.TabStop := False;
+      vEdit.Properties.SpinButtons.Visible := False;
     end
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.Style.ButtonTransparency := ebtNone;
+      vEdit.Style.ButtonTransparency := ebtAlways;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
+      vEdit.Properties.SpinButtons.Visible := False; // пока скрываем, чтобы не переделывать лэйауты
     end;
   end;
 end;
@@ -680,7 +734,7 @@ end;
 procedure TDEFloatFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
 begin
   inherited;
-  TcxMaskEdit(FControl).Properties.OnChange := AHandler
+  TcxSpinEdit(FControl).Properties.OnChange := AHandler
 end;
 
 { TDEDateEditControl }
@@ -813,7 +867,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
     end;
   end;
 
@@ -893,7 +947,7 @@ begin
     end
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
       vEdit.Style.Color := clWindow;
     end;
   end;
@@ -971,7 +1025,7 @@ begin
   with TcxCurrencyEdit(FControl).Properties do
   begin
     ReadOnly := FView.State < vsFullAccess;
-    DisplayFormat := ',0.00;-,0.00';
+    DisplayFormat := GetFormat;//',0.00;-,0.00';
     MaxLength := 15;
   end;
 //  TcxCurrencyEdit(FInnerControl).OnKeyDown := OnWinControlKeyDown;
@@ -1018,7 +1072,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
     end;
   end;
 end;
@@ -1079,7 +1133,10 @@ begin
 
   TcxCheckBox(FControl).Enabled := FView.State = vsFullAccess;
   TcxCheckBox(FControl).Properties.ReadOnly := FView.State < vsFullAccess;
-  TcxCheckBox(FControl).TabStop := TcxCheckBox(FControl).Enabled;
+  if TcxCheckBox(FControl).Enabled then
+    TcxCheckBox(FControl).TabStop := FTabStop
+  else
+    TcxCheckBox(FControl).TabStop := False;
 end;
 
 procedure TDEBoolFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
@@ -1217,7 +1274,7 @@ begin
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
     end;
   end;
 end;
@@ -1298,7 +1355,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
     end;
   end;
 
@@ -1385,7 +1442,7 @@ begin
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
     end;
   end;
 end;
@@ -1458,7 +1515,7 @@ begin
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
     end;
   end;
 end;
@@ -1622,7 +1679,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
     end;
   end;
 
@@ -1715,7 +1772,7 @@ begin
     end
     else begin
       FText.Style.BorderStyle := ebsUltraFlat;
-      FText.TabStop := True;
+      FText.TabStop := FTabStop;
       FText.Style.Color := clWindow;
     end;
   end;
@@ -1814,7 +1871,7 @@ begin
     end
     else begin
       FText.Style.BorderStyle := ebsUltraFlat;
-      FText.TabStop := True;
+      FText.TabStop := FTabStop;
       FText.Style.Color := clWindow;
     end;
   end;
@@ -1834,7 +1891,7 @@ type
 
 { TSpinner }
 
-procedure TSpinner.AssignFromLayout(const ALayout: TObject);
+procedure TSpinner.AssignFromLayout(const ALayout: TObject; const AParams: string);
 var
   vPanel: TCrackedControl absolute ALayout;
   vColor: Cardinal;
@@ -1876,10 +1933,7 @@ begin
     begin
       TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(FControl).Properties).DotSize := StrToIntDef(FCreateParams.Values['DotSize'], 5);
     end;
-
-
   end;
-
 end;
 
 procedure TSpinner.FillEditor;
@@ -1971,7 +2025,7 @@ begin
     end
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
       if FView.State = vsSelectOnly then
         vEdit.Style.Color := clBtnFace
       else
@@ -2213,7 +2267,7 @@ begin
       end
       else begin
 //        vRadioEdit.Style.BorderStyle := ebsUltraFlat;
-        vRadioEdit.TabStop := True;
+        vRadioEdit.TabStop := FTabStop;
       end;
     end;
   end
@@ -2245,7 +2299,7 @@ begin
       end
       else begin
         vEdit.Style.BorderStyle := ebsUltraFlat;
-        vEdit.TabStop := True;
+        vEdit.TabStop := FTabStop;
       end;
     end;
 
@@ -2382,7 +2436,7 @@ begin
     end
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
     end;
   end;
 
@@ -2540,6 +2594,8 @@ begin
     end
     else if TFieldDef(FView.Definition).Kind = fkInteger then
       vTag := vValue
+    else if TFieldDef(FView.Definition).Kind = fkObject then
+      vTag := TEntity(Integer(vValue)).ID
     else
       vTag := -1;
   end;
@@ -2687,7 +2743,7 @@ begin
   end
   else begin
     vList.Style.BorderStyle := cbsUltraFlat;
-    vList.TabStop := True;
+    vList.TabStop := FTabStop;
   end;
 end;
 
@@ -2900,7 +2956,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
     end;
   end;
 end;
@@ -3016,6 +3072,11 @@ begin
   SetFieldValue(vFlagsValue);
 end;
 
+procedure TIntegerFlagsEditor.DoOnExit(Sender: TObject);
+begin
+  TcxCheckListBox(FControl).ItemIndex := -1;
+end;
+
 procedure TIntegerFlagsEditor.FillEditor;
 var
   vList: TcxCheckListBox;
@@ -3033,7 +3094,7 @@ begin
   end
   else begin
     vList.Style.BorderStyle := cbsNone;
-    vList.TabStop := True;
+    vList.TabStop := FTabStop;
   end;
 end;
 
@@ -3118,6 +3179,64 @@ begin
   FListView.ViewStyle := vsReport;
 end;
 
+{ TSelectedCaptionBoolFieldEditor }
+
+procedure TSelectedCaptionBoolFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+begin
+  FNeedCreateCaption := False;
+
+  FControl := TLabel.Create(nil);
+  TLabel(FControl).OnClick := OnClick;
+  if Assigned(FCreateParams) then
+    TLabel(FControl).Caption := FCreateParams.Values['Caption'];
+  TLabel(FControl).Transparent := False;
+  TLabel(FControl).Cursor := crHandPoint;
+
+  if ALayout is TPanel then
+  begin
+    FSelectBackColor := AlphaColorToColor($FF5132);
+    if Assigned(FCreateParams) and (FCreateParams.IndexOfName('select_backcolor') > -1) then
+      FSelectBackColor := AlphaColorToColor(StrToIntDef('$' + FCreateParams.Values['select_backcolor'], 0));
+
+    FDefaultTextColor := TPanel(ALayout).Font.Color;
+    TLabel(FControl).Alignment := TPanel(ALayout).Alignment;
+  end;
+end;
+
+procedure TSelectedCaptionBoolFieldEditor.FillEditor;
+begin
+  if VarIsNull(FView.FieldValue) then
+    FSelected := False
+  else
+    FSelected := FView.FieldValue;
+
+  UpdateView;
+end;
+
+procedure TSelectedCaptionBoolFieldEditor.OnClick(Sender: TObject);
+begin
+  FSelected := not FSelected;
+
+  SetFieldValue(FSelected);
+
+  UpdateView;
+end;
+
+procedure TSelectedCaptionBoolFieldEditor.UpdateView;
+begin
+  if FSelected then
+  begin
+    TLabel(FControl).Font.Color := clWhite;
+    TLabel(FControl).Color := FSelectBackColor;
+    TLabel(FControl).Transparent := False;
+  end
+  else
+  begin
+    TLabel(FControl).Transparent := True;
+    TLabel(FControl).Font.Color := FDefaultTextColor;
+  end;
+end;
+
 initialization
 
 RegisterClasses([TdxBevel, TcxLabel, TcxTreeList, TcxTreeListColumn]);
@@ -3170,10 +3289,12 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'simple', TDEBoolFi
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'imaged_action', TDEImagedAction);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'images', TBoolImages);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'pages', TDEPagesFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'selected_caption', TSelectedCaptionBoolFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiColorEdit, '', TColorEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiColorEdit, 'simple', TDEColorEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBLOBEdit, '', TDEBLOBEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiBLOBEdit, 'image', TDEImageEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'info', TTextInfo);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'pages', TDEPagesFieldEditor);
 
 end.

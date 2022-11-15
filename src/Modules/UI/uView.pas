@@ -106,6 +106,7 @@ type
     procedure LoadActionState(const AEntity: TEntity);
     procedure StoreActionState(const AField: TBaseField);
 
+    procedure SetDefinition(const ADefinition: TObject);
     function SetDomainObject(const Value: TObject): Boolean;
     procedure SetFieldValue(const AHolder: TObject; const AValue: Variant);
     procedure SetFieldEntity(const AHolder: TObject; const AEntity: TEntity);
@@ -315,7 +316,15 @@ begin
     dkSimpleField:
       try
         vValue := GetFieldValue;
-        vDescription := ' - ' + VarToStr(vValue);
+        if VarIsStr(vValue) then
+        begin
+          vDescription := VarToStr(vValue);
+          if Length(vDescription) > 1000 then
+            vDescription := Copy(vDescription, 1, 1000) + '...';
+          vDescription := ' - ' + vDescription;
+        end
+        else
+          vDescription := ' - ' + VarToStr(vValue);
       except
         vDescription := ' - can''t convert';
       end;
@@ -371,7 +380,15 @@ var
   vSelectedView: TView;
   vActiveView: TView;
 begin
-  if Assigned(AMessage.Holder) and Assigned(TChangeHolder(AMessage.Holder).ViewList) then
+  if AMessage.Kind = dckSelectionChanged then
+  begin
+    Assert(FDefinitionKind in [dkListField, dkCollection]);
+    vSelectedView := ViewByName('Selected');
+    if Assigned(vSelectedView) then
+      vSelectedView.DoParentChanged(FDomainObject);
+    Exit;
+  end
+  else if Assigned(AMessage.Holder) and Assigned(TChangeHolder(AMessage.Holder).ViewList) then
   begin
     if TChangeHolder(AMessage.Holder).ViewList.IndexOf(Self) < 0 then
     begin
@@ -429,16 +446,6 @@ begin
   begin
     if FDefinitionKind in [dkListField, dkCollection] then
       NotifyUI(AMessage.Kind, AMessage.Parameter);
-  end
-  else if AMessage.Kind = dckSelectionChanged then
-  begin
-    Assert(FDefinitionKind in [dkListField, dkCollection]);
-    vSelectedView := ViewByName('Selected');
-    if Assigned(vSelectedView) then
-    begin
-      vSelectedView.DoParentChanged(FDomainObject);
-      TInteractor(FInteractor).PrintHierarchy;
-    end;
   end
   else if AMessage.Kind in [dckListAdded, dckListRemoved] then
   begin
@@ -1007,7 +1014,9 @@ var
   vMessage: TViewChangedMessage;
   vListener: TObject;
 begin
-  Assert(FFreezeCount = 0, 'Почему-то FFreezeCount не равен нулю');
+  //Assert(FFreezeCount = 0, 'Почему-то FFreezeCount не равен нулю');
+  if FFreezeCount > 0 then
+    Exit;
 
   vMessage.Msg := DM_VIEW_CHANGED;
   vMessage.Kind := AKind;
@@ -1059,6 +1068,17 @@ begin
 //    TEntityList(FDomainObject).SelectEntity(nil);
   FItems.RemoveByObject(AView);
   CleanView;
+end;
+
+procedure TView.SetDefinition(const ADefinition: TObject);
+begin
+  if ADefinition is TDefinition then
+  begin
+    ExtractViewParams(TDefinition(ADefinition).Name);
+    NotifyUI(dckContentTypeChanged, nil);
+  end
+  else
+    Assert(False, 'Операция не поддерживается');
 end;
 
 function TView.SetDomainEntity(const AEntity: TEntity): Boolean;
@@ -1210,6 +1230,7 @@ end;
 procedure TView.UnsubscribeDomainObject;
 var
   vChildView: TView;
+  vClassName: string;
 begin
   if not Assigned(FDomainObject) then
     Exit;
@@ -1223,8 +1244,10 @@ begin
       vChildView.UnsubscribeField(TEntity(FDomainObject));
     TEntity(FDomainObject).RemoveUIListener('', Self);
   end
-  else
-    Assert(False, 'Тип доменного объекта не поддерживается для отписки');
+  else begin
+    vClassName := FDomainObject.ClassName;
+    Assert(False, 'Тип доменного объекта не поддерживается для отписки^ ' + vClassName);
+  end;
 end;
 
 procedure TView.UnsubscribeField(const AParentEntity: TEntity);
@@ -1323,7 +1346,7 @@ begin
         FState := FState and vSession.GetUIState(vActionName, vEntityState);
         if (FName = 'Add') or (FName = 'Edit') or (FName = 'Delete') or (FName = 'Link') or (FName = 'OpenInPage')
           or (FName = 'Unlink') or (FName = 'View') or (FName = 'Refresh') or (FName = 'ViewDocument') or (FName = 'ClearDocument')
-          or (FName = 'Load') or (FName = 'Create') or (FName = 'Open') or (FName = 'Show') or (FName.StartsWith('#')) then
+          or (FName = 'Load') or (FName = 'Create') or (FName = 'CreateEmbedded') or (FName = 'Open') or (FName = 'Show') or (FName.StartsWith('#')) then
           // Родительское состояние уже учтено
         else begin
           if (vParentState in [vsReadOnly{, vsSelectOnly}]) or ((vParentState = vsHidden) and (FParent.Name = 'Selected')) then
@@ -1410,7 +1433,7 @@ begin
   if Assigned(vField) then
     Result := vField.Entity
   else
-    Result := nil;;
+    Result := nil;
 end;
 
 function TView.GetFieldObject: TComplexObject;

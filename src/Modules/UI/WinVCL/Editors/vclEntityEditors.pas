@@ -36,7 +36,7 @@ unit vclEntityEditors;
 interface
 
 uses
-  Classes, Generics.Collections, StdCtrls, ExtCtrls, ActnList, Controls, Types,
+  Classes, Generics.Collections, StdCtrls, ExtCtrls, ActnList, Controls, Types, Menus,
   cxTL, cxLabel, cxTextEdit, cxEdit, cxMaskEdit, cxDropDownEdit, cxButtons, cxVGrid,
 
   Buttons, vclArea, vclPopupForm, uUIBuilder, uView, uEntity, uEntityList, uDefinition;
@@ -65,6 +65,7 @@ type
     FbtnAdd: TcxButton;
     FEntities: TEntityList;
     FSelectPopup: TSelectEntityPopup;
+    FTypeSelectionMenu: TPopupMenu;
     FButtonView: TView;
     procedure OnSelectClick(Sender: TObject);
     procedure OnAddClick(Sender: TObject);
@@ -149,7 +150,7 @@ implementation
 
 uses
   Graphics, SysUtils, Windows, Messages, Forms, cxInplaceContainer, cxCalendar, cxSpinEdit, cxControls, cxRadioGroup,
-  Menus, uInteractor, uDomain, uChangeManager, uObjectField, uConsts, uSession,  Variants, 
+  uInteractor, uDomain, uChangeManager, uObjectField, uConsts, uSession, Variants,
   uPresenter, uWinVCLPresenter, StrUtils, uUtils, uEnumeration;
 
 type
@@ -190,11 +191,8 @@ begin
   if Assigned(FButtonView) then
     FButtonView.RemoveListener(Self);
 
-  if Assigned(FSelectPopup) then
-  begin
-    FSelectPopup.Free;
-    FSelectPopup := nil;
-  end;
+  FreeAndNil(FTypeSelectionMenu);
+  FreeAndNil(FSelectPopup);
   FreeAndNil(FEntities);
   FreeAndNil(FTextEdit);
 end;
@@ -264,8 +262,8 @@ begin
   vDefinitions := TEntityFieldDef(FFieldDef).ContentDefinitions;
   if vDefinitions.Count > 1 then
   begin
-    FPopupMenu := TPopupMenu.Create(nil);
-    FPopupMenu.Images := TDragImageList(TInteractor(Interactor).Images[16]);
+    FTypeSelectionMenu := TPopupMenu.Create(nil);
+    FTypeSelectionMenu.Images := TDragImageList(TInteractor(Interactor).Images[16]);
     for i := 0 to vDefinitions.Count - 1 do
     begin
       vDefinition := TDefinition(vDefinitions[i]);
@@ -274,9 +272,9 @@ begin
       vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
       vMenuItem.Tag := Integer(FbtnAdd);
       vMenuItem.OnClick := OnActionMenuSelected;
-      FPopupMenu.Items.Add(vMenuItem);
+      FTypeSelectionMenu.Items.Add(vMenuItem);
     end;
-    FbtnAdd.DropDownMenu := FPopupMenu;
+    FbtnAdd.DropDownMenu := FTypeSelectionMenu;
     FbtnAdd.Kind := cxbkOfficeDropDown;
     FbtnAdd.OptionsImage.Margin := 4;
     FbtnAdd.Width := FbtnAdd.Height + 16;
@@ -331,7 +329,7 @@ begin
   inherited;
 
   vEntity := TEntity(FView.FieldEntity);
-  if TObjectFieldDef(FView.Definition).ContentDefinitionName = '-' then
+  if TObjectFieldDef(FView.Definition).ContentDefinitionName = '~' then
   begin
     if FView.ParentDomainObject is TEntity then
       vDefinition := TEntityField(FView.ExtractEntityField).ContentDefinition
@@ -732,7 +730,7 @@ begin
       end
       else
         vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.TabStop := True;
+      vEdit.TabStop := FTabStop;
     end;
   end
   else begin
@@ -1209,7 +1207,7 @@ begin
     if vRadioEdit.Properties.ReadOnly then
       vRadioEdit.TabStop := False
     else
-      vRadioEdit.TabStop := True;
+      vRadioEdit.TabStop := FTabStop;
   end;
 end;
 

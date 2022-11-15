@@ -162,7 +162,7 @@ type
   private
     FProgress: Integer;
     FInfo: string;
-    FStartTime: Cardinal;
+    FStartTime: TDateTime;
   public
     Domain: TObject;
 
@@ -251,6 +251,8 @@ type
       const AView: TView; const AStyleName, AParams: string): TUIArea;
     function CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject;
       const AView: TView; const AStyleName, AParams: string): TUIArea;
+    function CreateNavigationArea(const AParentArea: TUIArea; const ALayout: TObject;
+      const AView: TView; const AStyleName, AParams: string): TUIArea;
     procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
     procedure EnumerateControls(const ALayout: TObject; const AControls: TList<TObject>);
     procedure SetLayoutCaption(const ALayout: TObject; const ACaption: string);
@@ -283,7 +285,7 @@ type
 implementation
 
 uses
-  IOUtils, TypInfo, uDefinition, uUtils, uSession;
+  Math, IOUtils, TypInfo, uDefinition, uUtils, uSession;
 
 { TPresenter }
 
@@ -342,15 +344,11 @@ end;
 function TPresenter.CreateActionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView;
   const AStyleName, AParams: string): TUIArea;
 var
-  vParams, vViewName: string;
   vActionAreaClass: TUIAreaClass;
 begin
-  vViewName := GetUrlCommand(AStyleName, AStyleName);
-  vParams := ExtractUrlParams(AStyleName);
+  vActionAreaClass := TUIAreaClass(GetUIClass(FName, uiAction, AStyleName));
 
-  vActionAreaClass := TUIAreaClass(GetUIClass(FName, uiAction, vViewName));
-
-  Result := vActionAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
+  Result := vActionAreaClass.Create(AParentArea, AView, 'Action', False, nil, ALayout, AParams);
 end;
 
 function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView; const AStyleName,
@@ -395,6 +393,20 @@ end;
 function TPresenter.CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
 begin
   Result := DoCreateImages(AInteractor, ASize);
+end;
+
+function TPresenter.CreateNavigationArea(const AParentArea: TUIArea; const ALayout: TObject; const AView: TView;
+  const AStyleName, AParams: string): TUIArea;
+var
+  vNavigationAreaClass: TUIAreaClass;
+begin
+  vNavigationAreaClass := TUIAreaClass(GetUIClass(FName, uiNavigation, AStyleName));
+  if Assigned(vNavigationAreaClass) then
+    Result := vNavigationAreaClass.Create(AParentArea, AView, 'Navigation', False, nil, ALayout, AParams)
+  else
+    Result := nil;
+
+  Assert(Assigned(Result), 'Не удалось создать навигационную область ' + AStyleName);
 end;
 
 function TPresenter.CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
@@ -729,13 +741,16 @@ begin
   inherited Create;
   FProgress := 0;
   FInfo := '';
-  FStartTime := TThread.GetTickCount;
+  FStartTime := Now;
 end;
 
 procedure TProgressInfo.SetProgress(const AProgress: Integer; const AInfo: string);
+var
+  vElapsedTime: Double;
 begin
   FProgress := AProgress;
-  FInfo := '[' + FormatFloat('0.##', (TThread.GetTickCount - FStartTime) / 1000) + '] ' + AInfo + '...';
+  vElapsedTime := Max((Now - FStartTime) * SecsPerDay, 0);
+  FInfo := '[' + FormatFloat('0.##', vElapsedTime) + '] ' + AInfo + '...';
 end;
 
 initialization

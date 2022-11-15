@@ -1589,7 +1589,8 @@ begin
         case ArgType of
           vtBoolean,
           vtInteger:        sqlite3_bind_int(stm, BindIdx, VInteger);
-          vtExtended:       sqlite3_bind_double(stm, BindIdx, VExtended^);
+          vtExtended,
+          vtCurrency:       sqlite3_bind_double(stm, BindIdx, VExtended^);
           vtInt64:          sqlite3_bind_int64(stm, BindIdx, vtInt64);
 
           vtString:         s := WideString(VString);
@@ -1628,6 +1629,7 @@ begin
 
                 varSingle,
                 varDouble,
+                varCurrency,
                 varDate:
                   begin
                     FloatVal := v;

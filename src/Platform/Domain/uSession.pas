@@ -362,7 +362,7 @@ begin
   FUser := AUser;
 
   FHolders := TObjectList<TChangeHolder>.Create;
-  FAnemicHolder := TChangeHolder.Create(Self, nil, True);;
+  FAnemicHolder := TChangeHolder.Create(Self, nil, True);
 
   if Assigned(FUser) then
   begin
@@ -437,6 +437,13 @@ procedure TUserSession.InternalReleaseChangeHolder(const AHolder: TChangeHolder;
 var
   vNewLogID: Integer;
 begin
+  if not AHolder.IsModified then
+  begin
+    // TODO: В этой ветке исполнения не подтягиваются чужие изменения //ReloadDomainChanges(AHolder);
+    TDomain(FDomain).Logger.AddExitMessage('$$$ RELEASE HOLDER');
+    Exit;
+  end;
+
   try
     CheckLocking;
   except
@@ -505,7 +512,7 @@ procedure TUserSession.Save(const AHolder: TChangeHolder);
 begin
   DomainWrite(procedure
     begin
-      InternalReleaseChangeHolder(AHolder, True, False);
+      ReleaseChangeHolder(AHolder, True, False);
     end);
 end;
 

@@ -106,6 +106,8 @@ type
     // Отдает UI список сущностей, которые можно выбрать в это поле
     procedure GetEntitiesForSelect(const ASession: TObject; const AList: TObject);
 
+    procedure RestoreContentDefinition;
+
     // Рабочая информация о хранимой в поле сущности
     //property CollectionID: Integer read FCollectionID;
     property EntityID: Integer read GetEntityID;
@@ -120,8 +122,9 @@ type
   TListField = class(TObjectField)
   private
     // Список хранит живые сущности
-    FList: TList<TEntity>;
+    FSparseList: TList<TEntity>;
     FDict: TDictionary<TEntity, Integer>;
+    FList_: TList<TEntity>;
 
     function GetMasterFieldName: string;
 
@@ -152,7 +155,9 @@ type
     // Управление списком сущностей на уровне ядра (TEntity, TEntityField)
     procedure AddToList(const AHolder: TObject; const AEntity: TEntity);
     procedure DeleteFromList(const AHolder: TObject; const AEntity: TEntity);
-    procedure ClearList(const AHolder: TObject);
+    procedure ClearList(const AHolder: TObject; const AForceShrink: Boolean = False);
+    function MatchToFilter(const AHolder: TObject; const AEntity: TEntity): Boolean;
+    procedure UpdateListOnFilterChanged(const AHolder: TObject; const AEntity: TEntity);
 
     procedure GetAllEntitiesForSelect(const ASession: TObject; const AList: TObject);
     procedure GetEntitiesForSelect(const ASession: TObject; const AList: TObject);
@@ -267,6 +272,19 @@ begin
   end;
 end;
 
+procedure TEntityField.RestoreContentDefinition;
+var
+  vContentTypeName: string;
+begin
+  if not Assigned(FContentDefinition) and (TEntityFieldDef(FFieldDef).ContentDefinitionName = '~')
+    and (TEntityFieldDef(FFieldDef).ContentTypeLocator <> '') then
+  begin
+    vContentTypeName := SafeDisplayName(FInstance.ExtractEntity(TEntityFieldDef(FFieldDef).ContentTypeLocator), '');
+    if vContentTypeName <> '' then
+      FContentDefinition := TDomain(FDomain).Configuration.DefinitionByName[vContentTypeName];
+  end;
+end;
+
 function TEntityField.RestoreEntity(const ACollectionID, AEntityID: Integer): TEntity;
 var
   vCollection: TCollection;
@@ -276,11 +294,7 @@ begin
     Result := nil
   else begin
     Result := vCollection.EntityByID(AEntityID);
-    if Assigned(Result) then
-    begin
-      if not Assigned(FContentDefinition) and (TEntityFieldDef(FFieldDef).ContentDefinitionName = '-') then
-        FContentDefinition := Result.Definition;
-    end;
+    RestoreContentDefinition;
   end;
 end;
 
@@ -377,6 +391,14 @@ begin
   FEntity := EntityFromVariant(AValue);
   if Assigned(FEntity) then
     FCollectionID := FEntity.Definition.ID;
+
+  if not Assigned(FContentDefinition) then
+  begin
+    if Assigned(FEntity) then
+      FContentDefinition := FEntity.Definition
+    else
+      RestoreContentDefinition;
+  end;
 end;
 
 procedure TEntityField.GetAllEntitiesForSelect(const ASession, AList: TObject);
@@ -398,7 +420,7 @@ var
 begin
   vList.Clear;
 
-   if (TEntityFieldDef(FFieldDef).ContentDefinitionName = '-') and Assigned(FContentDefinition) then
+  if (TEntityFieldDef(FFieldDef).ContentDefinitionName = '~') and Assigned(FContentDefinition) then
     vCollectionName := FContentDefinition.Name
   else
     vCollectionName := '';
@@ -441,6 +463,7 @@ end;
 
 procedure TEntityField.HandleContentDefinitionChanged(const AHolder: TObject; const Value: TDefinition);
 begin
+  SetValue(AHolder, 0);
   FCollectionID := Value.ID;
   FInstance.NotifyView(AHolder, dckContentTypeChanged, nil, FFieldDef.Name);
 end;
@@ -520,7 +543,8 @@ function TListField.AddListEntity(const AHolder: TObject; const ACollectionName:
   const AFieldNames: string; const AValues: array of Variant): TEntity;
 var
   vCollectionName: string;
-  vItem: TEntity;
+  i: Integer;
+  vEntity: TEntity;
   vMaxOrder: Integer;
 begin
   if ACollectionName = '' then
@@ -534,9 +558,12 @@ begin
   if (SortType = estSortByOrder) and Result.FieldExists('Order') then
   begin
     vMaxOrder := -1;
-    for vItem in FList do
-      if Assigned(vItem) then
-        vMaxOrder := Max(vMaxOrder, vItem['Order']);
+    for i := 0 to FSparseList.Count - 1 do
+    begin
+      vEntity := FSparseList[i];
+      if Assigned(vEntity) then
+        vMaxOrder := Max(vMaxOrder, vEntity['Order']);
+    end;
     Result._SetFieldValue(AHolder, 'Order', vMaxOrder + 1);
   end;
 
@@ -547,14 +574,16 @@ end;
 constructor TListField.Create(const AInstance: TEntity; const AFieldDef: TFieldDef);
 begin
   inherited Create(AInstance, AFieldDef);
-  FList := TList<TEntity>.Create;
   FDict := TDictionary<TEntity, Integer>.Create;
+  FSparseList := TList<TEntity>.Create;
+  FList_ := TList<TEntity>.Create;
 end;
 
 destructor TListField.Destroy;
 begin
+  FreeAndNil(FList_);
   FreeAndNil(FDict);
-  FreeAndNil(FList);
+  FreeAndNil(FSparseList);
   inherited Destroy;
 end;
 
@@ -630,10 +659,10 @@ begin
       end;
     end;
 
-    for i := 0 to FList.Count - 1 do
+    for i := 0 to FList_.Count - 1 do
     begin
       vEntity := GetEntity(i);
-      if not vEntity.IsRemote and vQuery.IsMatch(vSession, vEntity) then
+      if Assigned(vEntity) and not vEntity.IsRemote and vQuery.IsMatch(vSession, vEntity) then
         Exit(vEntity);
     end;
   finally
@@ -704,7 +733,7 @@ end;
 
 function TListField.GetCount: Integer;
 begin
-  Result := FList.Count;
+  Result := FList_.Count;
 end;
 
 procedure TListField.GetEntitiesForSelect(const ASession: TObject; const AList: TObject);
@@ -729,7 +758,7 @@ end;
 
 function TListField.GetEntity(const AIndex: Integer): TEntity;
 begin
-  Result := FList[AIndex];
+  Result := FList_[AIndex];
 end;
 
 function TListField.GetEntityColor(const AEntity: TEntity): TColor;
@@ -751,17 +780,19 @@ procedure TListField.GetEntityList(const ASession: TObject; const AEntityList: T
 var
   i: Integer;
   vList: TEntityList absolute AEntityList;
-  vCount: Integer;
+  vEntity: TEntity;
   vQuery: TQueryExecutor;
 begin
   vList.Clear;
   vQuery := TQueryExecutor.Create(TListFieldDef(FFieldDef).ContentQueryDef);
   try
     vQuery.SetParameters(ASession, FInstance);
-    vCount := GetCount;
-    for i := 0 to vCount - 1 do
-      if vQuery.IsMatch(ASession, FList[i]) then
-        vList.Add(FList[i]);
+    for i := 0 to FSparseList.Count - 1 do
+    begin
+      vEntity := FSparseList[i];
+      if Assigned(vEntity) and vQuery.IsMatch(ASession, vEntity) then
+        vList.Add(vEntity);
+    end;
     vList.Sort(SortType, TListFieldDef(FFieldDef).ColorFieldName);
     vList.SetFiller(Self, False, TListFieldDef(FFieldDef).ContentQueryDef);
   finally
@@ -771,7 +802,7 @@ end;
 
 function TListField.GetEnumerator: TEnumerator<TEntity>;
 begin
-  Result := FList.GetEnumerator;
+  Result := FList_.GetEnumerator;
 end;
 
 function TListField.GetRelationPower: TRelationPower;
@@ -790,15 +821,17 @@ var
 begin
   Assert(Assigned(AEntity), 'Somebody already delete this entity');
 
-  TDomain(FDomain).Logger.AddMessage('Marked for deletion: ' + AEntity.ToString);
+  //TDomain(FDomain).Logger.AddMessage('Marked for deletion: ' + AEntity.ToString);
   vCollection := TCollection(AEntity.Collection);
   vCollection.MarkEntityAsDeleted(AHolder, AEntity);
+  if TChangeHolder(AHolder).IsAnemic then
+    vCollection.RemoveEntity(AEntity);
 end;
 
 procedure TListField.LinkListEntity(const AHolder: TObject; const AEntity: TEntity);
 begin
   if Contains(AEntity) then
-    TDomain(FDomain).Logger.AddMessage('Exit from LinkListEntity')
+    // TDomain(FDomain).Logger.AddMessage('Exit from LinkListEntity')
   else
     AEntity._SetFieldEntity(AHolder, GetMasterFieldName, FInstance);
 end;
@@ -807,14 +840,18 @@ procedure TListField.GetList(const ASession: TObject; const AList: TList<TEntity
 var
   i: Integer;
   vQuery: TQueryExecutor;
+  vEntity: TEntity;
 begin
   AList.Clear;
   vQuery := TQueryExecutor.Create(TListFieldDef(FFieldDef).ContentQueryDef);
   try
     vQuery.SetParameters(ASession, FInstance);
-    for i := 0 to FList.Count - 1 do
-      if vQuery.IsMatch(ASession, FList[i]) then
-        AList.Add(FList[i]);
+    for i := 0 to FSparseList.Count - 1 do
+    begin
+      vEntity := FSparseList[i];
+      if vQuery.IsMatch(ASession, vEntity) then
+        AList.Add(vEntity);
+    end;
   finally
     FreeAndNil(vQuery);
   end;
@@ -822,109 +859,79 @@ end;
 
 procedure TListField.AddToList(const AHolder: TObject; const AEntity: TEntity);
 var
-  vQuery: TQueryExecutor;
+  vIndex: Integer;
 begin
-  if Contains(AEntity) then
+  if FDict.ContainsKey(AEntity) then
     Exit;
 
-  if TListFieldDef(FFieldDef).Filter <> '' then
-  begin
-    vQuery := TQueryExecutor.Create(TListFieldDef(FFieldDef).QueryDef);
-    try
-      if not vQuery.IsMatch(TChangeHolder(AHolder).Session, AEntity) then
-        Exit;
-    finally
-      FreeAndNil(vQuery);
-    end;
-  end;
+  vIndex := FSparseList.Add(AEntity);
+  FDict.Add(AEntity, vIndex);
+  FList_.Add(AEntity);
 
-  FList.Add(AEntity);
-  FDict.Add(AEntity, 0);
   AEntity.AddListener(FieldName, FInstance);
   FInstance.ProcessFieldChanged(AHolder, dckListAdded, GetFieldName, AEntity);
 end;
 
-procedure TListField.ClearList(const AHolder: TObject);
+procedure TListField.ClearList(const AHolder: TObject; const AForceShrink: Boolean = False);
 var
-  i, j: Integer;
+  i: Integer;
   vEntity: TEntity;
-  vLinkedEntity: TEntity;
-  vFieldDef: TFieldDef;
-  vField: TBaseField;
   vCollection: TCollection;
-  vTempListeners: TList<TEntity>;
-  vFieldNames: TStrings;
-  vFieldName: string;
-  vListener: TEntity;
 begin
   if GetRelationPower = rpStrong then
-  begin
-    for i := FList.Count - 1 downto 0 do
+    for i := FSparseList.Count - 1 downto 0 do
     begin
-      //InternalRemove(AHolder, FList[i]);
-      vEntity := FList[i];
-      if vEntity.Deleted then
-        Continue;
-
-      for vFieldDef in vEntity.Definition.Fields do
-        if vFieldDef.Kind = fkList then
-          TListField(vEntity.FieldByName(vFieldDef.Name)).ClearList(AHolder);
-
-      vCollection := TCollection(vEntity.Collection);
-      if not Assigned(vCollection) then
-        Continue;
-
-      TEntityChangingProc(TDomain(FDomain).Configuration.BeforeEntityRemovingProc)(TChangeHolder(AHolder), vEntity);
-
-      vCollection.NotifyListeners(AHolder, dckListRemoved, vEntity);
-
-      vEntity.Deleted := True;
-      TChangeHolder(AHolder).RegisterEntityDeleting(vEntity);
-
-      vTempListeners := TList<TEntity>.Create;
-      try
-        for vListener in vEntity.Listeners.Keys do
-          vTempListeners.Add(vListener);
-
-        for j := vTempListeners.Count - 1 downto 0 do
-        begin
-          vListener := vTempListeners[j];
-          if not vEntity.Listeners.TryGetValue(vListener, vFieldNames) then
-            Continue;
-
-          for vFieldName in vFieldNames do
-          begin
-            vField := vListener.FieldByName(vFieldName);
-            if vField.FieldKind = fkObject then
-              vListener._SetFieldEntity(AHolder, vFieldName, nil)
-            else if (vField.FieldKind = fkList) and (vField <> Self) then
-              TListField(vField).UnlinkListEntity(AHolder, vEntity);
-          end;
-        end;
-      finally
-        FreeAndNil(vTempListeners);
-      end;
-
-      vEntity.NotifyView(AHolder, dckEntityDeleted, vEntity);
-
-      for j := 0 to vEntity.FieldCount - 1 do
-      begin
-        vField := vEntity.Fields[j];
-        if vField.FieldKind <> fkObject then
-          Continue;
-
-        vLinkedEntity := TEntity(TEntityField(vField).Entity);
-        if Assigned(vLinkedEntity) then
-          vLinkedEntity.RemoveListener(vField.FieldName, vEntity);
-      end;
+      vEntity := FSparseList[i];
+      if Assigned(vEntity) then
+        InternalRemove(AHolder, vEntity);
+    end
+  else
+    for i := FSparseList.Count - 1 downto 0 do
+    begin
+      vEntity := FSparseList[i];
+      if Assigned(vEntity) then
+        UnlinkListEntity(AHolder, vEntity);
     end;
 
-    FList.Clear;
-    FDict.Clear;
-  end
+  FSparseList.Clear;
+  FDict.Clear;
+  FList_.Clear;
+
+  if (GetRelationPower = rpStrong) and TChangeHolder(AHolder).IsAnemic
+    and (TListFieldDef(FFieldDef)._ContentDefinition.Kind <> clkMixin)
+  then
+    vCollection := TDomain(Domain).CollectionByName(TListFieldDef(FFieldDef)._ContentDefinition.Name)
   else
-    for i := FList.Count - 1 downto 0 do
-      UnlinkListEntity(AHolder, FList[i]);
+    vCollection := nil;
+
+  if AForceShrink and Assigned(vCollection) then
+    vCollection.Shrink;
+end;
+
+procedure TListField.DeleteFromList(const AHolder: TObject; const AEntity: TEntity);
+var
+  vIndex: Integer;
+  i: Integer;
+begin
+  if not FDict.TryGetValue(AEntity, vIndex) then
+    Exit;
+
+  FDict.Remove(AEntity);
+  FSparseList[vIndex] := nil;
+
+  if vIndex >= FList_.Count then
+    vIndex := FList_.Count - 1;
+  // Индекc должен быть меньше или равен индексу в FSparseList
+  for i := vIndex downto 0 do
+    if AEntity = FList_[i] then
+    begin
+      FList_.Delete(i);
+      Break;
+    end;
+
+  AEntity.RemoveListener(FieldName, FInstance);
+  if not FInstance.Deleted then
+    FInstance.ProcessFieldChanged(AHolder, dckListRemoved, GetFieldName, AEntity);
 end;
 
 function TListField.Contains(const AEntity: TEntity): Boolean;
@@ -953,15 +960,31 @@ begin
     vMasterField.ResetToDefault(AHolder);
 end;
 
-procedure TListField.DeleteFromList(const AHolder: TObject; const AEntity: TEntity);
+function TListField.MatchToFilter(const AHolder: TObject; const AEntity: TEntity): Boolean;
+var
+  vQuery: TQueryExecutor;
 begin
-  if FList.Remove(AEntity) < 0 then
+  Result := True;
+  if TListFieldDef(FFieldDef).Filter = '' then
     Exit;
 
-  FDict.Remove(AEntity);
-  AEntity.RemoveListener(FieldName, FInstance);
-  if not FInstance.Deleted then
-    FInstance.ProcessFieldChanged(AHolder, dckListRemoved, GetFieldName, AEntity);
+  vQuery := TQueryExecutor.Create(TListFieldDef(FFieldDef).QueryDef);
+  try
+    Result := vQuery.IsMatch(TChangeHolder(AHolder).Session, AEntity);
+  finally
+    FreeAndNil(vQuery);
+  end;
+end;
+
+procedure TListField.UpdateListOnFilterChanged(const AHolder: TObject; const AEntity: TEntity);
+// Применяем фильтр
+//   True: пытаемся добавить сущность в список
+//   False: пытаемся удалить сущность из него
+begin
+  if MatchToFilter(AHolder, AEntity) then
+    AddToList(AHolder, AEntity)
+  else
+    DeleteFromList(AHolder, AEntity);
 end;
 
 end.

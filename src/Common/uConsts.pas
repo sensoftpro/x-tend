@@ -98,6 +98,10 @@ const
   LAYOUT_DFM_EXT = '.dfm';
   cEditFormResizable = 1;
   cMainFormPositionDesign = 2;
+  cEditFormDisableMinimizeButton = 4;
+  cFormUseDesignSizes = 8;
+  cFormNotResizable = 16;
+  cFormDisableMaximizeButton = 32;
 
 const
   // флаги полей и сущностей
@@ -164,6 +168,7 @@ const
   dckContentTypeChanged  = 1024;
   dckListBeginUpdate     = 2048;
   dckListEndUpdate       = 4096;
+  dckListScrollUpdate    = 8192;
 
 type
   TViewStates = (_vsHidden, _vsDisabled, _vsReadOnly, _vsSelectOnly, _vsFullAccess, _vsUndefined);
@@ -222,7 +227,7 @@ type
 
   TUIItemType = (uiTextEdit, uiBoolEdit, uiEntityEdit, uiIntegerEdit, uiEnumEdit, uiFlagEdit,
     uiFloatEdit, uiDateEdit, uiCurrencyEdit, uiListEdit, uiBLOBEdit, uiComplexEdit, uiColorEdit,
-    uiAction, uiCollection);
+    uiAction, uiCollection, uiNavigation);
 
   TRelationPower = (rpWeak, rpStrong);
 

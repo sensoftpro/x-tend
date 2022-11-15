@@ -103,6 +103,7 @@ type
     FAreas: TList<TUIArea>;
     FParams: TStrings;
     FIsService: Boolean;
+    FUpdateCount: Integer;
     function GetArea(const AIndex: Integer): TUIArea;
     function GetCount: Integer;
     function GetInteractor: TObject;
@@ -113,17 +114,19 @@ type
     procedure TryUnsubscribeView;
     procedure SetView(const Value: TView);
     procedure InternalGetAreasByID(const AList: TUIAreaList; const AId: string);
-    procedure SetEditMode(const ASession: TObject; const AParentHolder: TObject; const AIsEditMode: Boolean);
     procedure DisableContent;
     procedure AfterChildAreasCreated;
+    function ParentInUpdate: Boolean;
   protected
     FControl: TObject;
+    FInternalParams: string;
     FCreateParams: TStrings;
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); virtual; abstract;
     procedure DoClose(const AModalResult: Integer); virtual; abstract;
     function DoCreateChildArea(const ALayout: TObject; const AView: TView; const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
-    function DoCreateChildAction(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; virtual; // Перенести
+    function DoCreateChildAction(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea;
     function DoCreateChildList(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea;
+    function DoCreateChildNavigation(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; virtual;
     function DoCreateChildEditor(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
     procedure AppendServiceArea(const ALayoutName: string); virtual; abstract;
     function CreateChildLayoutedArea(const ALayout: TObject; const AView: TView;
@@ -131,6 +134,9 @@ type
     function CreateChildArea(const AChildView: TView; const ALayout: TObject; const AParams: string; const AOnClose: TProc = nil): TUIArea;
     function AreaFromSender(const ASender: TObject): TUIArea; virtual;
     procedure DoAfterChildAreasCreated; virtual;
+    procedure DoOnExit(Sender: TObject); virtual;
+    procedure DoBeginUpdate; virtual;
+    procedure DoEndUpdate; virtual;
 
     function GetAreaByView(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
     procedure Clear;
@@ -142,7 +148,6 @@ type
 
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
     function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
-    function GetImageID(const AImageID: Integer): Integer;
 
     procedure OnEnter(Sender: TObject);
     procedure OnExit(Sender: TObject);
@@ -159,14 +164,16 @@ type
     function GetName: string; virtual;
     procedure SetParent(const Value: TUIArea); virtual;
     procedure SetControl(const AControl: TObject); virtual;
+    function TryCreatePopupArea(const ALayout: TObject): TUIArea; virtual;
+    procedure SetPopupArea(const APopupArea: TUIArea); virtual;
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); virtual;
-    procedure AssignFromLayout(const ALayout: TObject); virtual;
+    procedure AssignFromLayout(const ALayout: TObject; const AParams: string); virtual;
     procedure ArrangeChildAreas; virtual;
     procedure SaveLayoutToFile(const AFileName: string); virtual;
     procedure RefillArea(const AKind: Word); virtual;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); virtual;
-    procedure BeginUpdate; virtual;
-    procedure EndUpdate; virtual;
+    procedure BeginUpdate;
+    procedure EndUpdate;
     procedure DoActivate(const AUrlParams: string); virtual;
     procedure DoExecuteUIAction(const AView: TView); virtual;
 
@@ -188,6 +195,7 @@ type
     procedure Close(const AModalResult: Integer);
     function TextHierarchy(const AIndent: string = ''): string;
     function AreaById(const AId: string; const ARecoursive: Boolean = True): TUIArea;
+    function GetImageID(const AImageID: Integer): Integer;
     procedure ExecuteUIAction(const AView: TView);
 
     procedure Activate(const AUrlParams: string);
@@ -195,12 +203,14 @@ type
     procedure AddParams(const AParams: TStrings);
     procedure SetHolder(const AHolder: TObject);
     function QueryParameter(const AName: string; const ADefaultValue: string = ''): string;
+    procedure SetBounds(const ALeft, ATop, AWidth, AHeight: Integer);
 
     property Control: TObject read FControl;
     property Count: Integer read GetCount;
     property Areas[const AIndex: Integer]: TUIArea read GetArea; default;
     property Parent: TUIArea read FParent;
     property CreateParams: TStrings read FCreateParams;
+    property InternalParams: string read FInternalParams;
     property UIBuilder: TUIBuilder read FUIBuilder;
     property View: TView read FView; // write SetView;
     property Presenter: TObject read GetPresenter;
@@ -232,10 +242,10 @@ type
     procedure MakeDefaultLayout(const AArea: TUIArea; const AView: TView);
     procedure SetLastArea(const Value: TUIArea);
     procedure SetPagedArea(const Value: TUIArea);
-    procedure CheckForEditMode(const AArea: TUIArea; const AParentHolder: TObject);
 
     function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
     function GetImageID(const AImageID: Integer): Integer;
+    procedure GetLayoutName(const AEntity: TEntity; const AParams: string; var ALayoutName: string);
   public
     constructor Create(const AInteractor: TObject);
     destructor Destroy; override;
@@ -310,14 +320,13 @@ begin
     if (_Platform.DeploymentType = 'dev') or (_Platform.DeploymentType = 'mock') then
       AArea.SaveLayoutToFile(TPath.Combine(TPath.GetTempPath, ALayoutName + '_auto'));
   end;
-end;
 
-procedure TUIBuilder.CheckForEditMode(const AArea: TUIArea; const AParentHolder: TObject);
-var
-  vIsEditMode: Boolean;
-begin
-  vIsEditMode := SameText(AArea.QueryParameter('mode'), 'edit');
-  AArea.SetEditMode(TUserSession(TInteractor(FInteractor).Session), AParentHolder, vIsEditMode);
+  AArea.SetBounds(
+    StrToIntDef(GetUrlParam(AParams, 'Left', ''), -1),
+    StrToIntDef(GetUrlParam(AParams, 'Top', ''), -1),
+    StrToIntDef(GetUrlParam(AParams, 'Width', ''), -1),
+    StrToIntDef(GetUrlParam(AParams, 'Height', ''), -1)
+  );
 end;
 
 procedure TUIBuilder.CloseCurrentArea(const AModalResult: Integer);
@@ -343,12 +352,16 @@ procedure TUIBuilder.CreateChildAreas(const AArea: TUIArea; const ALayout: TObje
 var
   vControls: TList<TObject>;
   vControl: TObject;
+  i: Integer;
 begin
   vControls := TList<TObject>.Create;
   try
     TPresenter(FPresenter).EnumerateControls(ALayout, vControls);
-    for vControl in vControls do
+    for i := 0 to vControls.Count - 1 do
+    begin
+      vControl := vControls[i];
       AArea.CreateChildArea(AArea.View, vControl, AParams);
+    end;
 
     AArea.AfterChildAreasCreated;
   finally
@@ -498,13 +511,78 @@ begin
 
   AArea.BeginUpdate;
   try
-    AArea.AssignFromLayout(vFrame);
+    AArea.AssignFromLayout(vFrame, AParams);
     AArea.SetView(AView);
     CreateChildAreas(AArea, vFrame, AParams);
   finally
     AArea.EndUpdate;
     FreeAndNil(vFrame);
   end;
+end;
+
+procedure TUIBuilder.GetLayoutName(const AEntity: TEntity; const AParams: string; var ALayoutName: string);
+var
+  vLayout, vOperation, vDefValue: string;
+
+  function GetPostfix: string;
+  begin
+    if vOperation = 'slap' then
+      Result := 'SlapForm'
+    else
+      Result := 'EditForm';
+  end;
+
+  function ExtractPrefix(var ALayoutPath: string): string;
+  var
+    vList: TStrings;
+    i: Integer;
+  begin
+    Result := '';
+    if Pos('#', ALayoutPath) = 0 then Exit;
+
+    vList := CreateDelimitedList(ALayoutPath, '#');
+    try
+      for i := vList.Count - 2 downto 0 do
+        try
+          Result := AEntity[vList[i]] + Result;
+        except
+        end;
+
+      ALayoutPath := vList[vList.Count - 1];
+    finally
+      FreeAndNil(vList);
+    end;
+  end;
+
+  function GetFromLayoutPath(const ALayoutPath: string): string;
+  var
+    vPath, vPrefix: string;
+  begin
+    vPath := ALayoutPath;
+    vPrefix := ExtractPrefix(vPath);
+    Result := vPrefix + vPath + GetPostfix;
+  end;
+begin
+  vOperation := GetUrlParam(AParams, 'operation');
+  vDefValue := '';
+  if vOperation = 'opencollection' then
+    vDefValue := 'Collection';
+
+  vLayout := GetUrlParam(AParams, 'ContentLayout', vDefValue);
+
+  if vLayout = '@Path' then
+    vLayout := GetFromLayoutPath(Trim(GetUrlParam(AParams, 'LayoutPath', '')));
+
+  if (vLayout = '') and Assigned(AEntity) then
+  begin
+    if Length(AEntity.Definition.LayoutMask) > 0 then
+      vLayout := GetFromLayoutPath(AEntity.Definition.LayoutMask);
+
+    if (vLayout = '') or (not FileExists(TConfiguration(TInteractor(FInteractor).Configuration).FindLayoutFile(vLayout, LAYOUT_DFM_EXT))) then
+      vLayout := AEntity.Definition.Name + GetPostfix;
+  end;
+
+  ALayoutName := vLayout;
 end;
 
 function TUIBuilder.Navigate(const AView: TView; const AAreaName, ALayoutName: string;
@@ -518,7 +596,6 @@ var
   vUIArea: TUIArea;
   vTabArea: TUIArea;
   vView: TView;
-  vEntity: TEntity;
   vTab: TObject;
   vTabParams: string;
   vPageID: string;
@@ -542,21 +619,17 @@ begin
   /// Нужно учитывать область, которая останется владельцем
   vIsMainForm := False;
   vLastCurrentArea := FCurrentArea;
+  vLayoutName := ALayoutName;
 
   if Assigned(AView) then
-    vView := AView
+  begin
+    Assert(AView.DefinitionKind in [dkEntity, dkAction, dkObjectField, dkCollection], 'Показываем непонятно что');
+    if vLayoutName = '' then
+      GetLayoutName(AView.DomainObject as TEntity, AOptions, vLayoutName);
+    vView := AView;
+  end
   else
     vView := FRootView;
-
-  if ALayoutName <> '' then
-    vLayoutName := ALayoutName
-  else begin
-    if not (AView.DefinitionKind in [dkEntity, dkAction, dkObjectField, dkCollection]) then
-      Assert(AView.DefinitionKind in [dkEntity, dkAction, dkObjectField, dkCollection], 'Показываем непонятно что');
-    vEntity := TEntity(AView.DomainObject);
-    if Assigned(vEntity) then
-      vLayoutName := vEntity.Definition.Name + 'EditForm';
-  end;
 
   if (AAreaName = 'WorkArea') and (TInteractor(FInteractor).Layout <> 'mdi') and not Assigned(FRootArea.AreaById(AAreaName)) then
     vAreaName := 'child'
@@ -568,7 +641,7 @@ begin
   if Assigned(vUIArea) then
   begin
     vUIArea.SetHolder(AChangeHolder);
-   // vUIArea.BeginUpdate;
+    vUIArea.BeginUpdate;
     try
       if vAreaName = '' then
       begin
@@ -601,7 +674,7 @@ begin
       if vAreaName <> 'float' then
         FCurrentArea := vUIArea;
     finally
-  //    vUIArea.EndUpdate;
+      vUIArea.EndUpdate;
     end;
   end
   else begin
@@ -690,7 +763,7 @@ begin
       try
         vUIArea.Clear;
         ApplyLayout(vUIArea, vView, vLayoutName, AOptions);
-        CheckForEditMode(vUIArea, nil);
+        vUIArea.SetHolder(AChangeHolder);
       finally
         vView.RemoveListener(FRootArea);
         vUIArea.EndUpdate;
@@ -871,12 +944,17 @@ procedure TUIArea.ArrangeChildAreas;
 begin
 end;
 
-procedure TUIArea.AssignFromLayout(const ALayout: TObject);
+procedure TUIArea.AssignFromLayout(const ALayout: TObject; const AParams: string);
 begin
 end;
 
 procedure TUIArea.BeginUpdate;
 begin
+  if (FUpdateCount > 0) or ParentInUpdate then Exit;
+
+  Inc(FUpdateCount);
+
+  DoBeginUpdate;
 end;
 
 procedure TUIArea.Clear;
@@ -884,6 +962,16 @@ var
   i: Integer;
   vArea: TUIArea;
 begin
+  // Обработка сохранения данных при очистке области
+  if Assigned(FHolder) then
+  begin
+    if TChangeHolder(FHolder).IsModified then
+      TUserSession(FView.Session).Save(TChangeHolder(FHolder))
+    else
+      TUserSession(FView.Session).Cancel(TChangeHolder(FHolder));
+    FHolder := nil;
+  end;
+
   for i := 0 to FAreas.Count - 1 do
   begin
     vArea := GetArea(i);
@@ -896,8 +984,8 @@ end;
 
 procedure TUIArea.ClearContent;
 begin
-  SetParent(nil);
   Clear;
+  SetParent(nil);
   FreeAndNil(FAreas);
   FreeAndNil(FParams);
   if Assigned(FHolder) then
@@ -920,6 +1008,8 @@ end;
 
 constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
   const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
+var
+  vPopupArea: TUIArea;
 begin
   inherited Create;
 
@@ -927,7 +1017,9 @@ begin
   FUId := AId;
   FIsService := AIsService;
   FControl := AControl;
+  FUpdateCount := 0;
 
+  FInternalParams := AParams;
   FCreateParams := nil;
   if Length(AParams) > 0 then
     FCreateParams := CreateDelimitedList(AParams, '&');
@@ -946,6 +1038,13 @@ begin
     DoCreateControl(AParent, ALayout);
   SetControl(FControl);
   SetParent(AParent);
+
+  vPopupArea := TryCreatePopupArea(ALayout);
+  if Assigned(vPopupArea) then
+  begin
+    SetPopupArea(vPopupArea);
+    FAreas.Add(vPopupArea);
+  end;
 end;
 
 procedure TUIArea.CreateCaption(const AFieldDef: TFieldDef);
@@ -955,7 +1054,6 @@ end;
 function TUIArea.CreateChildArea(const AChildView: TView; const ALayout: TObject; const AParams: string; const AOnClose: TProc = nil): TUIArea;
 var
   vPresenter: TPresenter;
-  vUIParams: string;
   vView: TView;
   vDefaultViewName: string;
   vDefaultView: TView;
@@ -975,7 +1073,6 @@ begin
   end
   else begin
     vCaption := Trim(vPresenter.GetLayoutCaption(ALayout));
-    vUIParams := '';
 
     vQuery := '';
     vPos := Pos('?', vCaption);
@@ -989,20 +1086,19 @@ begin
       vQuery := AParams;
 
     vPos := Pos('@', vCaption);
-    if vPos > 1 then
-    begin
-      vUIParams := vCaption;
-      vCaption := Copy(vCaption, 1, vPos - 1);
-      Delete(vUIParams, 1, vPos);
-    end;
-
     if vPos = 1 then
     begin
       // Именованные области
       Delete(vCaption, 1, 1);
 
-      vPresenter.SetLayoutCaption(ALayout, vCaption);
-      Result := DoCreateChildArea(ALayout, FView, vQuery);
+      if SameText(vCaption, 'Navigation') {}or SameText(vCaption, 'NavigationArea'){} then
+      begin
+        Result := DoCreateChildNavigation(ALayout, FView, vQuery);
+      end
+      else begin
+        vPresenter.SetLayoutCaption(ALayout, vCaption);
+        Result := DoCreateChildArea(ALayout, FView, vQuery);
+      end;
     end
     else if vCaption = '$' then
     begin
@@ -1036,7 +1132,7 @@ begin
           Result := GetAreaByView(ALayout, vView, vQuery);
           if Assigned(Result) then
           begin
-            Result.AssignFromLayout(ALayout);
+            Result.AssignFromLayout(ALayout, AParams);
             Result.UpdateArea(dckFieldChanged);
             vAlreadyAssigned := True;
           end
@@ -1057,7 +1153,7 @@ begin
   begin
     AddArea(Result);
     if not vAlreadyAssigned then
-      Result.AssignFromLayout(ALayout);
+      Result.AssignFromLayout(ALayout, AParams);
     vLayout := Result.QueryParameter('layout');
     vDefaultViewName := Result.QueryParameter('view');
     if (vLayout <> '') or (vDefaultViewName <> '') then
@@ -1153,14 +1249,17 @@ procedure TUIArea.DoAfterChildAreasCreated;
 begin
 end;
 
+procedure TUIArea.DoBeginUpdate;
+begin
+end;
+
 function TUIArea.DoCreateChildAction(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
 var
   vStyleName: string;
 begin
   vStyleName := GetUrlParam(AParams, 'ViewStyle'{'view'});
 
-  Result := TPresenter(FUIBuilder.Presenter).CreateFieldArea(Self, ALayout, AView, vStyleName, AParams);
-  Assert(False, 'Вход в неработающий блок');
+  Result := TPresenter(FUIBuilder.Presenter).CreateActionArea(Self, ALayout, AView, vStyleName, AParams);
 end;
 
 function TUIArea.DoCreateChildEditor(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
@@ -1186,12 +1285,21 @@ begin
   Result := TPresenter(FUIBuilder.Presenter).CreateCollectionArea(Self, ALayout, AView, vStyleName, AParams);
 end;
 
+function TUIArea.DoCreateChildNavigation(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
+begin
+  Result := nil;
+end;
+
 procedure TUIArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
   FControl := nil;
 end;
 
 procedure TUIArea.DoDisableContent;
+begin
+end;
+
+procedure TUIArea.DoEndUpdate;
 begin
 end;
 
@@ -1204,8 +1312,20 @@ begin
   Result := '';
 end;
 
+procedure TUIArea.DoOnExit(Sender: TObject);
+begin
+end;
+
 procedure TUIArea.EndUpdate;
 begin
+  if ParentInUpdate then Exit;
+  
+  if FUpdateCount > 0 then
+  begin
+    Dec(FUpdateCount);
+    if FUpdateCount = 0 then
+      DoEndUpdate;
+  end;
 end;
 
 procedure TUIArea.ExecuteUIAction(const AView: TView);
@@ -1449,27 +1569,31 @@ procedure TUIArea.OnExit(Sender: TObject);
 begin
   if Assigned(FUIBuilder) then
     FUIBuilder.ActiveArea := nil;
+
+  DoOnExit(Sender);
 end;
 
 procedure TUIArea.OnOpenCollection(Sender: TObject);
 var
   vArea: TUIArea;
   vView: TView;
-  vLayout: string;
   vWorkArea: string;
 begin
   vArea := AreaFromSender(Sender);
   vView := vArea.View;
 
   FUIBuilder.LastArea := vArea;
-  vLayout := vView.QueryParameter('ContentLayout', 'Collection');
+
   vWorkArea := vView.QueryParameter('ContentWorkArea', 'WorkArea');
   if vArea.QueryParameter('ContentWorkArea', '') <> '' then
     vWorkArea := vArea.QueryParameter('ContentWorkArea', '');
-  if vArea.QueryParameter('ContentLayout', '') <> '' then
-    vLayout := vArea.QueryParameter('ContentLayout', '');
 
-  FUIBuilder.Navigate(vView, vWorkArea, vLayout);
+  FUIBuilder.Navigate(vView, vWorkArea, '', 'operation=opencollection');
+end;
+
+function TUIArea.ParentInUpdate: Boolean;
+begin
+  Result := Assigned(FParent) and (FParent.ParentInUpdate or (FParent.FUpdateCount > 0));
 end;
 
 function TUIArea.QueryParameter(const AName: string; const ADefaultValue: string = ''): string;
@@ -1499,7 +1623,7 @@ begin
       if Assigned(vEntity) then
         if QueryParameter('view') <> '' then
           //CreateEntityArea(AParentArea, ALayout, AView, QueryParameter('view')): TUIArea;
-        else if QueryParameter('childLayout') <> '' then
+        else if QueryParameter('childLayout') <> '' then  //todo: перенести это в GetLayoutName
           FUIBuilder.ApplyLayout(Self, FView, Trim(QueryParameter('childLayout')), '')
         else
           FUIBuilder.ApplyLayout(Self, FView, vEntity.Definition.Name + 'EditForm', '');
@@ -1531,22 +1655,14 @@ procedure TUIArea.SaveLayoutToFile(const AFileName: string);
 begin
 end;
 
+procedure TUIArea.SetBounds(const ALeft, ATop, AWidth, AHeight: Integer);
+begin
+  PlaceIntoBounds(ALeft, ATop, AWidth, AHeight);
+end;
+
 procedure TUIArea.SetControl(const AControl: TObject);
 begin
   FControl := AControl;
-end;
-
-procedure TUIArea.SetEditMode(const ASession: TObject; const AParentHolder: TObject; const AIsEditMode: Boolean);
-begin
-  if Assigned(FHolder) then
-    TUserSession(ASession).Cancel(TChangeHolder(FHolder));
-
-  if AIsEditMode then
-  begin
-    FHolder := TUserSession(ASession).Edit(TChangeHolder(AParentHolder))
-  end
-  else
-    FHolder := nil;
 end;
 
 procedure TUIArea.SetHolder(const AHolder: TObject);
@@ -1555,13 +1671,12 @@ begin
 end;
 
 procedure TUIArea.SetParent(const Value: TUIArea);
-var
-  i: Integer;
 begin
-  if not Assigned(Value) then
-    for i := 0 to FAreas.Count - 1 do
-      GetArea(i).SetParent(nil);
   FParent := Value;
+end;
+
+procedure TUIArea.SetPopupArea(const APopupArea: TUIArea);
+begin
 end;
 
 procedure TUIArea.SetView(const Value: TView);
@@ -1602,6 +1717,11 @@ begin
     DoGetDescription + #13#10;
   for i := 0 to FAreas.Count - 1 do
     Result := Result + GetArea(i).TextHierarchy(AIndent + '    ');
+end;
+
+function TUIArea.TryCreatePopupArea(const ALayout: TObject): TUIArea;
+begin
+  Result := nil;
 end;
 
 procedure TUIArea.TrySubscribeView;

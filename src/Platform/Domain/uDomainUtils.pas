@@ -603,7 +603,7 @@ end;
 
 procedure SetBlobValue(var vOut: TReportValue; const AValue: TObject);
 begin
-  vOut.Value := Integer(AValue);
+  vOut.Value := NativeInt(AValue);
   vOut.FieldKind := fkBlob;
 end;
 

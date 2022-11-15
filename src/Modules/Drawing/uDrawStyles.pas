@@ -190,6 +190,7 @@ type
 
     procedure ApplyZoom(const AZoom: Single);
     procedure RestoreZoom;
+    procedure Reset;
 
     property Name: string read FName write FName;
     property Brush[const AName: string]: TStyleBrush read GetBrushByName;
@@ -579,6 +580,14 @@ begin
     vPen.RestoreZoom;
   for vFont in FFonts.Values do
     vFont.RestoreZoom;
+end;
+
+procedure TDrawStyle.Reset;
+begin
+  FBrushes.Clear;
+  FPens.Clear;
+  FFonts.Clear;
+  FImages.Clear;
 end;
 
 function TDrawStyle.Save: TJSONObject;

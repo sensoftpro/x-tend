@@ -113,6 +113,7 @@ type
 
     function GetSceneRect: TRectF; override;
     function GetClientPos: TPointF; override;
+    function GetScaleFactor: Single; override;
   public
     property Panel: TMyPanel read FPanel;
   end;
@@ -242,6 +243,11 @@ end;
 function TWinScene.GetSceneRect: TRectF;
 begin
   Result := FPanel.ClientRect;
+end;
+
+function TWinScene.GetScaleFactor: Single;
+begin
+  Result := GetDeviceCaps(GetDC(0), LOGPIXELSY) / 96;
 end;
 
 procedure TWinScene.SetEnabled(const AValue: Boolean);

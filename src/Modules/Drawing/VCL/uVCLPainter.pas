@@ -435,7 +435,29 @@ begin
   vRect := ARect.Round;
 
   if Assigned(AFill) then
-    InternalFillRect(AFill, vRect);
+  begin
+    if Assigned(AFill.NativeObject) then
+    begin
+      vOldBrush := ThisCanvas.Brush;
+      vOldPen := ThisCanvas.Pen;
+      ThisCanvas.Brush := TBrush(AFill.NativeObject);
+      try
+        if Assigned(AStroke) then
+        begin
+          ThisCanvas.Pen := TPen(AStroke.NativeObject);
+          ThisCanvas.Rectangle(vRect.Left, vRect.Top, vRect.Right, vRect.Bottom);
+        end
+        else
+          ThisCanvas.FillRect(vRect);
+      finally
+        ThisCanvas.Pen := vOldPen;
+        ThisCanvas.Brush := vOldBrush;
+      end;
+      Exit;
+    end
+    else
+      InternalFillRect(AFill, vRect);
+  end;
 
   if Assigned(AStroke) then
   begin
@@ -536,24 +558,12 @@ end;
 
 procedure TVCLPainter.InternalFillRect(const AFill: TStyleBrush; const ARect: TRect);
 var
-  vOldBrush: TBrush;
   vVertexes: array[0..1] of TTriVertex;
   vGradRect: TGradientRect;
   vBlendFunction: TBlendFunction;
   vStartColor: TColor;
   vEndColor: TColor;
 begin
-  if Assigned(AFill.NativeObject) then
-  begin
-    vOldBrush := ThisCanvas.Brush;
-    ThisCanvas.Brush := TBrush(AFill.NativeObject);
-    try
-      ThisCanvas.FillRect(ARect);
-    finally
-      ThisCanvas.Brush := vOldBrush;
-    end;
-    Exit;
-  end;
 {$R-}
   if AFill.GradientKind <> gkNone then
   begin

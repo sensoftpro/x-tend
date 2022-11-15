@@ -112,8 +112,15 @@ end;
 
 destructor TLogger.Destroy;
 begin
-  Flush;
-  FreeAndNil(FItems);
+  try
+    try
+      Flush;
+    except
+    end;
+  finally
+    FreeAndNil(FItems);
+  end;
+
   inherited Destroy;
 end;
 

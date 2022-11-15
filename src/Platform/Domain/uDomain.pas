@@ -38,7 +38,7 @@ interface
 uses
   Generics.Collections, uFastClasses, Classes, SyncObjs, uModule, uConsts, uConfiguration, uDefinition,
   uCollection, uEntity, uEntityList, uStorage, uSession, uChangeManager, uSettings, uLogger, uScheduler,
-  uTranslator, uJSON;
+  uTranslator, uJSON, uUtils;
 
 type
   TNotifyProgressEvent = procedure (const AProgress: Integer; const AInfo: string) of object;
@@ -65,6 +65,7 @@ type
   TDomain = class
   private
     [Weak] FConfiguration: TConfiguration;
+    FStoredVersion: TVersion;
     FUId: string;
     FIsAlive: Boolean; // Домен загружен и готов к работе
 
@@ -101,7 +102,7 @@ type
 
     procedure SyncFieldsWithStorage(const ADefinition: TDefinition; const AStorage: TStorage);
     function VerifyStorageStructure: Boolean;
-    procedure UpdateDomainStructures;
+    //procedure UpdateDomainStructures;
     function GetLanguage: string;
     procedure SetLanguage(const Value: string);
     procedure Preload(const AStorage: TStorage);
@@ -110,7 +111,6 @@ type
     function GetConstant(const AName: string): Variant;
     function GetModuleByName(const AName: string; const AType: string): TBaseModule; overload;
     function GetModuleByName(const AName: string): TBaseModule; overload;
-    function CompareVersions(const AVersion1, AVersion2: string): Integer;
   public
     constructor Create(const APlatform: TObject; const AConfiguration: TConfiguration;
       const AUId: string; const ASettings: TSettings);
@@ -193,9 +193,11 @@ type
     property DomainSession: TUserSession read FDomainSession;
     property DomainHolder: TChangeHolder read FDomainHolder;
     property Storage: TStorage read FStorage;
+    property StoredVersion: TVersion read FStoredVersion;
     property Configuration: TConfiguration read FConfiguration;
     property Module[const AName: string]: TBaseModule read GetModuleByName;
     function NewModule(const AType, AModuleName: string): TBaseModule;
+    function IsModuleLoaded(const AName: string): Boolean;
     property DataLock: TDomainLock read FDataLock;
     property LoadingChanges: Boolean read FLoadingChanges;
     property OnError: TNotifyErrorEvent read FOnError write FOnError;
@@ -206,13 +208,13 @@ implementation
 
 uses
   Types, SysUtils, StrUtils, IOUtils, Math, Variants, IniFiles,
-  uPlatform, uQueryDef, uQuery, uMigration, uUtils, uView;
+  uPlatform, uQueryDef, uQuery, uView;
 
 type
   TCreateDefaultEntitiesProc = procedure (const ADomain: TObject) of object;
   TExecuteDefaultActionFunc = function(const ASession: TUserSession; const AParams: string): Boolean of object;
-  TDomainReadyProc = procedure (const ADomain: TObject) of object;
-  TDomainStoppedProc = procedure of object;
+  TDomainReadyProc = procedure(const ADomain: TObject) of object;
+  TDomainStoppedProc = procedure(const ADomain: TObject) of object;
 
 { TDomain }
 
@@ -384,35 +386,6 @@ begin
   GetCollectionsByDefinition(ADefinition, Result);
 end;
 
-function TDomain.CompareVersions(const AVersion1, AVersion2: string): Integer;
-var
-  vList1, vList2: TStrings;
-  i: Integer;
-begin
-  if SameText(AVersion1, AVersion2) then
-    Exit(0);
-
-  Result := 0;
-  vList1 := CreateDelimitedList(AVersion1, '.');
-  vList2 := CreateDelimitedList(AVersion2, '.');
-  try
-    for i := 0 to Max(vList1.Count, vList2.Count) - 1 do
-    begin
-      if vList1.Count <= i then
-        Exit(-1);
-      if vList2.Count <= i then
-        Exit(1);
-
-      Result := StrToIntDef(Trim(vList1[i]), 0) - StrToIntDef(Trim(vList2[i]), 0);
-      if Result <> 0 then
-        Exit;
-    end;
-  finally
-    FreeAndNil(vList1);
-    FreeAndNil(vList2);
-  end;
-end;
-
 constructor TDomain.Create(const APlatform: TObject; const AConfiguration: TConfiguration;
   const AUId: string; const ASettings: TSettings);
 var
@@ -427,6 +400,7 @@ begin
   FLoadingChanges := False;
   FWereErrors := True;
   FSharedFolderAvailable := False;
+  FStoredVersion := TVersion.Create('');
 
   // Использовать ASettings для нахождения путей к рабочим папкам
   FSettings := TIniSettings.Create(TPath.Combine(FConfiguration.ConfigurationDir, 'settings.ini'));
@@ -445,7 +419,7 @@ begin
   FDomainLogger.SetTarget(TPath.Combine(vAppDataDirectory, 'domain_log.txt'));
   FScheduler := TScheduler.Create(Self, 60);
 
-  FAppTitle := Translate('AppTitle', FConfiguration._Caption) + ' - ' + FConfiguration.Version;
+  FAppTitle := Translate('AppTitle', FConfiguration._Caption) + ' - ' + FConfiguration.Version.ToString;
 
   FSessions := TUserSessions.Create(Self);
   FDomainSession := FSessions.AddSession(nil);
@@ -841,12 +815,6 @@ begin
 end;
 
 procedure TDomain.Init;
-var
-  vVersion: string;
-  i: Integer;
-  vMigration: TMigration;
-  vNextMigrationIndex: Integer;
-  vCompareResult: Integer;
 begin
   NotifyLoadingProgress(5, 'Соединение с базой данных');
 
@@ -865,75 +833,27 @@ begin
 
   NotifyLoadingProgress(15, 'Обновление структур данных');
 
-  vVersion := FStorage.Version;
-  if vVersion = '' then
-    vVersion := FConfiguration.Version;
-
-  vCompareResult := CompareVersions(FConfiguration.Version, vVersion);
+  FStoredVersion := FStorage.Version;
+  if not FStoredVersion.IsValid then
+    FStoredVersion := FConfiguration.Version;
 
   // Хранилище обновлено извне
-  if (vCompareResult < 0) then
+  if (FConfiguration.Version < FStoredVersion) then
   begin
-    NotifyError('Ошибка запуска', 'Используется устаревшая версия программы [' + FConfiguration.Version + '].'#13#10 +
-      'Необходимо установить новую версию [' + vVersion + '] самостоятельно или обратиться за помощью к администратору');
+    NotifyError('Ошибка запуска', 'Используется устаревшая версия программы [' + FConfiguration.Version.ToString + '].'#13#10 +
+      'Необходимо установить новую версию [' + FStoredVersion.ToString + '] самостоятельно или обратиться за помощью к администратору');
     Exit;
     //raise Exception.Create('Устаревшая версия программы');
   end
   // Новая версия конфигурации, требуется обновление структуры
-  else if (vCompareResult > 0) or (FStorage.Version = '') or (_Platform.DeploymentType = 'dev') then
+  else if (FConfiguration.Version > FStoredVersion) or (FStorage.Version = '') or (_Platform.DeploymentType = 'dev') then
   begin
-    for vMigration in FConfiguration.Migrations do
-      vMigration.Apply(FConfiguration);
-
-    // Проверяем, новая ли это база данных
     if VerifyStorageStructure then
-      FStorage.Version := FConfiguration.Version;
+      FStorage.Version := FConfiguration.Version.ToString;
     //AConfiguration.Localizator.EnumerateConfigurationElements(Self);
   end;
 
   FWereErrors := False;
-  Exit;
-
-  // Накатывание миграций
-  vNextMigrationIndex := FConfiguration.Migrations.NextMigrationIndex(vVersion);
-  if vNextMigrationIndex >= 0 then
-  begin
-    for i := 0 to vNextMigrationIndex - 1 do
-      FConfiguration.Migrations[i].Apply(FConfiguration);
-
-    Preload(FStorage);
-    Load(FStorage);
-
-    for i := vNextMigrationIndex to FConfiguration.Migrations.Count - 1 do
-    begin
-      vMigration := FConfiguration.Migrations[i];
-
-      if vMigration.CreateNewStructures(FConfiguration) then
-      begin
-        VerifyStorageStructure;
-        UpdateDomainStructures;
-      end;
-
-      if Assigned(vMigration.MigrationProc) then
-      begin
-        FDomainSession.AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
-          begin
-            vMigration.MigrationProc(Self);
-            Result := True;
-          end, nil, True);
-      end;
-
-      if vMigration.DeleteOldStructures(FConfiguration) then
-      begin
-        VerifyStorageStructure;
-        UpdateDomainStructures;
-      end;
-    end;
-
-    //AConfiguration.Localizator.EnumerateConfigurationElements(Self);
-  end;
-
-  FSettings.SetValue(FStorage.Name, 'Version', FConfiguration.Version);
 end;
 
 function TDomain.InternalLogin(const ALogin, APassword: string): TEntity;
@@ -958,6 +878,11 @@ begin
   finally
     FreeAndNil(vCollections);
   end;
+end;
+
+function TDomain.IsModuleLoaded(const AName: string): Boolean;
+begin
+  Result := FModules.ContainsKey(AName);
 end;
 
 procedure TDomain.Load(const AStorage: TStorage);
@@ -1154,7 +1079,7 @@ begin
       for vSyncDefinition in FConfiguration.Definitions do
       begin
         if (vSyncDefinition.Kind = clkMixin) or (vSyncDefinition.Name = 'Numerators')
-          //or (vSyncDefinition.Name = '-')
+          //or (vSyncDefinition.Name = '~')
         then
           Continue;
 
@@ -1263,7 +1188,7 @@ end;}
 procedure TDomain.Stop;
 begin
   FIsAlive := False;
-  TDomainStoppedProc(FConfiguration.DomainStoppedProc)();
+  TDomainStoppedProc(FConfiguration.DomainStoppedProc)(Self);
 end;
 
 procedure TDomain.SyncFieldsWithStorage(const ADefinition: TDefinition; const AStorage: TStorage);
@@ -1420,7 +1345,7 @@ begin
   end;
 end;
 
-procedure TDomain.UpdateDomainStructures;
+{procedure TDomain.UpdateDomainStructures;
 var
   vCollections: TList<TCollection>;
   vDefinition: TDefinition;
@@ -1451,7 +1376,7 @@ begin
   finally
     FreeAndNil(vCollections);
   end;
-end;
+end;}
 
 procedure TDomain.UpdateLogID(const ANewLogID: Integer);
 begin

@@ -92,6 +92,7 @@ function Transliterate(const s: string): string;
 
 function CalcInnerColor(const AStartColor, AEndColor: Cardinal; const APercentage: Double): Cardinal;
 function ColorToAlphaColor(const AColor: TColor; const ATransparency: Double = 0): Cardinal;
+function AlphaColorToColor(const AColor: Cardinal): TColor;
 // -1 - к черному, +1 - к белому
 function DimColor(const AColor: Cardinal; const APercent: Double = 0): Cardinal;
 
@@ -105,6 +106,7 @@ function ExtractByRE(const AText, ARegExpression: string): string;
 function CutDataTillMarker(var s: string; const AMarker: string = ' '): string;
 function GetNSymbols(const s: string; const ACount: Integer = 1): string;
 function JoinIfFilled(const s: string; const APrefix, APostfix: string): string;
+function TimeIntervalToStr(const ASeconds: Int64): string;
 
 // RTTI
 function MakeMethod(const ACode, AData: Pointer): TMethod;
@@ -132,6 +134,36 @@ type
 var
   PrintProc: TPrintProcedure = nil;
   PrintBuffer: TStrings = nil;
+
+type
+  TVersion = packed record
+    class operator Implicit(Val: string): TVersion;
+    class operator Explicit(Val: string): TVersion;
+    class operator Equal(Val1, Val2: TVersion): Boolean;
+    class operator Equal(Val1: TVersion; Val2: string): Boolean;
+    class operator NotEqual(Val1, Val2: TVersion): Boolean;
+    class operator NotEqual(Val1: TVersion; Val2: string): Boolean;
+    class operator GreaterThan(Val1, Val2: TVersion): Boolean;
+    class operator GreaterThan(Val1: TVersion; Val2: string): Boolean;
+    class operator GreaterThanOrEqual(Val1, Val2: TVersion): Boolean;
+    class operator GreaterThanOrEqual(Val1: TVersion; Val2: string): Boolean;
+    class operator LessThan(Val1, Val2: TVersion): Boolean;
+    class operator LessThan(Val1: TVersion; Val2: string): Boolean;
+    class operator LessThanOrEqual(Val1, Val2: TVersion): Boolean;
+    class operator LessThanOrEqual(Val1: TVersion; Val2: string): Boolean;
+  private
+    FMajor: Byte;
+    FMinor: Byte;
+    FRelease: Word;
+    class function Compare(Val1, Val2: TVersion): Integer; static;
+    class function CompareWithStr(Val1: TVersion; Val2: string): Integer; static;
+    procedure StrToVersion(const s: string);
+    function VersionToStr: string;
+  public
+    constructor Create(const s: string);
+    function ToString: string; overload;
+    function IsValid: Boolean;
+  end;
 
 procedure Print(const AText: string; const AParams: array of const);
 
@@ -176,6 +208,28 @@ begin
     Result := s;
     s := '';
   end;
+end;
+
+function TimeIntervalToStr(const ASeconds: Int64): string;
+var
+  vSeconds: Int64;
+  function CheckPeriod(var ARemainSeconds: Int64; const ADivider: Integer): string;
+  var
+    vPeriod: Int64;
+  begin
+    vPeriod := ARemainSeconds div ADivider;
+    if vPeriod > 0 then
+      Result := IntToStr(vPeriod)
+    else
+      Result := '';
+    ARemainSeconds := ARemainSeconds mod ADivider;
+  end;
+begin
+  vSeconds := ASeconds;
+  Result := Result + JoinIfFilled(CheckPeriod(vSeconds, 86400), ' ', 'дн');
+  Result := Result + JoinIfFilled(CheckPeriod(vSeconds, 3600), ' ', 'ч');
+  Result := Result + JoinIfFilled(CheckPeriod(vSeconds, 60), ' ', 'м');
+  Result := Trim(Result + JoinIfFilled(IntToStr(vSeconds), ' ', 'с'));
 end;
 
 function ExtractByRE(const AText, ARegExpression: string): string;
@@ -284,6 +338,11 @@ begin
   vResColor.G := vColor shr 8 and $FF;
   vResColor.R := vColor and $FF;
   Result := vResColor.Color;
+end;
+
+function AlphaColorToColor(const AColor: Cardinal): TColor;
+begin
+  Result := (AColor and $FF shl 16) or (AColor and $FF00) or (AColor shr 16 and $FF);
 end;
 
 function DimColor(const AColor: Cardinal; const APercent: Double = 0): Cardinal;
@@ -1392,11 +1451,11 @@ const
     '0.0000000', '0.00000000', '0.000000000', '0.0000000000');
 begin
   if ADigit >= 0 then
-    Result := IntToStr(Round(RoundTo(AValue, ADigit)))
+    Result := IntToStr(Round(AValue))
   else if AUseStrictFormat then
-    Result := FormatFloat(cStrictFormats[-ADigit], AValue)
+    Result := FormatFloat('0,' + cStrictFormats[-ADigit], AValue)
   else
-    Result := FormatFloat(cWeakFormats[-ADigit], AValue);
+    Result := FormatFloat('0,' + cWeakFormats[-ADigit], AValue);
 end;
 
 function FormatAsBitString(const AValue: Cardinal; const ASize: Byte = 32): string;
@@ -1428,6 +1487,135 @@ begin
     PrintBuffer.Add(vText)
   else if Assigned(PrintProc) then
     PrintProc(vText);
+end;
+
+{ TVersion }
+
+class function TVersion.Compare(Val1, Val2: TVersion): Integer;
+begin
+  Result := Val1.FMajor - Val2.FMajor;
+  if Result <> 0 then
+    Exit;
+  Result := Val1.FMinor - Val2.FMinor;
+  if Result <> 0 then
+    Exit;
+  Result := Val1.FRelease - Val2.FRelease;
+end;
+
+class function TVersion.CompareWithStr(Val1: TVersion; Val2: string): Integer;
+var
+  vVersion: TVersion;
+begin
+  vVersion := TVersion.Create(Val2);
+  Result := Compare(Val1, Val2);
+end;
+
+constructor TVersion.Create(const s: string);
+begin
+  StrToVersion(s);
+end;
+
+class operator TVersion.Equal(Val1, Val2: TVersion): Boolean;
+begin
+  Result := Compare(Val1, Val2) = 0;
+end;
+
+class operator TVersion.Equal(Val1: TVersion; Val2: string): Boolean;
+begin
+  Result := CompareWithStr(Val1, Val2) = 0;
+end;
+
+class operator TVersion.Explicit(Val: string): TVersion;
+begin
+  Result.StrToVersion(Val);
+end;
+
+class operator TVersion.GreaterThan(Val1, Val2: TVersion): Boolean;
+begin
+  Result := Compare(Val1, Val2) > 0;
+end;
+
+class operator TVersion.GreaterThan(Val1: TVersion; Val2: string): Boolean;
+begin
+  Result := CompareWithStr(Val1, Val2) > 0;
+end;
+
+class operator TVersion.GreaterThanOrEqual(Val1, Val2: TVersion): Boolean;
+begin
+  Result := Compare(Val1, Val2) >= 0;
+end;
+
+class operator TVersion.GreaterThanOrEqual(Val1: TVersion; Val2: string): Boolean;
+begin
+  Result := CompareWithStr(Val1, Val2) >= 0;
+end;
+
+class operator TVersion.Implicit(Val: string): TVersion;
+begin
+  Result.StrToVersion(Val);
+end;
+
+function TVersion.IsValid: Boolean;
+begin
+  Result := (FMajor > 0) or (FMinor > 0) or (FRelease > 0);
+end;
+
+class operator TVersion.LessThan(Val1, Val2: TVersion): Boolean;
+begin
+  Result := Compare(Val1, Val2) < 0;
+end;
+
+class operator TVersion.LessThan(Val1: TVersion; Val2: string): Boolean;
+begin
+  Result := CompareWithStr(Val1, Val2) < 0;
+end;
+
+class operator TVersion.LessThanOrEqual(Val1, Val2: TVersion): Boolean;
+begin
+  Result := Compare(Val1, Val2) <= 0;
+end;
+
+class operator TVersion.LessThanOrEqual(Val1: TVersion; Val2: string): Boolean;
+begin
+  Result := CompareWithStr(Val1, Val2) <= 0;
+end;
+
+class operator TVersion.NotEqual(Val1, Val2: TVersion): Boolean;
+begin
+  Result := Compare(Val1, Val2) <> 0;
+end;
+
+class operator TVersion.NotEqual(Val1: TVersion; Val2: string): Boolean;
+begin
+  Result := CompareWithStr(Val1, Val2) <> 0;
+end;
+
+procedure TVersion.StrToVersion(const s: string);
+var
+  vList: TStrings;
+begin
+  FMajor := 0; FMinor := 0; FRelease := 0;
+  vList := CreateDelimitedList(s, '.');
+  try
+    if vList.Count > 0 then
+      FMajor := StrToIntDef(vList[0], 0);
+    if vList.Count > 1 then
+      FMinor := StrToIntDef(vList[1], 0);
+    if vList.Count > 2 then
+      FRelease := StrToIntDef(vList[2], 0);
+  finally
+    FreeAndNil(vList);
+  end;
+end;
+
+function TVersion.ToString: string;
+begin
+  Result := VersionToStr;
+end;
+
+function TVersion.VersionToStr: string;
+begin
+  Result := Format('%d.%d.%d', [FMajor, FMinor, FRelease]);
 end;
 
 end.

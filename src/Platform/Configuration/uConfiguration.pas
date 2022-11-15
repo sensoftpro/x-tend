@@ -37,7 +37,7 @@ interface
 
 uses
   Classes, SysUtils, Generics.Collections, uDefinition, uEnumeration, uReaction,
-  uIcon, uLocalizator, uMigration;
+  uIcon, uLocalizator, uUtils;
 
 type
   TConfiguration = class;
@@ -58,7 +58,7 @@ type
     [Weak] FPlatform: TObject;
     FName: string;
     FCaption: string;
-    FVersion: string;
+    FVersion: TVersion;
     FConfigurationDir: string;
     FCacheDir: string;
     FRootDefinition: TDefinition;
@@ -69,7 +69,6 @@ type
     FIcons: TIcons;
     FIconFileName: string;
     FLocalizator: TCfgLocalizator;
-    FMigrations: TMigrations;
     FComplexClasses: TComplexClasses;
     FPlannedJobs: TPlannedJobs;
     FReactionDefs: TObjectList<TReactionDef>;
@@ -98,6 +97,7 @@ type
     FCalculateStyleFunc: TMethod;
     FCanChangeFieldFunc: TMethod;
     FGetParamValueFunc: TMethod;
+    FCreateContentTypeReactionProc: TMethod;
 
     function LoadConfiguration: string; virtual;
     function GetTitle: string; virtual;
@@ -117,7 +117,7 @@ type
 
     property Name: string read FName;
     property _Caption: string read FCaption;
-    property Version: string read FVersion;
+    property Version: TVersion read FVersion;
     property VersionName: string read GetVersionName;
     property IconFileName: string read FIconFileName;
     property ConfigurationDir: string read FConfigurationDir;
@@ -130,7 +130,6 @@ type
     property Enumerations: TEnumerations read FEnumerations;
     property StateMachines: TStateMachines read FStateMachines;
     property ComplexClasses: TComplexClasses read FComplexClasses;
-    property Migrations: TMigrations read FMigrations;
     property PlannedJobs: TPlannedJobs read FPlannedJobs;
     property Definitions: TDefinitions read FDefinitions;
     property DefinitionByName[const AName: string]: TDefinition read GetDefinitionByName; default;
@@ -156,6 +155,7 @@ type
     property CalculateStyleFunc: TMethod read FCalculateStyleFunc;
     property CanChangeFieldFunc: TMethod read FCanChangeFieldFunc;
     property GetParamValueFunc: TMethod read FGetParamValueFunc;
+    property CreateContentTypeReactionProc: TMethod read FCreateContentTypeReactionProc;
   end;
 
   {TConfiguration = class
@@ -178,7 +178,7 @@ type
 implementation
 
 uses
-  IOUtils, uConsts, uUtils, uSettings;
+  IOUtils, uConsts, uSettings;
 
 { TConfiguration }
 
@@ -216,7 +216,6 @@ begin
   FEnumerations := TEnumerations.Create;
   FStateMachines := TStateMachines.Create;
   FDefinitions := TDefinitions.Create(Self);
-  FMigrations := TMigrations.Create;
   FPlannedJobs := TPlannedJobs.Create;
   FIcons := TIcons.Create;
 
@@ -274,7 +273,6 @@ begin
   FRootDefinition := nil;
 
   FreeAndNil(FIcons);
-  FreeAndNil(FMigrations);
   FreeAndNil(FComplexClasses);
   FreeAndNil(FPlannedJobs);
 
@@ -334,7 +332,7 @@ end;
 
 function TConfiguration.GetVersionName: string;
 begin
-  Result := FVersion;
+  Result := FVersion.ToString;
 end;
 
 procedure TConfiguration.Init;
@@ -486,7 +484,7 @@ begin
 
     FreeAndNil(vFiles);
 
-    vUserSettings.SetValue('Core', 'UIVersion', FVersion);
+    vUserSettings.SetValue('Core', 'UIVersion', FVersion.ToString);
   finally
     vUserSettings.Free;
   end;

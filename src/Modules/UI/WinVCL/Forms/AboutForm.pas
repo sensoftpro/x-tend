@@ -39,7 +39,7 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   cxGraphics, Menus, StdCtrls, ImgList, CheckLst, cxLookAndFeels, cxLookAndFeelPainters,
   cxControls, cxContainer, cxEdit, cxLabel, uInteractor, dxGDIPlusClasses,
-  Vcl.ExtCtrls, cxClasses, cxCustomData, cxStyles, cxCustomPivotGrid, cxPivotGrid;
+  Vcl.ExtCtrls;
 
 type
   TAboutFm = class(TForm)
@@ -78,7 +78,7 @@ begin
   Caption := AInteractor.Translate('@' + Self.ClassName + '@Caption', 'О программе');
   lblName.Caption := AInteractor.AppTitle;
   lblVersion.Caption := AInteractor.Translate('@' + Self.ClassName + '.lblVersion@Caption', 'Версия') + ': ' +
-    TConfiguration(AInteractor.Configuration).Version;
+    TConfiguration(AInteractor.Configuration).Version.ToString;
   lblWeb.Caption := AInteractor.Translate('@' + Self.ClassName + '.lblWeb@Caption', 'Сайт') + ': ';
   lblAllRightsReserved.Caption := AInteractor.Translate('@' + Self.ClassName + '.lblAllRightsReserved@Caption',
     'Все права защищены') + '.';

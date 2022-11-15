@@ -37,7 +37,7 @@ interface
 
 uses
   Classes, SysUtils, UITypes, Generics.Collections, uFastClasses, uCollection, uEntity, uReport, uSession, uDefinition,
-  uScheduler, uConsts, uEnumeration, uMigration, uChangeManager, uComplexObject, uView, uInteractor, uTask;
+  uScheduler, uConsts, uEnumeration, uChangeManager, uComplexObject, uView, uInteractor, uTask;
 
 type
   TInclusion = class;
@@ -69,7 +69,6 @@ type
     function AddAction(const AName, ACaption: string; const AImageID: Integer; const AFlags: Integer = 0): TActionDef;
     function AddEnumeration<T>(const AName: string): TEnumeration;
     function AddStateMachine<T>(const AName: string): TStateMachine;
-    function AddMigration(const AVersion: string): TMigration;
     function RegisterComplexClass(const AName: string; const AComplexClass: TComplexClass): TComplexClassDef;
     procedure RegisterReaction(const ADefinitionNames, AReactiveFields, AFieldChain: string; const AReactionProc: TReactionProc);
     procedure AddPlannedJob(const AName: string; const APeriod: Integer; const AHandler: TSchedulerProc;
@@ -83,7 +82,6 @@ type
     procedure DoDeinit; virtual;
 
     procedure DoCreateDefinitions; virtual;
-    procedure DoCreateMigrations; virtual;
     procedure DoCreateDefaultEntities(const ADomain: TObject; const AHolder: TChangeHolder); virtual;
     function GetFullText(const AEntity: TEntity; var AHandled: Boolean): string; virtual;
     function DoCheckField(const AEntity: TEntity; const AFieldName: string; var AHandled: Boolean): Boolean; virtual;
@@ -95,7 +93,7 @@ type
       const AParamName: string; const AIndex1, AIndex2: Integer; var AHandled: Boolean): TReportValue; virtual;
     function DoGetParamValue(const AEntity: TEntity; const AParamName: string; var AHandled: Boolean): string; virtual;
     procedure DoOnDomainReady(const ADomain: TObject); virtual;
-    procedure DoOnDomainStopped; virtual;
+    procedure DoOnDomainStopped(const ADomain: TObject); virtual;
     procedure DoOnLogined(const AInteractor: TInteractor); virtual;
 
     function CheckCanChangeField(const AView: TView; const AEntity: TEntity; const AFieldName: string;
@@ -147,7 +145,7 @@ type
     function CreateConfiguration: string;
     procedure CreateDefaultEntities(const ADomain: TObject);
     procedure DomainReady(const ADomain: TObject);
-    procedure DomainStopped;
+    procedure DomainStopped(const ADomain: TObject);
     procedure Logined(const AInteractor: TInteractor);
 
     // Калькуляции (анонимные функции у коллекций)
@@ -164,6 +162,7 @@ type
     function CheckActionFlags(const AView: TView): TViewState;
     function ExecuteAction(const AView: TView; const AParentHolder: TChangeHolder): Boolean;
     function ExecuteCommand(const AExecutor: TObject; const ATask: TTaskHandle; const AFiber, ACommand: TObject): Boolean;
+    procedure CreateContentTypeChangeHandler(const ADefinition: TDefinition; const ATargetFieldName, AContentTypePath: string);
 
     // Триггеры-обработчики начала/окончания действий
     procedure AfterEntityCreation(const AHolder: TChangeHolder; const AOwnerContext: TObject; const AEntity: TEntity);
@@ -191,7 +190,7 @@ procedure RegisterInclusion(const AInclusionName: string; const AClass: TInclusi
 implementation
 
 uses
-  Variants, IOUtils, Math, uConfiguration, uDomain, uEntityList, uJSON, uUtils,
+  Variants, IOUtils, Math, uConfiguration, uDomain, uObjectField, uEntityList, uJSON, uUtils,
   uDomainUtils, uReaction, uPresenter, idUri;
 
 procedure RegisterScript(const AConfigurationName: string; const AClass: TScriptClass; const AIncludes: string = '');
@@ -434,7 +433,6 @@ end;
 function TScript.CreateConfiguration: string;
 var
   vDefinition: TDefinition;
-  vMigration: TMigration;
   vAction: TActionDef;
   vInclusion: TInclusion;
 begin
@@ -449,6 +447,8 @@ begin
   vAction := AddAction('Create', 'Создать', 1);
   vAction.AddSimpleFieldDef('SelectedIndex', '', '', 0, Null, Null, fkInteger, '', '', vsFullAccess, cNotSave);
 
+  AddAction('CreateEmbedded', 'Создать', 1);
+
   vAction := AddAction('Link', 'Привязать', 2);
   vAction.AddEntityFieldDef('SelectedEntity', '', 'Выбранная запись', '', '', 0, vsSelectOnly, cRequired or cNotSave);
 
@@ -461,7 +461,7 @@ begin
   AddAction('SaveAs', 'Сохранить как', 6);
 
   AddAction('View', 'Просмотр', 8, ccContextAction);
-  AddAction('Show', 'Показать', 8, ccContextAction);
+  AddAction('Show', 'Просмотр', 8, ccContextAction);
   AddAction('Close', 'Закрыть', 4);
   AddAction('Ok', 'Ок', 12);
   AddAction('Cancel', 'Отмена', -1);
@@ -470,6 +470,7 @@ begin
   AddAction('#ExportToCsv', 'Экспорт в Excel', 7);
   AddAction('#ExportToCsv2', 'Экспорт в *.csv', 7);
   AddAction('#ApplyBestFit', 'Оптимальная ширина колонок', 47);
+  AddAction('#Refill', 'Перезаполнить', -1);
 
   vAction := AddAction('#FilterByText', 'Фильтровать по тексту', 13, ccInstantExecution);
   vAction.AddSimpleFieldDef('Text', '', '', Null, Null, 50, fkString, '', '', vsFullAccess, cNotSave);
@@ -515,7 +516,7 @@ begin
   AddAction('ActualizeData', 'Актуализировать данные', -1);
 
   // Любая сущность, которая будет определена позже
-  AddDefinition('-', '', 'Неизвестная', cNullItemName, ccSystem or ccHideInMenu or ccNotSave);
+  AddDefinition('~', '', 'Неизвестная', cNullItemName, ccSystem or ccHideInMenu or ccNotSave);
 
   // Управление идентификацией
   vDefinition := AddDefinition('Numerators', '', 'Нумератор', cNullItemName, ccSystem or ccHideInMenu or ccLazyLoad);
@@ -686,22 +687,66 @@ begin
         AEntity._SetFieldValue(AHolder, 'IsMailVerified', False);
     end));
 
+  vDefinition := AddDefinition('_FormLayout', '', 'Размещение UI-формы', cNullItemName, 0, clkMixin);
+  vDefinition.AddSimpleFieldDef('Left', 'left', 'X', 100, 1, Null, fkInteger, '', '', vsHidden);
+  vDefinition.AddSimpleFieldDef('Top', 'top', 'Y', 100, 1, Null, fkInteger, '', '', vsHidden);
+  vDefinition.AddSimpleFieldDef('Width', 'width', 'Ширина', 640, 1, Null, fkInteger, '', '', vsHidden);
+  vDefinition.AddSimpleFieldDef('Height', 'height', 'Высота', 480, 1, Null, fkInteger, '', '', vsHidden);
+  vDefinition.AddSimpleFieldDef('WindowState', 'window_state', 'Состояние окна', 0, 0, 2, fkInteger, '', '', vsHidden); // TWindowState = (wsNormal, wsMinimized, wsMaximized);
+
   for vInclusion in FInclusions do
     vInclusion.DoCreateDefinitions;
   DoCreateDefinitions;
 
-  for vInclusion in FInclusions do
-    vInclusion.DoCreateMigrations;
-  DoCreateMigrations;
-
-  if TConfiguration(FConfiguration).Migrations.Count > 0 then
-  begin
-    vMigration := TConfiguration(FConfiguration).Migrations[TConfiguration(FConfiguration).Migrations.Count - 1];
-    if vMigration.VersionGreaterThan(FVersion) then
-      FVersion := vMigration.Version;
-  end;
-
   Result := FVersion;
+end;
+
+procedure TScript.CreateContentTypeChangeHandler(const ADefinition: TDefinition; const ATargetFieldName,
+  AContentTypePath: string);
+var
+  vFieldChain: string;
+
+  function BuildFieldChain(const AFieldPath: string): string;
+  var
+    vFieldPath: TStrings;
+    vChain: string;
+    i, j: Integer;
+  begin
+    Result := '';
+    vFieldPath := CreateDelimitedList(AFieldPath, '.');
+    try
+      for i := vFieldPath.Count - 1 downto 0 do
+      begin
+        vChain := '';
+        for j := i downto 0 do
+          if j > 0 then
+            vChain := vChain + vFieldPath[j] + '.'
+          else
+            vChain := vChain + vFieldPath[j];
+        if i > 0 then
+          Result := Result + vChain + ';'
+        else
+          Result := Result + vChain;
+      end;
+    finally
+      FreeAndNil(vFieldPath);
+    end;
+  end;
+begin
+  vFieldChain := BuildFieldChain(AContentTypePath);
+
+  ADefinition.RegisterReaction(ATargetFieldName, vFieldChain, TProc(procedure(
+      const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParameter: TEntity)
+    var
+      vContentTypeName: string;
+    begin
+      vContentTypeName := SafeDisplayName(AEntity.ExtractEntity(AContentTypePath));
+      if vContentTypeName <> '' then
+        TEntityField(AEntity.FieldByName(ATargetFieldName)).SetContentDefinition(AHolder,
+          TDomain(AEntity.Domain).Configuration[vContentTypeName])
+      else
+        TEntityField(AEntity.FieldByName(ATargetFieldName)).SetContentDefinition(AHolder, nil);
+    end));
 end;
 
 procedure TScript.CreateDefaultEntities(const ADomain: TObject);
@@ -784,13 +829,13 @@ begin
   DoOnDomainReady(ADomain);
 end;
 
-procedure TScript.DomainStopped;
+procedure TScript.DomainStopped(const ADomain: TObject);
 var
   vInclusion: TInclusion;
 begin
   for vInclusion in FInclusions do
-    vInclusion.DoOnDomainStopped;
-  DoOnDomainStopped;
+    vInclusion.DoOnDomainStopped(ADomain);
+  DoOnDomainStopped(ADomain);
 end;
 
 function TScript.ExecuteAction(const AView: TView; const AParentHolder: TChangeHolder): Boolean;
@@ -816,6 +861,8 @@ var
   vUrl: TIdURI;
   vUrlCommand, vFilter: string;
   vUrlParams: TStrings;
+  vMode: string;
+  vDefaultExt: string;
 begin
   Result := False;
 
@@ -851,18 +898,32 @@ begin
           vUrlCommand := vUrl.Document;
           vUrlParams := CreateDelimitedList(vUrl.Params, '&');
           vFilter := vUrlParams.Values['filter'];
+          vMode := vUrlParams.Values['mode'];
+          vDefaultExt := vUrlParams.Values['ext'];
           vUrlParams.Free;
           vUrl.Free;
           if vUrlCommand = 'file' then
           begin
             vFileName := vParams[vField.FieldName];
-            if TPresenter(vInteractor.Presenter).ShowOpenDialog(vFileName, 'Выберите файл', vFilter, '', '') then
+            if SameText(vMode, 'save') then
             begin
-              vDone := True;
-              vParams._SetFieldValue(vSession.NullHolder, vField.FieldName, vFileName);
+              if TPresenter(vInteractor.Presenter).ShowSaveDialog(vFileName, 'Выберите файл', vFilter, vDefaultExt) then
+              begin
+                vDone := True;
+                vParams._SetFieldValue(vSession.NullHolder, vField.FieldName, vFileName);
+              end
+              else
+                Exit;
             end
-            else
-              Exit;
+            else begin
+              if TPresenter(vInteractor.Presenter).ShowOpenDialog(vFileName, 'Выберите файл', vFilter, vDefaultExt, '') then
+              begin
+                vDone := True;
+                vParams._SetFieldValue(vSession.NullHolder, vField.FieldName, vFileName);
+              end
+              else
+                Exit;
+            end;
           end;
         end;
       end;
@@ -1115,6 +1176,12 @@ begin
     if vParentView.State < vsFullAccess then
       Result := vsHidden;
   end
+  else if AActionName = 'CreateEmbedded' then
+  begin
+    vParentView := AView.Parent;
+    if vParentView.State < vsFullAccess then
+      Result := vsHidden;
+  end
   else if AActionName = 'Link' then
   begin
     vParentView := GetParentListView(AView);
@@ -1278,15 +1345,8 @@ const
   end;
 
   procedure InternalEdit(const AEntity: TEntity);
-  var
-    vLayout: string;
   begin
-    if not Assigned(AEntity) then Exit;
-
-    vLayout := '';
-    if AEntity.FieldExists('_Layout') then
-      vLayout := AEntity['_Layout'];
-    AInteractor.AtomicEditEntity(AView.Parent, AParentHolder, vLayout);
+    AInteractor.AtomicEditEntity(AView.Parent, AParentHolder);
   end;
 
   procedure InternalOpen(const AEntity: TEntity);
@@ -1379,6 +1439,37 @@ const
           vSession.ReleaseChangeHolder(vHolder, vResult);
         end);
     end;
+  end;
+
+  procedure InternalCreateEmbedded(const AView: TView);
+  var
+    vDefinitionName: string;
+    vFieldDef: TObjectFieldDef;
+    vNewEntity: TEntity;
+    vMasterEntity: TEntity;
+    vHolder: TChangeHolder;
+  begin
+    vFieldDef := TObjectFieldDef(AView.Parent.Definition);
+
+    if vFieldDef.ContentDefinitions.Count > 0 then
+      vDefinitionName := TDefinition(vFieldDef.ContentDefinitions[0]).Name
+    else
+      Exit;
+
+    if not Assigned(AParentHolder) then
+      vHolder := TUserSession(AView.Session).NullHolder
+    else
+      vHolder := AParentHolder;
+
+    if not Assigned(AView.Parent.ParentDomainObject) then
+      vNewEntity := TDomain(AView.Domain).CreateNewEntity(vHolder, vDefinitionName, cNewID)
+    else begin
+      vMasterEntity := TEntity(AView.Parent.ParentDomainObject);
+      vNewEntity := TDomain(AView.Domain)[vDefinitionName]._CreateNewEntity(vHolder, cNewID,
+        '', [], vMasterEntity.FieldByName(vFieldDef.Name));
+    end;
+
+    AView.Parent.SetDomainObject(vNewEntity);
   end;
 
   procedure InternalView(const AEntity: TEntity);
@@ -1552,6 +1643,13 @@ begin
 
     Exit;
   end
+  else if (AActionName = 'CreateEmbedded') then
+  begin
+    if Assigned(AView.Parent) and (AView.Parent.DefinitionKind = dkObjectField) then
+      InternalCreateEmbedded(AView);
+
+    Exit;
+  end
   else if not Assigned(AContext) then
   begin
     //AInteractor.ShowMessage('Нет контекста для вызова действия!');
@@ -1610,14 +1708,9 @@ begin
     if (AContext is TEntityList) and (TEntityList(AContext).FillerKind = lfkDefinition) then
       TUserSession(AInteractor.Session).ReloadDomainChanges(TUserSession(AInteractor.Session).NullHolder);
   end
-  else if (AActionName = 'View') then
+  else if (AActionName = 'View') or (AActionName = 'Show') then
   begin
     InternalView(TEntity(AContext));
-  end
-  else if (AActionName = 'Show') then
-  begin
-    if Assigned(TEntity(AContext)) then
-      AInteractor.ViewEntity(AView.Parent);
   end
   else if AContext is TEntity then
   begin
@@ -1747,11 +1840,6 @@ end;
 function TBaseScript.AddEnumeration<T>(const AName: string): TEnumeration;
 begin
   Result := TConfiguration(FConfiguration).Enumerations.AddEnum<T>(AName);
-end;
-
-function TBaseScript.AddMigration(const AVersion: string): TMigration;
-begin
-  Result := TConfiguration(FConfiguration).Migrations.AddMigration(AVersion);
 end;
 
 procedure TBaseScript.AddPlannedJob(const AName: string; const APeriod: Integer; const AHandler: TSchedulerProc;
@@ -1899,10 +1987,6 @@ procedure TBaseScript.DoCreateDefinitions;
 begin
 end;
 
-procedure TBaseScript.DoCreateMigrations;
-begin
-end;
-
 procedure TBaseScript.DoDeinit;
 begin
 end;
@@ -1942,7 +2026,7 @@ procedure TBaseScript.DoOnDomainReady(const ADomain: TObject);
 begin
 end;
 
-procedure TBaseScript.DoOnDomainStopped;
+procedure TBaseScript.DoOnDomainStopped(const ADomain: TObject);
 begin
 end;
 

@@ -135,7 +135,7 @@ type
       const AFields: TJSONObject; const AContext: string);
 
     procedure RevertField(const AEntity: TEntity; const AFieldName: string);
-
+	// Используется для предотвращения калькуляций
     function OldEntityValue(const AEntity: TEntity; const AFieldName: string): string;
 
     function ApplyChanges(const ASkipLogging: Boolean = False): Integer;

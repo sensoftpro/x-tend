@@ -211,6 +211,7 @@ type
     FStyleName: string;
     // Структурные
     FDependentFields: TStrings; // TODO: мастер-поля должны объявляться раньше зависимых
+    FUsedInFilters: Boolean;
     // Связь с хранилищем
     FStorageName: string;
     FStorageKind: TStorageKind;
@@ -263,6 +264,7 @@ type
     property Format: string read FFormat;
     property CommitKind: TCommitKind read FCommitKind;
     property Flags: Integer read FFlags;
+    property UsedInFilters: Boolean read FUsedInFilters;
     property Definition: TDefinition read FOwner;
     property DependentFields: TStrings read FDependentFields;
   end;
@@ -337,6 +339,7 @@ type
     FExclusiveQueryDef: TQueryDef;
     FContentDefinitionName: string;
     FContentDefinition: TDefinition;
+    FContentTypeLocator: string;
     FFilter: string;
     function GetContentDefinitions: TList<TDefinition>;
     function GetDefaultDefinitionName: string;
@@ -374,6 +377,7 @@ type
 
     property ContentDefinitionName: string read FContentDefinitionName;
     property _ContentDefinition: TDefinition read FContentDefinition;
+    property ContentTypeLocator: string read FContentTypeLocator;
     property Filter: string read FFilter;
     property ContentDefinitions: TList<TDefinition> read GetContentDefinitions;
     property ContentDefinitionsText: string read GetContentDefinitionsText;
@@ -434,6 +438,8 @@ type
     property ContentQueryDef: TQueryDef read FContentQueryDef;
   end;
 
+  TOwnerListFields = TObjectDictionary<TFieldDef, TList<TListFieldDef>>;
+
   TDefinition = class(TDefItem)
   private
     FID: Integer;
@@ -452,7 +458,8 @@ type
     FImageID: Integer;
     FGroupFieldName: string;
     FColorFieldName: string;
-	  FColorTarget: TColorTarget;
+    FColorTarget: TColorTarget;
+    FLayoutMask: string;
     FUIState: TViewState;
     FFlags: Integer;
     FOrderNum: Integer;
@@ -482,7 +489,7 @@ type
     // Поле статуса
     FStateFieldDef: TSimpleFieldDef;
 
-    FOwnerLists: TList<TListFieldDef>;
+    FOwnerLists: TOwnerListFields;
 
     procedure InternalTryDeleteField(const AFieldDef: TFieldDef);
     procedure InternalAddField(const AFieldDef: TFieldDef);
@@ -503,6 +510,9 @@ type
     function ReportByName(const AName: string): TDefinition;
     function HasFlag(const AFlag: Integer): Boolean;
 
+    function GetLinkedOwnerLists(const AFieldDef: TFieldDef): TList<TListFieldDef>;
+    procedure AddOwnerList(const AListFieldDef: TListFieldDef);
+
     function SetStorageName(const AStorageName: string): TDefinition;
     function SetStorageKind(const AStorageKind: TStorageKind): TDefinition;
     function SetCaption(const ACaption: string): TDefinition;
@@ -511,6 +521,7 @@ type
     function SetFlags(const AFlags: Integer): TDefinition;
     function SetID(const AID: Integer): TDefinition;
 
+    function SetLayoutMask(const AMask: string): TDefinition;
     function SetColorFieldName(const AColorFieldName: string): TDefinition;
     function SetColorTarget(const AColorTarget: TColorTarget): TDefinition;
     function SetImageID(const AImageID: Integer): TDefinition;
@@ -577,6 +588,7 @@ type
     property _Caption: string read FCaption;
     property _ImageID: Integer read FImageID;
     property OrderNum: Integer read FOrderNum;
+    property LayoutMask: string read FLayoutMask;
     property GroupFieldName: string read FGroupFieldName;
     property ColorFieldName: string read FColorFieldName;
     property ColorTarget: TColorTarget read FColorTarget;
@@ -608,7 +620,6 @@ type
     property Fields: TStringDictionary<TFieldDef> read FFields;
     property ServiceFields: TObjectStringList<TFieldDef> read FServiceFields;
     property Descendants: TList<TDefinition> read FDescendants;
-    property OwnerLists: TList<TListFieldDef> read FOwnerLists;
   end;
 
   TDefinitions = class(TObjectStringDictionary<TDefinition>)
@@ -789,6 +800,10 @@ implementation
 uses
   IOUtils, Variants, IniFiles, Character, uConfiguration, uUtils;
 
+type
+  TCreateContentTypeReactionProc = procedure(const ADefinition: TDefinition; const ATargetFieldName,
+    AContentTypePath: string) of object;
+
 { TDefinition }
 
 function TDefinition.ActionByName(const AName: string): TActionDef;
@@ -873,6 +888,40 @@ begin
     AViewName, AUIState, AFlags, ASortType, AColorFieldName, ARelationPower,
     AHiddenFields, ADependencies, stSearchFromBegin, AFilter);
   InternalAddField(Result);
+end;
+
+procedure TDefinition.AddOwnerList(const AListFieldDef: TListFieldDef);
+var
+  vFilterFields: TStrings;
+  i: Integer;
+
+  procedure InternalAdd(const AFieldDef: TFieldDef; const AIsFilter: Boolean);
+  var
+    vOwnerLists: TList<TListFieldDef>;
+  begin
+    if not Assigned(AFieldDef) then
+      Exit;
+
+    if AIsFilter then
+      AFieldDef.FUsedInFilters := True;
+
+    if not FOwnerLists.TryGetValue(AFieldDef, vOwnerLists) then
+    begin
+      vOwnerLists := TList<TListFieldDef>.Create;
+      FOwnerLists.Add(AFieldDef, vOwnerLists);
+      vOwnerLists.Add(AListFieldDef);
+    end
+    else if vOwnerLists.IndexOf(AListFieldDef) < 0 then
+      vOwnerLists.Add(AListFieldDef);
+  end;
+begin
+  InternalAdd(FieldByName(AListFieldDef.MasterFieldName), False);
+
+  // Добавить фильтры
+  vFilterFields := AListFieldDef.ContentQueryDef.FilterFields;
+  if vFilterFields.Count > 1 then
+    for i := 1 to vFilterFields.Count - 1 do
+      InternalAdd(FieldByName(vFilterFields[i]), True);
 end;
 
 procedure TDefinition.InternalAddField(const AFieldDef: TFieldDef);
@@ -1131,7 +1180,7 @@ begin
   FServiceFields := TObjectStringList<TFieldDef>.Create;
   FStateFieldDef := nil;
 
-  FOwnerLists := TList<TListFieldDef>.Create;
+  FOwnerLists := TOwnerListFields.Create([doOwnsValues]);
 
   FCheckUniqueQuery := nil;
   FRTFReports := TRTFReports.Create(Self);
@@ -1183,8 +1232,7 @@ begin
     for j := 0 to vListFieldDef.ContentDefinitions.Count - 1 do
     begin
       vDefinition := TDefinition(vListFieldDef.ContentDefinitions[j]);
-      if not vDefinition.FOwnerLists.Contains(vListFieldDef) then
-        vDefinition.FOwnerLists.Add(vListFieldDef);
+      vDefinition.AddOwnerList(vListFieldDef);
     end;
   end;
 
@@ -1338,6 +1386,11 @@ begin
     vDescDefinition.GetAllReports(AReports);
 end;
 
+function TDefinition.GetLinkedOwnerLists(const AFieldDef: TFieldDef): TList<TListFieldDef>;
+begin
+  FOwnerLists.TryGetValue(AFieldDef, Result);
+end;
+
 function TDefinition.HasFlag(const AFlag: Integer): Boolean;
 begin
   Result := AFlag and FFlags <> 0;
@@ -1467,6 +1520,12 @@ end;
 function TDefinition.SetImageID(const AImageID: Integer): TDefinition;
 begin
   FImageID := AImageID;
+  Result := Self;
+end;
+
+function TDefinition.SetLayoutMask(const AMask: string): TDefinition;
+begin
+  FLayoutMask := AMask;
   Result := Self;
 end;
 
@@ -1876,6 +1935,7 @@ begin
   FUIState := AUIState;
   FFlags := AFlags;
   FFormat := '';
+  FUsedInFilters := False;
   FCommitKind := ckOnChange;//ckOnExit;
 
   if Assigned(FOwner) then
@@ -2129,7 +2189,18 @@ begin
   inherited Create(AOwner, AFieldKind, AFieldName,
     AStorageName, ACaption, AHint, AViewName, AUIState, AFlags);
 
-  FContentDefinitionName := AContentTypeName;
+  if Pos('~', AContentTypeName) = 1 then
+  begin
+    FContentDefinitionName := '~';
+    FContentTypeLocator := Trim(Copy(AContentTypeName, 2, Length(AContentTypeName) - 1));
+    if FContentTypeLocator <> '' then
+      TCreateContentTypeReactionProc(TConfiguration(AOwner.Configuration).CreateContentTypeReactionProc)(AOwner, AFieldName, FContentTypeLocator);
+  end
+  else begin
+    FContentDefinitionName := AContentTypeName;
+    FContentTypeLocator := '';
+  end;
+
   FDefaultTypeName := '';
   FDefaultTypeID := 0;
   FHiddenFieldsText := AHiddenFields;
@@ -2169,7 +2240,7 @@ begin
   Assert(Assigned(FContentDefinition), 'Wrong content type name [' + FContentDefinitionName + ']');
 
   vDefinitions := GetContentDefinitions;
-  FIsSelector := (vDefinitions.Count > 1) or (FContentDefinition.Name = '-');
+  FIsSelector := (vDefinitions.Count > 1) or (FContentDefinition.Name = '~');
 
   if not Assigned(FQueryDef) then
     FQueryDef := TQueryDef.Create(DefinitionsToText(GetContentDefinitions), FQueryString);

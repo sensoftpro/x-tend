@@ -270,7 +270,6 @@ end;
 function TInteractor.ShowEntityEditor(const AView: TView; const AHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
 var
   vEntity: TEntity;
-  vLayoutName: string;
 begin
   TUserSession(FSession).CheckLocking(False);
   Assert(AView.DefinitionKind in [dkEntity, dkAction, dkObjectField], 'Показываем непонятно что');
@@ -282,12 +281,7 @@ begin
     Exit;
   end;
 
-  if ALayoutName = '' then
-    vLayoutName := vEntity.Definition.Name + 'EditForm'
-  else
-    vLayoutName := ALayoutName;
-
-  Result := FUIBuilder.Navigate(AView, 'child', vLayoutName, '', AHolder, nil, ACaption) = drOk;
+  Result := FUIBuilder.Navigate(AView, 'child', ALayoutName, 'operation=edit', AHolder, nil, ACaption) = drOk;
 end;
 
 procedure TInteractor.ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);

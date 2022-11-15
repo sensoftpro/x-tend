@@ -69,12 +69,31 @@ type
     procedure OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
   protected
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
-    procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
     function GetDefaultFocusedChild: TWinControl; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
     procedure DoOnChange; override;
+  end;
+
+  TEntityListSelector3 = class(TVCLFieldArea)
+  private
+    FListBox: TcxCheckListBox;
+    FLookupCollection: string;
+    FLookupField: string;
+    FMasterList: TEntityList;
+    FDestroing: Boolean;
+    function FindMasterItem(const ALookupItem: TEntity): TEntity;
+    procedure OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
+    procedure FillLookupList;
+  protected
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure FillEditor; override;
+    function GetLayoutPositionCount: Integer; override;
+    function GetDefaultFocusedChild: TWinControl; override;
+    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+    procedure DoOnChange; override;
+    procedure DoDisableContent; override;
   end;
 
   TPagedEntityListSelector = class(TVCLFieldArea)
@@ -97,7 +116,9 @@ type
   private
     FListBox: TcxCheckListBox;
     FEntityList: TEntityList;
-    FTransitField: TObjectFieldDef;
+    FTransitFieldDef: TObjectFieldDef;
+    FTransitDefinition: TDefinition;
+    FFilterName: string;
     procedure FillList;
     procedure OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
   protected
@@ -220,6 +241,7 @@ type
   protected
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
     procedure DoExecuteUIAction(const AView: TView); override;
+    procedure SetPopupArea(const APopupArea: TUIArea); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
       const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
@@ -232,6 +254,8 @@ type
     FMasterTableView: TcxGridTableView;
     FBGStyle: TcxStyle;
     FHeaderStyle: TcxStyle;
+    FContentStyle: TcxStyle;
+    FSelectionStyle: TcxStyle;
     FMasterDS: TUserDataSource;
     FAllData: TEntityList;
     FLayoutExists: Boolean;
@@ -264,6 +288,7 @@ type
   protected
     procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
     procedure DoBeforeFreeControl; override;
+    procedure SetPopupArea(const APopupArea: TUIArea); override;
     function GetLayoutPositionCount: Integer; override;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
   public
@@ -314,6 +339,7 @@ type
     procedure ExportToExcel;
   protected
     procedure DoExecuteUIAction(const AView: TView); override;
+    procedure SetPopupArea(const APopupArea: TUIArea); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
       const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
@@ -374,6 +400,7 @@ type
   protected
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
     procedure DoExecuteUIAction(const AView: TView); override;
+    procedure SetPopupArea(const APopupArea: TUIArea); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
       const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
@@ -386,7 +413,7 @@ uses
   TypInfo, Windows, SysUtils, Messages, Math, Variants, DateUtils, Dialogs, Menus, ShellApi, IOUtils, StrUtils,
 
   uWinVCLPresenter, uObjectField, uInteractor, uEnumeration, uSession, uChangeManager,
-  uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings,
+  uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings, uCollection,
 
   dxCore, cxGridStrs, cxPivotGridStrs, cxDataStorage, cxGridCustomView, cxImageComboBox, cxDateUtils,
   cxGridExportLink, cxProgressBar, dxColorGallery;
@@ -454,8 +481,10 @@ begin
     Result := 0
   else if AEnt1.IsService = AEnt2.IsService then
   begin
-    if (AFieldDef = nil) or (AFieldDef.Definition.Kind = clkMixin) then
+    if (AFieldDef = nil) or ((AFieldDef.Definition.Kind = clkMixin) and (AEnt1.FieldByName(AFieldDef.Name).FieldDef.Kind <> AEnt2.FieldByName(AFieldDef.Name).FieldDef.Kind)) then
+    begin
       Result := CompareStr(AEnt1.DisplayName, AEnt2.DisplayName)
+    end
     else if AFieldDef.Kind = fkObject then
       Result := CompareEntities(AEnt1.ExtractEntity(AFieldName), AEnt2.ExtractEntity(AFieldName), nil, '')
     else if AFieldDef.Kind in [fkString..fkCurrency] then
@@ -564,12 +593,16 @@ begin
       end;
     end;
 
+    vColor := cNullColor;
     if vEntity.IsService then
-      vStyle.TextColor := TDomain(AArea.Domain).Constant['ServiceRecordColor']//clNavy
+      vColor := TDomain(AArea.Domain).Constant['ServiceRecordColor']//clNavy
     else if vEntity.IsNew then
-      vStyle.TextColor := TDomain(AArea.Domain).Constant['NewRecordColor']
+      vColor := TDomain(AArea.Domain).Constant['NewRecordColor']
     else if (AItem.Name = 'TotalAmount') and (vEntity['TotalAmount'] < 0) then
-      vStyle.TextColor := clRed;
+      vColor := clRed;
+
+    if vColor <> cNullColor then
+      vStyle.TextColor := vColor;
 
     if (vDefinition.ColorTarget <> ctBackground) and (vStyle.Color <> clDefault) then
       vStyle.Color := GetBGColor(vDefinition, vStyle.Color);
@@ -862,9 +895,9 @@ begin
   vHolder := Holder;
   for i := 0 to FListBox.Count - 1 do
     if FListBox.Checked[i] then
-      vList.AddToList(vHolder, TEntity(FListBox.Items.Objects[i]))
+      vList.LinkListEntity(vHolder, TEntity(FListBox.Items.Objects[i]))
     else
-      vList.DeleteFromList(vHolder, TEntity(FListBox.Items.Objects[i]));
+      vList.UnlinkListEntity(vHolder, TEntity(FListBox.Items.Objects[i]));
 end;
 
 procedure TEntityListSelector.FillEditor;
@@ -918,7 +951,7 @@ begin
     for i := 0 to FListBox.Count - 1 do
     begin
       FListBox.Checked[i] := True;
-      vList.AddToList(vHolder, TEntity(FListBox.Items.Objects[i]));
+      vList.LinkListEntity(vHolder, TEntity(FListBox.Items.Objects[i]));
     end;
     SwitchChangeHandlers(OnChange);
   end;
@@ -931,13 +964,6 @@ begin
 end;
 
 { TEntityListSelector2 }
-
-procedure TEntityListSelector2.DoBeforeFreeControl;
-begin
-  inherited;
-  FControl := nil;
-  FreeAndNil(FListBox);
-end;
 
 procedure TEntityListSelector2.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 begin
@@ -1253,8 +1279,6 @@ var
   vDefinition: TDefinition;
   vView: TView;
   vColumn: TcxGridColumn;
-  vPopupArea: TVCLArea;
-  vPopupMenu: TPopupMenu;
   vFields: string;
 begin
   FBGStyle := TcxStyle.Create(nil);
@@ -1299,20 +1323,6 @@ begin
   FMasterTableView.Styles.Background := FBGStyle;
   FMasterTableView.Styles.Header := FHeaderStyle;
 
-  if Assigned(ALayout) and (ALayout is TPanel) and Assigned(TPanel(ALayout).PopupMenu) then
-  begin
-    vPopupArea := TVCLArea(AParent.AreaById('Popup'));
-    { TODO -owa : Нужно найти другой способ привязки меню }
-    if not Assigned(vPopupArea) and Assigned(AParent.Parent) then
-      vPopupArea := TVCLArea(AParent.Parent.AreaById('Popup'));
-    if Assigned(vPopupArea) then
-    begin
-      vPopupMenu := TPopupMenu(vPopupArea.Component);
-      vPopupMenu.OnPopup := BeforeContextMenuShow;
-      FMasterTableView.PopupMenu := vPopupMenu;
-    end;
-  end;
-
   FGrid := TcxGrid.Create(nil);
   FGrid.LookAndFeel.NativeStyle := False;
   FGrid.LookAndFeel.Kind := lfFlat;
@@ -1346,7 +1356,6 @@ begin
     begin
       FMasterTableView.OptionsData.Editing := True;
       FMasterTableView.OptionsSelection.CellSelect := True;
-      FMasterTableView.OnCellDblClick := nil;
     end;
   end
   else
@@ -1753,7 +1762,7 @@ begin
       begin
         vCol.PropertiesClassName := 'TcxSpinEditProperties';   // need for Excel export
 
-        if AFieldDef.Kind = fkFloat then
+        if AFieldDef.Kind in [fkFloat, fkCurrency] then
           TcxSpinEditProperties(vCol.Properties).ValueType := vtFloat;
 
         if Length(AFieldDef.Format) > 0 then
@@ -1898,6 +1907,15 @@ begin
   SaveGridColumnWidths(TInteractor(FView.Interactor).Domain, FMasterTableView, FView.InitialName);
 end;
 
+procedure TCollectionEditor.SetPopupArea(const APopupArea: TUIArea);
+var
+  vPopupMenu: TPopupMenu;
+begin
+  vPopupMenu := TPopupMenu(APopupArea.Control);
+  vPopupMenu.OnPopup := BeforeContextMenuShow;
+  FMasterTableView.PopupMenu := vPopupMenu;
+end;
+
 procedure TCollectionEditor.LoadColumnWidths;
 begin
   FLayoutExists := LoadGridColumnWidths(TInteractor(FView.Interactor).Domain, FMasterTableView, FView.InitialName);
@@ -2027,8 +2045,6 @@ begin
 
   if AUpdateSelection then
   begin
-    DataController.ClearSelection;
-
     i := DataController.GetRowIndexByRecordIndex(FEntities.Count - 1, False);
     FocusRow(i);
   end;
@@ -2076,6 +2092,7 @@ begin
   try
     if (ARowIndex >= 0) and (ARowIndex < FEntities.Count) then
     begin
+      DataController.ClearSelection;
       DataController.SelectRows(ARowIndex, ARowIndex); // select new row
       DataController.FocusSelectedRow(0);
     end;
@@ -2157,9 +2174,9 @@ begin
         else
           Result := vEntity.GetStateCaption(vFieldName);
       end
-      else if vFieldDef.Kind in [fkInteger, fkFloat] then
+      else if vFieldDef.Kind in [fkInteger, fkFloat, fkCurrency] then
       begin
-        if vFieldDef.Kind = fkFloat then
+        if vFieldDef.Kind in [fkFloat, fkCurrency] then
           Result := RoundTo(Result, -vColumnBinding.AfterPoint);
       end;
     except
@@ -2257,7 +2274,7 @@ begin
           end;
         end;
       end
-      else if vFieldDef.Kind in [fkInteger, fkFloat, fkColor, fkString, fkBoolean] then
+      else if vFieldDef.Kind in [fkInteger, fkFloat, fkCurrency, fkColor, fkString, fkBoolean] then
       begin
         vValue := AValue;
         DoChange;
@@ -2352,8 +2369,10 @@ var
   vField: TBaseField;
   vFieldDef: TFieldDef;
   vProps: TcxCustomEditProperties;
-  function GetProps(const AFieldKind: TFieldKind; const AName: string): TcxCustomEditProperties;
+
+  function GetProps(const AFieldDef: TFieldDef): TcxCustomEditProperties;
   var
+    vFieldKind: TFieldKind;
     vEditRepositoryItem: TcxEditRepositoryItem;
     vName: string;
     vEntityField: TEntityField;
@@ -2361,22 +2380,24 @@ var
     vInteractor: TInteractor;
     vEntities: TEntityList;
   begin
-    if not Assigned(FEditRepository) then FEditRepository := TcxEditRepository.Create(nil);
+    if not Assigned(FEditRepository) then
+      FEditRepository := TcxEditRepository.Create(nil);
 
+    vFieldKind := AFieldDef.Kind;
     vName := vFieldDef.FullName.Replace('.', '_');// + IntToStr(Ord(AFieldKind));
     if vFieldDef.Kind = fkObject then
     begin
       vEntityField := TEntityField(vField);
       if Assigned(vEntityField.ContentDefinition) then
       begin
-        if vEntityField.ContentDefinition.Name <> '-' then
+        if vEntityField.ContentDefinition.Name <> '~' then
           vName := vName + '_' + vEntityField.ContentDefinition.Name
         else begin
-          if Assigned(vEntityField.Entity) then
-          begin
+          vEntityField.RestoreContentDefinition;
+          if (vEntityField.ContentDefinition.Name = '~') and Assigned(vEntityField.Entity) then
             vEntityField.SetContentDefinition(Holder, vEntityField.Entity.Definition);
+          if (vEntityField.ContentDefinition.Name <> '~') then
             vName := vName + '_' + vEntityField.ContentDefinition.Name;
-          end;
         end;
       end;
     end;
@@ -2384,21 +2405,28 @@ var
     vEditRepositoryItem := FEditRepository.ItemByName(vName);
     if not Assigned(vEditRepositoryItem) then
     begin
-      if AFieldKind = fkInteger then
+      if vFieldKind = fkInteger then
       begin
         vEditRepositoryItem := FEditRepository.CreateItem(TcxEditRepositorySpinItem);
         TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.ValueType := vtInt;
+        TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.Alignment.Horz := taRightJustify;
+        if AFieldDef.Format <> '' then
+          TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.DisplayFormat := GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
       end
-      else if AFieldKind = fkFloat then
+      else if vFieldKind in [fkFloat, fkCurrency] then
       begin
         vEditRepositoryItem := FEditRepository.CreateItem(TcxEditRepositorySpinItem);
         TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.ValueType := vtFloat;
+        TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.Alignment.Horz := taRightJustify;
+        if AFieldDef.Format <> '' then
+          TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.DisplayFormat := GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
       end
-      else if AFieldKind = fkBoolean then
+      else if vFieldKind = fkBoolean then
       begin
         vEditRepositoryItem := FEditRepository.CreateItem(TcxEditRepositoryCheckBoxItem);
+        TcxEditRepositoryCheckBoxItem(vEditRepositoryItem).Properties.ImmediatePost := True;
       end
-      else if AFieldKind = fkObject then
+      else if vFieldKind = fkObject then
       begin
         vEditRepositoryItem := FEditRepository.CreateItem(TcxEditRepositoryComboBoxItem);
         vInteractor := TInteractor(FView.Interactor);
@@ -2437,9 +2465,9 @@ begin
   else
     vFieldDef := vColumnBinding.FieldDef;
 
-  if vFieldDef.Kind in [fkInteger, fkFloat, fkBoolean, fkObject] then
+  if vFieldDef.Kind in [fkInteger, fkFloat, fkCurrency, fkBoolean, fkObject] then
   begin
-    vProps := GetProps(vFieldDef.Kind, vFieldDef.Name);
+    vProps := GetProps(vFieldDef);
     if Assigned(vProps) then
       AProperties := vProps;
   end;
@@ -2483,11 +2511,11 @@ begin
       begin
         vCol.PropertiesClassName := 'TcxSpinEditProperties';   // need for Excel export
 
-        if AFieldDef.Kind = fkFloat then
+        if AFieldDef.Kind in [fkFloat, fkCurrency] then
           TcxSpinEditProperties(vCol.Properties).ValueType := vtFloat;
 
         if Length(AFieldDef.Format) > 0 then
-          TcxSpinEditProperties(vCol.Properties).DisplayFormat := AFieldDef.Format;
+          TcxSpinEditProperties(vCol.Properties).DisplayFormat := GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
 
         if not VarIsNull(TSimpleFieldDef(AFieldDef).MinValue) then
           TcxSpinEditProperties(vCol.Properties).MinValue := TSimpleFieldDef(AFieldDef).MinValue;
@@ -2630,18 +2658,19 @@ begin
   FreeAndNil(FMasterDS);
   FreeAndNil(FBGStyle);
   FreeAndNil(FHeaderStyle);
+  FreeAndNil(FContentStyle);
+  FreeAndNil(FSelectionStyle);
 end;
 
 procedure TColumnListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
 var
   vFields: string;
-  vPopupArea: TVCLArea;
-  vPopupMenu: TPopupMenu;
   vListField: TListField;
 begin
   FBGStyle := TcxStyle.Create(nil);
   FHeaderStyle := TcxStyle.Create(nil);
-
+  FContentStyle := TcxStyle.Create(nil);
+  FSelectionStyle := TcxStyle.Create(nil);
   FMasterDS := TUserDataSource.Create(Self);
 
   FMasterTableView := TcxGridTableView.Create(nil);
@@ -2682,19 +2711,15 @@ begin
   FMasterTableView.DataController.Summary.Options := [soSelectedRecords, soMultipleSelectedRecords];
   FMasterTableView.Styles.Background := FBGStyle;
   FMasterTableView.Styles.Header := FHeaderStyle;
+  FMasterTableView.Styles.Content := FContentStyle;
+  FMasterTableView.Styles.Selection := FSelectionStyle;
+  FMasterTableView.Styles.Inactive := FSelectionStyle;
 
-  if Assigned(ALayout) and (ALayout is TPanel) and Assigned(TPanel(ALayout).PopupMenu) then
+  if Assigned(ALayout) and (ALayout is TPanel) then
   begin
-    vPopupArea := TVCLArea(AParent.AreaById('Popup'));
-    { TODO -owa : Нужно найти другой способ привязки меню }
-    if not Assigned(vPopupArea) and Assigned(Parent.Parent) then
-      vPopupArea := TVCLArea(Parent.Parent.AreaById('Popup'));
-    if Assigned(vPopupArea) then
-    begin
-      vPopupMenu := TPopupMenu(vPopupArea.Component);
-      vPopupMenu.OnPopup := BeforeContextMenuShow;
-      FMasterTableView.PopupMenu := vPopupMenu;
-    end;
+    FContentStyle.TextColor := TPanel(ALayout).Font.Color;
+    FSelectionStyle.TextColor := clHighlightText;
+    FSelectionStyle.Color := clHighlight;
   end;
 
   FGrid := TcxGrid.Create(nil);
@@ -2723,7 +2748,6 @@ begin
     begin
       FMasterTableView.OptionsData.Editing := True;
       FMasterTableView.OptionsSelection.CellSelect := True;
-      FMasterTableView.OnCellDblClick := nil;
     end;
   end
   else
@@ -2907,6 +2931,15 @@ begin
   SaveGridColumnWidths(TInteractor(FView.Interactor).Domain, FMasterTableView, FFieldDef.FullName);
 end;
 
+procedure TColumnListEditor.SetPopupArea(const APopupArea: TUIArea);
+var
+  vPopupMenu: TPopupMenu;
+begin
+  vPopupMenu := TPopupMenu(APopupArea.Control);
+  vPopupMenu.OnPopup := BeforeContextMenuShow;
+  FMasterTableView.PopupMenu := vPopupMenu;
+end;
+
 procedure TColumnListEditor.ShowFooter(const AColumn: TcxGridColumn; const AAgg: TAggregationKind);
 begin
   if AAgg = akNotDefined then Exit;
@@ -2951,10 +2984,12 @@ begin
   begin
     TUserDataSource(FMasterTableView.DataController.CustomDataSource).Remove(AParameter, not TDomain(Domain).LoadingChanges);
   end
-  else if AKind = dckSelectionChanged then
+  else if (AKind = dckSelectionChanged) or (AKind = dckListScrollUpdate)  then
   begin
+    if AKind = dckListScrollUpdate then
+      FMasterTableView.Controller.ClearSelection;
     vNewFocusedRowIndex := FMasterDS.FEntities.IndexOf(AParameter);
-    if vNewFocusedRowIndex <> FMasterTableView.DataController.FocusedRowIndex then
+   // if vNewFocusedRowIndex <> FMasterTableView.DataController.FocusedRowIndex then //отключил проверку чтобы всегда скролилось
     begin
       vRow := FMasterTableView.ViewData.Rows[vNewFocusedRowIndex];
       vRow.Selected := True;
@@ -3112,8 +3147,13 @@ begin
   FSanitizedFieldName := StringReplace(AFieldName, '.', '__', [rfReplaceAll]);
   FFieldDef := AFieldDef;
   FAfterPoint := 4;
-  if (FFieldDef.Kind = fkFloat) and (Length(FFieldDef.Format) > 0) then
-    FAfterPoint := Length(FFieldDef.Format) - Pos('.', FFieldDef.Format);
+  {if (FFieldDef.Kind in [fkFloat, fkCurrency]) and (Length(FFieldDef.Format) > 0) then
+  begin
+    vPos := Pos('.', FFieldDef.Format);
+    if vPos = 0 then
+      vPos := Pos(',', FFieldDef.Format);
+    FAfterPoint := Length(FFieldDef.Format) - vPos;
+  end;}
 end;
 
 { TPivotGrid }
@@ -3205,9 +3245,6 @@ end;
 
 constructor TPivotGrid.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
   const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
-var
-  vPopupArea: TVCLArea;
-  vPopupMenu: TPopupMenu;
 begin
   FPivot := TcxPivotGrid.Create(nil);
   FId := 'Pivot';
@@ -3216,20 +3253,6 @@ begin
     FPivot.Align := TPanel(ALayout).Align
   else
     FPivot.Align := alClient;
-
-  if Assigned(ALayout) and (ALayout is TPanel) and Assigned(TPanel(ALayout).PopupMenu) then
-  begin
-    vPopupArea := TVCLArea(AParent.AreaById('Popup'));
-    { TODO -owa : Нужно найти другой способ привязки меню }
-    if not Assigned(vPopupArea) and Assigned(AParent.Parent) then
-      vPopupArea := TVCLArea(AParent.Parent.AreaById('Popup'));
-    if Assigned(vPopupArea) then
-    begin
-      vPopupMenu := TPopupMenu(vPopupArea.Component);
-      vPopupMenu.OnPopup := BeforeContextMenuShow;
-      FPivot.PopupMenu := vPopupMenu;
-    end;
-  end;
 
   FPivot.OptionsCustomize.SortingByGroupValues := True;
   FPivot.OptionsCustomize.Hiding := True;
@@ -3452,6 +3475,15 @@ begin
   end;
 end;
 
+procedure TPivotGrid.SetPopupArea(const APopupArea: TUIArea);
+var
+  vPopupMenu: TPopupMenu;
+begin
+  vPopupMenu := TPopupMenu(APopupArea.Control);
+  vPopupMenu.OnPopup := BeforeContextMenuShow;
+  FPivot.PopupMenu := vPopupMenu;
+end;
+
 { TPivotDataSource }
 
 function TPivotDataSource.AddColumn(const AFieldName: string; const AFieldDef: TFieldDef): TColumnBinding;
@@ -3519,8 +3551,6 @@ end;
 constructor TTreeCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
   const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = '');
 var
-  vPopupArea: TVCLArea;
-  vPopupMenu: TPopupMenu;
   vFields: string;
 begin
   FDomain := TInteractor(AView.Interactor).Domain;
@@ -3556,21 +3586,6 @@ begin
 
   FTreeList.Styles.Background := FBGStyle;
   FTreeList.Styles.ColumnHeader := FHeaderStyle;
-
-  if Assigned(ALayout) and (ALayout is TPanel) and Assigned(TPanel(ALayout).PopupMenu) then
-  begin
-    vPopupArea := TVCLArea(AParent.AreaById('Popup'));
-    { TODO -owa : Нужно найти другой способ привязки меню }
-    if not Assigned(vPopupArea) and Assigned(AParent.Parent) then
-      vPopupArea := TVCLArea(AParent.Parent.AreaById('Popup'));
-    if Assigned(vPopupArea) then
-    begin
-      vPopupMenu := TPopupMenu(vPopupArea.Component);
-      vPopupMenu.OnPopup := BeforeContextMenuShow;
-      FTreeList.PopupMenu := vPopupMenu;
-    end;
-  end;
-
   FTreeList.LookAndFeel.NativeStyle := False;
   FTreeList.LookAndFeel.Kind := lfFlat;
 
@@ -3861,6 +3876,15 @@ begin
   SaveTreeColumnWidths(FDomain, FTreeList, TDefinition(FView.Definition).Name);
 end;
 
+procedure TTreeCollectionEditor.SetPopupArea(const APopupArea: TUIArea);
+var
+  vPopupMenu: TPopupMenu;
+begin
+  vPopupMenu := TPopupMenu(APopupArea.Control);
+  vPopupMenu.OnPopup := BeforeContextMenuShow;
+  FTreeList.PopupMenu := vPopupMenu;
+end;
+
 procedure TTreeCollectionEditor.TreeListGetChildCount(Sender: TcxCustomTreeList; AParentNode: TcxTreeListNode; var ACount: Integer);
 begin
   ACount := GetEntityCount(AParentNode);
@@ -4009,7 +4033,10 @@ procedure TEntityListSelectorMTM.DoCreateControl(const AParent: TUIArea; const A
 var
   vListFieldDef: TListFieldDef;
   vTransitFieldName: string;
-  vTransitField: TFieldDef;
+  vParentEntity: TEntity;
+  vTransitContentType: string;
+  vTransitDefinitionName: string;
+  vTransitFieldDef: TFieldDef;
   vInteractor: TInteractor;
 begin
   inherited;
@@ -4018,14 +4045,30 @@ begin
 
   Assert(FView.Definition is TListFieldDef, 'FView.Definition не является TListFieldDef');
   vListFieldDef := TListFieldDef(FView.Definition);
+  FFilterName := GetUrlParam(vListFieldDef.StyleName, 'filter', '');
   vTransitFieldName := GetUrlParam(vListFieldDef.StyleName, 'transit');
   Assert(Length(vTransitFieldName) > 0, 'Не задано транзитное поле. Параметр transit.');
   Assert(vListFieldDef._ContentDefinition.FieldExists(vTransitFieldName), 'Указанное имя транзитного поля не существует: ' + vTransitFieldName);
 
-  vTransitField := vListFieldDef._ContentDefinition.FieldByName(vTransitFieldName);
-  Assert(vTransitField is TObjectFieldDef, 'Указанное транзитное поле не является TObjectFieldDef');
+  vTransitFieldDef := vListFieldDef._ContentDefinition.FieldByName(vTransitFieldName);
+  Assert(vTransitFieldDef is TObjectFieldDef, 'Указанное транзитное поле не является TObjectFieldDef');
 
-  FTransitField := TObjectFieldDef(vTransitField);
+  FTransitFieldDef := TObjectFieldDef(vTransitFieldDef);
+  FTransitDefinition := FTransitFieldDef._ContentDefinition;
+  if FTransitDefinition.Name = '~' then
+  begin
+    vTransitContentType := {FTransitFieldDef.ContentTypeLocator; //}GetUrlParam(vListFieldDef.StyleName, 'contentType');
+    if (FView.ParentDomainObject is TEntity) and (Length(vTransitContentType) > 0) then
+    begin
+      vParentEntity := TEntity(FView.ParentDomainObject);
+      try
+        vTransitDefinitionName := vParentEntity[vTransitContentType];
+        FTransitDefinition := TDomain(Domain).Configuration.DefinitionByName[vTransitDefinitionName];
+      except
+        Assert(False, 'Неверно указан тип для транзитного поля: ' + vTransitDefinitionName);
+      end;
+    end;
+  end;
 
   vInteractor := TInteractor(FView.Interactor);
 
@@ -4053,29 +4096,44 @@ var
   vSelectedList: TEntityList;
   vList: TList<TEntity>;
   vSelectedIndex: Integer;
+  vEntity, vParentParameter: TEntity;
 begin
-  TDomain(Domain).GetEntityList(FView.Session, FTransitField._ContentDefinition, FEntityList, '');
+  TDomain(Domain).GetEntityList(FView.Session, FTransitDefinition, FEntityList, '');
 
   vSelectedList := TEntityList(FView.DomainObject);
   vList := TList<TEntity>.Create;
   try
     for i := 0 to vSelectedList.Count - 1 do
-      vList.Add(vSelectedList[i].ExtractEntity(FTransitField.Name));
+      vList.Add(vSelectedList[i].ExtractEntity(FTransitFieldDef.Name));
 
     FListBox.Items.BeginUpdate;
     try
       FListBox.Items.Clear;
 
+      vParentParameter := nil;
+      if FView.ParentDomainObject is TEntity then
+      begin
+        vParentParameter := TEntity(FView.ParentDomainObject);
+        if vParentParameter.FieldExists(FFilterName) then
+          vParentParameter := vParentParameter.ExtractEntity(FFilterName)
+        else
+          vParentParameter := nil;
+      end;
+
       for i := 0 to FEntityList.Count - 1 do
       begin
+        vEntity := FEntityList[i];
+        if Assigned(vParentParameter) and (vEntity.ExtractEntity(FFilterName) <> vParentParameter) then
+          Continue;
+
         vItem := FListBox.Items.Add;
 
         if FCreateParams.Values['DisplayName'] = '' then
-          vItem.Text := FEntityList[i].DisplayName
+          vItem.Text := vEntity.DisplayName
         else
-          vItem.Text := FEntityList[i][FCreateParams.Values['DisplayName']];
+          vItem.Text := vEntity[FCreateParams.Values['DisplayName']];
 
-        vSelectedIndex := vList.IndexOf(FEntityList[i]);
+        vSelectedIndex := vList.IndexOf(vEntity);
         vItem.Checked := vSelectedIndex >= 0;
         if vItem.Checked then
           vItem.ItemObject := vSelectedList[vSelectedIndex]
@@ -4113,7 +4171,7 @@ begin
       var
         vTransitEntity: TEntity;
       begin
-        vTransitEntity := TEntityList(FView.DomainObject).AddEntity(AHolder, '', FTransitField.Name, [Integer(vEntity)]);
+        vTransitEntity := TEntityList(FView.DomainObject).AddEntity(AHolder, '', FTransitFieldDef.Name, [Integer(vEntity)]);
         //vTransitEntity._SetFieldEntity(AHolder, FTransitField.Name, vEntity);
         FListBox.Items[AIndex].ItemObject := vTransitEntity;
         Result := True;
@@ -4121,7 +4179,7 @@ begin
   end
   else begin
     Assert(vEntity.Definition.IsDescendantOf(TEntityList(FView.DomainObject).MainDefinition.Name), 'К записи привязан объект неправильного типа');
-    FListBox.Items[AIndex].ItemObject := vEntity.ExtractEntity(FTransitField.Name);
+    FListBox.Items[AIndex].ItemObject := vEntity.ExtractEntity(FTransitFieldDef.Name);
     TUserSession(FView.Session).AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
       begin
         TEntityList(FView.DomainObject).RemoveEntity(AHolder, vEntity);
@@ -4300,12 +4358,146 @@ begin
 
 end;
 
+{ TEntityListSelector3 }
+
+procedure TEntityListSelector3.FillLookupList;
+var
+  vCollection: TCollection;
+  vLookupItem: TEntity;
+  vItem: TcxCheckListBoxItem;
+
+  function IsChanged: Boolean;
+  var
+    i: Integer;
+  begin
+    if vCollection.Count <> FListBox.Items.Count then Exit(True);
+
+    for i := 0 to FListBox.Items.Count - 1 do
+      if FListBox.Items[i].ItemObject <> vCollection[i] then Exit(True);
+
+    Result := False;
+  end;
+begin
+  inherited;
+
+  vCollection := TDomain(Domain)[FLookupCollection];
+
+  if not IsChanged then Exit;
+
+  FListBox.Items.BeginUpdate;
+  try
+    FListBox.Items.Clear;
+
+    for vLookupItem in vCollection do
+    begin
+      vItem := FListBox.Items.Add;
+      vItem.Text := SafeDisplayName(vLookupItem);
+      vItem.ItemObject := vLookupItem;
+    end;
+  finally
+    FListBox.Items.EndUpdate;
+  end;
+end;
+
+procedure TEntityListSelector3.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+begin
+  FListBox := TcxCheckListBox.Create(nil);
+  FMasterList := TEntityList(FView.DomainObject);
+  FControl := FListBox;
+  FLookupCollection := TDefinition(FView.Definition).Name;
+  Assert(Assigned(FCreateParams) and (FCreateParams.IndexOfName('lookupfield') > -1), 'не задан параметер lookupfield');
+  FLookupField := FCreateParams.Values['lookupfield'];
+  FDestroing := False;
+end;
+
+procedure TEntityListSelector3.DoDisableContent;
+begin
+  inherited;
+  FDestroing := True;
+end;
+
+procedure TEntityListSelector3.DoOnChange;
+begin
+end;
+
+procedure TEntityListSelector3.FillEditor;
+var
+  i: Integer;
+  vItem: TcxCheckListBoxItem;
+  vLookupItem: TEntity;
+begin
+  if FDestroing then Exit;
+
+  FillLookupList;
+
+  for i := 0 to FListBox.Count - 1 do
+  begin
+    vItem := FListBox.Items[i];
+    vLookupItem := TEntity(vItem.ItemObject);
+    vItem.Checked := FindMasterItem(vLookupItem) <> nil;
+  end;
+end;
+
+function TEntityListSelector3.FindMasterItem(const ALookupItem: TEntity): TEntity;
+var
+  vMasterList: TEntityList;
+begin
+  vMasterList := TEntityList(FView.DomainObject);
+  for Result in vMasterList do
+    if Result.ExtractEntity(FLookupField) = ALookupItem then
+      Exit;
+  Result := nil;
+end;
+
+function TEntityListSelector3.GetDefaultFocusedChild: TWinControl;
+begin
+  Result := FListBox;
+end;
+
+function TEntityListSelector3.GetLayoutPositionCount: Integer;
+begin
+  Result := 5;
+end;
+
+procedure TEntityListSelector3.OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
+var
+  vHolder: TObject;
+  vMasterItem, vLookupItem: TEntity;
+begin
+  vHolder := Holder;
+
+  vLookupItem := TEntity(FListBox.Items[AIndex].ItemObject);
+  vMasterItem := FindMasterItem(vLookupItem);
+
+  if ANewState = cbsChecked then
+  begin
+    if not Assigned(vMasterItem) then
+    begin
+      vMasterItem := FMasterList.AddEntity(vHolder, FMasterList.MainDefinition.Name, '', []);
+      vMasterItem._SetFieldEntity(vHolder, FLookupField, vLookupItem);
+    end;
+  end
+  else
+    if Assigned(vMasterItem) then
+      FMasterList.RemoveEntity(vHolder, vMasterItem);
+end;
+
+procedure TEntityListSelector3.SwitchChangeHandlers(const AHandler: TNotifyEvent);
+begin
+  inherited;
+  if Assigned(AHandler) then
+    FListBox.OnClickCheck := OnClickCheck
+  else
+    FListBox.OnClickCheck := nil;
+end;
+
 initialization
 
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, '', TColumnListEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'simple', TListEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'selector', TEntityListSelector); //deprecated
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'multiselect', TEntityListSelector2);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'multiselect3', TEntityListSelector3);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'mtm', TEntityListSelectorMTM);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'parameters', TParametersEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'paged', TPagedEntityListSelector);

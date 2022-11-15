@@ -223,6 +223,7 @@ type
     function CreatePainter(const AContainer: TObject): TPainter; virtual; abstract;
     function GetImageContext: TDrawContext; virtual;
     procedure UpdateContexts(const AWidth, AHeight: Single); virtual;
+    function GetScaleFactor: Single; virtual;
   public
     constructor Create(const APlaceholder: TObject); virtual;
     destructor Destroy; override;
@@ -239,6 +240,7 @@ type
     property HoveredObject: TSceneObject read FHoveredObject write SetHoveredObject;
     property Enabled: Boolean read FEnabled write SetEnabled;
     property ClientRect: TRectF read GetSceneRect;
+    property ScaleFactor: Single read GetScaleFactor;
   end;
 
   TSceneClass = class of TScene;
@@ -602,6 +604,11 @@ end;
 function TScene.GetImageContext: TDrawContext;
 begin
   Result := nil;
+end;
+
+Function TScene.GetScaleFactor: Single;
+begin
+  Result := 1;
 end;
 
 procedure TScene.Invalidate(const AState: TSceneState = ssDirty);

@@ -228,6 +228,7 @@ type
     // Автоматическое управление листовыми полями
     procedure TryRemoveFromForeignList(const AHolder: TObject; const AField: TBaseField);
     procedure TryAddToForeignList(const AHolder: TObject; const AField: TBaseField);
+    procedure TryUpdateForeignList(const AHolder: TObject; const AFilterField: TBaseField);
 
     procedure FieldInitialize(const AField: TBaseField);
     function FieldToString(const AFieldName: string): string;
@@ -290,8 +291,9 @@ type
   TDisplayNameFunc = function(const AEntity: TEntity): string of object;
   TGetParamValueFunc = function(const AEntity: TEntity; const AParamName: string): string of object;
 
-function SafeDisplayName(const AEntity: TEntity; const ADefault: string = cNullItemName): string;
 function SafeID(const AEntity: TEntity): Integer;
+function SafeDisplayName(const AEntity: TEntity; const ADefault: string = cNullItemName): string;
+function SafeCode(const AEntity: TEntity; const ADefault: string = ''): string;
 function SafeToString(const AEntity: TEntity): string;
 
 implementation
@@ -314,6 +316,14 @@ begin
     if AEntity.IsRemote then
       Result := 'REMOTE: ' + Result;
   end
+  else
+    Result := ADefault;
+end;
+
+function SafeCode(const AEntity: TEntity; const ADefault: string = ''): string;
+begin
+  if Assigned(AEntity) and AEntity.FieldExists('Code') then
+    Result := AEntity['Code']
   else
     Result := ADefault;
 end;
@@ -346,6 +356,8 @@ end;
 
 procedure TBaseField.AfterChanges(const AHolder: TObject);
 begin
+  if FFieldDef.UsedInFilters then
+    FInstance.TryUpdateForeignList(AHolder, Self);
 end;
 
 procedure TBaseField.BeforeChanges(const AHolder: TObject);
@@ -685,26 +697,6 @@ begin
     vFieldNames.Add(AFieldName);
 end;
 
-procedure TEntity.TryAddToForeignList(const AHolder: TObject; const AField: TBaseField);
-var
-  vListFieldDef: TListFieldDef;
-  vOwnerInstance: TEntity;
-  vRefListField: TListField;
-begin
-  for vListFieldDef in FDefinition.OwnerLists do
-  begin
-    if vListFieldDef.MasterFieldName <> AField.FieldName then
-      Continue;
-
-    vOwnerInstance := ExtractEntity(vListFieldDef.MasterFieldName);
-    if Assigned(vOwnerInstance) then
-    begin
-      vRefListField := TListField(vOwnerInstance.FieldByName(vListFieldDef.Name));
-      vRefListField.AddToList(AHolder, Self);
-    end;
-  end;
-end;
-
 procedure TEntity.AddUIListener(const AFieldName: string; const AView: TObject);
 var
   vListeners: TList<TObject>;
@@ -778,17 +770,17 @@ begin
       Assert(False, 'Field type is not supported!');
     end;
   end;
-  
+
   FFieldList.Add(Result);
   FieldInitialize(Result);
 end;
 
 procedure TEntity.CreateFields;
 var
-  vFieldDef: TFieldDef;
+  i: Integer;
 begin
-  for vFieldDef in FDefinition.Fields do
-    CreateField(vFieldDef);
+  for i := 0 to FDefinition.Fields.Count - 1do
+    CreateField(FDefinition.Fields[i]);
 end;
 
 destructor TEntity.Destroy;
@@ -1121,7 +1113,7 @@ var
 begin
   vField := FieldByName(AFieldName);
   if not vField.Enabled then
-    EnableField(vField);
+    vField.OwnerInstance.EnableField(vField);
 
   case vField.FieldKind of
     fkList: Result := '';
@@ -1203,7 +1195,7 @@ begin
   if not TDomain(FDomain).IsAlive or FDeleted then
     Exit;
 
-  TDomain(FDomain).Log('%% Field changed: ' + AFieldName);
+  //TDomain(FDomain).Log('%% Field changed: ' + AFieldName);
 
   UpdateViews(Self, AEntity, AFieldName, AChangeKind);
 
@@ -1218,9 +1210,12 @@ begin
     {else if Assigned(FDefinition.StateFieldDef) then
     begin
       if AFieldName = FDefinition.StateFieldDef.Name then
-        for i := 0 to FListeners.Count - 1 do
-          UpdateViews(FListeners[i].Entity, Self, FListeners[i].Name, dckEntityChanged);
-    end};
+        for vListener in FListeners do
+        begin
+          for i := 0 to vListener.Value.Count - 1 do
+            UpdateViews(vListener.Key, Self, vListener.Value[i], dckEntityChanged)
+        end;
+    end;}
     {else if AFieldName = 'Data' then
       for i := 0 to FListeners.Count - 1 do
         UpdateViews(FListeners[i].Entity, Self, FListeners[i].Name, dckEntityChanged);}
@@ -1261,8 +1256,8 @@ var
   vFieldName: string;
 begin
   // Обработка рекуррентных действий над цепочками изменений
-  TDomain(FDomain).LogEnter('>> ProcessLinkedEntityChanged, entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
-  TDomain(FDomain).Log('%% Field: ' + AFieldName);
+  //TDomain(FDomain).LogEnter('>> ProcessLinkedEntityChanged, entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
+  //TDomain(FDomain).Log('%% Field: ' + AFieldName);
   try
     vFieldDef := FDefinition.FieldByName(AFieldName);
     vPrevChain := IfThen(APrevChain = '', AFieldName, APrevChain + '.' + AFieldName);
@@ -1272,19 +1267,20 @@ begin
     begin
       for vHandler in vHandlers do
       begin
-        TDomain(FDomain).LogEnter('>> Base calculation, ' + FDefinition.Name + ':' + AFieldName + ':' + APrevChain);
+        //TDomain(FDomain).LogEnter('>> Base calculation, ' + FDefinition.Name + ':' + AFieldName + ':' + APrevChain);
         try
           TReactionProcRef(vHandler)(TChangeHolder(AHolder), vPrevChain, Self, AEntity);
         finally
-          TDomain(FDomain).LogExit('<< Base calculation, ' + FDefinition.Name + ':' + AFieldName + ':' + APrevChain);
+          //TDomain(FDomain).LogExit('<< Base calculation, ' + FDefinition.Name + ':' + AFieldName + ':' + APrevChain);
         end;
       end;
     end;
 
     // 2. Передача по цепочке вычислений, без действий
-    if (FListeners.Count > 0) and vFieldDef.FNotificationChains.TryGetTransitFields(APrevChain, vTransitFields) then //if Assigned(vTransitFields) then
+    if (FListeners.Count > 0) and vFieldDef.FNotificationChains.TryGetTransitFields(APrevChain, vTransitFields)
+      and Assigned(vTransitFields) then
     begin
-      TDomain(FDomain).Log('%% Transition');
+      //TDomain(FDomain).Log('%% Transition');
       vTempListeners := TList<TEntity>.Create;
       try
         for vListener in FListeners.Keys do
@@ -1315,7 +1311,7 @@ begin
       end;
     end;
   finally
-    TDomain(FDomain).LogExit('<< ProcessLinkedEntityChanged, entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
+    //TDomain(FDomain).LogExit('<< ProcessLinkedEntityChanged, entity: ' + FDefinition.Name + ' / ' + IntToStr(FID));
   end;
 end;
 
@@ -1409,26 +1405,6 @@ begin
   end;
 end;
 
-procedure TEntity.TryRemoveFromForeignList(const AHolder: TObject; const AField: TBaseField);
-var
-  vListFieldDef: TListFieldDef;
-  vOwnerInstance: TEntity;
-  vRefListField: TListField;
-begin
-  for vListFieldDef in FDefinition.OwnerLists do
-  begin
-    if vListFieldDef.MasterFieldName <> AField.FieldName then
-      Continue;
-
-    vOwnerInstance := ExtractEntity(vListFieldDef.MasterFieldName);
-    if Assigned(vOwnerInstance) then
-    begin
-      vRefListField := TListField(vOwnerInstance.FieldByName(vListFieldDef.Name));
-      vRefListField.DeleteFromList(AHolder, Self);
-    end;
-  end;
-end;
-
 procedure TEntity.RemoveAllListeners;
 begin
   FListeners.Clear;
@@ -1455,7 +1431,7 @@ procedure TEntity.RemoveUIListener(const AFieldName: string; const AView: TObjec
 var
   vList: TList<TObject>;
 begin
-  if FUIListeners.TryGetValue(AFieldName, vList) then
+  if Assigned(FUIListeners) and FUIListeners.TryGetValue(AFieldName, vList) then
     if vList.Remove(AView) >= 0 then
       if (vList.Count = 0) and (AFieldName <> '') then
         FieldByName(AFieldName).FUIState := vsUndefined;
@@ -1509,6 +1485,7 @@ var
 begin
   Assert(Assigned(AHolder), 'Пустой холдер в методе');
   vFieldDef := FDefinition.FieldByName(AFieldName);
+  Assert(Assigned(vFieldDef), Format('Поле [%s] отсутствует в коллекции [%s]', [AFieldName, FDefinition.Name]));
   if Assigned(vFieldDef) and (vFieldDef.Kind in [fkString..fkCurrency]) then
     FieldByName(AFieldName).SetValue(AHolder, AValue);
 end;
@@ -1537,6 +1514,84 @@ begin
   // Уведомить измененные объекты
 
   FieldByName(FDefinition.StateFieldDef.Name).SetValue(AHolder, Integer(ANewState));
+end;
+
+procedure TEntity.TryAddToForeignList(const AHolder: TObject; const AField: TBaseField);
+var
+  vListFieldDefs: TList<TListFieldDef>;
+  vListFieldDef: TListFieldDef;
+  vOwnerInstance: TEntity;
+  vRefListField: TListField;
+begin
+  vListFieldDefs := FDefinition.GetLinkedOwnerLists(AField.FieldDef);
+  if not Assigned(vListFieldDefs) then
+    Exit;
+
+  for vListFieldDef in vListFieldDefs do
+  begin
+    // Ищем инстанс листового поля через мастер-поле, определенное в этой сущности
+    vOwnerInstance := ExtractEntity(vListFieldDef.MasterFieldName);
+    if not Assigned(vOwnerInstance) then
+      Continue;
+
+    vRefListField := TListField(vOwnerInstance.FieldByName(vListFieldDef.Name));
+    if vListFieldDef.MasterFieldName = AField.FieldName then
+    begin
+      if vRefListField.MatchToFilter(AHolder, Self) then
+        vRefListField.AddToList(AHolder, Self);
+    end
+    else
+      vRefListField.UpdateListOnFilterChanged(AHolder, Self);
+  end;
+end;
+
+procedure TEntity.TryRemoveFromForeignList(const AHolder: TObject; const AField: TBaseField);
+var
+  vListFieldDefs: TList<TListFieldDef>;
+  vListFieldDef: TListFieldDef;
+  vOwnerInstance: TEntity;
+  vRefListField: TListField;
+begin
+  vListFieldDefs := FDefinition.GetLinkedOwnerLists(AField.FieldDef);
+  if not Assigned(vListFieldDefs) then
+    Exit;
+
+  for vListFieldDef in vListFieldDefs do
+  begin
+    if vListFieldDef.MasterFieldName <> AField.FieldName then
+      Continue;
+
+    vOwnerInstance := ExtractEntity(vListFieldDef.MasterFieldName);
+    if Assigned(vOwnerInstance) then
+    begin
+      vRefListField := TListField(vOwnerInstance.FieldByName(vListFieldDef.Name));
+      vRefListField.DeleteFromList(AHolder, Self);
+    end;
+  end;
+end;
+
+procedure TEntity.TryUpdateForeignList(const AHolder: TObject; const AFilterField: TBaseField);
+var
+  vListFieldDefs: TList<TListFieldDef>;
+  vListFieldDef: TListFieldDef;
+  vOwnerInstance: TEntity;
+  vRefListField: TListField;
+begin
+  vListFieldDefs := FDefinition.GetLinkedOwnerLists(AFilterField.FieldDef);
+  if not Assigned(vListFieldDefs) then
+    Exit;
+
+  for vListFieldDef in vListFieldDefs do
+  begin
+    // Ищем инстанс листового поля через мастер-поле, определенное в этой сущности
+    vOwnerInstance := ExtractEntity(vListFieldDef.MasterFieldName);
+    if Assigned(vOwnerInstance) then
+    begin
+      vRefListField := TListField(vOwnerInstance.FieldByName(vListFieldDef.Name));
+      // в найденном листовом поле актуализируем привязку, применив фильтр
+      vRefListField.UpdateListOnFilterChanged(AHolder, Self);
+    end;
+  end;
 end;
 
 procedure TEntity.UnsubscribeFields(const AHolder: TObject);
@@ -1860,7 +1915,7 @@ begin
       vEntity.RemoveListener(vField.FieldName, Self);
   end;
 
-  TDomain(Domain).Logger.AddMessage(Format('Entity is marked for deletion: %s[%d]', [FDefinition.Name, FID]));
+  //TDomain(Domain).Logger.AddMessage(Format('Entity is marked for deletion: %s[%d]', [FDefinition.Name, FID]));
 end;
 
 procedure TEntity.SetEnvironmentID(const Value: string);
