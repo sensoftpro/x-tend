@@ -357,7 +357,7 @@ type
 implementation
 
 uses
-  SysUtils, Math;
+  SysUtils, IOUtils, Math;
 
 { TDrawStyles }
 
@@ -689,9 +689,16 @@ begin
 end;
 
 function TDrawStyle.AddImageParams(const AName, AFileName: string; const ATransparent: Boolean = False): TStyleImage;
+var
+  vFileName: string;
 begin
   Assert(not FImages.ContainsKey(AName), 'Объект с таким именем уже есть');
-  Result := TStyleImage.Create(AName, AFileName, ATransparent);
+
+  if not TFile.Exists(AFileName) then
+    vFileName := 'res\images\' + AFileName
+  else
+    vFileName := AFileName;
+  Result := TStyleImage.Create(AName, vFileName, ATransparent);
   FImages.Add(AName, Result);
 end;
 

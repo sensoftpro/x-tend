@@ -213,13 +213,11 @@ var
 begin
   if Assigned(AImage) then
   begin
-    if TFile.Exists(AImage.FileName) then
-    begin
-      vImage := TPngImage.Create;
-      vImage.LoadFromFile(AImage.FileName);
-    end
-    else
+    if not TFile.Exists(AImage.FileName) then
       Exit;
+
+    vImage := TPngImage.Create;
+    vImage.LoadFromFile(AImage.FileName);
 
     if AImage.IsNinePatch then
       AImage.NativeObject := TWinNinePatchImage.Create(Self, vImage, AImage.CutRect.Left, AImage.CutRect.Right,

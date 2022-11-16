@@ -1011,7 +1011,11 @@ type
   TSkiaApi = class sealed
   private const
     {$IF defined(MSWINDOWS)}
-    LibName = 'sk4d.dll';
+    {$IFDEF WIN64}
+    LibName = 'x64\sk4d.dll';
+    {$ELSE}
+    LibName = 'x86\sk4d.dll';
+    {$ENDIF}
     {$ELSEIF defined(IOS)}
     LibName = 'sk4d.a';
     {$ELSEIF defined(MACOS)}

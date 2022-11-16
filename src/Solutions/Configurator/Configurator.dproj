@@ -73,7 +73,7 @@
         <ILINK_FullDebugInfo>true</ILINK_FullDebugInfo>
         <BCC_DebugLineNumbers>true</BCC_DebugLineNumbers>
         <BCC_SourceDebuggingOn>true</BCC_SourceDebuggingOn>
-        <Icon_MainIcon>Configurator_Icon1.ico</Icon_MainIcon>
+        <Icon_MainIcon>Configurator.ico</Icon_MainIcon>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>
         <BT_BuildType>Debug</BT_BuildType>
@@ -81,7 +81,6 @@
         <DCC_Optimize>false</DCC_Optimize>
         <VerInfo_Keys>CompanyName=;FileDescription=;FileVersion=0.5.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=;ProductVersion=0.5.0.0;Comments=</VerInfo_Keys>
         <DCC_DebugInfoInExe>false</DCC_DebugInfoInExe>
-        <VerInfo_MajorVer>0</VerInfo_MajorVer>
         <DCC_ExeOutput>..\..\..\bin</DCC_ExeOutput>
         <DCC_DcuOutput>..\..\..\dcu</DCC_DcuOutput>
         <VerInfo_MinorVer>5</VerInfo_MinorVer>
@@ -119,7 +118,6 @@
         <DCCReference Include="..\..\Platform\Configuration\uIcon.pas"/>
         <DCCReference Include="..\..\Platform\Configuration\uReaction.pas"/>
         <DCCReference Include="..\..\Platform\Configuration\uEnumeration.pas"/>
-        <DCCReference Include="..\..\Platform\Configuration\uMigration.pas"/>
         <DCCReference Include="..\..\Platform\Configuration\uDefinition.pas"/>
         <DCCReference Include="..\..\Platform\Configuration\uConfiguration.pas"/>
         <DCCReference Include="..\..\Platform\Configuration\uCodeConfiguration.pas"/>
@@ -188,9 +186,6 @@
         <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\FloatForm.pas">
             <Form>FloatFm</Form>
         </DCCReference>
-        <DCCReference Include="..\..\Modules\Storage\OLEDB\ADOX_TLB.pas"/>
-        <DCCReference Include="..\..\Modules\Storage\OLEDB\uDBConnector.pas"/>
-        <DCCReference Include="..\..\Modules\Storage\OLEDB\uOLEDBStorage.pas"/>
         <DCCReference Include="..\..\Modules\Storage\SQLite\uSQLite3.pas"/>
         <DCCReference Include="..\..\Modules\Storage\SQLite\uSQLiteStorage.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\VCL\uVCLPainter.pas"/>

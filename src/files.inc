@@ -20,7 +20,6 @@
   uIcon in '..\..\Platform\Configuration\uIcon.pas',
   uReaction in '..\..\Platform\Configuration\uReaction.pas',
   uEnumeration in '..\..\Platform\Configuration\uEnumeration.pas',
-  uMigration in '..\..\Platform\Configuration\uMigration.pas',
   uDefinition in '..\..\Platform\Configuration\uDefinition.pas',
   uConfiguration in '..\..\Platform\Configuration\uConfiguration.pas',
   uCodeConfiguration in '..\..\Platform\Configuration\uCodeConfiguration.pas',

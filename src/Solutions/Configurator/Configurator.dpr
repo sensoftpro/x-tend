@@ -24,7 +24,6 @@ uses
   uIcon in '..\..\Platform\Configuration\uIcon.pas',
   uReaction in '..\..\Platform\Configuration\uReaction.pas',
   uEnumeration in '..\..\Platform\Configuration\uEnumeration.pas',
-  uMigration in '..\..\Platform\Configuration\uMigration.pas',
   uDefinition in '..\..\Platform\Configuration\uDefinition.pas',
   uConfiguration in '..\..\Platform\Configuration\uConfiguration.pas',
   uCodeConfiguration in '..\..\Platform\Configuration\uCodeConfiguration.pas',
@@ -81,9 +80,6 @@ uses
   DebugInfoForm in '..\..\Modules\UI\WinVCL\Forms\DebugInfoForm.pas' {DebugFm},
   SplashForm in '..\..\Modules\UI\WinVCL\Forms\SplashForm.pas' {SplashFm},
   FloatForm in '..\..\Modules\UI\WinVCL\Forms\FloatForm.pas' {FloatFm},
-  ADOX_TLB in '..\..\Modules\Storage\OLEDB\ADOX_TLB.pas',
-  uDBConnector in '..\..\Modules\Storage\OLEDB\uDBConnector.pas',
-  uOLEDBStorage in '..\..\Modules\Storage\OLEDB\uOLEDBStorage.pas',
 
   // Storage: SQLite
   uSQLite3 in '..\..\Modules\Storage\SQLite\uSQLite3.pas',

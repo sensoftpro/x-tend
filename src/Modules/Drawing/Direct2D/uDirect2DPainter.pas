@@ -490,7 +490,7 @@ var
   vRect: TD2DRectF;
 begin
   vRect := MakeD2DRectF(ARect);
-  ThisRenderTarget.DrawBitmap(TD2DImage(AImage).Bitmap, @vRect, AOpacity);
+  ThisRenderTarget.DrawBitmap(TD2DImage(AImage).Bitmap, @vRect, 1{AOpacity});
 end;
 
 procedure TDirect2DPainter.DoDrawLine(const AStroke: TStylePen; const APoint1, APoint2: TPointF);
