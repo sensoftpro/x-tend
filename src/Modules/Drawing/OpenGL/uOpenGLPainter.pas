@@ -3,7 +3,8 @@ unit uOpenGLPainter;
 interface
 uses
  Windows, Graphics, Types, Classes, ExtCtrls, dglOpenGL, uScene, uWinScene, uDrawStyles, uConsts, Vcl.Controls,
- System.SysUtils, Vcl.StdCtrls, System.IOUtils, System.Math, Vcl.Imaging.pngimage, uFreeType, Generics.Collections;
+ System.SysUtils, Vcl.StdCtrls, System.IOUtils, System.Math, Vcl.Imaging.pngimage, uFreeType, Generics.Collections,
+ uModule;
 type
 TColor = packed record
   Red, Green, Blue, Alpha: Extended;
@@ -1153,5 +1154,8 @@ class function TGLUtils.NextPow2(const x: Single): Cardinal;
 begin
   Result := TGLUtils.NextPow2(Cardinal(Round(x)));
 end;
+
+initialization
+  TBaseModule.RegisterModule('Painting', 'OpenGL', TOpenGLScene);
 
 end.
