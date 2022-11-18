@@ -20,6 +20,7 @@ type
     procedure btnCreateClick(Sender: TObject);
     procedure btnMeasureClick(Sender: TObject);
     procedure btnSaveClick(Sender: TObject);
+    procedure TestOpenGLBtnClick(Sender: TObject);
   private
     FScene: TScene;
     FChart: TSimpleChart;
@@ -34,7 +35,7 @@ var
 implementation
 
 uses
-  UITypes, Types, uVCLPainter, uGDIPlusPainter, uDirect2DPainter, uSkiaPainter;
+  UITypes, Types, uVCLPainter, uGDIPlusPainter, uDirect2DPainter, uSkiaPainter, uOpenGLPainter;
 
 {$R *.dfm}
 
@@ -59,6 +60,7 @@ begin
     1: FScene := TGDIPlusScene.Create(pnlChart);
     2: FScene := TDirect2DScene.Create(pnlChart);
     3: FScene := TSkiaScene.Create(pnlChart);
+    4: FScene := TOpenGLScene.Create(pnlChart);
   else
     FScene := nil;
   end;
@@ -105,6 +107,17 @@ begin
   end
   else
     lblFPS.Caption := '< нет данных >';
+end;
+
+procedure TfmMain.TestOpenGLBtnClick(Sender: TObject);
+begin
+  if Assigned(FScene) then
+    FreeAndNil(FScene);
+  FScene := TOpenGLScene.Create(pnlChart);
+  if Assigned(FScene) then
+    FChart := TDataChart.Create(FScene, nil);
+
+  //TOpenGLPainter(FScene.Painter).DoDrawRect(, );
 end;
 
 end.

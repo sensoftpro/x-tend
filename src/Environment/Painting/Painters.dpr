@@ -15,12 +15,14 @@ uses
 {$I ..\..\Modules\Drawing\VCL\files.inc}
 {$I ..\..\Modules\Drawing\GDIPlus\files.inc}
 {$I ..\..\Modules\Drawing\Direct2D\files.inc}
+{$I ..\..\Modules\Drawing\OpenGL\files.inc}
 
   Skia.Api in '..\..\Modules\Drawing\Skia\Skia.Api.pas',
   Skia in '..\..\Modules\Drawing\Skia\Skia.pas',
   uSkiaPainter in '..\..\Modules\Drawing\Skia\uSkiaPainter.pas',
 
   uMainForm in 'uMainForm.pas' {fmMain};
+  
 {$R *.res}
 
 begin

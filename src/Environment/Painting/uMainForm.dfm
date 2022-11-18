@@ -36,16 +36,17 @@ object fmMain: TfmMain
     end
     object rgrPainter: TRadioGroup
       Left = 12
-      Top = 8
+      Top = 14
       Width = 397
       Height = 45
       Caption = #1054#1090#1088#1080#1089#1086#1074#1082#1072
-      Columns = 4
+      Columns = 5
       Items.Strings = (
         'GDI'
         'GDI+'
         'DirectX'
-        'Skia')
+        'Skia'
+        'OpenGL')
       TabOrder = 0
       WordWrap = True
     end
