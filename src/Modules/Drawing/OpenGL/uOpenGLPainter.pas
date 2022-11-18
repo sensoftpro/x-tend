@@ -51,8 +51,9 @@ public
   property Characters: TDictionary<WideChar, TCharacter> read FCharacters write FCharacters;
   constructor Create(const AChars: TDictionary<WideChar, TCharacter>);
   destructor Destroy; override;
-
 end;
+
+PTrueTypeFont = ^TTrueTypeFont;
 
 TOpenGLImage = class(TObject)
 private
@@ -89,7 +90,9 @@ var
   FRC: HGLRC;
   FDC: HDC;
   FPixelFormat: Integer;
+  FUsedFontFamilies: TDictionary<string, PTrueTypeFont>;
   procedure SetDCPixelFormat;
+  procedure DrawLine(const APoint1, APoint2: TPointF);
 
 protected
   procedure DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF); override;
@@ -214,6 +217,7 @@ end;
 
 procedure TOpenGLPainter.CreateFont(const AFont: TStyleFont);
 var
+  vFontP: PTrueTypeFont;
   vFace: TFTFace;
   vLibrary: TFTLibrary;
   vTextureID: Cardinal;
@@ -223,16 +227,29 @@ var
   i,j, k: Cardinal;
   vHeight, vWidth: Cardinal;
 begin
+  if not Assigned(FUsedFontFamilies) then
+    FUsedFontFamilies := TDictionary<string, PTrueTypeFont>.Create;
+
+  if FUsedFontFamilies.TryGetValue(AFont.Family, vFontP) then
+  begin
+    vCharacters := TDictionary<Char, TCharacter>.Create;
+    for i:=0 to vFontP^.Characters.Values.Count do
+    begin
+      if vFontP^.Characters.TryGetValue(WideChar(i) ,vCharacter) then
+        vCharacters.Add(WideChar(i), vCharacter);
+    end;
+    AFont.NativeObject := TTrueTypeFont.Create(vCharacters);
+    Exit;
+  end;
   vCharacters := TDictionary<Char, TCharacter>.Create;
   FT_Init_FreeType(vLibrary);
+
   vFace := TFTFace.Create('C:/Windows/Fonts/' + AnsiString(AFont.Family) + '.ttf', 0);
   vFace.SetCharSize(0, Round(AFont.Size * 64 * 96 / 72),0,0);
   for i := 0 to 3728 do
   begin
     if FT_Load_Glyph(vFace, FT_Get_Char_Index(vFace, i), [ftlfRender]) <> 0 then
         continue;
-//    if (vFace.Glyph.Bitmap.Width = 0) and (vFace.Glyph.Bitmap.Height = 0) then
-//      Continue;
 
     glGenTextures(1, @vTextureID);
     glBindTexture(GL_TEXTURE_2D, vTextureID);
@@ -278,8 +295,8 @@ begin
                   vFace.Glyph.Bitmap.Rows,
                   vFace.glyph.BitmapLeft,
                   vFace.glyph.BitmapTop,
-                  vFace.Glyph.Advance.X,
-                  vFace.Glyph.Advance.Y);
+                  vFace.Glyph.Advance.X shr 6,
+                  vFace.Glyph.Advance.Y shr 6);
     glBindTexture(GL_TEXTURE_2D, 0);
     vCharacters.Add(WideChar(i), vCharacter);
   end;
@@ -287,6 +304,7 @@ begin
   FT_Done_Face(vFace);
   FT_Done_Library(vLibrary);
   AFont.NativeObject := TTrueTypeFont.Create(vCharacters);
+  FUsedFontFamilies.Add(AFont.Family, @AFont.NativeObject);
 end;
 
 procedure TOpenGLPainter.CreateImage(const AImage: TStyleImage);
@@ -329,6 +347,7 @@ end;
 destructor TOpenGLPainter.Destroy;
 begin
   inherited Destroy;
+  FUsedFontFamilies.Free;
   wglDeleteContext(FRC);
   wglMakeCurrent(0,0);
 end;
@@ -448,15 +467,10 @@ begin
     glEnable(GL_LINE_STIPPLE);
     glLineStipple(1, $F0F0);
   end;
-  glBegin(GL_LINES);
   glColor4f(vColor.Red, vColor.Green, vColor.Blue, vColor.Alpha);
-  glVertex2f(APoint1.X, FContext.Height - APoint1.Y);
-  glVertex2f(APoint2.X, FContext.Height - APoint2.Y);
-  glEnd;
-  if glIsEnabled(GL_LINE_STIPPLE) then
-  begin
-    glDisable(GL_LINE_STIPPLE);
-  end;
+  DrawLine(APoint1, APoint2);
+  glDisable(GL_LINE_STIPPLE);
+
 end;
 
 procedure TOpenGLPainter.DoDrawPath(const AFill: TStyleBrush; const AStroke: TStylePen; const APath: TObject);
@@ -605,15 +619,14 @@ procedure TOpenGLPainter.DoDrawText(const AFont: TStyleFont; const AText: string
 var
   vColor: TColor;
   c: Char;
-  i, delta : Integer;
+  i, delta : Cardinal;
   vFlag: Boolean;
   vChar: TCharacter;
   vLocation: TPointF;
   vWidth, vHeight, vMaxWidth, vMaxHeight: Single;
 begin
-  vLocation.X := ARect.Left;
-  vLocation.Y := FContext.Height - ARect.Bottom;
-
+  vLocation.X := ARect.Right - (ARect.Width / 2);
+  vLocation.Y := FContext.Height - ARect.Bottom - (ARect.Height / 2);
   delta := 0;
   vMaxHeight := 0;
   vMaxWidth := 0;
@@ -624,46 +637,55 @@ begin
   glColor4f(vColor.Red,vColor.Green,vColor.Blue,vColor.Alpha);
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   if AAngle > 90 then
-      vLocation.X := vLocation.X;
+      vLocation.Y := FContext.Height - ARect.Top;
   vFlag := False;
-  for i := 1 to strlen(PWideChar(AText)) do
+  for i := strlen(PWideChar(AText)) downto 1 do
   begin
     c := AText[i];
-    if TTrueTypeFont(AFont.NativeObject).Characters.TryGetValue(Char(Cardinal(c)), vChar) = True then
+    if TTrueTypeFont(AFont.NativeObject).Characters.TryGetValue(c, vChar) = True then
       glBindTexture(GL_TEXTURE_2D, vChar.TextureID);
+    if (AFont.Style and FontStyleBold) = 1 then
+      vChar.AdvanceX := vChar.AdvanceX + 1;
 
+
+    if (vChar.AdvanceY <> 0) then
+      VLocation.Y := vLocation.Y + vChar.AdvanceY;
 
     if (vMaxWidth < vChar.Width) then
       vMaxWidth := TGLUtils.NextPow2(vChar.Width);
     vWidth  := TGLUtils.NextPow2(vChar.Width);
+
+
     if (vMaxHeight < vChar.Height) then
     begin
       vMaxHeight := TGLUtils.NextPow2(vChar.Height);
       delta := Round(vMaxHeight) - vChar.Height - 1;
     end;
     vHeight := TGLUtils.NextPow2(vChar.Height);
+
+
+
+    if i = strlen(PWideChar(AText)) then
+      vLocation.X := Round(vLocation.X + vChar.AdvanceX);
+
+
     if ((vMaxWidth * strlen(PWideChar(AText))) > (ARect.Left + ARect.Width)) then
     begin
-      vLocation.Y := Round(vLocation.Y + (vChar.AdvanceX shr 6));
-      vLocation.X := Round(vLocation.X);
-      if i = 1 then
-        vLocation.X := vLocation.X + (vChar.AdvanceX shr 5);
-      if (vMaxHeight <> vHeight) and (vFlag = False) then
-      begin
-        vLocation.X := vLocation.X - delta;
-        vFlag := True;
-      end else if (vMaxHeight = vHeight) and (vFlag = True) then
-      begin
-        vLocation.X := vLocation.X + delta;
-      end;
-    end else
-    begin
-      vLocation.X := Round(vLocation.X + (vChar.AdvanceX shr 6));
-      vLocation.Y := Round(vLocation.Y - (vChar.AdvanceY shr 6));
-      if i = 1 then
-        vLocation.X := vLocation.X - (vChar.AdvanceX shr 6);
-    end;
+      vLocation.Y := Round(vLocation.Y - vChar.AdvanceX);
+    end
+    else
+      vLocation.X := Round(vLocation.X - vChar.AdvanceX);
 
+
+    if (vMaxHeight <> vHeight) and (vFlag = False) then
+    begin
+      vLocation.X := vLocation.X - delta;
+      vFlag := True;
+    end else if (vMaxHeight = vHeight) and (vFlag = True) then
+    begin
+      vLocation.X := vLocation.X + delta;
+      vFlag := False;
+    end;
 
     glPushMatrix;
     glTranslatef(vLocation.X, vLocation.Y, 0);
@@ -672,15 +694,23 @@ begin
 //    glColor4f(0,0,0,1);
 //    glDisable(GL_TEXTURE_2D);
     glBegin(GL_QUADS);
-    glTexCoord2f(0,1); glVertex2f(vLocation.X         , vLocation.Y);
-    glTexCoord2f(1,1); glVertex2f(vLocation.X + vWidth, vLocation.Y);
+    glTexCoord2f(0,1); glVertex2f(vLocation.X         , vLocation.Y );
+    glTexCoord2f(1,1); glVertex2f(vLocation.X + vWidth, vLocation.Y );
     glTexCoord2f(1,0); glVertex2f(vLocation.X + vWidth, vLocation.Y + vHeight);
     glTexCoord2f(0,0); glVertex2f(vLocation.X         , vLocation.Y + vHeight);
-    glEnd;
-    glPopMatrix;
-    glBindTexture(GL_TEXTURE_2D, 0);
-  end;
+    if (AFont.Style and FontStyleBold) = 1 then
+    begin
+      glTexCoord2f(0,1); glVertex2f(vLocation.X + 1         , vLocation.Y);
+      glTexCoord2f(1,1); glVertex2f(vLocation.X + 1 + vWidth, vLocation.Y);
+      glTexCoord2f(1,0); glVertex2f(vLocation.X + 1 + vWidth, vLocation.Y + vHeight);
+      glTexCoord2f(0,0); glVertex2f(vLocation.X + 1         , vLocation.Y + vHeight);
 
+    end;
+    glEnd;
+    glBindTexture(GL_TEXTURE_2D, 0);
+
+    glPopMatrix;
+  end;
   glDisable(GL_BLEND);
   glDisable(GL_TEXTURE_2D);
 
@@ -707,6 +737,14 @@ begin
 
 end;
 
+procedure TOpenGLPainter.DrawLine(const APoint1, APoint2: TPointF);
+begin
+  glBegin(GL_LINES);
+  glVertex2f(APoint1.X, FContext.Height - APoint1.Y);
+  glVertex2f(APoint2.X, FContext.Height - APoint2.Y);
+  glEnd;
+end;
+
 procedure TOpenGLPainter.EndPaint;
 begin
   inherited;
@@ -724,10 +762,10 @@ begin
   vTotalWidth := 0;
   for i := 1 to strlen(PWideChar(AText)) do
   begin
-    if TTrueTypeFont(AFont.NativeObject).Characters.TryGetValue(Char(AText[i]), vChar) = True then
+    if TTrueTypeFont(AFont.NativeObject).Characters.TryGetValue(Char(AText[i]), vChar) then
     begin
-      vTotalWidth := (vChar.AdvanceX / 64)  + vTotalWidth;
-      Result.cy := vChar.Height * 1.6;
+      vTotalWidth := vChar.Width + vTotalWidth;
+      Result.cy := vChar.Height * 96 / 72;
     end;
   end;
 
@@ -1104,6 +1142,7 @@ constructor TTrueTypeFont.Create(const AChars: TDictionary<WideChar, TCharacter>
 begin
   FCharacters := AChars;
 end;
+
 
 destructor TTrueTypeFont.Destroy;
 begin

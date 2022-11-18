@@ -74,6 +74,7 @@
     <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
         <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>
         <AppEnableHighDPI>true</AppEnableHighDPI>
+        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=;ProgramID=com.embarcadero.$(MSBuildProjectName)</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
@@ -102,12 +103,15 @@
         <DCCReference Include="..\..\Modules\Drawing\uDrawStyles.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\uScene.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\uWinScene.pas"/>
+        <DCCReference Include="..\..\Modules\Drawing\OpenGL\uOpenGLPainter.pas"/>
+        <DCCReference Include="..\..\Modules\Drawing\OpenGL\dglOpenGL.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\Skia\Skia.Api.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\Skia\Skia.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\Skia\uSkiaPainter.pas"/>
         <DCCReference Include="uMainForm.pas">
             <Form>fmMain</Form>
         </DCCReference>
+        <DCCReference Include="..\..\Modules\Drawing\OpenGL\uFreeType.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -559,6 +563,7 @@
                 <ProjectRoot Platform="Android" Name="$(PROJECTNAME)"/>
                 <ProjectRoot Platform="iOSSimulator" Name="$(PROJECTNAME).app"/>
             </Deployment>
+            <ModelSupport>False</ModelSupport>
         </BorlandProject>
         <ProjectFileVersion>12</ProjectFileVersion>
     </ProjectExtensions>
