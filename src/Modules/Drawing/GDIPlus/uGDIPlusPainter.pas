@@ -118,8 +118,11 @@ uses
 { TGDIPlusPainter }
 
 procedure TGDIPlusPainter.DoClipRect(const ARect: TRectF);
+var
+  vRect: TGPRectF;
 begin
-  //TODO
+  vRect := MakeRect(ARect.Left, ARect.Top, ARect.Width, ARect.Height);
+  ThisGPCanvas.SetClip(vRect, CombineModeReplace);
 end;
 
 procedure TGDIPlusPainter.DoColorizeBrush(const AFill: TStyleBrush; const AColor: Cardinal);
