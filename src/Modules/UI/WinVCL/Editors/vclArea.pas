@@ -10,7 +10,7 @@
  ---------------------------------------------------------------------------------
   MIT License
 
-  Copyright © 2021 Sensoft
+  Copyright © 2023 Sensoft
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -3113,11 +3113,11 @@ begin
     end;
   end;
 
-  FMenuItem.Visible := TInteractor(FView.Interactor).Layout = 'mdi';
   vId := GetUrlParam(AParams, 'Id');
-  if (vId = 'Windows') and FMenuItem.Visible and Assigned(Parent.Control) then
+  if vId = 'Windows' then
   begin
-    if Parent.Control is TForm then
+    //FMenuItem.Visible := TInteractor(FView.Interactor).Layout = 'mdi';
+    if (TInteractor(FView.Interactor).Layout = 'mdi') and (Parent.Control is TForm) then
     begin
       vForm := TForm(Parent.Control);
       if vForm.FormStyle = fsMDIForm then

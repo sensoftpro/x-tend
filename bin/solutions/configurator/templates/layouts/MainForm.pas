@@ -9,7 +9,7 @@ uses
 type
   TEditForm = class(TFrame)
     WorkArea: TPanel;
-    MainMenu1: TMainMenu;
+    MainMenu: TPopupMenu;
     System1: TMenuItem;
     ShowOptions1: TMenuItem;
     N1: TMenuItem;
@@ -19,6 +19,7 @@ type
     ToolBar: TPopupMenu;
     SysUsersWorkAreaWorkAreaLayoutCollection1: TMenuItem;
     Panel1: TPanel;
+    Panel2: TPanel;
   end;
 
 implementation

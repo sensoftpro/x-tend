@@ -6,9 +6,9 @@ object EditForm: TEditForm
   TabOrder = 0
   object WorkArea: TPanel
     Left = 0
-    Top = 57
+    Top = 66
     Width = 945
-    Height = 522
+    Height = 513
     Align = alClient
     Caption = '@WorkArea?ViewType=Paged&View=SysUsers&Layout=Collection'
     Font.Charset = DEFAULT_CHARSET
@@ -18,24 +18,32 @@ object EditForm: TEditForm
     Font.Style = []
     ParentFont = False
     TabOrder = 0
-    ExplicitTop = 24
-    ExplicitHeight = 555
   end
   object Panel1: TPanel
     Left = 0
     Top = 0
     Width = 945
-    Height = 57
+    Height = 17
+    Align = alTop
+    Caption = '@NavigationArea?ViewType=MainMenu'
+    PopupMenu = MainMenu
+    TabOrder = 1
+  end
+  object Panel2: TPanel
+    Left = 0
+    Top = 17
+    Width = 945
+    Height = 49
     Align = alTop
     Caption = '@NavigationArea?ViewType=ToolBar'
     PopupMenu = ToolBar
-    TabOrder = 1
+    TabOrder = 2
   end
-  object MainMenu1: TMainMenu
+  object MainMenu: TPopupMenu
     Left = 340
     Top = 171
     object System1: TMenuItem
-      Caption = 'Id=System@Caption='#1057#1080#1089#1090#1077#1084#1072
+      Caption = '@System?Id=System&Caption='#1057#1080#1089#1090#1077#1084#1072
       object ShowSysLog1: TMenuItem
         Caption = 'ShowSysLog'
       end
@@ -56,10 +64,10 @@ object EditForm: TEditForm
       end
     end
     object Libraries1: TMenuItem
-      Caption = 'Id=Libraries@Caption='#1057#1087#1088#1072#1074#1086#1095#1085#1080#1082#1080
+      Caption = '@Libraries?Id=Libraries&Caption='#1057#1087#1088#1072#1074#1086#1095#1085#1080#1082#1080
     end
     object Windows1: TMenuItem
-      Caption = 'Id=Windows@Caption='#1054#1082#1085#1072
+      Caption = '@Windows?Id=Windows&Caption='#1054#1082#1085#1072
       object CloseAllPages1: TMenuItem
         Caption = 'CloseAllWindows'
       end
@@ -69,10 +77,10 @@ object EditForm: TEditForm
     end
   end
   object ToolBar: TPopupMenu
-    Left = 656
-    Top = 96
+    Left = 784
+    Top = 16
     object SysUsersWorkAreaWorkAreaLayoutCollection1: TMenuItem
-      Caption = 'SysUsers?WorkArea=WorkArea&Layout=Collection'
+      Caption = 'SysUsers?WorkArea=ContentWorkArea&Layout=Collection'
     end
   end
 end
