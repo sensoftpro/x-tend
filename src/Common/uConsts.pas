@@ -376,7 +376,10 @@ begin
   Result := TPath.GetDirectoryName(ParamStr(0));
 {$ELSE}
   Result := TPath.Combine(TPath.GetHomePath, 'Common');
-{$ENDIF}
+{$ENDIF MSWINDOWS}
+{$IFDEF ANDROID}
+  Result := TPath.GetPublicPath;
+{$ENDIF ANDROID}
 end;
 
 function GetCommonDir: string;

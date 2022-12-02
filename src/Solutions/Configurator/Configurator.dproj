@@ -142,6 +142,7 @@
         <DCCReference Include="..\..\Modules\UI\uView.pas"/>
         <DCCReference Include="..\..\Modules\UI\uUIBuilder.pas"/>
         <DCCReference Include="..\..\Modules\UI\uInteractor.pas"/>
+        <DCCReference Include="..\..\Modules\UI\uLayout.pas"/>
         <DCCReference Include="..\..\Modules\Storage\uStorage.pas"/>
         <DCCReference Include="..\..\Modules\Storage\uParameters.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\uDrawStyles.pas"/>
