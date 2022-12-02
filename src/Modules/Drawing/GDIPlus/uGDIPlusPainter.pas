@@ -267,8 +267,39 @@ begin
 end;
 
 procedure TGDIPlusPainter.DoDrawBezier(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer);
+var
+  vPoints: TArray<TPointF> absolute APoints;
+  vGPPoints: TArray<TGPPointF>;
+  vLength: Integer;
+  i, j: Integer;
 begin
-  ThisGPCanvas.DrawBeziers(TGPPen(AStroke.NativeObject), PGPPointF(APoints), ACount);
+  //Изза того что GDI И GDI+ при отрисовке полибезье не берут вторую стартовую точку,
+  // а вместо этого используют последнюю конечную точку приходится их убирать. И так же изза этого отрисовка происходит
+  // не идентично Skia и Direct2D
+
+  vLength := 0;
+  for i := 0 to Length(vPoints) do
+  begin
+    if i = 5 then
+      continue;
+    if ((i-2) mod 3 = 0) and (i > 5)  then
+      continue;
+    Inc(vLength);
+  end;
+  SetLength(vGPPoints, vLength);
+  j := 0;
+  for i := 0 to vLength do
+  begin
+    if i = 4 then
+    begin
+      Inc(j);
+    end;
+    if ((i-1) mod 3 = 0) and (i > 4) then
+      continue;
+    vGPPoints[i] := TGPPointF(vPoints[j]);
+    Inc(j);
+  end;
+  ThisGPCanvas.DrawBeziers(TGPPen(AStroke.NativeObject), PGPPointF(vGPPoints), vLength);
 end;
 
 procedure TGDIPlusPainter.DoDrawContext(const AContext: TDrawContext);

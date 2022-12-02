@@ -250,16 +250,44 @@ end;
 procedure TVCLPainter.DoDrawBezier(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer);
 var
   vOldPen: TPen;
-  vPoints: TPointArray;
+  vPoints: TArray<TPointF> absolute APoints;
+  vPointsCopy: TArray<TPoint>;
+  vLength: Integer;
+  i,j: Integer;
 begin
   vOldPen := ThisCanvas.Pen;
 
-  vPoints := PPointFToPoints(APoints, ACount);
+  //Изза того что GDI И GDI+ при отрисовке полибезье не берут вторую стартовую точку,
+  // а вместо этого используют последнюю конечную точку приходится их убирать. И так же изза этого отрисовка происходит
+  // не идентично Skia и Direct2D
+
+  vLength := 0;
+  for i := 0 to Length(vPoints) do
+  begin
+    if i = 5 then
+      continue;
+    if ((i-2) mod 3 = 0) and (i > 5)  then
+      continue;
+    Inc(vLength);
+  end;
+  SetLength(vPointsCopy, vLength);
+  j := 0;
+  for i := 0 to vLength do
+  begin
+    if i = 4 then
+    begin
+      Inc(j);
+    end;
+    if ((i-1) mod 3 = 0) and (i > 4) then
+      continue;
+    vPointsCopy[i] := vPoints[j].Round;
+    Inc(j);
+  end;
   ThisCanvas.Pen := TPen(AStroke.NativeObject);
   try
-    ThisCanvas.PolyBezier(vPoints);
+    ThisCanvas.PolyBezier(vPointsCopy);
   finally
-    SetLength(vPoints, 0);
+    SetLength(vPointsCopy, 0);
     ThisCanvas.Pen := vOldPen;
   end;
 end;
