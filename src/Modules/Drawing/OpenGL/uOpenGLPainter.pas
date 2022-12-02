@@ -349,33 +349,43 @@ end;
 
 procedure TOpenGLPainter.DoDrawBezier(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer);
 var
-  vGLPoints: Array[Byte] of Array[0..2] of GLfloat;
+  vGLPoints: Array[0..3] of Array[0..2] of GLfloat;
   vColor: TColor;
-  i: Integer;
-  vPoints: PPointFArray absolute APoints;
+  i,j: Integer;
+  vPoints: TArray<TPointF> absolute APoints;
 begin
   //Displays only one bezier i.e doesnt support PolyBezier
-
+  i := 0;
   vColor := TGLUtils.HexToRGBA(AStroke.Color);
-  vGLPoints[0,0] := vPoints[0].X;
-  vGLPoints[0,1] := FContext.Height - vPoints[0].Y;
-  vGLPoints[0,2] := 0;
-  i := 1;
-  while i <= ACount do
+  while i < Length(vPoints) do
   begin
-    vGLPoints[i,0] := vPoints[i].X ;
-    vGLPoints[i,1] := FContext.Height - vPoints[i].Y;
-    vGLPoints[i,2] := 0;
-    Inc(i);
-  end;
+  vGLPoints[0, 0] := vPoints[0 + (Round(i/3) * 3)].X;
+  vGLPoints[0, 1] := FContext.Height - vPoints[0 + (Round(i/3) * 3)].Y;
+  vGLPoints[0, 2] := 0;
+
+  vGLPoints[1, 0] := vPoints[i + 1].X;
+  vGLPoints[1, 1] := FContext.Height - vPoints[i + 1].Y;
+  vGLPoints[1, 2] := 0;
+
+  vGLPoints[2, 0] := vPoints[i + 2].X;
+  vGLPoints[2, 1] := FContext.Height - vPoints[i + 2].Y;
+  vGLPoints[2, 2] := 0;
+
+  vGLPoints[3, 0] := vPoints[i + 3].X;
+  vGLPoints[3, 1] := FContext.Height - vPoints[i + 3].Y;
+  vGLPoints[3, 2] := 0;
+
   glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, @vGLPoints[0,0]);
   glEnable(GL_MAP1_VERTEX_3);
 
   glColor4f(vColor.Red, vColor.Green, vColor.Blue, vColor.Alpha);
   glBegin(GL_LINE_STRIP);
-  for i := 0 to 100 do
-    glEvalCoord1f(GLfloat(i) / 100);
+  for j := 0 to 100 do
+    glEvalCoord1f(GLfloat(j) / 100);
   glEnd();
+  Inc(i,3);
+  end;
+
   glDisable(GL_MAP1_VERTEX_3);
 
 
