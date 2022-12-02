@@ -257,35 +257,19 @@ var
 begin
   vOldPen := ThisCanvas.Pen;
 
-  //Изза того что GDI И GDI+ при отрисовке полибезье не берут вторую стартовую точку,
-  // а вместо этого используют последнюю конечную точку приходится их убирать. И так же изза этого отрисовка происходит
-  // не идентично Skia и Direct2D
-
-  vLength := 0;
-  for i := 0 to Length(vPoints) do
-  begin
-    if i = 5 then
-      continue;
-    if ((i-2) mod 3 = 0) and (i > 5)  then
-      continue;
-    Inc(vLength);
-  end;
-  SetLength(vPointsCopy, vLength);
-  j := 0;
-  for i := 0 to vLength do
-  begin
-    if i = 4 then
-    begin
-      Inc(j);
-    end;
-    if ((i-1) mod 3 = 0) and (i > 4) then
-      continue;
-    vPointsCopy[i] := vPoints[j].Round;
-    Inc(j);
-  end;
-  ThisCanvas.Pen := TPen(AStroke.NativeObject);
+  SetLength(vPointsCopy, 4);
+  i := 0;
   try
-    ThisCanvas.PolyBezier(vPointsCopy);
+    ThisCanvas.Pen := TPen(AStroke.NativeObject);
+    while i < Length(vPoints) do
+    begin
+      vPointsCopy[0] := vPoints[0 + (Round(i/3) * 3)].Round;
+      vPointsCopy[1] := vPoints[i + 1].Round;
+      vPointsCopy[2] := vPoints[i + 2].Round;
+      vPointsCopy[3] := vPoints[i + 3].Round;
+      ThisCanvas.PolyBezier(vPointsCopy);
+      Inc(i,3);
+    end;
   finally
     SetLength(vPointsCopy, 0);
     ThisCanvas.Pen := vOldPen;
