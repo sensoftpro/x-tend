@@ -358,31 +358,31 @@ begin
   vColor := TGLUtils.HexToRGBA(AStroke.Color);
   while i < Length(vPoints) do
   begin
-  vGLPoints[0, 0] := vPoints[0 + (Round(i/3) * 3)].X;
-  vGLPoints[0, 1] := FContext.Height - vPoints[0 + (Round(i/3) * 3)].Y;
-  vGLPoints[0, 2] := 0;
+    vGLPoints[0, 0] := vPoints[0 + (Round(i/3) * 3)].X;
+    vGLPoints[0, 1] := FContext.Height - vPoints[0 + (Round(i/3) * 3)].Y;
+    vGLPoints[0, 2] := 0;
 
-  vGLPoints[1, 0] := vPoints[i + 1].X;
-  vGLPoints[1, 1] := FContext.Height - vPoints[i + 1].Y;
-  vGLPoints[1, 2] := 0;
+    vGLPoints[1, 0] := vPoints[i + 1].X;
+    vGLPoints[1, 1] := FContext.Height - vPoints[i + 1].Y;
+    vGLPoints[1, 2] := 0;
 
-  vGLPoints[2, 0] := vPoints[i + 2].X;
-  vGLPoints[2, 1] := FContext.Height - vPoints[i + 2].Y;
-  vGLPoints[2, 2] := 0;
+    vGLPoints[2, 0] := vPoints[i + 2].X;
+    vGLPoints[2, 1] := FContext.Height - vPoints[i + 2].Y;
+    vGLPoints[2, 2] := 0;
 
-  vGLPoints[3, 0] := vPoints[i + 3].X;
-  vGLPoints[3, 1] := FContext.Height - vPoints[i + 3].Y;
-  vGLPoints[3, 2] := 0;
+    vGLPoints[3, 0] := vPoints[i + 3].X;
+    vGLPoints[3, 1] := FContext.Height - vPoints[i + 3].Y;
+    vGLPoints[3, 2] := 0;
 
-  glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, @vGLPoints[0,0]);
-  glEnable(GL_MAP1_VERTEX_3);
+    glMap1f(GL_MAP1_VERTEX_3, 0.0, 1.0, 3, 4, @vGLPoints[0,0]);
+    glEnable(GL_MAP1_VERTEX_3);
 
-  glColor4f(vColor.Red, vColor.Green, vColor.Blue, vColor.Alpha);
-  glBegin(GL_LINE_STRIP);
-  for j := 0 to 100 do
-    glEvalCoord1f(GLfloat(j) / 100);
-  glEnd();
-  Inc(i,3);
+    glColor4f(vColor.Red, vColor.Green, vColor.Blue, vColor.Alpha);
+    glBegin(GL_LINE_STRIP);
+    for j := 0 to 100 do
+      glEvalCoord1f(GLfloat(j) / 100);
+    glEnd();
+    Inc(i,3);
   end;
 
   glDisable(GL_MAP1_VERTEX_3);
