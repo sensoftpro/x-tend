@@ -273,8 +273,7 @@ procedure TGDIPlusPainter.DoDrawBezier(const AStroke: TStylePen; const APoints: 
 var
   vPoints: TArray<TPointF> absolute APoints;
   vGPPoints: TArray<TGPPointF>;
-  vLength: Integer;
-  i, j: Integer;
+  i: Integer;
 begin
   SetLength(vGPPoints, 4);
   i := 0;

@@ -252,8 +252,7 @@ var
   vOldPen: TPen;
   vPoints: TArray<TPointF> absolute APoints;
   vPointsCopy: TArray<TPoint>;
-  vLength: Integer;
-  i,j: Integer;
+  i: Integer;
 begin
   vOldPen := ThisCanvas.Pen;
 
