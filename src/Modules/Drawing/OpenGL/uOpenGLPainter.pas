@@ -354,7 +354,6 @@ var
   i,j: Integer;
   vPoints: TArray<TPointF> absolute APoints;
 begin
-  //Displays only one bezier i.e doesnt support PolyBezier
   i := 0;
   vColor := TGLUtils.HexToRGBA(AStroke.Color);
   while i < Length(vPoints) do
