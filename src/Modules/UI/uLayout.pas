@@ -41,7 +41,7 @@ uses
 type
   //TLayoutKind = (lkPanel, lkPage, lkPages, lkFrame, lkMenu, lkMemo);
   TLayoutKind = (lkNone, lkPanel, lkPage, lkPages, lkFrame, lkMemo, lkLabel, lkImage, lkBevel, lkSplitter, lkScrollBox);
-  TLayoutAlign = (alNone, alTop, alBottom, alLeft, alRight, alClient, alCustom);
+  TLayoutAlign = (lalNone, lalTop, lalBottom, lalLeft, lalRight, lalClient, lalCustom);
   TPageStyle = (psTabs, psButtons, psFlatButtons);
   TPagePosition = (ppTop, ppBottom, ppLeft, ppRight);
   TLayoutBevelStyle = (lbsLowered, lbsRaised);
@@ -170,8 +170,19 @@ type
     property Caption: string read FCaption;
   end;
 
-  TLayout = type TObject;
-  TVCLControl = type TObject;
+  TLayout = TObject;
+  {class
+  private
+    FControl: TObject;
+    FKind: TLayoutKind;
+  public
+    constructor Create(const AKind: TLayoutKind; const AControl: TObject);
+    destructor Destroy; override;
+
+    property Kind: TLayoutKind read FKind;
+    property Control: TObject read FControl;
+  end;}
+  //TVCLControl = type TObject;
 
   TLayoutX = class
   private
@@ -199,6 +210,7 @@ type
     FAnchors: TAnchors;
     FAlignWithMargins: Boolean;
     FMargins: TLayoutMargins;
+
     FPadding: TLayoutPadding;
     FConstraints: TLayoutConstraints;
     FState: TViewState;
@@ -299,7 +311,7 @@ type
     property BevelShape: TLayoutBevelShape read FBevelShape write FBevelShape;
     property Cursor: Integer read FCursor write FCursor;
 
-    property LayoutKind: TLayoutKind read FLayoutKind;
+    property Kind: TLayoutKind read FLayoutKind;
     property ViewType: TLayoutViewType read FViewType write FViewType;
     property StyleName: string read FStyleName write FStyleName;
     property Params: string read FParams write FParams;
@@ -379,7 +391,7 @@ begin
   for vAlign := Low(TLayoutAlign) to High(TLayoutAlign) do
     if SameText(cAlignNames[vAlign], s) then
       Exit(vAlign);
-  Result := alNone;
+  Result := lalNone;
 end;
 
 function StrToAlignment(const s: string): TAlignment;
@@ -503,7 +515,7 @@ begin
   end;
 end;
 
-{ TLayout }
+{ TLayoutX }
 
 {constructor TLayout.Create(const AControl: TObject);
 begin
@@ -559,6 +571,69 @@ begin
 
   FParent := AParent;
   FLayoutKind := ALayoutKind;
+  FItems := TObjectList<TLayoutX>.Create;
+
+  FMargins := TLayoutMargins.Create;
+  FPadding := TLayoutPadding.Create;
+  FFont := TLayoutFont.Create;
+  FConstraints := TLayoutConstraints.Create;
+
+  FViewType := lvtPanel;
+  FName := '';
+  FCaption := '';
+  FUIParams := '';
+  FHint := '';
+  FShowCaption := False;
+  FShowHint := False;
+  FImageIndex := -1;
+  FTag := 0;
+
+  // Размеры и расположение
+  FLeft := 0;
+  FTop := 0;
+  FWidth := 0;
+  FHeight := 0;
+  FAlign := lalNone;
+  FAnchors := [TAnchorKind.akLeft, TAnchorKind.akTop];
+  FAlignWithMargins := False;
+
+  FState := vsFullAccess;
+  FDoubleBuffered := False;
+  FTabStop := True;
+  FTabOrder := 0;
+
+  FColor := 0;
+  FAlignment := TAlignment.taLeftJustify;
+
+  FPageStyle := psTabs;
+  FPagePosition := ppTop;
+  FPageHeight := 0;
+  FPageWidth := 0;
+  FHidePages := False;
+
+  FBevelInner := bkNone;
+  FBevelOuter := bkNone;
+  FBorderStyle := lbsNone;
+  FParentBackground := False;
+
+  FAutoSize := False;
+  FTransparent := False;
+  FWordWrap := False;
+
+  FPicture := nil;
+  FStretch := False;
+  FProportional := False;
+
+  FBevelStyle := lbsLowered;
+  FBevelShape := lbsBox;
+  FCursor := crDefault;
+  FParams := AParams;
+
+  FStyleName := '';
+  FChildLayoutName := '';
+  FTargetWorkAreaName := '';
+  FTargetLayoutName := '';
+  FTargetViewName := '';
 
   {case ALayoutKind of
     lkPage: begin
@@ -602,11 +677,7 @@ begin
     FreeAndNil(vParams);
   end;
 
-  FItems := TObjectList<TLayoutX>.Create;
-  FMargins := TLayoutMargins.Create;
-  FPadding := TLayoutPadding.Create;
-  FFont := TLayoutFont.Create;
-  FConstraints := TLayoutConstraints.Create;
+
 end;
 
 destructor TLayoutX.Destroy;
@@ -1123,5 +1194,20 @@ procedure TNavigationItem.Save(const AParent: TJSONObject; const AName: string);
 begin
   AParent.AddPair(AName, InternalSave);
 end;
+
+{ TLayout }
+
+{constructor TLayout.Create(const AKind: TLayoutKind; const AControl: TObject);
+begin
+  inherited Create;
+  FControl := AControl;
+  FKind := AKind;
+end;
+
+destructor TLayout.Destroy;
+begin
+  FControl := nil;
+  inherited Destroy;
+end; }
 
 end.

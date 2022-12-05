@@ -59,7 +59,6 @@ type
     procedure ArrangeMozaic(const AMDIForm: TForm);
     procedure RestoreChildForms(const AInteractor: TInteractor);
     procedure StoreChildForms(const AInteractor: TInteractor; const AMainForm: TForm);
-    function CreateLayoutFromControl(const AParentLayout: TLayout; const AVCLControl: TVCLControl): TLayout;
   protected
     //FOnRFIDRead: TRFIDReadEvent;
     FTrayIcon: TTrayIcon;
@@ -98,7 +97,7 @@ type
     procedure StoreUILayout(const AInteractor: TInteractor); override;
     procedure RestoreUILayout(const AInteractor: TInteractor); override;
     function GetViewNameByLayoutType(const ALayout: TLayout): string; override;
-    procedure DoEnumerateControls(const ALayout: TLayout; const AControls: TList<TObject>); override;
+    procedure DoEnumerateControls(const ALayout: TLayout; const AControls: TList<TLayout>); override;
     procedure DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string); override;
     function DoGetLayoutCaption(const ALayout: TLayout): string; override;
     function DoGetLayoutKind(const ALayout: TLayout): TLayoutKind; override;
@@ -116,7 +115,7 @@ type
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
 
-    function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject; override;
+    function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout; override;
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
 
     function GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
@@ -260,280 +259,32 @@ begin
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
 end;
 
-function TWinVCLPresenter.CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject;
+function TWinVCLPresenter.CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout;
 var
   vParams: TStrings;
+  vControl: TObject;
 begin
   vParams := CreateDelimitedList(AParams);
   case ALayoutKind of
     lkPanel: begin
-        Result := TPanel.Create(nil);
-        TPanel(Result).BevelOuter := bvNone;
+        vControl := TPanel.Create(nil);
+        TPanel(vControl).BevelOuter := bvNone;
       end;
     lkPage: begin
-        Result := TTabSheet.Create(nil);
-        TTabSheet(Result).Caption := vParams.Values['Caption'];
-        TTabSheet(Result).ImageIndex := StrToIntDef(vParams.Values['ImageIndex'], -1);
-        TTabSheet(Result).Name := vParams.Values['Name'];
-        TTabSheet(Result).Tag := 11;
+        vControl := TTabSheet.Create(nil);
+        TTabSheet(vControl).Caption := vParams.Values['Caption'];
+        TTabSheet(vControl).ImageIndex := StrToIntDef(vParams.Values['ImageIndex'], -1);
+        TTabSheet(vControl).Name := vParams.Values['Name'];
+        TTabSheet(vControl).Tag := 11;
       end;
-    lkFrame: Result := TFrame.Create(nil);
+    lkFrame: vControl := TFrame.Create(nil);
   else
-    Result := nil;
+    vControl := nil;
   end;
+
+  Result := vControl;
+
   FreeAndNil(vParams);
-end;
-
-function TWinVCLPresenter.CreateLayoutFromControl(const AParentLayout: TLayout; const AVCLControl: TVCLControl): TLayout;
-var
-  vParentControl: TWinControl absolute AVCLControl;
-  vSourceLabel: TLabel absolute AVCLControl;
-  vSourceImage: TImage absolute AVCLControl;
-  vSourcePC: TPageControl absolute AVCLControl;
-  vSourceTabSheet: TTabSheet absolute AVCLControl;
-  vSourcePanel: TPanel absolute AVCLControl;
-  vSourceBox: TScrollBox absolute AVCLControl;
-  vSourceBevel: TBevel absolute AVCLControl;
-  vSourceSplitter: TSplitter absolute AVCLControl;
-  vMemoryStream: TMemoryStream;
-  vPos: Integer;
-  vCaption: string;
-  vUIParams: string;
-  vParams: TStrings;
-  i: Integer;
-
-  procedure AssignEdges(const AEdges: TLayoutEdges; const AMargins: TMargins);
-  begin
-    AEdges.Left := AMargins.Left;
-    AEdges.Top := AMargins.Top;
-    AEdges.Right := AMargins.Right;
-    AEdges.Bottom := AMargins.Bottom;
-  end;
-
-  procedure AssignConstraints(const ALayout: TLayout; const AConstraints: TSizeConstraints);
-  begin
-    ALayout.Constraints.MinWidth := AConstraints.MinWidth;
-    ALayout.Constraints.MaxWidth := AConstraints.MaxWidth;
-    ALayout.Constraints.MinHeight := AConstraints.MinHeight;
-    ALayout.Constraints.MaxHeight := AConstraints.MaxHeight;
-  end;
-
-  procedure AssignPlacement(const ALayout: TLayout; const AControl: TControl);
-  begin
-    ALayout.Width := AControl.Width;
-    ALayout.Height := AControl.Height;
-    ALayout.Left := AControl.Left;
-    ALayout.Top := AControl.Top;
-
-    ALayout.Anchors := AControl.Anchors;
-    ALayout.Align := TLayoutAlign(AControl.Align);
-    ALayout.AlignWithMargins := AControl.AlignWithMargins;
-    AssignEdges(ALayout.Margins, AControl.Margins);
-
-    ALayout.Name := AControl.Name;
-    ALayout.Tag := AControl.Tag;
-
-    // Доступность
-    ALayout.State := vsUndefined;
-  end;
-
-  procedure AssignFont(const ALayout: TLayout; const AFont: TFont);
-  begin
-    ALayout.Font.Family := AFont.Name;
-    ALayout.Font.Size := AFont.Size;
-    ALayout.Font.Color := AFont.Color;
-    ALayout.Font.Style := AFont.Style;
-  end;
-
-  {procedure AssignImage(const ALayout: TLayout; const AFont: TFont);
-  begin
-    ALayout.Font.Family := AFont.Name;
-    ALayout.Font.Size := AFont.Size;
-    ALayout.Font.Color := AFont.Color;
-    ALayout.Font.Style := AFont.Style;
-  end;}
-
-  procedure CopyItems(const ASource: TMenuItem; const ADestination: TNavigationItem);
-  var
-    i: Integer;
-    vMenuItem: TNavigationItem;
-  begin
-    for i := 0 to ASource.Count - 1 do
-    begin
-      vMenuItem := ADestination.Add(ASource[i].Caption);
-      CopyItems(ASource[i], vMenuItem);
-    end;
-  end;
-
-  procedure AssignMenu(const ALayout: TLayout; const AMenu: TMenuItem);
-  var
-    vMenu: TNavigationItem;
-  begin
-    vMenu := TNavigationItem.Create(nil, '');
-    CopyItems(AMenu, vMenu);
-    ALayout.Menu := vMenu;
-  end;
-
-  function PictureGraphicToString(const AGraphic: TGraphic): string;
-  var
-    vMemStream: TMemoryStream;
-    vStrStream: TStringStream;
-  begin
-    vMemStream := TMemoryStream.Create;
-    AGraphic.SaveToStream(vMemStream);
-    vStrStream := TStringStream.Create;
-    vStrStream.CopyFrom(vMemStream, -1);
-    vStrStream.Position := 0;
-    Result := EncodeBase64(vStrStream.DataString);
-    vMemStream.Free;
-    vStrStream.Free;
-  end;
-
-begin
-  Result := nil;
-  if not Assigned(AVCLControl) then
-    Exit;
-
-  if AVCLControl is TFrame then
-  begin
-    Result := TLayout.Create(AParentLayout, lkFrame);
-    AssignPlacement(Result, vSourcePanel);
-    AssignEdges(Result.Padding, vSourcePanel.Padding);
-    AssignConstraints(Result, vSourcePanel.Constraints);
-    AssignFont(Result, vSourcePanel.Font);
-    Result.BorderStyle := TLayoutBorderStyle(vSourcePanel.BorderStyle);
-  end
-  else if AVCLControl is TLabel then
-  begin
-    Result := TLayout.Create(AParentLayout, lkLabel); // Params?
-    AssignPlacement(Result, vSourceLabel);
-    AssignFont(Result, vSourceLabel.Font);
-    Result.Transparent := vSourceLabel.Transparent;
-    Result.AutoSize := vSourceLabel.AutoSize;
-    Result.WordWrap := vSourceLabel.WordWrap;
-
-    vCaption := vSourceLabel.Caption;
-    vUIParams := '';
-    vPos := Pos('@', vCaption);
-    if vPos > 1 then
-    begin
-      vUIParams := vCaption;
-      Delete(vUIParams, 1, vPos);
-      vCaption := Copy(vCaption, 1, vPos - 1);
-    end
-    else
-      vCaption := vSourceLabel.Caption;
-    Result.Caption := vCaption;
-    Result.UIParams := vUIParams;
-  end
-  else if AVCLControl is TImage then
-  begin
-    Result := TLayout.Create(AParentLayout, lkImage);
-    AssignPlacement(Result, vSourceImage);
-
-    vMemoryStream := TMemoryStream.Create;
-    vSourceImage.Picture.SaveToStream(vMemoryStream);
-    vMemoryStream.Position := 0;
-    Result.Picture := vMemoryStream;
-
-    Result.Stretch := vSourceImage.Stretch;
-    Result.Proportional := vSourceImage.Proportional;
-    Result.Hint := vSourceImage.Hint;
-  end
-  else if AVCLControl is TPageControl then
-  begin
-    Result := TLayout.Create(AParentLayout, lkPages);
-    //Result.IsNavigator := vSourcePC.Tag = 1;
-    AssignPlacement(Result, vSourcePC);
-    AssignFont(Result, vSourcePC.Font);
-
-    Result.PagePosition := TPagePosition(vSourcePC.TabPosition);
-    Result.PageHeight := vSourcePC.TabHeight;
-    Result.PageWidth := vSourcePC.TabWidth;
-    Result.PageStyle := TPageStyle(vSourcePC.Style);
-  end
-  else if AVCLControl is TTabSheet then
-  begin
-    Result := TLayout.Create(AParentLayout, lkPage);
-    //Result.IsForm := vSourceTabSheet.Tag = 11;
-    Result.Tag := vSourceTabSheet.Tag;
-    Result.Caption := vSourceTabSheet.Caption;
-    Result.ImageIndex := vSourceTabSheet.ImageIndex;
-    if vSourceTabSheet.TabVisible then
-      Result.State := vsFullAccess
-    else
-      Result.State := vsHidden;
-  end
-  else if AVCLControl is TBevel then
-  begin
-    Result := TLayout.Create(AParentLayout, lkBevel);
-    AssignPlacement(Result, vSourceBevel);
-    Result.Name := '-bevel-';
-    Result.BevelShape := TLayoutBevelShape(vSourceBevel.Shape);
-    Result.BevelStyle := TLayoutBevelStyle(vSourceBevel.Style);
-  end
-  else if AVCLControl is TSplitter then
-  begin
-    Result := TLayout.Create(AParentLayout, lkSplitter);
-    AssignPlacement(Result, vSourceSplitter);
-    Result.Name := '-splitter-';
-    Result.Color := ColorToAlphaColor(vSourceSplitter.Color);
-    Result.Cursor := vSourceSplitter.Cursor;
-  end
-  else if AVCLControl is TPanel then
-  begin
-    vCaption := vSourcePanel.Caption;
-    vPos := Pos('?', vCaption);
-    if vPos > 0 then
-      Delete(vCaption, 1, vPos);
-
-    vParams := CreateDelimitedList(vCaption, '&');
-    try
-      if vParams.Values['ViewType'] = 'Paged' then
-      begin
-        Result := TLayout.Create(AParentLayout, lkPages);
-        Result.ViewType := lvtPages;
-        AssignPlacement(Result, vSourcePanel);
-        AssignFont(Result, vSourcePanel.Font);
-        if vParams.Values['PageLayout'] = 'Top' then
-          Result.PagePosition := ppTop
-        else
-          Result.PagePosition := ppBottom;
-      end
-      else begin
-        Result := TLayout.Create(AParentLayout, lkPanel);
-        AssignPlacement(Result, vSourcePanel);
-        AssignEdges(Result.Padding, vSourcePanel.Padding);
-        Result.BevelInner := TLayoutBevelKind(vSourcePanel.BevelInner);
-        Result.BevelOuter := TLayoutBevelKind(vSourcePanel.BevelOuter);
-        Result.ParentBackground := vSourcePanel.ParentBackground;
-        Result.Color := ColorToAlphaColor(vSourcePanel.Color);
-        Result.Caption := vSourcePanel.Caption;
-      end;
-    finally
-      FreeAndNil(vParams);
-    end;
-  end
-  else if AVCLControl is TScrollBox then
-  begin
-    Result := TLayout.Create(AParentLayout, lkScrollBox);
-    AssignPlacement(Result, vSourcePanel);
-    AssignEdges(Result.Padding, vSourcePanel.Padding);
-    Result.BorderStyle := TLayoutBorderStyle(vSourcePanel.BorderStyle);
-  end
-  else
-    Assert(False, 'Класс [' + AVCLControl.ClassName + '] не поддерживается для создания лэйаутов');
-
-  if Assigned(TCrackedWinControl(AVCLControl).PopupMenu) then
-    AssignMenu(Result, TCrackedWinControl(AVCLControl).PopupMenu.Items);
-
-  if Assigned(Result) then
-  begin
-    if Assigned(APArentLayout) then
-      AParentLayout.Add(Result);
-    for i := 0 to vParentControl.ControlCount - 1 do
-      CreateLayoutFromControl(Result, vParentControl.Controls[i]);
-  end;
 end;
 
 function TWinVCLPresenter.CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
@@ -641,7 +392,7 @@ begin
   FDebugForm := nil;
 end;
 
-procedure TWinVCLPresenter.DoEnumerateControls(const ALayout: TLayout; const AControls: TList<TObject>);
+procedure TWinVCLPresenter.DoEnumerateControls(const ALayout: TLayout; const AControls: TList<TLayout>);
 var
   vParentControl: TWinControl;
   i: Integer;

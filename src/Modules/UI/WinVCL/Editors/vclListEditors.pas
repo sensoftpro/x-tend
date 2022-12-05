@@ -1330,7 +1330,7 @@ begin
   if ALayout is TPanel then
     FGrid.Align := TPanel(ALayout).Align
   else
-    FGrid.Align := TAlign.alClient;
+    FGrid.Align := alClient;
   FGrid.Levels.Add.GridView := FMasterTableView;
 //  FGrid.Levels.Add.GridView := FChartView;
   FGrid.Font.Size := 12;
@@ -2728,7 +2728,7 @@ begin
   FGrid.LookAndFeel.NativeStyle := False;
   FGrid.LookAndFeel.Kind := lfFlat;
 
-  FGrid.Align := TAlign.alClient;
+  FGrid.Align := alClient;
   FGrid.Levels.Add.GridView := FMasterTableView;
   FGrid.Font.Size := 12;
 
@@ -3252,7 +3252,7 @@ begin
   if ALayout is TPanel then
     FPivot.Align := TPanel(ALayout).Align
   else
-    FPivot.Align := TAlign.alClient;
+    FPivot.Align := alClient;
 
   FPivot.OptionsCustomize.SortingByGroupValues := True;
   FPivot.OptionsCustomize.Hiding := True;
@@ -3592,7 +3592,7 @@ begin
   if ALayout is TPanel then
     FTreeList.Align := TPanel(ALayout).Align
   else
-    FTreeList.Align := TAlign.alClient;
+    FTreeList.Align := alClient;
 
   FTreeList.Font.Size := 12;
 
@@ -4295,7 +4295,7 @@ procedure TPagedEntityListSelector.FillEditor;
 var
   i: Integer;
   vSelectedList: TEntityList;
-  vTab: TObject;
+  vTab: TLayout;
   vTabArea, vArea: TUIArea;
   vView: TView;
   vTabParams: string;

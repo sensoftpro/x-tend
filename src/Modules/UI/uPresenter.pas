@@ -223,7 +223,7 @@ type
     procedure RestoreUILayout(const AInteractor: TInteractor); virtual;
 
     function GetViewNameByLayoutType(const ALayout: TLayout): string; virtual;
-    function DoEnumerateControls(const AParentLayout: TLayout; const AVCLControl: TVCLControl): TLayout; virtual; abstract;
+    procedure DoEnumerateControls(const ALayout: TLayout; const AControls: TList<TLayout>); virtual;
     procedure DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string); virtual;
     function DoGetLayoutCaption(const ALayout: TLayout): string; virtual;
     function DoGetLayoutKind(const ALayout: TLayout): TLayoutKind; virtual;
@@ -254,7 +254,7 @@ type
     function CreateNavigationArea(const AParentArea: TUIArea; const ALayout: TLayout;
       const AView: TView; const AStyleName, AParams: string): TUIArea;
     procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
-    function EnumerateControls(const AParentLayout: TLayout; const AVCLControl: TVCLControl): TLayout;
+    procedure EnumerateControls(const ALayout: TLayout; const AControls: TList<TLayout>);
     procedure SetLayoutCaption(const ALayout: TLayout; const ACaption: string);
     function GetLayoutCaption(const ALayout: TLayout): string;
     function GetLayoutKind(const ALayout: TLayout): TLayoutKind;
@@ -263,7 +263,7 @@ type
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
     procedure CloseAllPages(const AInteractor: TInteractor);
 
-    function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject; virtual; abstract;
+    function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout; virtual; abstract;
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
     function SetCursor(const ACursorType: TCursorType): TCursorType;
 
@@ -423,6 +423,10 @@ begin
   inherited Destroy;
 end;
 
+procedure TPresenter.DoEnumerateControls(const ALayout: TLayout; const AControls: TList<TLayout>);
+begin
+end;
+
 function TPresenter.DoGetLayoutCaption(const ALayout: TLayout): string;
 begin
   Result := '';
@@ -492,9 +496,9 @@ procedure TPresenter.DoUnfreeze;
 begin
 end;
 
-function TPresenter.EnumerateControls(const AParentLayout: TLayout; const AVCLControl: TVCLControl): TLayout;
+procedure TPresenter.EnumerateControls(const ALayout: TLayout; const AControls: TList<TLayout>);
 begin
-  Result := DoEnumerateControls(AParentLayout, AVCLControl);
+  DoEnumerateControls(ALayout, AControls);
 end;
 
 function TPresenter.GetLayoutCaption(const ALayout: TLayout): string;

@@ -96,9 +96,9 @@ const
 const
   // UI
   LAYOUT_DFM_EXT = '.dfm';
-  cEditFormResizable = 1;
-  cMainFormPositionDesign = 2;
-  cEditFormDisableMinimizeButton = 4;
+  cFormResizable = 1;
+  cFormPositionDesign = 2;
+  cFormDisableMinimizeButton = 4;
   cFormUseDesignSizes = 8;
   cFormNotResizable = 16;
   cFormDisableMaximizeButton = 32;

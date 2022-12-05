@@ -40,22 +40,6 @@ uses
   uConsts, uUIBuilder, uDefinition, uEntity, uView, uLayout;
 
 type
-  TButtonDesc = class
-  public
-    Caption: string;
-    Hint: string;
-    View: string;
-    Layout: string;
-    WorkArea: string;
-    Options: string;
-    Id: string;
-    ImageID: Integer;
-    ColorField: string;
-    GroupField: string;
-
-    function GenerateOptions(const ADelimiter: Char = '&'): string;
-  end;
-
   TLabelPosition = (lpTop, lpLeft);
 
   TVCLFieldArea = class;
@@ -69,9 +53,7 @@ type
     FIsForm: Boolean;
     FIsAutoReleased: Boolean;
     FOnClose: TProc;
-    function CreateButtonDesc(const AText: string): TButtonDesc;
     // Выполнение действий (Actions и переходы)
-    procedure ExplicitNavigate(Sender: TObject);
     procedure OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
     procedure OnActionMenuSelected(Sender: TObject);
     function GetNavigableCollections: TList<TDefinition>;
@@ -82,7 +64,6 @@ type
     function GetControl: TControl;
     function GetComponent: TComponent;
     procedure BeforeContextMenuShow(Sender: TObject);
-    function LessThanUIState(const ADefinition: TDefinition; const ASession: TObject; const AState: TViewState): Boolean;
     procedure CopyPopupMenuItems(const AParent: TUIArea; const AView: TView; const ASrcMenu, ADestMenu: TMenuItem);
   protected
     FNeedCreateCaption: Boolean;
@@ -480,19 +461,19 @@ begin
 
     if ALayout is TFrame then
     begin
-      if (vFrame.Tag and cEditFormResizable) > 0 then
+      if (vFrame.Tag and cFormResizable) > 0 then
       begin
         vForm.BorderStyle := bsSizeable;
         vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
       end;
 
-      if (vFrame.Tag and cEditFormDisableMinimizeButton) > 0 then
+      if (vFrame.Tag and cFormDisableMinimizeButton) > 0 then
         vForm.BorderIcons := vForm.BorderIcons - [biMinimize];
 
       if (vFrame.Tag and cFormDisableMaximizeButton) > 0 then
         vForm.BorderIcons := vForm.BorderIcons - [biMaximize];
 
-      if (vFrame.Tag and cMainFormPositionDesign) > 0 then
+      if (vFrame.Tag and cFormPositionDesign) > 0 then
         vForm.Position := poDesigned;
 
       if (vFrame.Tag and cFormNotResizable) > 0 then
@@ -861,33 +842,6 @@ begin
   end;
 end;
 
-function TVCLArea.CreateButtonDesc(const AText: string): TButtonDesc;
-var
-  vSplitter: TStrings;
-begin
-  Result := TButtonDesc.Create;
-  vSplitter := CreateDelimitedList(AText, '@');
-  try
-    Result.Caption := vSplitter.Values['Caption'];
-    Result.Hint := vSplitter.Values['Hint'];
-    Result.View := vSplitter.Values['View'];
-    Result.Layout := vSplitter.Values['Layout'];
-    if vSplitter.Values['Action'] <> '' then
-      Result.View := vSplitter.Values['Action'];
-    Result.WorkArea := vSplitter.Values['WorkArea'];
-    Result.Options := vSplitter.Values['Options'];
-    Result.Id := vSplitter.Values['Id'];
-    Result.ImageID := StrToIntDef(Trim(vSplitter.Values['ImageID']), 0);
-    Result.ColorField := vSplitter.Values['Color'];
-    Result.GroupField := vSplitter.Values['Group'];
-  finally
-    FreeAndNil(vSplitter);
-  end;
-
-  if (Pos('=', AText) = 0) then
-    Result.View := Trim(AText);
-end;
-
 procedure TVCLArea.CreateCaption(const AFieldDef: TFieldDef);
 var
   vInteractor: TInteractor;
@@ -1134,18 +1088,6 @@ begin
       TForm(FControl).Close;
       TForm(FControl).ModalResult := AModalResult;
     end;
-  end;
-end;
-
-function TVCLArea.LessThanUIState(const ADefinition: TDefinition; const ASession: TObject; const AState: TViewState): Boolean;
-var
-  vSecuredState: TViewState;
-begin
-  if not Assigned(ASession) then
-    Result := ADefinition.UIState <= AState
-  else begin
-    vSecuredState := ADefinition.UIState and TUserSession(ASession).GetUIState(ADefinition.Name, nil);
-    Result := vSecuredState <= AState;
   end;
 end;
 
@@ -1779,67 +1721,6 @@ begin
   begin
     SendMessage(Application.MainForm.ClientHandle, WM_SETREDRAW, 1, 0);
     RedrawWindow(Application.MainForm.ClientHandle, nil, 0, RDW_ERASE or RDW_FRAME or RDW_INVALIDATE or RDW_ALLCHILDREN);
-  end;
-end;
-
-procedure TVCLArea.ExplicitNavigate(Sender: TObject);
-var
-  vButtonDesc: TButtonDesc;
-  vArea: TUIArea;
-  vView: TView;
-  vParentHolder: TObject;
-  vParentObject: TObject;
-  vIsSlave: Boolean;
-  vCaption: string;
-  vOptions, vWorkArea: string;
-begin
-  vArea := TVCLArea(TWinControl(Sender).Tag);
-  vButtonDesc := CreateButtonDesc(vArea.Id);
-  vOptions := vButtonDesc.GenerateOptions('&');
-  try
-    FUIBuilder.LastArea := vArea;
-    if vButtonDesc.Layout <> '' then
-    begin
-      if vButtonDesc.View <> '' then
-        vView := FUIBuilder.RootView.BuildView(vButtonDesc.View)
-      else
-        vView := nil;
-      vCaption := vButtonDesc.Caption;
-      if vCaption = '' then
-        vCaption := vArea.View.QueryParameter('Caption');
-      if Trim(vArea.View.QueryText) <> '' then
-        vOptions := vArea.View.QueryText;
-      vOptions := RemoveUrlParam(vOptions, 'Layout');
-      vWorkArea := GetUrlParam(vOptions, 'ContentWorkArea', vButtonDesc.WorkArea);
-      FUIBuilder.Navigate(vView, vWorkArea, vButtonDesc.Layout, vOptions, nil, nil, vCaption);
-    end
-    else if (vButtonDesc.View <> '') and (Copy(vButtonDesc.View, 1, 1) <> '#') then
-    begin
-      vView := FUIBuilder.RootView.BuildView(vButtonDesc.View);
-      vIsSlave := (vView.Name = 'Save') or SameText(vArea.QueryParameter('place'), 'embedded');
-      if not vIsSlave then
-      begin
-        vParentObject := vView.ParentDomainObject;
-
-        if Assigned(vParentObject) and (vParentObject is TEntityList) then
-          vIsSlave := TEntityList(vParentObject).FillerKind = lfkList
-        else if Assigned(vView.Parent) then
-        begin
-          vParentObject := vView.Parent.ParentDomainObject;
-          if Assigned(vParentObject) and (vParentObject is TEntityList) then
-            vIsSlave := TEntityList(vParentObject).FillerKind = lfkList;
-        end;
-      end;
-
-      if vIsSlave then
-        vParentHolder := Holder
-      else
-        vParentHolder := nil;
-
-      vView.ExecuteAction(vParentHolder);
-    end;
-  finally
-    vButtonDesc.Free;
   end;
 end;
 
@@ -2504,32 +2385,6 @@ begin
     Exit;
 
 //  SetWarningVisible(vEntity.FieldByName(FFieldDef.Name).ValidationStatus = vsInvalid);
-end;
-
-{ TButtonDesc }
-
-function TButtonDesc.GenerateOptions(const ADelimiter: Char): string;
-var
-  vResult: TStrings;
-begin
-  vResult := CreateDelimitedList('', ADelimiter);
-  try
-    if Caption <> '' then
-      vResult.Add('Caption=' + Caption);
-    if Hint <> '' then
-      vResult.Add('Hint=' + Hint);
-    if Id <> '' then
-      vResult.Add('Id=' + Id);
-    if ImageID > 0 then
-      vResult.Add('ImageID=' + IntToStr(ImageID));
-    if ColorField <> '' then
-      vResult.Add('Color=' + ColorField);
-    if GroupField <> '' then
-      vResult.Add('Group=' + GroupField);
-  finally
-    Result := vResult.DelimitedText;
-    FreeAndNil(vResult);
-  end;
 end;
 
 { TLayoutParam }
