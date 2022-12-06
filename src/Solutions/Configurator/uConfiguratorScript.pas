@@ -266,6 +266,72 @@ begin
 
   vDefinition := AddDefinition('Configurations', '_Configurations', 'Конфигурации', cNullItemName, 0).SetImageID(9);
   vDefinition.AddAction('MakeSolution', 'Создать приложение', 0);
+
+
+  vDefinition := AddDefinition('Streets', '', 'Улицы', cNullItemName);
+  vDefinition.AddSimpleFieldDef('Name', 'name', 'Наименование', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);
+  vDefinition.AddListFieldDef('Districts', 'Street', 'Район', 'StreetDistrictRelations', '', 'mtm?transit=District', vsFullAccess, 0, estUserSort, '', rpStrong);
+
+  vDefinition := AddDefinition('Districts', '', 'Районы', cNullItemName);
+  vDefinition.AddSimpleFieldDef('Name', 'name', 'Наименование', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);
+  vDefinition.AddListFieldDef('Streets', 'District', 'Улица', 'StreetDistrictRelations', '', 'mtm?transit=Street', vsFullAccess, 0, estUserSort, '', rpStrong);
+  vDefinition.AddSimpleFieldDef('Phone', 'phone', 'Телефон', '8-921-777-33-44', Null, 50, fkString, 'phone', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Email', 'email', 'Email', 'ya@ya.com', Null, 50, fkString, 'email', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('URL', 'url', 'URL', 'sayt.domen/stranica', Null, 50, fkString, 'url', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('INN', 'inn', 'ИНН', '12345678901', Null, 50, fkString, 'INN', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Memo', 'memo', 'Memo', 'memo-memo-memo', Null, 50, fkString, 'memo', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Log', 'log', 'Log', 'log:log:log:log', Null, 50, fkString, 'log', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Info', 'info', 'info', 'info+info+info', Null, 50, fkString, 'info', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Mru', 'mru', 'mru', 'mru1', Null, 50, fkString, 'mru', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Dir', 'dir', 'dir', 'x:\mydir', Null, 50, fkString, 'dir', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('File', 'file', 'file', 'x:\mydir\myfile.file', Null, 50, fkString, 'file', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('ImageByString', 'imagebystring', 'ImageByString', 'ok', Null, 50, fkString, 'ImageByString?ok=1&problems=2&fail=3', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Selector', 'selector', 'selector', Null, Null, 50, fkString, 'selector', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Comport', 'comport', 'comport', Null, Null, 50, fkString, 'comport', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Fieldpath', 'fieldpath', 'fieldpath', Null, Null, 50, fkString, 'fieldpath', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Integer', 'integer', 'Integer', 1234567890, -10, 1234567891, fkInteger, '', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('IntegerInfo', 'integerinfo', 'IntegerInfo', 1234567890, -10, 1234567891, fkInteger, 'info', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('IntegerSpinner', 'integerspinner', 'Integer', 1, 0, 1, fkInteger, 'spinner', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('IntegerProgress', 'integerprogress', 'IntegerProgress', 75, 0, 100, fkInteger, 'progress', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('IntegerGauge', 'integergauge', 'IntegerGauge', 1, 0, 10, fkInteger, 'gauge', '', vsFullAccess, cRequired);
+//  vDefinition.AddSimpleFieldDef('IntegerPages', 'integerpages', 'IntegerPages', 0, 0, 100, fkInteger, 'pages', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('IntegerFlags', 'integerflags', 'IntegerFlags', 5, 0, 10, fkInteger, 'flags', '', vsFullAccess, cRequired);
+//  vDefinition.AddSimpleFieldDef('Enum', 'enum', 'Enum', Null, Null, Null, fkEnum, '', '', vsFullAccess, 0);
+//  vDefinition.AddSimpleFieldDef('Enumradio', 'enumradio', 'Enumradio', Null, Null, Null, fkEnum, 'radio', '', vsFullAccess, 0);
+//  vDefinition.AddSimpleFieldDef('Enuminfo', 'enuminfo', 'Enuminfo', Null, Null, Null, fkEnum, 'info', '', vsFullAccess, 0);
+//  vDefinition.AddSimpleFieldDef('Enumlinestyle', 'enumlinestyle', 'Enumline_style', Null, Null, Null, fkEnum, 'line_style', '', vsFullAccess, 0);
+//  vDefinition.AddSimpleFieldDef('Enumpages', 'enumpages', 'Enumpages', Null, Null, Null, fkEnum, 'pages', '', vsFullAccess, 0);
+//  vDefinition.AddSimpleFieldDef('Flag', 'Flag', 'Flag', 123, Null, Null, fkEnum, '', '', vsFullAccess, 0);
+//  vDefinition.AddSimpleFieldDef('EnumEntity', 'enumentity', 'EnumEntity', Null, Null, Null, fkEnum, 'enum', '', vsFullAccess, 0);
+  vDefinition.AddSimpleFieldDef('Float', 'float', 'Float', 12345.6789, -10.25, 123456789.6, fkFloat, '', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Floatcurrencyrate', 'floatcurrencyrate', 'Floatcurrencyrate', 12345.6789, -10.25, 123456789.6, fkFloat, 'currency_rate', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Floatinfo', 'floatinfo', 'Floatinfo', 12345.6789, -10.25, 123456789.6, fkFloat, 'info', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Floatgauge', 'floatgauge', 'Floatgauge', 12.6789, 0, 20.6, fkFloat, 'gauge', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Date', 'date', 'Date', 1000, 100, 20000000, fkDateTime, '', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Time', 'time', 'time', 1000, 100, 20000000, fkDateTime, 'time', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Datetime', 'datetime', 'datetime', 1000, 100, 20000000, fkDateTime, 'datetime', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Dateinfo', 'dateinfo', 'Dateinfo', 1001, 100, 20000000, fkDateTime, '', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Currency', 'currency', 'Currency', 1000.3, 100.2, 20000000.4, fkCurrency, '', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Currencyinfo', 'currencyinfo', 'Currencyinfo', 1000.3, 100.2, 20000000.4, fkCurrency, 'info', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Bool', 'bool', 'Bool', True, Null, Null, fkBoolean, '', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Boolsimple', 'boolsimple', 'Boolsimple', True, Null, Null, fkBoolean, 'simple', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Boolimagedaction', 'boolimagedaction', 'Boolimagedaction', True, Null, Null, fkBoolean, 'imaged_action', '', vsFullAccess, cRequired);
+ // vDefinition.AddSimpleFieldDef('Boolimages', 'boolimages', 'Boolimages', True, Null, Null, fkBoolean, 'images', '', vsFullAccess, cRequired);
+//  vDefinition.AddSimpleFieldDef('Boolpages', 'boolpages', 'Boolpages', True, Null, Null, fkBoolean, 'pages', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Boolselectedcaption', 'boolselectedcaption', 'Boolselectedcaption', True, Null, Null, fkBoolean, 'selected_caption', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Color', 'color', 'Color', 1, Null, Null, fkColor, '', '', vsFullAccess, 0);
+  vDefinition.AddSimpleFieldDef('Colorsimple', 'colorsimple', 'Colorsimple', 2, Null, Null, fkColor, 'simple', '', vsFullAccess, 0);
+
+//  uiBLOBEdit, '', TDEBLOBEditor);
+//  uiBLOBEdit, 'image', TDEImageEditor);
+//  uiEntityEdit, 'info', TTextInfo);
+//  uiEntityEdit, 'pages', TDEPagesFieldEditor);
+
+
+  vDefinition := AddDefinition('StreetDistrictRelations', '', '', cNullItemName, ccHideInMenu);
+  vDefinition.AddEntityFieldDef('District', 'district', 'Район', '', 'Districts', 0, vsSelectOnly, cRequired);
+  vDefinition.AddEntityFieldDef('Street', 'street', 'Улица', '', 'Streets', 0, vsSelectOnly, cRequired);
+  vDefinition.AddUniqueIndex('District,Street');
 end;
 
 function TConfiguratorScript.DoExecuteAction(const AView: TView; const AActionName: string;

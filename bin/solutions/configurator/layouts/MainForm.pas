@@ -21,6 +21,8 @@ type
     ConfigurationsWorkAreaWorkAreaLayoutCollection1: TMenuItem;
     Panel1: TPanel;
     Panel2: TPanel;
+    StreetsWorkAreaWorkAreaLayoutCollection1: TMenuItem;
+    DistrictsWorkAreaWorkAreaLayoutCollection1: TMenuItem;
   end;
 
 implementation
