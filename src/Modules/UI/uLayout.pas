@@ -173,11 +173,14 @@ type
   TLayout = class
   private
     [Weak] FParent: TLayout;
-    FItems: TObjectList<TLayout>;
+    FItems: TList<TLayout>;
     FControl: TObject;
     FKind: TLayoutKind;
     FIsOwner: Boolean;
+    FIndex: Integer;
   public
+    class var Count: Integer;
+
     constructor Create(const AKind: TLayoutKind; const AControl: TObject; const AIsOwner: Boolean = False);
     destructor Destroy; override;
 
@@ -186,8 +189,9 @@ type
     property Kind: TLayoutKind read FKind;
     property Control: TObject read FControl;
     property Parent: TLayout read FParent;
-    property Items: TObjectList<TLayout> read FItems;
+    property Items: TList<TLayout> read FItems;
     property IsOwner: Boolean read FIsOwner;
+    property _Index: Integer read FIndex;
   end;
   //TVCLControl = type TObject;
 
@@ -1165,10 +1169,12 @@ constructor TLayout.Create(const AKind: TLayoutKind; const AControl: TObject; co
 begin
   inherited Create;
   FParent := nil;
-  FItems := TObjectList<TLayout>.Create;
+  FItems := TList<TLayout>.Create;
   FIsOwner := AIsOwner;
   FControl := AControl;
   FKind := AKind;
+  Inc(Count);
+  FIndex := Count;
 end;
 
 destructor TLayout.Destroy;
@@ -1176,10 +1182,15 @@ begin
   FParent := nil;
   FreeAndNil(FItems);
   if FIsOwner then
-    FreeAndNil(FControl)
+  begin
+    FreeAndNil(FControl);
+  end
   else
     FControl := nil;
   inherited Destroy;
 end;
+
+initialization
+  TLayout.Count := 0;
 
 end.

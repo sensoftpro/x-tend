@@ -1170,7 +1170,7 @@ begin
       vForm.ShowHint := True;
       if AView.DefinitionKind in [dkCollection, dkAction, dkEntity] then
         TDragImageList(TInteractor(Interactor).Images[16]).GetIcon(GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
-      Result := TVCLArea.Create(Self, AView, vSourceTabSheet.Name, False, vForm);
+      Result := TVCLArea.Create(Self, AView, vSourceTabSheet.Name, False, vForm, ALayout);
       TVCLArea(Result).OnClose := AOnClose;
     end
     else begin
@@ -1200,7 +1200,7 @@ begin
     vBevel.Align := vSourceBevel.Align;
     vBevel.Shape := vSourceBevel.Shape;
     vBevel.Style := vSourceBevel.Style;
-    Result := TVCLArea.Create(Self, AView, '-bevel-', False, vBevel);
+    Result := TVCLArea.Create(Self, AView, '-bevel-', False, vBevel, ALayout);
   end
   else if ALayout.Control is TSplitter then
   begin
@@ -1296,7 +1296,7 @@ begin
         vPanel.ParentColor := False;
         vPanel.ParentBackground := False;
       end;
-      Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), False, vPanel, nil, AParams);
+      Result := TVCLArea.Create(Self, AView, Trim(vSourcePanel.Caption), False, vPanel, ALayout, AParams);
     end;
 
     Result.AddParams(vParams);

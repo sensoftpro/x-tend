@@ -90,6 +90,7 @@ type
     procedure DisableContent;
     procedure AfterChildAreasCreated;
     function ParentInUpdate: Boolean;
+    procedure SetLayout(const Value: TLayout);
   protected
     FControl: TObject;
     FLayout: TLayout;
@@ -186,7 +187,7 @@ type
     property Count: Integer read GetCount;
     property Areas[const AIndex: Integer]: TUIArea read GetArea; default;
     property Parent: TUIArea read FParent;
-    property Layout: TLayout read FLayout write FLayout;
+    property Layout: TLayout read FLayout write SetLayout;
     property CreateParams: TStrings read FCreateParams;
     property InternalParams: string read FInternalParams;
     property UIBuilder: TUIBuilder read FUIBuilder;
@@ -455,6 +456,8 @@ begin
     AView.RemoveListener(AArea);
   end;
 
+  AArea.Layout := vParentLayout;
+
   if AArea.Count > 0 then
     AArea.ArrangeChildAreas;
 end;
@@ -488,7 +491,6 @@ begin
     CreateChildAreas(AArea, vLayout, AParams);
   finally
     AArea.EndUpdate;
-    //FreeAndNil(vFrame);
   end;
 end;
 
@@ -711,6 +713,7 @@ begin
           vTabParams := 'Caption=Стартовая страница;ImageIndex=' + IntToStr(GetImageID(StrToIntDef(GetUrlParam(AOptions, 'ImageID', '-1'), 0))) + ';Name=' + vPageID;
 
         vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPage, vTabParams);
+        //vUIArea.Layout := vLayout;
         try
           vTabArea := vUIArea.CreateChildArea(vView, vLayout, AOptions, AOnClose);
           vTabArea.BeginUpdate;
@@ -1143,7 +1146,9 @@ begin
     end
     else
       FUIBuilder.CreateChildAreas(Result, ALayout, vQuery);
-  end;
+  end
+  else
+    ALayout.Free;
 end;
 
 function TUIArea.CreateChildLayoutedArea(const ALayout: TLayout; const AView: TView;
@@ -1176,9 +1181,10 @@ destructor TUIArea.Destroy;
 begin
   FreeAndNil(FCreateParams);
   FControl := nil;
-  if Assigned(FLayout) and FLayout.IsOwner then
-    FLayout.Control.Free;
-  FLayout := nil;
+  FreeAndNil(FLayout);
+  //if Assigned(FLayout) and FLayout.IsOwner then
+  //  FLayout.Control.Free;
+  //FLayout := nil;
   inherited Destroy;
 end;
 
@@ -1706,6 +1712,17 @@ begin
   FHolder := AHolder;
 end;
 
+procedure TUIArea.SetLayout(const Value: TLayout);
+begin
+  if FLayout = Value then
+    Exit;
+
+  if Assigned(FLayout) then
+    FLayout.Free;
+  
+  FLayout := Value;
+end;
+
 procedure TUIArea.SetParent(const Value: TUIArea);
 begin
   FParent := Value;
@@ -1730,6 +1747,7 @@ var
   i: Integer;
   vViewName: string;
   vModifier: string;
+  vIndex: string;
 begin
   if FView.FullName = '' then
     vViewName := ''
@@ -1749,7 +1767,12 @@ begin
   if vModifier <> '' then
     vModifier := '>>' + vModifier + ': ';
 
-  Result := AIndent + vModifier + GetName + ':' + Self.ClassName + ':' + FControl.ClassName + vViewName +
+  if Assigned(FLayout) then
+    vIndex := '/' + IntToStr(FLayout._Index) + '/ '
+  else
+    vIndex := '// ';
+
+  Result := AIndent + vModifier + vIndex + GetName + ':' + Self.ClassName + ':' + FControl.ClassName + vViewName +
     DoGetDescription + #13#10;
   for i := 0 to FAreas.Count - 1 do
     Result := Result + GetArea(i).TextHierarchy(AIndent + '    ');
