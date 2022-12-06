@@ -85,5 +85,11 @@ object EditForm: TEditForm
     object ConfigurationsWorkAreaWorkAreaLayoutCollection1: TMenuItem
       Caption = 'Configurations?WorkArea=WorkArea&Layout=Collection'
     end
+    object StreetsWorkAreaWorkAreaLayoutCollection1: TMenuItem
+      Caption = 'Streets?WorkArea=WorkArea&Layout=Collection'
+    end
+    object DistrictsWorkAreaWorkAreaLayoutCollection1: TMenuItem
+      Caption = 'Districts?WorkArea=WorkArea&Layout=Collection'
+    end
   end
 end
