@@ -44,16 +44,16 @@ type
   TPlannedJob = class
   private
     FName: string;
-    FPeriod: Integer; // Секунды
+    FPeriodInSec: Integer;
     FHandler: TSchedulerHandler;
     FRefFieldName: string;
     FSnapToPeriod: Boolean;
   public
-    constructor Create(const AName: string; const APeriod: Integer; const AHandler: TSchedulerHandler;
+    constructor Create(const AName: string; const APeriodInSec: Integer; const AHandler: TSchedulerHandler;
       const ARefFieldName: string; const ASnapToPeriod: Boolean);
 
     property Name: string read FName;
-    property Period: Integer read FPeriod;
+    property PeriodInSec: Integer read FPeriodInSec;
     property Handler: TSchedulerHandler read FHandler;
     property RefFieldName: string read FRefFieldName;
     property SnapToPeriod: Boolean read FSnapToPeriod;
@@ -173,13 +173,13 @@ end;
 
 { TPlannedJob }
 
-constructor TPlannedJob.Create(const AName: string; const APeriod: Integer; const AHandler: TSchedulerHandler;
+constructor TPlannedJob.Create(const AName: string; const APeriodInSec: Integer; const AHandler: TSchedulerHandler;
   const ARefFieldName: string; const ASnapToPeriod: Boolean);
 begin
   inherited Create;
 
   FName := AName;
-  FPeriod := APeriod;
+  FPeriodInSec := APeriodInSec;
   FHandler := AHandler;
   FRefFieldName := ARefFieldName;
   FSnapToPeriod := ASnapToPeriod;

@@ -543,7 +543,7 @@ begin
     Exit;
 
   vChangedEntity := TChangedEntity(FChangedEntities[vIndex]);
-  TDomain(FDomain).Logger.AddMessage('$$$ TRY NEW DATA ' + AFieldName);
+  //TDomain(FDomain).Logger.AddMessage('$$$ TRY NEW DATA ' + AFieldName);
   // Мы можем удалить сущность из списка измененных только в случае,
   //   если она не новая и если в ней нет измененных полей
   if not vChangedEntity.RegisterFieldChanges(AFieldName) then

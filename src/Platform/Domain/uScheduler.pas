@@ -220,24 +220,22 @@ end;
 procedure TWaitingJob.CalcNextActivationTime(const ANow: TDateTime);
 //ANow - время последнего исполнения
 var
-  vPeriod: Cardinal;
+  vPeriodInSec: Cardinal;
   vNextSeconds: Cardinal;
 begin
   if Assigned(FDomain) and (PlannedJob.RefFieldName <> '') then
   begin
-    vPeriod := StrToIntDef(TDomain(FDomain).Constant[PlannedJob.RefFieldName], -1);
-    if vPeriod <= 0 then
-      vPeriod := PlannedJob.Period
-    else
-      vPeriod := vPeriod * 60;
+    vPeriodInSec := StrToIntDef(TDomain(FDomain).Constant[PlannedJob.RefFieldName], -1);
+    if vPeriodInSec <= 0 then
+      vPeriodInSec := PlannedJob.PeriodInSec
   end
   else
-    vPeriod := PlannedJob.Period;
+    vPeriodInSec := PlannedJob.PeriodInSec;
 
   if not PlannedJob.SnapToPeriod then
-    NextActivationTime := ANow + vPeriod / SecsPerDay
+    NextActivationTime := ANow + vPeriodInSec / SecsPerDay
   else begin
-    vNextSeconds := (SecondOfTheDay(ANow) div vPeriod + 1) * vPeriod;
+    vNextSeconds := (SecondOfTheDay(ANow) div vPeriodInSec + 1) * vPeriodInSec;
     NextActivationTime := Int(ANow) + vNextSeconds / SecsPerDay;
   end;
 end;

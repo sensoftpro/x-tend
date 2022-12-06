@@ -1327,8 +1327,8 @@ begin
   FGrid.LookAndFeel.NativeStyle := False;
   FGrid.LookAndFeel.Kind := lfFlat;
 
-  if ALayout is TPanel then
-    FGrid.Align := TPanel(ALayout).Align
+  if ALayout.Control is TPanel then
+    FGrid.Align := TPanel(ALayout.Control).Align
   else
     FGrid.Align := alClient;
   FGrid.Levels.Add.GridView := FMasterTableView;
@@ -2715,9 +2715,9 @@ begin
   FMasterTableView.Styles.Selection := FSelectionStyle;
   FMasterTableView.Styles.Inactive := FSelectionStyle;
 
-  if Assigned(ALayout) and (ALayout is TPanel) then
+  if Assigned(ALayout) and (ALayout.Control is TPanel) then
   begin
-    FContentStyle.TextColor := TPanel(ALayout).Font.Color;
+    FContentStyle.TextColor := TPanel(ALayout.Control).Font.Color;
     FSelectionStyle.TextColor := clHighlightText;
     FSelectionStyle.Color := clHighlight;
   end;
@@ -3249,8 +3249,8 @@ begin
   FPivot := TcxPivotGrid.Create(nil);
   FId := 'Pivot';
 
-  if ALayout is TPanel then
-    FPivot.Align := TPanel(ALayout).Align
+  if ALayout.Control is TPanel then
+    FPivot.Align := TPanel(ALayout.Control).Align
   else
     FPivot.Align := alClient;
 
@@ -3589,8 +3589,8 @@ begin
   FTreeList.LookAndFeel.NativeStyle := False;
   FTreeList.LookAndFeel.Kind := lfFlat;
 
-  if ALayout is TPanel then
-    FTreeList.Align := TPanel(ALayout).Align
+  if ALayout.Control is TPanel then
+    FTreeList.Align := TPanel(ALayout.Control).Align
   else
     FTreeList.Align := alClient;
 
@@ -4295,7 +4295,8 @@ procedure TPagedEntityListSelector.FillEditor;
 var
   i: Integer;
   vSelectedList: TEntityList;
-  vTab: TLayout;
+  vLayout: TLayout;
+  vTab: TComponent;
   vTabArea, vArea: TUIArea;
   vView: TView;
   vTabParams: string;
@@ -4322,16 +4323,17 @@ begin
       else
         vTabParams := 'caption=' + vSelectedList[i][FCreateParams.Values['DisplayName']];
 
-      vTab := TPresenter(Presenter).CreateLayoutArea(lkPage, vTabParams);
+      vLayout := TPresenter(Presenter).CreateLayoutArea(lkPage, vTabParams);
+      vTab := TComponent(vLayout.Control);
       try
-        TComponent(vTab).Tag := 0;
+        vTab.Tag := 0;
         vView := FView.BuildView(IntToStr(i));
         vView.AddListener(Self);
         FCreatedViews.Add(vView);
-        vTabArea := CreateChildArea(vView, vTab, '');
+        vTabArea := CreateChildArea(vView, vLayout, '');
         TInteractor(Interactor).UIBuilder.ApplyLayout(vTabArea, vView, FCreateParams.Values['layout'], '');
       finally
-        vTab.Free;
+        //vTab.Free;
       end;
     end;
 //    FPages.Properties.HideTabs := FPages.PageCount < 2;

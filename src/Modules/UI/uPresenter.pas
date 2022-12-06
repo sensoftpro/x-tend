@@ -223,10 +223,9 @@ type
     procedure RestoreUILayout(const AInteractor: TInteractor); virtual;
 
     function GetViewNameByLayoutType(const ALayout: TLayout): string; virtual;
-    procedure DoEnumerateControls(const ALayout: TLayout; const AControls: TList<TLayout>); virtual;
+    procedure DoEnumerateControls(const ALayout: TLayout); virtual;
     procedure DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string); virtual;
     function DoGetLayoutCaption(const ALayout: TLayout): string; virtual;
-    function DoGetLayoutKind(const ALayout: TLayout): TLayoutKind; virtual;
 
     function ActiveInteractor: TInteractor;
   public
@@ -254,10 +253,9 @@ type
     function CreateNavigationArea(const AParentArea: TUIArea; const ALayout: TLayout;
       const AView: TView; const AStyleName, AParams: string): TUIArea;
     procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
-    procedure EnumerateControls(const ALayout: TLayout; const AControls: TList<TLayout>);
+    procedure EnumerateControls(const ALayout: TLayout);
     procedure SetLayoutCaption(const ALayout: TLayout; const ACaption: string);
     function GetLayoutCaption(const ALayout: TLayout): string;
-    function GetLayoutKind(const ALayout: TLayout): TLayoutKind;
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; virtual;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
@@ -423,18 +421,13 @@ begin
   inherited Destroy;
 end;
 
-procedure TPresenter.DoEnumerateControls(const ALayout: TLayout; const AControls: TList<TLayout>);
+procedure TPresenter.DoEnumerateControls(const ALayout: TLayout);
 begin
 end;
 
 function TPresenter.DoGetLayoutCaption(const ALayout: TLayout): string;
 begin
   Result := '';
-end;
-
-function TPresenter.DoGetLayoutKind(const ALayout: TLayout): TLayoutKind;
-begin
-  Result := lkFrame;
 end;
 
 function TPresenter.DoLogin(const ADomain: TObject): TInteractor;
@@ -496,19 +489,14 @@ procedure TPresenter.DoUnfreeze;
 begin
 end;
 
-procedure TPresenter.EnumerateControls(const ALayout: TLayout; const AControls: TList<TLayout>);
+procedure TPresenter.EnumerateControls(const ALayout: TLayout);
 begin
-  DoEnumerateControls(ALayout, AControls);
+  DoEnumerateControls(ALayout);
 end;
 
 function TPresenter.GetLayoutCaption(const ALayout: TLayout): string;
 begin
   Result := DoGetLayoutCaption(ALayout)
-end;
-
-function TPresenter.GetLayoutKind(const ALayout: TLayout): TLayoutKind;
-begin
-  Result := DoGetLayoutKind(ALayout);
 end;
 
 class function TPresenter.GetPageClass(const APresenterName, APageName: string): TClass;

@@ -59,6 +59,7 @@ type
     procedure ArrangeMozaic(const AMDIForm: TForm);
     procedure RestoreChildForms(const AInteractor: TInteractor);
     procedure StoreChildForms(const AInteractor: TInteractor; const AMainForm: TForm);
+    function GetLayoutKind(const AControl: TObject): TLayoutKind;
   protected
     //FOnRFIDRead: TRFIDReadEvent;
     FTrayIcon: TTrayIcon;
@@ -97,10 +98,9 @@ type
     procedure StoreUILayout(const AInteractor: TInteractor); override;
     procedure RestoreUILayout(const AInteractor: TInteractor); override;
     function GetViewNameByLayoutType(const ALayout: TLayout): string; override;
-    procedure DoEnumerateControls(const ALayout: TLayout; const AControls: TList<TLayout>); override;
+    procedure DoEnumerateControls(const ALayout: TLayout); override;
     procedure DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string); override;
     function DoGetLayoutCaption(const ALayout: TLayout): string; override;
-    function DoGetLayoutKind(const ALayout: TLayout): TLayoutKind; override;
   public
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
@@ -282,7 +282,10 @@ begin
     vControl := nil;
   end;
 
-  Result := vControl;
+  if Assigned(vControl) then
+    Result := TLayout.Create(ALayoutKind, vControl, True)
+  else
+    Result := nil;
 
   FreeAndNil(vParams);
 end;
@@ -392,23 +395,24 @@ begin
   FDebugForm := nil;
 end;
 
-procedure TWinVCLPresenter.DoEnumerateControls(const ALayout: TLayout; const AControls: TList<TLayout>);
+procedure TWinVCLPresenter.DoEnumerateControls(const ALayout: TLayout);
 var
   vParentControl: TWinControl;
+  vControl: TControl;
+  vLayout: TLayout;
   i: Integer;
 begin
-  if not (ALayout is TWinControl) then
-    Exit;
-  if TWinControl(ALayout).ControlCount <= 0 then
+  if not (ALayout.Control is TWinControl) then
     Exit;
 
-  vParentControl := TWinControl(ALayout);
-  for i := 0 to vParentControl.ComponentCount - 1 do
-    if vParentControl.Components[i] is TMenu then
-      AControls.Add(vParentControl.Components[i]);
-
+  vParentControl := TWinControl(ALayout.Control);
   for i := 0 to vParentControl.ControlCount - 1 do
-    AControls.Add(vParentControl.Controls[i]);
+  begin
+    vControl := vParentControl.Controls[i];
+    vLayout := TLayout.Create(GetLayoutKind(vControl), vControl);
+    ALayout.Add(vLayout);
+    DoEnumerateControls(vLayout);
+  end;
 end;
 
 procedure TWinVCLPresenter.DoFloatFormClose(Sender: TObject; var Action: TCloseAction);
@@ -454,28 +458,40 @@ end;
 
 function TWinVCLPresenter.DoGetLayoutCaption(const ALayout: TLayout): string;
 begin
-  if ALayout is TPageControl then
-    Result := TPageControl(ALayout).Hint
-  else if ALayout is TMemo then
+  if ALayout.Control is TPageControl then
+    Result := TPageControl(ALayout.Control).Hint
+  else if ALayout.Control is TMemo then
   begin
-    TMemo(ALayout).WordWrap := False;
-    TMemo(ALayout).WantReturns := False;
-    Result := TMemo(ALayout).Lines.Text;
+    TMemo(ALayout.Control).WordWrap := False;
+    TMemo(ALayout.Control).WantReturns := False;
+    Result := TMemo(ALayout.Control).Lines.Text;
   end
   else
-    Result := TPanel(ALayout).Caption;
+    Result := TPanel(ALayout.Control).Caption;
 end;
 
-function TWinVCLPresenter.DoGetLayoutKind(const ALayout: TLayout): TLayoutKind;
+function TWinVCLPresenter.GetLayoutKind(const AControl: TObject): TLayoutKind;
 begin
-  if ALayout is TPanel then
+  if AControl is TPanel then
     Result := lkPanel
-  else if ALayout is TTabSheet then
+  else if AControl is TTabSheet then
     Result := lkPage
-  else if ALayout is TPageControl then
+  else if AControl is TPageControl then
     Result := lkPages
-  else if ALayout is TMemo then
+  else if AControl is TMemo then
     Result := lkMemo
+  else if AControl is TLabel then
+    Result := lkLabel
+  else if AControl is TImage then
+    Result := lkImage
+  else if AControl is TScrollBox then
+    Result := lkScrollBox
+  else if AControl is TBevel then
+    Result := lkBevel
+  else if AControl is TSplitter then
+    Result := lkSplitter
+  else if AControl is TShape then
+    Result := lkShape
   else
     Result := lkFrame;
 end;
@@ -1326,7 +1342,7 @@ end;
 
 procedure TWinVCLPresenter.DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string);
 begin
-  TPanel(ALayout).Caption := ACaption;
+  TPanel(ALayout.Control).Caption := ACaption;
 end;
 
 function TWinVCLPresenter.DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
@@ -1469,7 +1485,7 @@ end;
 
 function TWinVCLPresenter.GetViewNameByLayoutType(const ALayout: TLayout): string;
 begin
-  if ALayout is TPageControl then
+  if Assigned(ALayout) and (ALayout.Control is TPageControl) then
     Result := 'pages'
   else
     Result := inherited;

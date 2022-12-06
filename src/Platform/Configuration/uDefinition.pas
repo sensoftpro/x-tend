@@ -564,7 +564,7 @@ type
     function AddComplexFieldDef(const AFieldName, AStorageName, ACaption, AObjectKindName: string;
       const AViewName: string = ''; const AUIState: TViewState = vsFullAccess; const AFlags: Integer = 0): TComplexFieldDef;
     function AddStateFieldDef(const AFieldName, AStorageName, ACaption: string;
-      const ADefaultValue: Variant; const AEnumName: string): TSimpleFieldDef;
+      const ADefaultValue: Variant; const AEnumName: string; const AFlags: Integer = 0): TSimpleFieldDef;
 
     procedure RemoveField(const AFieldName: string);
 
@@ -997,10 +997,10 @@ begin
 end;
 
 function TDefinition.AddStateFieldDef(const AFieldName, AStorageName, ACaption: string;
-  const ADefaultValue: Variant; const AEnumName: string): TSimpleFieldDef;
+  const ADefaultValue: Variant; const AEnumName: string; const AFlags: Integer = 0): TSimpleFieldDef;
 begin
   Result := AddSimpleFieldDef(AFieldName, AStorageName, ACaption,
-    ADefaultValue, 0, Null, fkEnum, 'info', '', vsReadOnly, 0, AEnumName);
+    ADefaultValue, 0, Null, fkEnum, 'info', '', vsReadOnly, AFlags, AEnumName);
   FStateFieldDef := Result;
 end;
 

@@ -1094,15 +1094,15 @@ begin
   TcxCheckBox(FControl).Properties.FullFocusRect := True;
   TcxCheckBox(FControl).Transparent := True;
 
-  if ALayout is TPanel then
+  if ALayout.Control is TPanel then
   begin
-    if TPanel(ALayout).Alignment <> taCenter then
+    if TPanel(ALayout.Control).Alignment <> taCenter then
     begin
       TcxCheckBox(FControl).AutoSize := False;
-      if TPanel(ALayout).Alignment = taLeftJustify then
+      if TPanel(ALayout.Control).Alignment = taLeftJustify then
         TcxCheckBox(FControl).Properties.Alignment := taCenter
       else
-        TcxCheckBox(FControl).Properties.Alignment := TPanel(ALayout).Alignment;
+        TcxCheckBox(FControl).Properties.Alignment := TPanel(ALayout.Control).Alignment;
     end;
   end;
 
@@ -1893,14 +1893,16 @@ type
 
 procedure TSpinner.AssignFromLayout(const ALayout: TLayout; const AParams: string);
 var
-  vPanel: TCrackedControl absolute ALayout;
+  vPanel: TCrackedControl;
   vColor: Cardinal;
   vR, vG, vB: Byte;
   vRGBColor: Integer;
 begin
   inherited;
 
-  if (ALayout is TPanel) or (ALayout is TMemo) then
+  if (ALayout.Control is TPanel) or (ALayout.Control is TMemo) then
+  begin
+    vPanel := TCrackedControl(ALayout.Control);
     if (FControl is TdxActivityIndicator) and not vPanel.ParentFont and (vPanel.Font.Color <> clWindowText) then
     begin
       vRGBColor := TColorRec.ColorToRGB(vPanel.Font.Color);
@@ -1913,6 +1915,7 @@ begin
       else if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorElasticCircleProperties then
         TdxActivityIndicatorElasticCircleProperties(TdxActivityIndicator(FControl).Properties).ArcColor := vColor;
     end;
+  end;
 end;
 
 procedure TSpinner.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
@@ -2493,10 +2496,10 @@ end;
 
 procedure TDEPagesFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
 var
-  vPanel: TPanel absolute ALayout;
-  vSourcePC: TPageControl absolute ALayout;
+  vSourcePC: TPageControl;
   vPC: TcxPageControl;
   vSourceTab: TTabSheet;
+  vTabLayout: TLayout;
   vPage: TcxTabSheet;
   vChildArea: TVCLArea;
   i: Integer;
@@ -2504,6 +2507,8 @@ begin
   FNeedCreateCaption := False;
 
   inherited;
+
+  vSourcePC := TPageControl(ALayout.Control);
 
   vPC := TcxPageControl.Create(nil);
   FControl := vPC;
@@ -2545,13 +2550,15 @@ begin
     vPage.Caption := vSourceTab.Caption;
     vPage.ImageIndex := vSourceTab.ImageIndex;
 
-    vChildArea := TVCLArea.Create(Self, FView.Parent, vSourceTab.Name, False, vPage);
+    vTabLayout := TLayout.Create(lkPage, vSourceTab, True);
+    TPresenter(Presenter).EnumerateControls(vTabLayout);
+    vChildArea := TVCLArea.Create(Self, FView.Parent, vSourceTab.Name, False, vPage, vTabLayout);
     AddArea(vChildArea);
-    TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vSourceTab, '');
+    TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vTabLayout, '');
   end;
 
-  for i := vSourcePC.PageCount - 1 downto 0 do
-    vSourcePC.Pages[i].Free;
+  //for i := vSourcePC.PageCount - 1 downto 0 do
+  //  vSourcePC.Pages[i].Free;
 end;
 
 procedure TDEPagesFieldEditor.DoOnChange;
@@ -2614,9 +2621,9 @@ end;
 procedure TProgress.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
 begin
   FControl := TcxProgressBar.Create(nil);
-  TcxProgressBar(FControl).AutoSize := TPanel(ALayout).ShowCaption;
+  TcxProgressBar(FControl).AutoSize := TPanel(ALayout.Control).ShowCaption;
   TcxProgressBar(FControl).Properties.SolidTextColor := True;
-  TcxProgressBar(FControl).Properties.ShowText := TPanel(ALayout).ShowCaption;
+  TcxProgressBar(FControl).Properties.ShowText := TPanel(ALayout.Control).ShowCaption;
   FNeedCreateCaption := False;
   TcxProgressBar(FControl).Properties.Max := TSimpleFieldDef(FFieldDef).MaxValue;
 end;
@@ -3192,14 +3199,14 @@ begin
   TLabel(FControl).Transparent := False;
   TLabel(FControl).Cursor := crHandPoint;
 
-  if ALayout is TPanel then
+  if ALayout.Control is TPanel then
   begin
     FSelectBackColor := AlphaColorToColor($FF5132);
     if Assigned(FCreateParams) and (FCreateParams.IndexOfName('select_backcolor') > -1) then
       FSelectBackColor := AlphaColorToColor(StrToIntDef('$' + FCreateParams.Values['select_backcolor'], 0));
 
-    FDefaultTextColor := TPanel(ALayout).Font.Color;
-    TLabel(FControl).Alignment := TPanel(ALayout).Alignment;
+    FDefaultTextColor := TPanel(ALayout.Control).Font.Color;
+    TLabel(FControl).Alignment := TPanel(ALayout.Control).Alignment;
   end;
 end;
 

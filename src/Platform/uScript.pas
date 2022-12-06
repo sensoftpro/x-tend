@@ -71,7 +71,7 @@ type
     function AddStateMachine<T>(const AName: string): TStateMachine;
     function RegisterComplexClass(const AName: string; const AComplexClass: TComplexClass): TComplexClassDef;
     procedure RegisterReaction(const ADefinitionNames, AReactiveFields, AFieldChain: string; const AReactionProc: TReactionProc);
-    procedure AddPlannedJob(const AName: string; const APeriod: Integer; const AHandler: TSchedulerProc;
+    procedure AddPlannedJob(const AName: string; const APeriodInSec: Integer; const AHandler: TSchedulerProc;
       const ARefFieldName: string = ''; const ASnapToPeriod: Boolean = False);
     procedure AddSecuritySettings(const AHolder: TChangeHolder; const ACollection: TCollection;
       const ASubject: string; const AObject: string; const AStateName: string; const AFlags: Integer);
@@ -1842,12 +1842,12 @@ begin
   Result := TConfiguration(FConfiguration).Enumerations.AddEnum<T>(AName);
 end;
 
-procedure TBaseScript.AddPlannedJob(const AName: string; const APeriod: Integer; const AHandler: TSchedulerProc;
+procedure TBaseScript.AddPlannedJob(const AName: string; const APeriodInSec: Integer; const AHandler: TSchedulerProc;
   const ARefFieldName: string = ''; const ASnapToPeriod: Boolean = False);
 var
   vPlannedJob: TPlannedJob;
 begin
-  vPlannedJob := TPlannedJob.Create(AName, APeriod, @AHandler, ARefFieldName, ASnapToPeriod);
+  vPlannedJob := TPlannedJob.Create(AName, APeriodInSec, @AHandler, ARefFieldName, ASnapToPeriod);
   TConfiguration(FConfiguration).PlannedJobs.Add(vPlannedJob);
 end;
 

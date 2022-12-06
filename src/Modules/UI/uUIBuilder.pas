@@ -186,6 +186,7 @@ type
     property Count: Integer read GetCount;
     property Areas[const AIndex: Integer]: TUIArea read GetArea; default;
     property Parent: TUIArea read FParent;
+    property Layout: TLayout read FLayout write FLayout;
     property CreateParams: TStrings read FCreateParams;
     property InternalParams: string read FInternalParams;
     property UIBuilder: TUIBuilder read FUIBuilder;
@@ -324,23 +325,12 @@ end;
 
 procedure TUIBuilder.CreateChildAreas(const AArea: TUIArea; const ALayout: TLayout; const AParams: string);
 var
-  vControls: TList<TLayout>;
-  vControl: TLayout;
   i: Integer;
 begin
-  vControls := TList<TLayout>.Create;
-  try
-    TPresenter(FPresenter).EnumerateControls(ALayout, vControls);
-    for i := 0 to vControls.Count - 1 do
-    begin
-      vControl := vControls[i];
-      AArea.CreateChildArea(AArea.View, vControl, AParams);
-    end;
-
-    AArea.AfterChildAreasCreated;
-  finally
-    FreeAndNil(vControls);
-  end;
+  AArea.Layout := ALayout;
+  for i := 0 to ALayout.Items.Count - 1 do
+    AArea.CreateChildArea(AArea.View, ALayout.Items[i], AParams);
+  AArea.AfterChildAreasCreated;
 end;
 
 destructor TUIBuilder.Destroy;
@@ -397,6 +387,7 @@ var
   vAction: TActionDef;
   vView: TView;
   vArea: TUIArea;
+  vParentLayout: TLayout;
   vLayout: TLayout;
 begin
   if not Assigned(AView) or not (AView.DefinitionKind in [dkEntity, dkAction, dkObjectField]) then
@@ -415,7 +406,7 @@ begin
   if not Assigned(vDefinition) then
     Exit;
 
-  vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
+  vParentLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
   AView.AddListener(AArea);
   try
     for vAction in vDefinition.Actions.Objects do
@@ -425,6 +416,8 @@ begin
       begin
         if vView.State > vsHidden then
         begin
+          vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
+          vParentLayout.Add(vLayout);
           vArea := AArea.DoCreateChildAction(vLayout, vView, 'place=embedded');
           AArea.AddArea(vArea);
           vArea.UpdateArea(dckViewStateChanged);
@@ -441,6 +434,9 @@ begin
       begin
         if not TInteractor(FInteractor).NeedSkipField(nil, vFieldDef) and (vFieldDef.Kind <> fkComplex) then
         begin
+          vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
+          vParentLayout.Add(vLayout);
+
           if vFieldDef.Kind = fkList then
           begin
             vArea := AArea.CreateChildLayoutedArea(vLayout, AView.ViewByName(vFieldDef.Name), 'DefaultList', '');
@@ -456,7 +452,6 @@ begin
       end;
     end;
   finally
-    vLayout.Free;
     AView.RemoveListener(AArea);
   end;
 
@@ -468,9 +463,11 @@ procedure TUIBuilder.MakeLayoutFromFile(const AArea: TUIArea; const AView: TView
 var
   vFileStream: TStream;
   vMemStream: TStream;
+  vLayout: TLayout;
   vFrame: TComponent;
 begin
-  vFrame := TComponent(TPresenter(FPresenter).CreateLayoutArea(lkFrame, ''));
+  vLayout := TPresenter(FPresenter).CreateLayoutArea(lkFrame);
+  vFrame := TComponent(vLayout.Control);
   vFileStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyNone);
   vMemStream := TMemoryStream.Create;
   try
@@ -485,12 +482,13 @@ begin
 
   AArea.BeginUpdate;
   try
-    AArea.AssignFromLayout(vFrame, AParams);
+    TPresenter(FPresenter).EnumerateControls(vLayout);
+    AArea.AssignFromLayout(vLayout, AParams);
     AArea.SetView(AView);
-    CreateChildAreas(AArea, vFrame, AParams);
+    CreateChildAreas(AArea, vLayout, AParams);
   finally
     AArea.EndUpdate;
-    FreeAndNil(vFrame);
+    //FreeAndNil(vFrame);
   end;
 end;
 
@@ -570,7 +568,7 @@ var
   vUIArea: TUIArea;
   vTabArea: TUIArea;
   vView: TView;
-  vTab: TLayout;
+  vLayout: TLayout;
   vTabParams: string;
   vPageID: string;
   vImageID: Integer;
@@ -712,9 +710,9 @@ begin
         else
           vTabParams := 'Caption=Стартовая страница;ImageIndex=' + IntToStr(GetImageID(StrToIntDef(GetUrlParam(AOptions, 'ImageID', '-1'), 0))) + ';Name=' + vPageID;
 
-        vTab := TPresenter(FPresenter).CreateLayoutArea(lkPage, vTabParams);
+        vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPage, vTabParams);
         try
-          vTabArea := vUIArea.CreateChildArea(vView, vTab, AOptions, AOnClose);
+          vTabArea := vUIArea.CreateChildArea(vView, vLayout, AOptions, AOnClose);
           vTabArea.BeginUpdate;
           try
             vTabArea.SetHolder(AChangeHolder);
@@ -725,7 +723,7 @@ begin
             vTabArea.EndUpdate;
           end;
         finally
-          vTab.Free;
+          //vTab.Free;
         end;
       end;
 
@@ -983,6 +981,9 @@ begin
   SetControl(FControl);
   SetParent(AParent);
 
+  if not Assigned(ALayout) then
+    Exit;
+
   vPopupArea := TryCreatePopupArea(ALayout);
   if Assigned(vPopupArea) then
   begin
@@ -1032,13 +1033,12 @@ var
   vQuery: string;
   vCaption: string;
   vLayout: string;
-  vLayoutKind: TLayoutKind;
   vAlreadyAssigned: Boolean;
 begin
   vAlreadyAssigned := False;
   vPresenter := TPresenter(GetPresenter);
-  vLayoutKind := vPresenter.GetLayoutKind(ALayout);
-  if not (vLayoutKind in [lkPanel, lkPages, lkMemo]) then
+  Assert(ALayout.Kind <> lkNone, 'Не задан тип лэйаута');
+  if not (ALayout.Kind in [lkPanel, lkPages, lkMemo]) then
   begin
     Result := DoCreateChildArea(ALayout, AChildView, '', AOnClose)
   end
@@ -1176,6 +1176,9 @@ destructor TUIArea.Destroy;
 begin
   FreeAndNil(FCreateParams);
   FControl := nil;
+  if Assigned(FLayout) and FLayout.IsOwner then
+    FLayout.Control.Free;
+  FLayout := nil;
   inherited Destroy;
 end;
 

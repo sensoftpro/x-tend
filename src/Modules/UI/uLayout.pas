@@ -40,7 +40,7 @@ uses
 
 type
   //TLayoutKind = (lkPanel, lkPage, lkPages, lkFrame, lkMenu, lkMemo);
-  TLayoutKind = (lkNone, lkPanel, lkPage, lkPages, lkFrame, lkMemo, lkLabel, lkImage, lkBevel, lkSplitter, lkScrollBox);
+  TLayoutKind = (lkNone, lkPanel, lkPage, lkPages, lkFrame, lkMemo, lkLabel, lkImage, lkBevel, lkShape, lkSplitter, lkScrollBox);
   TLayoutAlign = (lalNone, lalTop, lalBottom, lalLeft, lalRight, lalClient, lalCustom);
   TPageStyle = (psTabs, psButtons, psFlatButtons);
   TPagePosition = (ppTop, ppBottom, ppLeft, ppRight);
@@ -116,7 +116,7 @@ type
 
 const
   cLayoutKindNames: array[TLayoutKind] of string = ('', 'panel', 'page', 'pages', 'frame', 'memo', 'label',
-    'image', 'bevel', 'splitter', 'scrollbox');
+    'image', 'bevel', 'shape', 'splitter', 'scrollbox');
   cAnchorKindNames: array[TAnchorKind] of string = ('left', 'top', 'right', 'bottom');
   cFontStyleNames: array[TFontStyle] of string = ('bold', 'italic', 'underline', 'strikeout');
   cAlignNames: array[TLayoutAlign] of string = ('', 'top', 'bottom', 'left', 'right', 'client', 'custom');
@@ -170,18 +170,25 @@ type
     property Caption: string read FCaption;
   end;
 
-  TLayout = TObject;
-  {class
+  TLayout = class
   private
+    [Weak] FParent: TLayout;
+    FItems: TObjectList<TLayout>;
     FControl: TObject;
     FKind: TLayoutKind;
+    FIsOwner: Boolean;
   public
-    constructor Create(const AKind: TLayoutKind; const AControl: TObject);
+    constructor Create(const AKind: TLayoutKind; const AControl: TObject; const AIsOwner: Boolean = False);
     destructor Destroy; override;
+
+    procedure Add(const AChild: TLayout);
 
     property Kind: TLayoutKind read FKind;
     property Control: TObject read FControl;
-  end;}
+    property Parent: TLayout read FParent;
+    property Items: TObjectList<TLayout> read FItems;
+    property IsOwner: Boolean read FIsOwner;
+  end;
   //TVCLControl = type TObject;
 
   TLayoutX = class
@@ -324,21 +331,6 @@ type
     property Items: TObjectList<TLayoutX> read FItems;
     property Menu: TNavigationItem read FMenu write FMenu;
   end;
-
-{
-  Установка caption из контрола
-
-  if ALayout is TPageControl then
-    Result := TPageControl(ALayout).Hint
-  else if ALayout is TMemo then
-  begin
-    TMemo(ALayout).WordWrap := False;
-    TMemo(ALayout).WantReturns := False;
-    Result := TMemo(ALayout).Lines.Text;
-  end
-  else
-    Result := TPanel(ALayout).Caption;
-}
 
 implementation
 
@@ -516,40 +508,6 @@ begin
 end;
 
 { TLayoutX }
-
-{constructor TLayout.Create(const AControl: TObject);
-begin
-  inherited Create;
-
-  FControl := AControl;
-  if FControl is TPanel then
-    FLayoutKind := lkPanel
-  else if FControl is TTabSheet then
-    FLayoutKind := lkPage
-  else if FControl is TPageControl then
-    FLayoutKind := lkPages
-  else if FControl is TMemo then
-    FLayoutKind := lkMemo
-  else if FControl is TFrame then
-    FLayoutKind := lkFrame
-  else if FControl is TLabel then
-    FLayoutKind := lkLabel
-  else if FControl is TImage then
-    FLayoutKind := lkImage
-  else if FControl is TBevel then
-    FLayoutKind := lkBevel
-  else if FControl is TSplitter then
-    FLayoutKind := lkSplitter
-  else if FControl is TScrollBox then
-    FLayoutKind := lkScrollBox
-  else
-    FLayoutKind := lkNone;
-
-  FItems := TObjectList<TLayout>.Create;
-
-  ExtractSettings(AControl);
-  EnumerateControls(AControl);
-end; }
 
 procedure TLayoutX.Add(const AChild: TLayoutX);
 begin
@@ -1197,17 +1155,31 @@ end;
 
 { TLayout }
 
-{constructor TLayout.Create(const AKind: TLayoutKind; const AControl: TObject);
+procedure TLayout.Add(const AChild: TLayout);
+begin
+  AChild.FParent := Self;
+  FItems.Add(AChild);
+end;
+
+constructor TLayout.Create(const AKind: TLayoutKind; const AControl: TObject; const AIsOwner: Boolean = False);
 begin
   inherited Create;
+  FParent := nil;
+  FItems := TObjectList<TLayout>.Create;
+  FIsOwner := AIsOwner;
   FControl := AControl;
   FKind := AKind;
 end;
 
 destructor TLayout.Destroy;
 begin
-  FControl := nil;
+  FParent := nil;
+  FreeAndNil(FItems);
+  if FIsOwner then
+    FreeAndNil(FControl)
+  else
+    FControl := nil;
   inherited Destroy;
-end; }
+end;
 
 end.

@@ -97,7 +97,7 @@ begin
   Result := FormatDateTime('hh:nn:ss.zzz', Now) + ' ' + cLogMessageTypes[AMessageKind] +
     ' ' + StringOfChar(' ', FLogIndentLevel * 2) + AMessage;
   FItems.Add(Result);
-  //Flush;
+  Flush;
 {$ENDIF}
 end;
 
@@ -112,21 +112,18 @@ end;
 
 destructor TLogger.Destroy;
 begin
-  try
-    try
-      Flush;
-    except
-    end;
-  finally
-    FreeAndNil(FItems);
-  end;
+  Flush;
+  FreeAndNil(FItems);
 
   inherited Destroy;
 end;
 
 procedure TLogger.Flush;
 begin
-  FItems.SaveToFile(FFileName);
+  try
+    FItems.SaveToFile(FFileName);
+  except
+  end;
 end;
 
 function TLogger.GetCount: Integer;
