@@ -3722,7 +3722,7 @@ end;
 
 procedure TTreeCollectionEditor.CreateLevels(const ALayout: TLayout);
 var
-  vLayout: TPanel absolute ALayout;
+  vPanel: TPanel;
   vTreeLevels: string;
   vList: TStrings;
   i: Integer;
@@ -3739,7 +3739,8 @@ begin
   FLevels := TObjectList<TTreeLevel>.Create;
   //  Assert(Length(vTreeLevels) > 0, 'Parameter "TreeLevels" not defined in layout: ' + vLayout.Caption + '. Specify "TreeLevels=<ListField>[|<ChildListField>]');
 
-  vTreeLevels := GetUrlParam(vLayout.Caption, 'TreeLevels');
+  vPanel := TPanel(ALayout.Control);
+  vTreeLevels := GetUrlParam(vPanel.Caption, 'TreeLevels');
 
   if Length(vTreeLevels) > 0 then
   begin

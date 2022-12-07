@@ -1647,11 +1647,12 @@ end;
 
 procedure TVCLArea.SetCaptionProperty(const ALayout: TLayout);
 var
-  vPanel: TPanel absolute ALayout;
+  vPanel: TPanel;
 begin
-  if not Assigned(FCaption) then
+  if not Assigned(FCaption) or not Assigned(ALayout) then
     Exit;
 
+  vPanel := TPanel(ALayout.Control);
   if Assigned(vPanel) then
   begin
     FShowCaption := vPanel.ShowCaption;

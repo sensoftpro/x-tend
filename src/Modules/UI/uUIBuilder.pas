@@ -1144,7 +1144,7 @@ begin
       else
         FUIBuilder.ApplyLayout(Result, FView, vLayout, vQuery)
     end
-    else
+    else if not vAlreadyAssigned then //#Check!
       FUIBuilder.CreateChildAreas(Result, ALayout, vQuery);
   end
   else
@@ -1717,10 +1717,10 @@ begin
   if FLayout = Value then
     Exit;
 
-  if Assigned(FLayout) then
-    FLayout.Free;
-  
-  FLayout := Value;
+  if not Assigned(FLayout) then
+    FLayout := Value
+  else
+    FLayout.ContentLayout := Value;
 end;
 
 procedure TUIArea.SetParent(const Value: TUIArea);

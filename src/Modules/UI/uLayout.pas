@@ -174,10 +174,13 @@ type
   private
     [Weak] FParent: TLayout;
     FItems: TList<TLayout>;
+    FContentLayout: TLayout;
     FControl: TObject;
     FKind: TLayoutKind;
     FIsOwner: Boolean;
     FIndex: Integer;
+    procedure SetContentLayout(const Value: TLayout);
+    function GetItems: TList<TLayout>;
   public
     class var Count: Integer;
 
@@ -189,7 +192,8 @@ type
     property Kind: TLayoutKind read FKind;
     property Control: TObject read FControl;
     property Parent: TLayout read FParent;
-    property Items: TList<TLayout> read FItems;
+    property Items: TList<TLayout> read GetItems;
+    property ContentLayout: TLayout read FContentLayout write SetContentLayout;
     property IsOwner: Boolean read FIsOwner;
     property _Index: Integer read FIndex;
   end;
@@ -1170,6 +1174,7 @@ begin
   inherited Create;
   FParent := nil;
   FItems := TList<TLayout>.Create;
+  FContentLayout := nil;
   FIsOwner := AIsOwner;
   FControl := AControl;
   FKind := AKind;
@@ -1180,14 +1185,31 @@ end;
 destructor TLayout.Destroy;
 begin
   FParent := nil;
+  FreeAndNil(FContentLayout);
   FreeAndNil(FItems);
   if FIsOwner then
-  begin
-    FreeAndNil(FControl);
-  end
+    FreeAndNil(FControl)
   else
     FControl := nil;
   inherited Destroy;
+end;
+
+function TLayout.GetItems: TList<TLayout>;
+begin
+  if Assigned(FContentLayout) then
+    Result := FContentLayout.FItems
+  else
+    Result := FItems;
+end;
+
+procedure TLayout.SetContentLayout(const Value: TLayout);
+begin
+  if FContentLayout = Value then
+    Exit;
+
+  if Assigned(FContentLayout) then
+    FContentLayout.Free;
+  FContentLayout := Value;
 end;
 
 initialization
