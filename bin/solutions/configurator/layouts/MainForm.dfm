@@ -5,9 +5,9 @@ object EditForm: TEditForm
   Height = 579
   TabOrder = 0
   object WorkArea: TPanel
-    Left = 0
+    Left = 274
     Top = 66
-    Width = 945
+    Width = 671
     Height = 513
     Align = alClient
     Caption = '@WorkArea?ViewType=Paged&View=Configurations&Layout=Collection'
@@ -18,6 +18,8 @@ object EditForm: TEditForm
     Font.Style = []
     ParentFont = False
     TabOrder = 0
+    ExplicitLeft = 0
+    ExplicitWidth = 945
   end
   object Panel1: TPanel
     Left = 0
@@ -38,6 +40,35 @@ object EditForm: TEditForm
     Caption = '@NavigationArea?ViewType=ToolBar'
     PopupMenu = ToolBar
     TabOrder = 2
+  end
+  object Panel3: TPanel
+    Left = 0
+    Top = 66
+    Width = 137
+    Height = 513
+    Align = alLeft
+    Caption = '@NavigationArea?ViewType=TreeView'
+    PopupMenu = MainMenu
+    TabOrder = 3
+  end
+  object Panel4: TPanel
+    Left = 137
+    Top = 66
+    Width = 137
+    Height = 513
+    Align = alLeft
+    Caption = '@NavigationArea?ViewType=NavBar'
+    Color = clTeal
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWhite
+    Font.Height = -19
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentBackground = False
+    ParentFont = False
+    PopupMenu = MainMenu
+    TabOrder = 4
+    ExplicitLeft = 8
   end
   object MainMenu: TPopupMenu
     Left = 340

@@ -1059,6 +1059,8 @@ begin
     vShape.Visible := vSourceShape.Visible;
     vShape.Pen.Color := vSourceShape.Pen.Color;
     vShape.Brush.Color := vSourceShape.Brush.Color;
+    vShape.AlignWithMargins := vSourceShape.AlignWithMargins;
+    vShape.Margins := vSourceShape.Margins;
 
     Result := TVCLArea.Create(Self, AView, '', False, vShape, ALayout);
   end
@@ -1114,7 +1116,7 @@ begin
     vImage.Picture.Assign(vSourceImage.Picture);
     vImage.Anchors := vSourceImage.Anchors;
     vImage.Align := vSourceImage.Align;
-    vImage.Transparent := True;
+    vImage.Transparent := vSourceImage.Transparent;
     vImage.Properties.ShowFocusRect := False;
     vImage.Properties.PopupMenuLayout.MenuItems := [];
     vImage.Properties.FitMode := ifmNormal;
@@ -1124,7 +1126,7 @@ begin
     vImage.Hint := vSourceImage.Hint;
     vImage.AlignWithMargins := vSourceImage.AlignWithMargins;
     vImage.Margins := vSourceImage.Margins;
-    vImage.Properties.Center := False;
+    vImage.Properties.Center := vSourceImage.Center;
 
     Result := TVCLArea.Create(Self, AView, '', False, vImage, ALayout);
   end
@@ -1204,6 +1206,8 @@ begin
     vBevel.Align := vSourceBevel.Align;
     vBevel.Shape := vSourceBevel.Shape;
     vBevel.Style := vSourceBevel.Style;
+    vBevel.AlignWithMargins := vSourceBevel.AlignWithMargins;
+    vBevel.Margins := vSourceBevel.Margins;
     Result := TVCLArea.Create(Self, AView, '-bevel-', False, vBevel, ALayout);
   end
   else if ALayout.Control is TSplitter then
@@ -2409,7 +2413,7 @@ var
   ASource: TPanel;
   AParams: string;
 begin
-  ASource := TPanel(AParent.Control);
+  ASource := TPanel(ALayout.Control);
   AParams := FCreateParams.DelimitedText;
 
   FNavBar := TdxNavBar.Create(nil);

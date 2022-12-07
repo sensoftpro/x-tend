@@ -1,8 +1,9 @@
 object Form: TForm
+  Tag = 1
   Left = 0
   Top = 0
   Width = 1067
-  Height = 758
+  Height = 749
   Font.Charset = DEFAULT_CHARSET
   Font.Color = clWindowText
   Font.Height = -13
@@ -15,33 +16,26 @@ object Form: TForm
     Left = 16
     Top = 16
     Width = 1035
-    Height = 726
+    Height = 717
     Margins.Left = 16
     Margins.Top = 16
     Margins.Right = 16
     Margins.Bottom = 16
     Align = alClient
-    Caption = 'pnlBase'
     TabOrder = 0
-    ExplicitLeft = 1152
-    ExplicitTop = 683
-    ExplicitWidth = 185
-    ExplicitHeight = 41
+    ExplicitHeight = 726
     object pnlTop: TPanel
       AlignWithMargins = True
       Left = 17
       Top = 17
       Width = 1001
-      Height = 169
+      Height = 144
       Margins.Left = 16
       Margins.Top = 16
       Margins.Right = 16
       Margins.Bottom = 16
       Align = alTop
       TabOrder = 0
-      ExplicitLeft = 1
-      ExplicitTop = -128
-      ExplicitWidth = 183
       object Name: TPanel
         Left = 20
         Top = 32
@@ -62,24 +56,21 @@ object Form: TForm
     object pgc1: TPageControl
       AlignWithMargins = True
       Left = 17
-      Top = 218
+      Top = 193
       Width = 1001
-      Height = 491
+      Height = 507
       Margins.Left = 16
       Margins.Top = 16
       Margins.Right = 16
       Margins.Bottom = 16
-      ActivePage = tsString
+      ActivePage = tsDecor
       Align = alClient
       TabOrder = 1
-      ExplicitLeft = -896
-      ExplicitTop = -664
-      ExplicitWidth = 1081
-      ExplicitHeight = 705
+      ExplicitTop = 218
+      ExplicitHeight = 491
       object tsString: TTabSheet
         Caption = 'String'
-        ExplicitWidth = 1417
-        ExplicitHeight = 860
+        ExplicitHeight = 460
         object Phone: TPanel
           Left = 20
           Top = 39
@@ -196,30 +187,38 @@ object Form: TForm
       object tsInteger: TTabSheet
         Caption = 'Integer'
         ImageIndex = 1
-        ExplicitWidth = 1417
-        ExplicitHeight = 860
+        ExplicitHeight = 460
+        object Bevel1: TBevel
+          Left = 352
+          Top = 13
+          Width = 601
+          Height = 348
+        end
         object IntegerProgress: TPanel
-          Left = 394
-          Top = 106
-          Width = 647
+          Left = 399
+          Top = 101
+          Width = 246
           Height = 24
-          Caption = 'IntegerProgress'
+          Caption = 'IntegerRef?view=progress'
+          ShowCaption = False
           TabOrder = 0
         end
         object IntegerGauge: TPanel
-          Left = 27
-          Top = 250
-          Width = 359
-          Height = 247
-          Caption = 'IntegerGauge'
+          Left = 399
+          Top = 160
+          Width = 250
+          Height = 169
+          Caption = 'IntegerRef?view=gauge'
+          ShowCaption = False
           TabOrder = 1
         end
         object IntegerFlags: TPanel
-          Left = 394
-          Top = 170
-          Width = 250
-          Height = 24
-          Caption = 'IntegerFlags'
+          Left = 698
+          Top = 160
+          Width = 239
+          Height = 169
+          Caption = 'IntegerRef?view=flags'
+          ShowCaption = False
           TabOrder = 2
         end
         object Integer: TPanel
@@ -239,19 +238,158 @@ object Form: TForm
           TabOrder = 4
         end
         object IntegerSpinner: TPanel
-          Left = 435
-          Top = 473
-          Width = 542
+          Left = 27
+          Top = 160
+          Width = 250
           Height = 24
           Caption = 'IntegerSpinner'
           TabOrder = 5
+        end
+        object pnl1: TPanel
+          Left = 399
+          Top = 39
+          Width = 250
+          Height = 24
+          Caption = 'IntegerRef'
+          TabOrder = 6
+        end
+        object pnl2: TPanel
+          Left = 675
+          Top = 39
+          Width = 250
+          Height = 24
+          Caption = 'IntegerRef?view=info'
+          ShowCaption = False
+          TabOrder = 7
+        end
+        object PageControl1: TPageControl
+          Left = 27
+          Top = 264
+          Width = 278
+          Height = 121
+          Hint = 'IntegerPages'
+          ActivePage = TabSheet6
+          TabOrder = 8
+          object TabSheet1: TTabSheet
+            Caption = 'TabSheet1'
+            ExplicitWidth = 281
+            ExplicitHeight = 162
+            object Label1: TLabel
+              Left = 16
+              Top = 16
+              Width = 17
+              Height = 33
+              Caption = '0'
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = clWindowText
+              Font.Height = -27
+              Font.Name = 'Tahoma'
+              Font.Style = [fsBold]
+              ParentFont = False
+            end
+          end
+          object TabSheet2: TTabSheet
+            Caption = 'TabSheet2'
+            ImageIndex = 1
+            ExplicitWidth = 281
+            ExplicitHeight = 162
+            object Label2: TLabel
+              Left = 24
+              Top = 24
+              Width = 18
+              Height = 35
+              Caption = '1'
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = clWindowText
+              Font.Height = -29
+              Font.Name = 'Tahoma'
+              Font.Style = [fsBold]
+              ParentFont = False
+            end
+          end
+          object TabSheet3: TTabSheet
+            Caption = 'TabSheet3'
+            ImageIndex = 2
+            object Label3: TLabel
+              Left = 48
+              Top = 16
+              Width = 20
+              Height = 39
+              Caption = '2'
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = clWindowText
+              Font.Height = -32
+              Font.Name = 'Tahoma'
+              Font.Style = [fsBold]
+              ParentFont = False
+            end
+          end
+          object TabSheet4: TTabSheet
+            Caption = 'TabSheet4'
+            ImageIndex = 3
+            object Label4: TLabel
+              Left = 72
+              Top = 16
+              Width = 22
+              Height = 42
+              Caption = '3'
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = clWindowText
+              Font.Height = -35
+              Font.Name = 'Tahoma'
+              Font.Style = [fsBold]
+              ParentFont = False
+            end
+          end
+          object TabSheet5: TTabSheet
+            Caption = 'TabSheet5'
+            ImageIndex = 4
+            ExplicitLeft = 0
+            object Label5: TLabel
+              Left = 128
+              Top = 24
+              Width = 24
+              Height = 45
+              Caption = '4'
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = clWindowText
+              Font.Height = -37
+              Font.Name = 'Tahoma'
+              Font.Style = [fsBold]
+              ParentFont = False
+            end
+          end
+          object TabSheet6: TTabSheet
+            Caption = 'TabSheet6'
+            ImageIndex = 5
+            object Label6: TLabel
+              Left = 168
+              Top = 3
+              Width = 31
+              Height = 58
+              Caption = '5'
+              Font.Charset = DEFAULT_CHARSET
+              Font.Color = clWindowText
+              Font.Height = -48
+              Font.Name = 'Tahoma'
+              Font.Style = [fsBold]
+              ParentFont = False
+            end
+          end
+        end
+        object Panel4: TPanel
+          Left = 27
+          Top = 208
+          Width = 250
+          Height = 24
+          Caption = 'IntegerPages?view=simple'
+          TabOrder = 9
         end
       end
       object tsFloat: TTabSheet
         Caption = 'Float'
         ImageIndex = 2
-        ExplicitWidth = 1417
-        ExplicitHeight = 860
+        ExplicitHeight = 460
         object Float: TPanel
           Left = 34
           Top = 56
@@ -288,8 +426,7 @@ object Form: TForm
       object tsDate: TTabSheet
         Caption = 'Date'
         ImageIndex = 4
-        ExplicitWidth = 1417
-        ExplicitHeight = 860
+        ExplicitHeight = 460
         object Date: TPanel
           Left = 67
           Top = 60
@@ -326,8 +463,7 @@ object Form: TForm
       object tsOthers: TTabSheet
         Caption = 'Others'
         ImageIndex = 3
-        ExplicitWidth = 1417
-        ExplicitHeight = 860
+        ExplicitHeight = 460
         object Currency: TPanel
           Left = 39
           Top = 31
@@ -396,13 +532,17 @@ object Form: TForm
       object tsDecor: TTabSheet
         Caption = 'Decorations'
         ImageIndex = 5
-        ExplicitWidth = 1073
-        ExplicitHeight = 674
+        ExplicitHeight = 460
         object img1: TImage
-          Left = 0
+          AlignWithMargins = True
+          Left = 16
           Top = 339
-          Width = 993
+          Width = 961
           Height = 121
+          Margins.Left = 16
+          Margins.Top = 16
+          Margins.Right = 16
+          Margins.Bottom = 16
           Align = alBottom
           Center = True
           Picture.Data = {
@@ -605,7 +745,7 @@ object Form: TForm
         end
         object spl1: TSplitter
           Left = 0
-          Top = 331
+          Top = 315
           Width = 993
           Height = 8
           Cursor = crVSplit
@@ -615,21 +755,29 @@ object Form: TForm
         end
         object Splitter1: TSplitter
           Left = 0
-          Top = 73
+          Top = 105
           Width = 993
           Height = 8
           Cursor = crVSplit
           Align = alTop
+          ExplicitTop = 73
           ExplicitWidth = 1073
         end
         object Panel1: TPanel
-          Left = 0
-          Top = 0
-          Width = 993
+          AlignWithMargins = True
+          Left = 16
+          Top = 16
+          Width = 961
           Height = 73
+          Margins.Left = 16
+          Margins.Top = 16
+          Margins.Right = 16
+          Margins.Bottom = 16
           Align = alTop
           TabOrder = 0
-          ExplicitWidth = 1073
+          ExplicitLeft = 0
+          ExplicitTop = 0
+          ExplicitWidth = 993
           object lbl1: TLabel
             Left = 32
             Top = 25
@@ -653,58 +801,73 @@ object Form: TForm
         end
         object Panel3: TPanel
           Left = 0
-          Top = 81
+          Top = 113
           Width = 993
-          Height = 250
+          Height = 202
           Align = alClient
           TabOrder = 1
-          ExplicitWidth = 1073
-          ExplicitHeight = 464
+          ExplicitTop = 81
+          ExplicitHeight = 250
           object shp1: TShape
-            Left = 800
-            Top = 1
+            AlignWithMargins = True
+            Left = 784
+            Top = 17
             Width = 192
-            Height = 248
+            Height = 168
+            Margins.Left = 16
+            Margins.Top = 16
+            Margins.Right = 16
+            Margins.Bottom = 16
             Align = alRight
             ExplicitLeft = 880
+            ExplicitTop = 1
             ExplicitHeight = 462
           end
           object bvl1: TBevel
-            Left = 1
-            Top = 1
+            AlignWithMargins = True
+            Left = 17
+            Top = 17
             Width = 200
-            Height = 248
+            Height = 168
+            Margins.Left = 16
+            Margins.Top = 16
+            Margins.Right = 16
+            Margins.Bottom = 16
             Align = alLeft
             Shape = bsFrame
             Style = bsRaised
+            ExplicitLeft = 1
+            ExplicitTop = 1
             ExplicitHeight = 462
           end
           object Splitter2: TSplitter
-            Left = 201
+            Left = 233
             Top = 1
             Width = 8
-            Height = 248
+            Height = 200
+            ExplicitLeft = 201
             ExplicitHeight = 462
           end
           object Splitter3: TSplitter
-            Left = 792
+            Left = 760
             Top = 1
             Width = 8
-            Height = 248
+            Height = 200
             Align = alRight
             ExplicitLeft = 877
             ExplicitHeight = 462
           end
           object Panel2: TPanel
-            Left = 209
+            Left = 241
             Top = 1
-            Width = 583
-            Height = 248
+            Width = 519
+            Height = 200
             Align = alClient
             Caption = 'Panel2'
             TabOrder = 0
-            ExplicitWidth = 663
-            ExplicitHeight = 462
+            ExplicitLeft = 209
+            ExplicitWidth = 583
+            ExplicitHeight = 248
           end
         end
       end

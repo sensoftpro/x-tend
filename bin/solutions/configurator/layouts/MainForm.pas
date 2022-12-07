@@ -23,6 +23,8 @@ type
     Panel2: TPanel;
     StreetsWorkAreaWorkAreaLayoutCollection1: TMenuItem;
     DistrictsWorkAreaWorkAreaLayoutCollection1: TMenuItem;
+    Panel3: TPanel;
+    Panel4: TPanel;
   end;
 
 implementation

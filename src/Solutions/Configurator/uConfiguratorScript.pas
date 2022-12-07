@@ -291,11 +291,9 @@ begin
   vDefinition.AddSimpleFieldDef('Fieldpath', 'fieldpath', 'fieldpath', Null, Null, 50, fkString, 'fieldpath', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('Integer', 'integer', 'Integer', 1234567890, -10, 1234567891, fkInteger, '', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('IntegerInfo', 'integerinfo', 'IntegerInfo', 1234567890, -10, 1234567891, fkInteger, 'info', '', vsFullAccess, cRequired);
-  vDefinition.AddSimpleFieldDef('IntegerSpinner', 'integerspinner', 'Integer', 1, 0, 1, fkInteger, 'spinner', '', vsFullAccess, cRequired);
-  vDefinition.AddSimpleFieldDef('IntegerProgress', 'integerprogress', 'IntegerProgress', 75, 0, 100, fkInteger, 'progress', '', vsFullAccess, cRequired);
-  vDefinition.AddSimpleFieldDef('IntegerGauge', 'integergauge', 'IntegerGauge', 1, 0, 10, fkInteger, 'gauge', '', vsFullAccess, cRequired);
-//  vDefinition.AddSimpleFieldDef('IntegerPages', 'integerpages', 'IntegerPages', 0, 0, 100, fkInteger, 'pages', '', vsFullAccess, cRequired);
-  vDefinition.AddSimpleFieldDef('IntegerFlags', 'integerflags', 'IntegerFlags', 5, 0, 10, fkInteger, 'flags', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('IntegerSpinner', 'integerspinner', 'IntegerSpinner', 1, 0, 1, fkInteger, 'spinner', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('IntegerRef', 'integerref', 'IntegerRef', 75, Null, Null, fkInteger, '', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('IntegerPages', 'integerpages', 'IntegerPages', 0, 0, 100, fkInteger, 'pages', '', vsFullAccess, cRequired);
 //  vDefinition.AddSimpleFieldDef('Enum', 'enum', 'Enum', Null, Null, Null, fkEnum, '', '', vsFullAccess, 0);
 //  vDefinition.AddSimpleFieldDef('Enumradio', 'enumradio', 'Enumradio', Null, Null, Null, fkEnum, 'radio', '', vsFullAccess, 0);
 //  vDefinition.AddSimpleFieldDef('Enuminfo', 'enuminfo', 'Enuminfo', Null, Null, Null, fkEnum, 'info', '', vsFullAccess, 0);
