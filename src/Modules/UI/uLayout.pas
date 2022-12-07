@@ -151,6 +151,8 @@ type
     [Weak] FParent: TNavigationItem;
     FItems: TNavigationItems;
     FCaption: string;
+    FGroupIndex: Byte;
+    FRadioItem: Boolean;
     function GetCount: Integer;
     function GetItem(const AIndex: Integer): TNavigationItem;
 
@@ -163,11 +165,14 @@ type
 
     function Add(const ACaption: string): TNavigationItem;
     procedure Save(const AParent: TJSONObject; const AName: string);
+    function IsLine: Boolean;
 
     property Count: Integer read GetCount;
     property Items[const AIndex: Integer]: TNavigationItem read GetItem; default;
     property Parent: TNavigationItem read FParent;
     property Caption: string read FCaption;
+    property GroupIndex: Byte read FGroupIndex write FGroupIndex;
+    property RadioItem: Boolean read FRadioItem write FRadioItem;
   end;
 
   TLayout = class
@@ -175,6 +180,7 @@ type
     [Weak] FParent: TLayout;
     FItems: TList<TLayout>;
     FContentLayout: TLayout;
+    FMenu: TNavigationItem;
     FControl: TObject;
     FKind: TLayoutKind;
     FIsOwner: Boolean;
@@ -194,6 +200,7 @@ type
     property Parent: TLayout read FParent;
     property Items: TList<TLayout> read GetItems;
     property ContentLayout: TLayout read FContentLayout write SetContentLayout;
+    property Menu: TNavigationItem read FMenu write FMenu;
     property IsOwner: Boolean read FIsOwner;
     property _Index: Integer read FIndex;
   end;
@@ -1088,7 +1095,9 @@ constructor TNavigationItem.Create(const AParent: TNavigationItem; const ACaptio
 begin
   inherited Create;
   FParent := AParent;
-  Fcaption := ACaption;
+  FCaption := ACaption;
+  FRadioItem := False;
+  FGroupIndex := 0;
   FItems := TObjectList<TNavigationItem>.Create;
 end;
 
@@ -1156,6 +1165,11 @@ begin
   Result.AddPair('items', vItems);
 end;
 
+function TNavigationItem.IsLine: Boolean;
+begin
+  Result := FCaption = '-';
+end;
+
 procedure TNavigationItem.Save(const AParent: TJSONObject; const AName: string);
 begin
   AParent.AddPair(AName, InternalSave);
@@ -1175,6 +1189,7 @@ begin
   FParent := nil;
   FItems := TList<TLayout>.Create;
   FContentLayout := nil;
+  FMenu := nil;
   FIsOwner := AIsOwner;
   FControl := AControl;
   FKind := AKind;
@@ -1191,6 +1206,7 @@ begin
     FreeAndNil(FControl)
   else
     FControl := nil;
+  FreeAndNil(FMenu);
   inherited Destroy;
 end;
 

@@ -401,11 +401,31 @@ var
   vControl: TControl;
   vLayout: TLayout;
   i: Integer;
+
+  procedure CopyMenuItems(const ASource: TMenuItem; const ADestination: TNavigationItem);
+  var
+    i: Integer;
+    vNavItem: TNavigationItem;
+  begin
+    for i := 0 to ASource.Count - 1 do
+    begin
+      vNavItem := ADestination.Add(ASource[i].Caption);
+      vNavItem.RadioItem := ASource[i].RadioItem;
+      vNavItem.GroupIndex := ASource[i].GroupIndex;
+      CopyMenuItems(ASource[i], vNavItem);
+    end;
+  end;
 begin
   if not (ALayout.Control is TWinControl) then
     Exit;
 
   vParentControl := TWinControl(ALayout.Control);
+  if Assigned(TCrackedControl(vParentControl).PopupMenu) then
+  begin
+    ALayout.Menu := TNavigationItem.Create(nil, '');
+    CopyMenuItems(TCrackedControl(vParentControl).PopupMenu.Items, ALayout.Menu);
+  end;
+
   for i := 0 to vParentControl.ControlCount - 1 do
   begin
     vControl := vParentControl.Controls[i];
