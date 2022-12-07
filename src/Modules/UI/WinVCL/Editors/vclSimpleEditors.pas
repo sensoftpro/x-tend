@@ -2543,6 +2543,19 @@ begin
   // Нужно прописывать родителя, чтобы создавать вложенные сцены
   vPC.Parent := TWinControl(TVCLArea(AParent).Control);
 
+  for i := 0 to ALayout.Items.Count - 1 do
+  begin
+    vTabLayout := ALayout.Items[i];
+    vSourceTab := TTabSheet(vTabLayout.Control);
+    vPage := TcxTabSheet.Create(vPC);
+    vPage.Caption := vSourceTab.Caption;
+    vPage.ImageIndex := vSourceTab.ImageIndex;
+
+    vChildArea := TVCLArea.Create(Self, FView.Parent, vSourceTab.Name, False, vPage, vTabLayout);
+    AddArea(vChildArea);
+    TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vTabLayout, '');
+  end;
+
   for i := 0 to vSourcePC.PageCount - 1 do
   begin
     vSourceTab := vSourcePC.Pages[i];
@@ -2556,9 +2569,6 @@ begin
     AddArea(vChildArea);
     TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vTabLayout, '');
   end;
-
-  //for i := vSourcePC.PageCount - 1 downto 0 do
-  //  vSourcePC.Pages[i].Free;
 end;
 
 procedure TDEPagesFieldEditor.DoOnChange;

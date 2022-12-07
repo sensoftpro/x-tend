@@ -2262,7 +2262,7 @@ var
   vView: TView;
   vDefinition: TDefinition;
   vGroupArea: TVCLArea;
-  vImageID, vUrl, vLayoutName, vCaption, vHint: string;
+  vImageID, vUrl, vCaption, vHint: string;
   vImageIndex: Integer;
   vControl: TObject;
   vParentObj: TObject;
@@ -2308,15 +2308,7 @@ begin
         else if vView.DefinitionKind = dkCollection then
         begin
           if vNavItem.Count = 0 then
-          begin
-            DoAssignItemOnClick(ExplicitNavigate);
-
-            vLayoutName := GetUrlParam(vNavItem.Caption, 'Layout');
-
-            if vLayoutName = '' then
-              vLayoutName := 'Collection';
-            vUrl := 'View=' + vView.InitialName + '@WorkArea=WorkArea@Layout=' + vLayoutName;
-          end;
+            DoAssignItemOnClick(OnOpenCollection);
         end;
 
         vCaption := GetUrlParam(vNavItem.Caption, 'Caption');

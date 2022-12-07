@@ -39,22 +39,6 @@ uses
   Classes, Generics.Collections, Generics.Defaults, UITypes, SysUtils, uConsts, uView, uDefinition, uEntity, uSession, uLayout;
 
 type
-  TButtonDesc = class
-  public
-    Caption: string;
-    Hint: string;
-    View: string;
-    Layout: string;
-    WorkArea: string;
-    Options: string;
-    Id: string;
-    ImageID: Integer;
-    ColorField: string;
-    GroupField: string;
-
-    function GenerateOptions(const ADelimiter: Char = '&'): string;
-  end;
-
   TUIBuilder = class;
   TUIArea = class;
 
@@ -172,8 +156,6 @@ type
     function GetImageID(const AImageID: Integer): Integer;
     procedure ExecuteUIAction(const AView: TView);
 
-    procedure ExplicitNavigate(Sender: TObject);
-    function CreateButtonDesc(const AText: string): TButtonDesc;
     function LessThanUIState(const ADefinition: TDefinition; const ASession: TObject; const AState: TViewState): Boolean;
 
     procedure Activate(const AUrlParams: string);
@@ -599,7 +581,12 @@ begin
   begin
     Assert(AView.DefinitionKind in [dkEntity, dkAction, dkObjectField, dkCollection], 'Показываем непонятно что');
     if vLayoutName = '' then
-      GetLayoutName(AView.DomainObject as TEntity, AOptions, vLayoutName);
+    begin
+      if AView.DomainObject is TEntity then
+        GetLayoutName(AView.DomainObject as TEntity, AOptions, vLayoutName)
+      else
+        GetLayoutName(nil, AOptions, vLayoutName);
+    end;
     vView := AView;
   end
   else
@@ -995,33 +982,6 @@ begin
   end;
 end;
 
-function TUIArea.CreateButtonDesc(const AText: string): TButtonDesc;
-var
-  vSplitter: TStrings;
-begin
-  Result := TButtonDesc.Create;
-  vSplitter := CreateDelimitedList(AText, '@');
-  try
-    Result.Caption := vSplitter.Values['Caption'];
-    Result.Hint := vSplitter.Values['Hint'];
-    Result.View := vSplitter.Values['View'];
-    Result.Layout := vSplitter.Values['Layout'];
-    if vSplitter.Values['Action'] <> '' then
-      Result.View := vSplitter.Values['Action'];
-    Result.WorkArea := vSplitter.Values['WorkArea'];
-    Result.Options := vSplitter.Values['Options'];
-    Result.Id := vSplitter.Values['Id'];
-    Result.ImageID := StrToIntDef(Trim(vSplitter.Values['ImageID']), 0);
-    Result.ColorField := vSplitter.Values['Color'];
-    Result.GroupField := vSplitter.Values['Group'];
-  finally
-    FreeAndNil(vSplitter);
-  end;
-
-  if (Pos('=', AText) = 0) then
-    Result.View := Trim(AText);
-end;
-
 procedure TUIArea.CreateCaption(const AFieldDef: TFieldDef);
 begin
 end;
@@ -1388,67 +1348,6 @@ begin
   end;
 end;
 
-procedure TUIArea.ExplicitNavigate(Sender: TObject);
-var
-  vButtonDesc: TButtonDesc;
-  vArea: TUIArea;
-  vView: TView;
-  vParentHolder: TObject;
-  vParentObject: TObject;
-  vIsSlave: Boolean;
-  vCaption: string;
-  vOptions, vWorkArea: string;
-begin
-  vArea := AreaFromSender(Sender);
-  vButtonDesc := CreateButtonDesc(vArea.Id);
-  vOptions := vButtonDesc.GenerateOptions('&');
-  try
-    FUIBuilder.LastArea := vArea;
-    if vButtonDesc.Layout <> '' then
-    begin
-      if vButtonDesc.View <> '' then
-        vView := FUIBuilder.RootView.BuildView(vButtonDesc.View)
-      else
-        vView := nil;
-      vCaption := vButtonDesc.Caption;
-      if vCaption = '' then
-        vCaption := vArea.View.QueryParameter('Caption');
-      if Trim(vArea.View.QueryText) <> '' then
-        vOptions := vArea.View.QueryText;
-      vOptions := RemoveUrlParam(vOptions, 'Layout');
-      vWorkArea := GetUrlParam(vOptions, 'ContentWorkArea', vButtonDesc.WorkArea);
-      FUIBuilder.Navigate(vView, vWorkArea, vButtonDesc.Layout, vOptions, nil, nil, vCaption);
-    end
-    else if (vButtonDesc.View <> '') and (Copy(vButtonDesc.View, 1, 1) <> '#') then
-    begin
-      vView := FUIBuilder.RootView.BuildView(vButtonDesc.View);
-      vIsSlave := (vView.Name = 'Save') or SameText(vArea.QueryParameter('place'), 'embedded');
-      if not vIsSlave then
-      begin
-        vParentObject := vView.ParentDomainObject;
-
-        if Assigned(vParentObject) and (vParentObject is TEntityList) then
-          vIsSlave := TEntityList(vParentObject).FillerKind = lfkList
-        else if Assigned(vView.Parent) then
-        begin
-          vParentObject := vView.Parent.ParentDomainObject;
-          if Assigned(vParentObject) and (vParentObject is TEntityList) then
-            vIsSlave := TEntityList(vParentObject).FillerKind = lfkList;
-        end;
-      end;
-
-      if vIsSlave then
-        vParentHolder := Holder
-      else
-        vParentHolder := nil;
-
-      vView.ExecuteAction(vParentHolder);
-    end;
-  finally
-    vButtonDesc.Free;
-  end;
-end;
-
 function TUIArea.GetArea(const AIndex: Integer): TUIArea;
 begin
   Result := TUIArea(FAreas[AIndex]);
@@ -1801,32 +1700,6 @@ end;
 
 procedure TUIArea.UpdateArea(const AKind: Word; const AParameter: TEntity = nil);
 begin
-end;
-
-{ TButtonDesc }
-
-function TButtonDesc.GenerateOptions(const ADelimiter: Char): string;
-var
-  vResult: TStrings;
-begin
-  vResult := CreateDelimitedList('', ADelimiter);
-  try
-    if Caption <> '' then
-      vResult.Add('Caption=' + Caption);
-    if Hint <> '' then
-      vResult.Add('Hint=' + Hint);
-    if Id <> '' then
-      vResult.Add('Id=' + Id);
-    if ImageID > 0 then
-      vResult.Add('ImageID=' + IntToStr(ImageID));
-    if ColorField <> '' then
-      vResult.Add('Color=' + ColorField);
-    if GroupField <> '' then
-      vResult.Add('Group=' + GroupField);
-  finally
-    Result := vResult.DelimitedText;
-    FreeAndNil(vResult);
-  end;
 end;
 
 { TNativeControl }
