@@ -2625,7 +2625,8 @@ begin
   TcxProgressBar(FControl).Properties.SolidTextColor := True;
   TcxProgressBar(FControl).Properties.ShowText := TPanel(ALayout.Control).ShowCaption;
   FNeedCreateCaption := False;
-  TcxProgressBar(FControl).Properties.Max := TSimpleFieldDef(FFieldDef).MaxValue;
+  if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
+    TcxProgressBar(FControl).Properties.Max := TSimpleFieldDef(FFieldDef).MaxValue;
 end;
 
 procedure TProgress.FillEditor;
@@ -3268,6 +3269,7 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'selector', TTextSe
 TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'comport', TTextSelector);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'fieldpath', TEntityBreadcrumb);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, '', TDEIntegerFieldEditor);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'simple', TDEIntegerFieldEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'info', TTextInfo);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'spinner', TSpinner);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'progress', TProgress);

@@ -54,6 +54,23 @@ type
     pnlTop: TPanel;
     Name: TPanel;
     pnlStreets: TPanel;
+    pnl1: TPanel;
+    pnl2: TPanel;
+    Bevel1: TBevel;
+    PageControl1: TPageControl;
+    TabSheet1: TTabSheet;
+    TabSheet2: TTabSheet;
+    Label1: TLabel;
+    Label2: TLabel;
+    Panel4: TPanel;
+    TabSheet3: TTabSheet;
+    TabSheet4: TTabSheet;
+    Label3: TLabel;
+    Label4: TLabel;
+    TabSheet5: TTabSheet;
+    TabSheet6: TTabSheet;
+    Label5: TLabel;
+    Label6: TLabel;
   end;
 
 implementation
