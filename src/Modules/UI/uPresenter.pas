@@ -188,6 +188,7 @@ type
       const AViewName: string): TUIAreaClass;
     class function GetPageClass(const APresenterName: string; const APageName: string): TClass;
   private
+    FMainUIAreaClass: TUIAreaClass;
     FOnAppStarted: TStartedEvent;
   protected
     FName: string;
@@ -206,6 +207,7 @@ type
     function DoLogin(const ADomain: TObject): TInteractor; virtual;
     procedure DoLogout(const AInteractor: TInteractor); virtual;
 
+    function GetMainUIAreaClass: TUIAreaClass; virtual; abstract;
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); virtual; abstract;
     function DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult; virtual; abstract;
     procedure DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False); virtual;
@@ -276,6 +278,7 @@ type
     function CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
     property OnAppStarted: TStartedEvent read FOnAppStarted write FOnAppStarted;
     property Name: string read FName;
+    property MainUIAreaClass: TUIAreaClass read FMainUIAreaClass;
   end;
 
   TPresenterClass = class of TPresenter;
@@ -331,6 +334,7 @@ begin
   inherited Create;
 
   FName := AName;
+  FMainUIAreaClass := GetMainUIAreaClass;
   FCursorType := crtDefault;
   vStyleName := ASettings.GetValue('Core', 'Style', 'default');
   FCommonIcons := TIcons.Create;

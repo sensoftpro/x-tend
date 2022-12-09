@@ -169,6 +169,9 @@ type
     FHint: string;
     FImageID: Integer;
     FViewName: string;
+    FContentLayout: string;
+    FContentWorkArea: string;
+    FContentCaption: string;
     FGroupIndex: Byte;
     FRadioItem: Boolean;
     function GetCount: Integer;
@@ -194,6 +197,9 @@ type
     property Hint: string read FHint;
     property ImageID: Integer read FImageID;
     property ViewName: string read FViewName;
+    property ContentLayout: string read FContentLayout;
+    property ContentWorkArea: string read FContentWorkArea;
+    property ContentCaption: string read FContentCaption;
     property GroupIndex: Byte read FGroupIndex write FGroupIndex;
     property RadioItem: Boolean read FRadioItem write FRadioItem;
   end;
@@ -1210,6 +1216,9 @@ begin
     FCaption := vUrlParser.ExtractString('caption');
     FHint := vUrlParser.ExtractString('hint');
     FImageID := vUrlParser.ExtractInteger('imageindex');
+    FContentLayout := vUrlParser.ExtractString('contentlayout');
+    FContentWorkArea := vUrlParser.ExtractString('contentworkarea');
+    FContentCaption := vUrlParser.ExtractString('contentcaption');
   finally
     FreeAndNil(vUrlParser);
   end;

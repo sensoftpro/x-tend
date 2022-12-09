@@ -94,6 +94,12 @@ object EditForm: TEditForm
     object Libraries1: TMenuItem
       Caption = '@Libraries?Id=Libraries&Caption='#1057#1087#1088#1072#1074#1086#1095#1085#1080#1082#1080
     end
+    object ConfigurationsCaption1: TMenuItem
+      Caption = '@Configurations?Caption='#1050#1086#1085#1092#1080#1075#1091#1088#1072#1094#1080#1080
+      object Configurations1: TMenuItem
+        Caption = 'Configurations/@'
+      end
+    end
     object Windows1: TMenuItem
       Caption = '@Windows?Id=Windows&Caption='#1054#1082#1085#1072
       object CloseAllPages1: TMenuItem
