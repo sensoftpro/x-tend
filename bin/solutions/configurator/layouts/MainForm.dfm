@@ -18,8 +18,6 @@ object EditForm: TEditForm
     Font.Style = []
     ParentFont = False
     TabOrder = 0
-    ExplicitLeft = 0
-    ExplicitWidth = 945
   end
   object Panel1: TPanel
     Left = 0
@@ -68,7 +66,6 @@ object EditForm: TEditForm
     ParentFont = False
     PopupMenu = MainMenu
     TabOrder = 4
-    ExplicitLeft = 8
   end
   object MainMenu: TPopupMenu
     Left = 340

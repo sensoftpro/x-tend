@@ -143,6 +143,20 @@ function StrToViewType(const s: string): TLayoutViewType;
 function StrToBorderStyle(const s: string): TLayoutBorderStyle;
 
 type
+  TUrlParser = class
+  private
+    FPath: string;
+    FParams: TStrings;
+  public
+    constructor Create(const AUrl: string);
+    destructor Destroy; override;
+
+    function ExtractInteger(const AParamName: string; const ADefault: Integer = -1): Integer;
+    function ExtractString(const AParamName: string; const ADefault: string = ''): string;
+
+    property Path: string read FPath;
+  end;
+
   TNavigationItem = class;
   TNavigationItems = TObjectList<TNavigationItem>;
 
@@ -150,17 +164,22 @@ type
   private
     [Weak] FParent: TNavigationItem;
     FItems: TNavigationItems;
+    FId: string;
     FCaption: string;
+    FHint: string;
+    FImageID: Integer;
+    FViewName: string;
     FGroupIndex: Byte;
     FRadioItem: Boolean;
     function GetCount: Integer;
     function GetItem(const AIndex: Integer): TNavigationItem;
+    procedure SetUrl(const AUrl: string);
 
     procedure InternalLoad(const AJSON: TJSONObject);
     function InternalSave: TJSONObject;
   public
     constructor Create(const AParent: TNavigationItem; const AJSON: TJSONObject); overload;
-    constructor Create(const AParent: TNavigationItem; const ACaption: string); overload;
+    constructor Create(const AParent: TNavigationItem; const AUrl: string); overload;
     destructor Destroy; override;
 
     function Add(const ACaption: string): TNavigationItem;
@@ -170,7 +189,11 @@ type
     property Count: Integer read GetCount;
     property Items[const AIndex: Integer]: TNavigationItem read GetItem; default;
     property Parent: TNavigationItem read FParent;
+    property Id: string read FId;
     property Caption: string read FCaption;
+    property Hint: string read FHint;
+    property ImageID: Integer read FImageID;
+    property ViewName: string read FViewName;
     property GroupIndex: Byte read FGroupIndex write FGroupIndex;
     property RadioItem: Boolean read FRadioItem write FRadioItem;
   end;
@@ -1091,11 +1114,12 @@ begin
   FItems.Add(Result);
 end;
 
-constructor TNavigationItem.Create(const AParent: TNavigationItem; const ACaption: string);
+constructor TNavigationItem.Create(const AParent: TNavigationItem; const AUrl: string);
 begin
   inherited Create;
   FParent := AParent;
-  FCaption := ACaption;
+
+  SetUrl(AUrl);
   FRadioItem := False;
   FGroupIndex := 0;
   FItems := TObjectList<TNavigationItem>.Create;
@@ -1167,12 +1191,28 @@ end;
 
 function TNavigationItem.IsLine: Boolean;
 begin
-  Result := FCaption = '-';
+  Result := FViewName = '-';
 end;
 
 procedure TNavigationItem.Save(const AParent: TJSONObject; const AName: string);
 begin
   AParent.AddPair(AName, InternalSave);
+end;
+
+procedure TNavigationItem.SetUrl(const AUrl: string);
+var
+  vUrlParser: TUrlParser;
+begin
+  vUrlParser := TUrlParser.Create(AUrl);
+  try
+    FViewName := vUrlParser.Path;
+    FId := vUrlParser.ExtractString('id');
+    FCaption := vUrlParser.ExtractString('caption');
+    FHint := vUrlParser.ExtractString('hint');
+    FImageID := vUrlParser.ExtractInteger('imageindex');
+  finally
+    FreeAndNil(vUrlParser);
+  end;
 end;
 
 { TLayout }
@@ -1226,6 +1266,56 @@ begin
   if Assigned(FContentLayout) then
     FContentLayout.Free;
   FContentLayout := Value;
+end;
+
+{ TUrlParser }
+
+constructor TUrlParser.Create(const AUrl: string);
+var
+  vUrl: string;
+  vPos: Integer;
+  vItems: TStrings;
+  i: Integer;
+begin
+  inherited Create;
+
+  FParams := TStringList.Create;
+  vUrl := AUrl;
+  vPos := Pos('?', vUrl);
+  if vPos = 0 then
+    FPath := AUrl
+  else begin
+    FPath := Copy(vUrl, 1, vPos - 1);
+    Delete(vUrl, 1, vPos);
+    vItems := CreateDelimitedList(vUrl, '&');
+    try
+      for i := 0 to vItems.Count - 1 do
+        FParams.Add(LowerCase(vItems.KeyNames[i]) + FParams.NameValueSeparator + vItems.ValueFromIndex[i]);
+    finally
+      FreeAndNil(vItems);
+    end;
+  end;
+end;
+
+destructor TUrlParser.Destroy;
+begin
+  FreeAndNil(FParams);
+  inherited Destroy;
+end;
+
+function TUrlParser.ExtractInteger(const AParamName: string; const ADefault: Integer): Integer;
+var
+  vValue: string;
+begin
+  vValue := FParams.Values[AParamName];
+  Result := StrToIntDef(vValue, ADefault);
+end;
+
+function TUrlParser.ExtractString(const AParamName, ADefault: string): string;
+begin
+  Result := FParams.Values[AParamName];
+  if Result = '' then
+    Result := ADefault;
 end;
 
 initialization
