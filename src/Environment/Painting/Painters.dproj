@@ -103,15 +103,9 @@
         <DCCReference Include="..\..\Modules\Drawing\uDrawStyles.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\uScene.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\uWinScene.pas"/>
-        <DCCReference Include="..\..\Modules\Drawing\OpenGL\uOpenGLPainter.pas"/>
-        <DCCReference Include="..\..\Modules\Drawing\OpenGL\dglOpenGL.pas"/>
-        <DCCReference Include="..\..\Modules\Drawing\Skia\Skia.Api.pas"/>
-        <DCCReference Include="..\..\Modules\Drawing\Skia\Skia.pas"/>
-        <DCCReference Include="..\..\Modules\Drawing\Skia\uSkiaPainter.pas"/>
         <DCCReference Include="uMainForm.pas">
             <Form>fmMain</Form>
         </DCCReference>
-        <DCCReference Include="..\..\Modules\Drawing\OpenGL\uFreeType.pas"/>
         <BuildConfiguration Include="Debug">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>

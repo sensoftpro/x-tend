@@ -1,4 +1,4 @@
-unit uOpenGLPainter;
+﻿unit uOpenGLPainter;
 
 interface
 
@@ -12,6 +12,7 @@ type
   TColor = packed record
     Red, Green, Blue, Alpha: Extended;
   end;
+
   TPointArray = array of TPoint;
   TGLUtils = class(TObject)
     class function NextPow2(const x: Cardinal): Cardinal; overload; static;
@@ -392,7 +393,6 @@ end;
 
 procedure TOpenGLPainter.DoDrawContext(const AContext: TDrawContext);
 begin
-
 end;
 
 procedure TOpenGLPainter.DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF);

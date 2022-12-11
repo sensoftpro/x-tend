@@ -2555,20 +2555,6 @@ begin
     AddArea(vChildArea);
     TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vTabLayout, '');
   end;
-
-  for i := 0 to vSourcePC.PageCount - 1 do
-  begin
-    vSourceTab := vSourcePC.Pages[i];
-    vPage := TcxTabSheet.Create(vPC);
-    vPage.Caption := vSourceTab.Caption;
-    vPage.ImageIndex := vSourceTab.ImageIndex;
-
-    vTabLayout := TLayout.Create(lkPage, vSourceTab, True);
-    TPresenter(Presenter).EnumerateControls(vTabLayout);
-    vChildArea := TVCLArea.Create(Self, FView.Parent, vSourceTab.Name, False, vPage, vTabLayout);
-    AddArea(vChildArea);
-    TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vTabLayout, '');
-  end;
 end;
 
 procedure TDEPagesFieldEditor.DoOnChange;
@@ -2605,7 +2591,7 @@ begin
       vTag := IfThen(vValue, 1, 0)
     else if TFieldDef(FView.Definition).Kind = fkEnum then
     begin
-      if TFieldDef(FView.Definition).Flags or cRequired = 1 then
+      if TFieldDef(FView.Definition).Flags and cRequired = 1 then
         vValue := vValue - 1;
       vTag := vValue
     end
