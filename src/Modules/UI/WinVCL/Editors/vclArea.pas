@@ -646,9 +646,9 @@ var
   vReport: TRTFReport;
   vChildArea: TVCLArea;
 begin
-  for i := 0 to ASrcItem.Count - 1 do
+  for i := 0 to ASrcItem.Items.Count - 1 do
   begin
-    vSrcItem := ASrcItem[i];
+    vSrcItem := TNavigationItem(ASrcItem.Items[i]);
     vCaption := vSrcItem.Caption;
 
     if SameText(vCaption, '#Placeholder') then
@@ -2309,7 +2309,7 @@ var
     if not Assigned(vControl) then
       Exit;
 
-    vGroupArea := MainUIClass.Create(AParentArea, ACurrentView, '', False, vControl, nil, '');
+    vGroupArea := MainUIClass.Create(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
     AParentArea.AddArea(vGroupArea);
 
     if ACurrentItem.Id = 'Libraries' then
@@ -2345,7 +2345,7 @@ var
     if not Assigned(vControl) then
       Exit;
 
-    vNavArea := MainUIClass.Create(AParentArea, ACurrentView, '', False, vControl, nil, '');
+    vNavArea := MainUIClass.Create(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
     AParentArea.AddArea(vNavArea);
 
     DoProcessChilds(vNavArea, ACurrentView, ACurrentItem, ALevel + 1);
@@ -2400,9 +2400,9 @@ var
     end;
   end;
 begin
-  for i := 0 to ANavItem.Count - 1 do
+  for i := 0 to ANavItem.Items.Count - 1 do
   begin
-    vNavItem := ANavItem[i];
+    vNavItem := TNavigationItem(ANavItem.Items[i]);
 
     if AParentArea = Self then
       vParentObj := nil

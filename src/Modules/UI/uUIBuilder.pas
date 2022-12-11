@@ -1164,7 +1164,8 @@ destructor TUIArea.Destroy;
 begin
   FreeAndNil(FCreateParams);
   FControl := nil;
-  FreeAndNil(FLayout);
+  if not (FLayout is TNavigationItem) then
+    FreeAndNil(FLayout);
   //if Assigned(FLayout) and FLayout.IsOwner then
   //  FLayout.Control.Free;
   //FLayout := nil;
@@ -1545,10 +1546,9 @@ end;
 procedure TUIArea.ProcessAreaClick(const AArea: TUIArea);
 var
   vView: TView;
-  vLayout: TObject;
+  vLayout: TNavigationItem;
   vWorkArea: string;
   vLayoutName: string;
-  vCaption: string;
   vHolder: TChangeHolder;
   vDefaultWorkArea: string;
 begin
@@ -1560,29 +1560,33 @@ begin
   if not Assigned(vView) then
     Exit;
 
-  vLayout := AArea.Layout; // Может быть NavigationItem
+  vLayout := TNavigationItem(AArea.Layout);
+  Assert(Assigned(vLayout), 'Ууупс!');
 
   if vView.DefinitionKind = dkAction then
     AArea.ExecuteUIAction(vView)
   else if vView.DefinitionKind = dkCollection then
   begin
-    vWorkArea := vView.QueryParameter('ContentWorkArea', 'WorkArea');
-    if AArea.QueryParameter('ContentWorkArea', '') <> '' then
-      vWorkArea := AArea.QueryParameter('ContentWorkArea', '');
-    vLayoutName := vView.QueryParameter('ContentLayout', 'Collection');
-    vCaption := vView.QueryParameter('ContentCaption', '');
+    vWorkArea := vLayout.ContentWorkArea;
+    if vWorkArea = '' then
+      vWorkArea := 'WorkArea';
+    vLayoutName := vLayout.ContentLayout;
+    if vLayoutName = '' then
+      vLayoutName := 'Collection';
 
-    FUIBuilder.Navigate(vView, vWorkArea, vLayoutName, 'operation=opencollection', nil, nil, vCaption);
+    FUIBuilder.Navigate(vView, vWorkArea, vLayoutName, 'operation=opencollection',
+      nil, nil, vLayout.ContentCaption);
   end
   else if vView.DefinitionKind in [dkEntity, dkObjectField] then
   begin
     vDefaultWorkArea := 'WorkArea';
-    vWorkArea := vView.QueryParameter('ContentWorkArea', vDefaultWorkArea);
-    vLayoutName := vView.QueryParameter('ContentLayout', '');
-    vCaption := vView.QueryParameter('ContentCaption', '');
+    vWorkArea := vLayout.ContentWorkArea;
+    if vWorkArea = '' then
+      vWorkArea := vDefaultWorkArea;
 
     vHolder := TUserSession(FView.Session).Edit(nil);
-    FUIBuilder.Navigate(vView, vWorkArea, vLayoutName, 'operation=slap', vHolder, nil, vCaption);
+    FUIBuilder.Navigate(vView, vWorkArea, vLayout.ContentLayout, 'operation=slap',
+      vHolder, nil, vLayout.ContentCaption);
   end;
 end;
 

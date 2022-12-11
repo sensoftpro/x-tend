@@ -40,7 +40,8 @@ uses
 
 type
   //TLayoutKind = (lkPanel, lkPage, lkPages, lkFrame, lkMenu, lkMemo);
-  TLayoutKind = (lkNone, lkPanel, lkPage, lkPages, lkFrame, lkMemo, lkLabel, lkImage, lkBevel, lkShape, lkSplitter, lkScrollBox);
+  TLayoutKind = (lkNone, lkPanel, lkPage, lkPages, lkFrame, lkMemo, lkLabel, lkImage, lkBevel, lkShape,
+    lkSplitter, lkScrollBox, lkGroup, lkAction);
   TLayoutAlign = (lalNone, lalTop, lalBottom, lalLeft, lalRight, lalClient, lalCustom);
   TPageStyle = (psTabs, psButtons, psFlatButtons);
   TPagePosition = (ppTop, ppBottom, ppLeft, ppRight);
@@ -116,7 +117,7 @@ type
 
 const
   cLayoutKindNames: array[TLayoutKind] of string = ('', 'panel', 'page', 'pages', 'frame', 'memo', 'label',
-    'image', 'bevel', 'shape', 'splitter', 'scrollbox');
+    'image', 'bevel', 'shape', 'splitter', 'scrollbox', 'group', 'action');
   cAnchorKindNames: array[TAnchorKind] of string = ('left', 'top', 'right', 'bottom');
   cFontStyleNames: array[TFontStyle] of string = ('bold', 'italic', 'underline', 'strikeout');
   cAlignNames: array[TLayoutAlign] of string = ('', 'top', 'bottom', 'left', 'right', 'client', 'custom');
@@ -160,10 +161,45 @@ type
   TNavigationItem = class;
   TNavigationItems = TObjectList<TNavigationItem>;
 
-  TNavigationItem = class
+  TLayout = class
   private
-    [Weak] FParent: TNavigationItem;
-    FItems: TNavigationItems;
+    FContentLayout: TLayout;
+    FMenu: TNavigationItem;
+    FControl: TObject;
+    FKind: TLayoutKind;
+    FIsOwner: Boolean;
+    FIndex: Integer;
+    procedure SetContentLayout(const Value: TLayout);
+    function GetItems: TList<TLayout>;
+  protected
+    [Weak] FParent: TLayout;
+    FItems: TList<TLayout>;
+
+    procedure InternalLoad(const AJSON: TJSONObject); virtual;
+    function InternalSave: TJSONObject; virtual;
+    procedure SetUrl(const AUrl: string); virtual;
+  public
+    class var _Count: Integer;
+
+    constructor Create(const AKind: TLayoutKind; const AControl: TObject; const AIsOwner: Boolean = False);
+    destructor Destroy; override;
+
+    procedure Add(const AChild: TLayout);
+    procedure Save(const AParent: TJSONObject; const AName: string);
+
+    property Kind: TLayoutKind read FKind;
+    property Control: TObject read FControl;
+    property Parent: TLayout read FParent;
+    property Items: TList<TLayout> read GetItems;
+
+    property ContentLayout: TLayout read FContentLayout write SetContentLayout;
+    property Menu: TNavigationItem read FMenu write FMenu;
+    property IsOwner: Boolean read FIsOwner;
+    property _Index: Integer read FIndex;
+  end;
+
+  TNavigationItem = class(TLayout)
+  private
     FId: string;
     FCaption: string;
     FHint: string;
@@ -174,24 +210,18 @@ type
     FContentCaption: string;
     FGroupIndex: Byte;
     FRadioItem: Boolean;
-    function GetCount: Integer;
-    function GetItem(const AIndex: Integer): TNavigationItem;
-    procedure SetUrl(const AUrl: string);
-
-    procedure InternalLoad(const AJSON: TJSONObject);
-    function InternalSave: TJSONObject;
+  protected
+    procedure InternalLoad(const AJSON: TJSONObject); override;
+    function InternalSave: TJSONObject; override;
+    procedure SetUrl(const AUrl: string); override;
   public
     constructor Create(const AParent: TNavigationItem; const AJSON: TJSONObject); overload;
     constructor Create(const AParent: TNavigationItem; const AUrl: string); overload;
     destructor Destroy; override;
 
     function Add(const ACaption: string): TNavigationItem;
-    procedure Save(const AParent: TJSONObject; const AName: string);
     function IsLine: Boolean;
 
-    property Count: Integer read GetCount;
-    property Items[const AIndex: Integer]: TNavigationItem read GetItem; default;
-    property Parent: TNavigationItem read FParent;
     property Id: string read FId;
     property Caption: string read FCaption;
     property Hint: string read FHint;
@@ -204,35 +234,10 @@ type
     property RadioItem: Boolean read FRadioItem write FRadioItem;
   end;
 
-  TLayout = class
-  private
-    [Weak] FParent: TLayout;
-    FItems: TList<TLayout>;
-    FContentLayout: TLayout;
-    FMenu: TNavigationItem;
-    FControl: TObject;
-    FKind: TLayoutKind;
-    FIsOwner: Boolean;
-    FIndex: Integer;
-    procedure SetContentLayout(const Value: TLayout);
-    function GetItems: TList<TLayout>;
-  public
-    class var Count: Integer;
+  TLayoutItem = class(TLayout)
 
-    constructor Create(const AKind: TLayoutKind; const AControl: TObject; const AIsOwner: Boolean = False);
-    destructor Destroy; override;
-
-    procedure Add(const AChild: TLayout);
-
-    property Kind: TLayoutKind read FKind;
-    property Control: TObject read FControl;
-    property Parent: TLayout read FParent;
-    property Items: TList<TLayout> read GetItems;
-    property ContentLayout: TLayout read FContentLayout write SetContentLayout;
-    property Menu: TNavigationItem read FMenu write FMenu;
-    property IsOwner: Boolean read FIsOwner;
-    property _Index: Integer read FIndex;
   end;
+
   //TVCLControl = type TObject;
 
   TLayoutX = class
@@ -1122,38 +1127,29 @@ end;
 
 constructor TNavigationItem.Create(const AParent: TNavigationItem; const AUrl: string);
 begin
-  inherited Create;
+  inherited Create(lkAction, nil, True);
   FParent := AParent;
 
   SetUrl(AUrl);
   FRadioItem := False;
   FGroupIndex := 0;
-  FItems := TObjectList<TNavigationItem>.Create;
 end;
 
 constructor TNavigationItem.Create(const AParent: TNavigationItem; const AJSON: TJSONObject);
 begin
-  inherited Create;
+  inherited Create(lkAction, nil, True);
   FParent := AParent;
-  FItems := TObjectList<TNavigationItem>.Create;
   InternalLoad(AJSON);
 end;
 
 destructor TNavigationItem.Destroy;
+var
+  i: Integer;
 begin
+  for i := 0 to FItems.Count - 1 do
+    FItems[i].Free;
   FParent := nil;
-  FreeAndNil(FItems);
   inherited Destroy;
-end;
-
-function TNavigationItem.GetCount: Integer;
-begin
-  Result := FItems.Count;
-end;
-
-function TNavigationItem.GetItem(const AIndex: Integer): TNavigationItem;
-begin
-  Result := FItems[AIndex];
 end;
 
 procedure TNavigationItem.InternalLoad(const AJSON: TJSONObject);
@@ -1200,11 +1196,6 @@ begin
   Result := FViewName = '-';
 end;
 
-procedure TNavigationItem.Save(const AParent: TJSONObject; const AName: string);
-begin
-  AParent.AddPair(AName, InternalSave);
-end;
-
 procedure TNavigationItem.SetUrl(const AUrl: string);
 var
   vUrlParser: TUrlParser;
@@ -1212,8 +1203,11 @@ begin
   vUrlParser := TUrlParser.Create(AUrl);
   try
     FViewName := vUrlParser.Path;
+    if FViewName = '-' then
+      FCaption := '-'
+    else
+      FCaption := vUrlParser.ExtractString('caption');
     FId := vUrlParser.ExtractString('id');
-    FCaption := vUrlParser.ExtractString('caption');
     FHint := vUrlParser.ExtractString('hint');
     FImageID := vUrlParser.ExtractInteger('imageindex');
     FContentLayout := vUrlParser.ExtractString('contentlayout');
@@ -1242,8 +1236,8 @@ begin
   FIsOwner := AIsOwner;
   FControl := AControl;
   FKind := AKind;
-  Inc(Count);
-  FIndex := Count;
+  Inc(_Count);
+  FIndex := _Count;
 end;
 
 destructor TLayout.Destroy;
@@ -1267,6 +1261,20 @@ begin
     Result := FItems;
 end;
 
+procedure TLayout.InternalLoad(const AJSON: TJSONObject);
+begin
+end;
+
+function TLayout.InternalSave: TJSONObject;
+begin
+  Result := TJSONObject.Create;
+end;
+
+procedure TLayout.Save(const AParent: TJSONObject; const AName: string);
+begin
+  AParent.AddPair(AName, InternalSave);
+end;
+
 procedure TLayout.SetContentLayout(const Value: TLayout);
 begin
   if FContentLayout = Value then
@@ -1275,6 +1283,10 @@ begin
   if Assigned(FContentLayout) then
     FContentLayout.Free;
   FContentLayout := Value;
+end;
+
+procedure TLayout.SetUrl(const AUrl: string);
+begin
 end;
 
 { TUrlParser }
@@ -1328,6 +1340,6 @@ begin
 end;
 
 initialization
-  TLayout.Count := 0;
+  TLayout._Count := 0;
 
 end.
