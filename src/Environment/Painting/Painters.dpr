@@ -21,8 +21,8 @@ uses
   Skia in '..\..\Modules\Drawing\Skia\Skia.pas',
   uSkiaPainter in '..\..\Modules\Drawing\Skia\uSkiaPainter.pas',
 
-  uMainForm in 'uMainForm.pas' {fmMain};
-  
+uMainForm in 'uMainForm.pas' {fmMain},
+
 {$R *.res}
 
 begin

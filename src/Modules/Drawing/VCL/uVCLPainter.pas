@@ -250,16 +250,27 @@ end;
 procedure TVCLPainter.DoDrawBezier(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer);
 var
   vOldPen: TPen;
-  vPoints: TPointArray;
+  vPoints: TArray<TPointF> absolute APoints;
+  vPointsCopy: TArray<TPoint>;
+  i: Integer;
 begin
   vOldPen := ThisCanvas.Pen;
 
-  vPoints := PPointFToPoints(APoints, ACount);
-  ThisCanvas.Pen := TPen(AStroke.NativeObject);
+  SetLength(vPointsCopy, 4);
+  i := 0;
   try
-    ThisCanvas.PolyBezier(vPoints);
+    ThisCanvas.Pen := TPen(AStroke.NativeObject);
+    while i < Length(vPoints) do
+    begin
+      vPointsCopy[0] := vPoints[0 + (Round(i/3) * 3)].Round;
+      vPointsCopy[1] := vPoints[i + 1].Round;
+      vPointsCopy[2] := vPoints[i + 2].Round;
+      vPointsCopy[3] := vPoints[i + 3].Round;
+      ThisCanvas.PolyBezier(vPointsCopy);
+      Inc(i,3);
+    end;
   finally
-    SetLength(vPoints, 0);
+    SetLength(vPointsCopy, 0);
     ThisCanvas.Pen := vOldPen;
   end;
 end;

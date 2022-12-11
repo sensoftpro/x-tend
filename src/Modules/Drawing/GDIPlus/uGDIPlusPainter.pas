@@ -118,8 +118,11 @@ uses
 { TGDIPlusPainter }
 
 procedure TGDIPlusPainter.DoClipRect(const ARect: TRectF);
+var
+  vRect: TGPRectF;
 begin
-  //TODO
+  vRect := MakeRect(ARect.Left, ARect.Top, ARect.Width, ARect.Height);
+  ThisGPCanvas.SetClip(vRect, CombineModeReplace);
 end;
 
 procedure TGDIPlusPainter.DoColorizeBrush(const AFill: TStyleBrush; const AColor: Cardinal);
@@ -228,22 +231,25 @@ end;
 procedure TGDIPlusPainter.CreatePen(const AStroke: TStylePen);
 var
   vPen: TGPPen;
+  vDashPattern: TArray<Single>;
 begin
   vPen := TGPPen.Create(AStroke.Color, AStroke.Width);
   vPen.SetLineJoin(LineJoinRound);
+  vDashPattern := TArray<Single>.Create(3,3);
+
   case AStroke.Style of
-    psSolid: vPen.SetDashStyle(TDashStyle.DashStyleSolid);
-    psDash: vPen.SetDashStyle(TDashStyle.DashStyleDash);
-    psDot: vPen.SetDashStyle(TDashStyle.DashStyleDot);
-    psDashDot: vPen.SetDashStyle(TDashStyle.DashStyleDashDot);
-    psDashDotDot: vPen.SetDashStyle(TDashStyle.DashStyleDashDotDot);
+    psSolid: vPen.SetDashStyle(DashStyleSolid);
+    psDash: vPen.SetDashStyle(DashStyleDash);
+    psDot: vPen.SetDashPattern(PSingle(vDashPattern), 2);
+    psDashDot: vPen.SetDashStyle(DashStyleDashDot);
+    psDashDotDot: vPen.SetDashStyle(DashStyleDashDotDot);
     psInsideFrame: begin
-      vPen.SetDashStyle(TDashStyle.DashStyleSolid);
-      vPen.SetAlignment(TPenAlignment.PenAlignmentInset);
+      vPen.SetDashStyle(DashStyleSolid);
+      vPen.SetAlignment(PenAlignmentInset);
     end;
     //psUserStyle: vPen.SetDashStyle(TDashStyle.DashStyleCustom);
   else
-    vPen.SetDashStyle(TDashStyle.DashStyleSolid);
+    vPen.SetDashStyle(DashStyleSolid);
   end;
 
   AStroke.NativeObject := vPen;
@@ -264,8 +270,22 @@ begin
 end;
 
 procedure TGDIPlusPainter.DoDrawBezier(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer);
+var
+  vPoints: TArray<TPointF> absolute APoints;
+  vGPPoints: TArray<TGPPointF>;
+  i: Integer;
 begin
-  ThisGPCanvas.DrawBeziers(TGPPen(AStroke.NativeObject), PGPPointF(APoints), ACount);
+  SetLength(vGPPoints, 4);
+  i := 0;
+  while i < Length(vPoints) do
+  begin
+    vGPPoints[0] := TGPPointF(vPoints[0 + (Round(i/3) * 3)]);
+    vGPPoints[1] := TGPPointF(vPoints[i + 1]);
+    vGPPoints[2] := TGPPointF(vPoints[i + 2]);
+    vGPPoints[3] := TGPPointF(vPoints[i + 3]);
+    ThisGPCanvas.DrawBeziers(TGPPen(AStroke.NativeObject), PGPPointF(vGPPoints), 4);
+    Inc(i,3);
+  end;
 end;
 
 procedure TGDIPlusPainter.DoDrawContext(const AContext: TDrawContext);

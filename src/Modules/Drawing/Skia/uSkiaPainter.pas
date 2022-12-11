@@ -512,7 +512,6 @@ var
   vStartPoint: TPointF;
   vCalcRect: TRectF;
   vCenterPoint: TPointF;
-
   function CalcStartPoint(const ATextRect: TRectF): TPointF;
   begin
     Result := PointF(ATextRect.Left, ATextRect.Top);
@@ -532,12 +531,17 @@ var
 begin
   // Проанализировать стиль шрифта и опции для вывода
   vTextMetrics := GetTextExtents(AFont, AText);
-
   if IsZero(AFont.Angle) then
   begin
     vStartPoint := CalcStartPoint(ARect);
     FCanvas.DrawSimpleText(AText, vStartPoint.X, vStartPoint.Y, TSkiaFont(AFont.NativeObject).Font,
       TSkiaFont(AFont.NativeObject).Brush);
+    if AFont.Style and FontStyleUnderline <> 0 then
+      FCanvas.DrawLine(PointF(vStartPoint.X, vStartPoint.Y + 1), PointF(vStartPoint.X + vTextMetrics.cx, vStartPoint.Y + 1),
+        TSkiaFont(AFont.NativeObject).Brush);
+    if AFont.Style and FontStyleStrikeout <> 0 then
+      FCanvas.DrawLine(PointF(vStartPoint.X, ARect.Top + vTextMetrics.cy/2), PointF(vStartPoint.X + vTextMetrics.cx, ARect.Top + vTextMetrics.cy/2),
+        TSkiaFont(AFont.NativeObject).Brush);
   end
   else begin
     vCenterPoint := ARect.CenterPoint;
@@ -550,6 +554,12 @@ begin
       FCanvas.Rotate(AFont.Angle, vCenterPoint.X, vCenterPoint.Y);
       FCanvas.DrawSimpleText(AText, vStartPoint.X, vStartPoint.Y, TSkiaFont(AFont.NativeObject).Font,
         TSkiaFont(AFont.NativeObject).Brush);
+      if AFont.Style and FontStyleUnderline <> 0 then
+        FCanvas.DrawLine(PointF(vStartPoint.X, vStartPoint.Y + 1), PointF(vStartPoint.X + vTextMetrics.cx, vStartPoint.Y + 1),
+          TSkiaFont(AFont.NativeObject).Brush);
+      if AFont.Style and FontStyleStrikeout <> 0 then
+        FCanvas.DrawLine(PointF(vStartPoint.X, vCenterPoint.Y + 1), PointF(vStartPoint.X + vTextMetrics.cx, vCenterPoint.Y + 1),
+          TSkiaFont(AFont.NativeObject).Brush);
     finally
       FCanvas.Restore;
     end;
