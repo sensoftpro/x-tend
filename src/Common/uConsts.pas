@@ -10,7 +10,7 @@
  ---------------------------------------------------------------------------------
   MIT License
 
-  Copyright © 2021 Sensoft
+  Copyright © 2023 Sensoft
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -96,9 +96,9 @@ const
 const
   // UI
   LAYOUT_DFM_EXT = '.dfm';
-  cEditFormResizable = 1;
-  cMainFormPositionDesign = 2;
-  cEditFormDisableMinimizeButton = 4;
+  cFormResizable = 1;
+  cFormPositionDesign = 2;
+  cFormDisableMinimizeButton = 4;
   cFormUseDesignSizes = 8;
   cFormNotResizable = 16;
   cFormDisableMaximizeButton = 32;
@@ -376,7 +376,10 @@ begin
   Result := TPath.GetDirectoryName(ParamStr(0));
 {$ELSE}
   Result := TPath.Combine(TPath.GetHomePath, 'Common');
-{$ENDIF}
+{$ENDIF MSWINDOWS}
+{$IFDEF ANDROID}
+  Result := TPath.GetPublicPath;
+{$ENDIF ANDROID}
 end;
 
 function GetCommonDir: string;

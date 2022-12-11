@@ -49,6 +49,7 @@
   uView in '..\..\Modules\UI\uView.pas',
   uUIBuilder in '..\..\Modules\UI\uUIBuilder.pas',
   uInteractor in '..\..\Modules\UI\uInteractor.pas',
+  uLayout in '..\..\Modules\UI\uLayout.pas',
   // Storage common
   uStorage in '..\..\Modules\Storage\uStorage.pas',
   uParameters in '..\..\Modules\Storage\uParameters.pas',

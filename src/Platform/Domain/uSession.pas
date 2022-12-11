@@ -10,7 +10,7 @@
  ---------------------------------------------------------------------------------
   MIT License
 
-  Copyright © 2021 Sensoft
+  Copyright © 2023 Sensoft
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -440,7 +440,7 @@ begin
   if not AHolder.IsModified then
   begin
     // TODO: В этой ветке исполнения не подтягиваются чужие изменения //ReloadDomainChanges(AHolder);
-    TDomain(FDomain).Logger.AddExitMessage('$$$ RELEASE HOLDER');
+    //TDomain(FDomain).Logger.AddExitMessage('$$$ RELEASE HOLDER');
     Exit;
   end;
 
@@ -478,7 +478,7 @@ begin
     AHolder.RevertChanges;
 
   TDomain(FDomain).UpdateLogID(vNewLogID);
-  TDomain(FDomain).Logger.AddExitMessage('$$$ RELEASE HOLDER');
+  //TDomain(FDomain).Logger.AddExitMessage('$$$ RELEASE HOLDER');
 end;
 
 procedure TUserSession.ReleaseChangeHolder(const AHolder: TChangeHolder; const AResult, ASkipLogging: Boolean);
@@ -502,7 +502,7 @@ end;
 function TUserSession.RetainChangeHolder(const AParentHolder: TChangeHolder): TChangeHolder;
 begin
   CheckLocking;
-  TDomain(FDomain).Logger.AddEnterMessage('$$$ RETAIN HOLDER');
+  //TDomain(FDomain).Logger.AddEnterMessage('$$$ RETAIN HOLDER');
   Result := TChangeHolder.Create(Self, AParentHolder, False);
 
   FHolders.Add(Result);
@@ -512,8 +512,10 @@ procedure TUserSession.Save(const AHolder: TChangeHolder);
 begin
   DomainWrite(procedure
     begin
-      ReleaseChangeHolder(AHolder, True, False);
+      InternalReleaseChangeHolder(AHolder, True, False);
     end);
+  if Assigned(FInteractor) then
+    TInteractor(FInteractor).PrintHierarchy;
 end;
 
 procedure TUserSession.SetInteractor(const Value: TObject);

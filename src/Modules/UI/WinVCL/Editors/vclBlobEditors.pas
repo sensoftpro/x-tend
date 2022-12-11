@@ -10,7 +10,7 @@
  ---------------------------------------------------------------------------------
   MIT License
 
-  Copyright © 2021 Sensoft
+  Copyright © 2023 Sensoft
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -36,14 +36,14 @@ unit vclBlobEditors;
 interface
 
 uses
-  uUIBuilder, vclArea, uScene, uSimpleChart;
+  uUIBuilder, vclArea, uScene, uSimpleChart, uLayout;
 
 type
   TFieldSceneArea = class(TVCLFieldArea)
   protected
     FScene: TScene;
     procedure DoActivate(const AAreaState: string = ''); override;
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
     procedure DoDisableContent; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
@@ -53,7 +53,7 @@ type
   TFieldChartArea = class(TFieldSceneArea)
   protected
     FChart: TSimpleChart;
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TObject); override;
+    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
   end;
 
 implementation
@@ -74,7 +74,7 @@ begin
   FScene.Free;
 end;
 
-procedure TFieldSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+procedure TFieldSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
 var
   vDomain: TDomain;
   vSceneClass: TSceneClass;
@@ -107,7 +107,7 @@ end;
 
 { TFieldChartArea }
 
-procedure TFieldChartArea.DoCreateControl(const AParent: TUIArea; const ALayout: TObject);
+procedure TFieldChartArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
 begin
   inherited DoCreateControl(AParent, ALayout);
   FId := 'Chart';

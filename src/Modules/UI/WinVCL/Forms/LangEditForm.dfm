@@ -29,7 +29,6 @@ object LangEditFm: TLangEditFm
     Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goDrawFocusSelected, goColSizing, goColMoving, goEditing, goAlwaysShowEditor]
     TabOrder = 0
     OnDblClick = gridLanguagesDblClick
-    ExplicitHeight = 401
     ColWidths = (
       250
       250
@@ -85,8 +84,6 @@ object LangEditFm: TLangEditFm
         F04291350DD48582FAC4E80B378B114147D824E60AB8203E868A8F2D62A57F39
         FFE5354E885F4F2C8B1CABF609A90000000049454E44AE426082}
       TabOrder = 0
-      ExplicitTop = 20
-      ExplicitHeight = 23
     end
     object btnCancel: TcxButton
       AlignWithMargins = True
@@ -102,9 +99,6 @@ object LangEditFm: TLangEditFm
       Caption = #1054#1090#1084#1077#1085#1072
       ModalResult = 2
       TabOrder = 1
-      ExplicitLeft = 308
-      ExplicitTop = 5
-      ExplicitHeight = 33
     end
   end
 end

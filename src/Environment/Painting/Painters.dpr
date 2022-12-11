@@ -11,16 +11,17 @@ uses
   uDrawStyles in '..\..\Modules\Drawing\uDrawStyles.pas',
   uScene in '..\..\Modules\Drawing\uScene.pas',
   uWinScene in '..\..\Modules\UI\WinVCL\uWinScene.pas',
-  {$I ..\..\Modules\Drawing\VCL\files.inc}
-  {$I ..\..\Modules\Drawing\GDIPlus\files.inc}
-  {$I ..\..\Modules\Drawing\Direct2D\files.inc}
-  uOpenGLPainter in '..\..\Modules\Drawing\OpenGL\uOpenGLPainter.pas',
-  dglOpenGL in '..\..\Modules\Drawing\OpenGL\dglOpenGL.pas',
+
+{$I ..\..\Modules\Drawing\VCL\files.inc}
+{$I ..\..\Modules\Drawing\GDIPlus\files.inc}
+{$I ..\..\Modules\Drawing\Direct2D\files.inc}
+{$I ..\..\Modules\Drawing\OpenGL\files.inc}
+
   Skia.Api in '..\..\Modules\Drawing\Skia\Skia.Api.pas',
   Skia in '..\..\Modules\Drawing\Skia\Skia.pas',
   uSkiaPainter in '..\..\Modules\Drawing\Skia\uSkiaPainter.pas',
-  uMainForm in 'uMainForm.pas' {fmMain},
-  uFreeType in '..\..\Modules\Drawing\OpenGL\uFreeType.pas';
+
+uMainForm in 'uMainForm.pas' {fmMain},
 
 {$R *.res}
 

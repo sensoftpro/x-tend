@@ -183,18 +183,18 @@ begin
   begin
     if AFill.GradientKind <> gkNone then
     begin
-      // Создать градиентную кисть, привязать ее к TStyleBrush
+      // Г‘Г®Г§Г¤Г ГІГј ГЈГ°Г Г¤ГЁГҐГ­ГІГ­ГіГѕ ГЄГЁГ±ГІГј, ГЇГ°ГЁГўГїГ§Г ГІГј ГҐГҐ ГЄ TStyleBrush
       AFill.NativeObject := TStyleBrush.Create(AFill.Name, AFill.Color, AFill.BackColor, AFill.GradientKind, AFill.Style);
     end
     else
     begin
-      // Создать сплошную кисть, привязать ее к TStyleBrush
+      // Г‘Г®Г§Г¤Г ГІГј Г±ГЇГ«Г®ГёГ­ГіГѕ ГЄГЁГ±ГІГј, ГЇГ°ГЁГўГїГ§Г ГІГј ГҐГҐ ГЄ TStyleBrush
       AFill.NativeObject := TStyleBrush.Create(AFill.Name, AFill.Color, AFill.BackColor, AFill.GradientKind, AFill.Style);
     end;
   end
   else
   begin
-    // Создать штриховую кисть, привязать ее к TStyleBrush
+    // Г‘Г®Г§Г¤Г ГІГј ГёГІГ°ГЁГµГ®ГўГіГѕ ГЄГЁГ±ГІГј, ГЇГ°ГЁГўГїГ§Г ГІГј ГҐГҐ ГЄ TStyleBrush
     AFill.NativeObject := TStyleBrush.Create(AFill.Name, AFill.Color, AFill.BackColor, AFill.GradientKind, AFill.Style);
   end;
 end;
@@ -474,7 +474,7 @@ procedure TOpenGLPainter.DoDrawLine(const AStroke: TStylePen; const APoint1, APo
 var
   vColor: TColor;
 begin
-  //TODO: Обрабатывать все виды линий psDot, psDashDot, psDashDotDot ..
+  //TODO: ГЋГЎГ°Г ГЎГ ГІГ»ГўГ ГІГј ГўГ±ГҐ ГўГЁГ¤Г» Г«ГЁГ­ГЁГ© psDot, psDashDot, psDashDotDot ..
   vColor := TGLUtils.HexToRGBA(AStroke.Color);
   glLineWidth(AStroke.Width);
   if AStroke.Style = psDot then
@@ -1012,7 +1012,7 @@ end;
 
 constructor TOpenGLImage.Create(const AImage: TStyleImage);
 begin
-  //Добавить проверку на расширение файлов
+  //Г„Г®ГЎГ ГўГЁГІГј ГЇГ°Г®ГўГҐГ°ГЄГі Г­Г  Г°Г Г±ГёГЁГ°ГҐГ­ГЁГҐ ГґГ Г©Г«Г®Гў
   FTexture := TOpenGLTexture.Create;
 
   FTexture.LoadTextureFromImage(AImage.FileName);
@@ -1181,4 +1181,3 @@ initialization
   TBaseModule.RegisterModule('Painting', 'OpenGL', TOpenGLScene);
 
 end.
-

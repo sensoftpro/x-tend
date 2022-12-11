@@ -10,7 +10,7 @@
  ---------------------------------------------------------------------------------
   MIT License
 
-  Copyright © 2021 Sensoft
+  Copyright © 2023 Sensoft
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -390,6 +390,7 @@ constructor TDomain.Create(const APlatform: TObject; const AConfiguration: TConf
   const AUId: string; const ASettings: TSettings);
 var
   vAppDataDirectory: string;
+  vLogsDir: string;
 begin
   inherited Create;
 
@@ -413,8 +414,11 @@ begin
 
   vAppDataDirectory := FConfiguration.CacheDir;
   FUserSettings := TIniSettings.Create(TPath.Combine(vAppDataDirectory, 'settings.ini'));
+  vLogsDir := TPath.Combine(vAppDataDirectory, 'logs');
   FLogger := TLogger.Create(Self, 'System logger');
-  FLogger.SetTarget(TPath.Combine(vAppDataDirectory, 'log.txt'));
+  if not TDirectory.Exists(vLogsDir) then
+    ForceDirectories(vLogsDir);
+  FLogger.SetTarget(TPath.Combine(vLogsDir, 'log_' + FormatDateTime('yyyymmdd_hhnnss', Now) + '.txt'));
   FDomainLogger := TLogger.Create(Self, 'Domain logger');
   FDomainLogger.SetTarget(TPath.Combine(vAppDataDirectory, 'domain_log.txt'));
   FScheduler := TScheduler.Create(Self, 60);

@@ -84,6 +84,7 @@
         <DCC_ExeOutput>..\..\..\bin</DCC_ExeOutput>
         <DCC_DcuOutput>..\..\..\dcu</DCC_DcuOutput>
         <VerInfo_MinorVer>5</VerInfo_MinorVer>
+        <DCC_DebugDCUs>true</DCC_DebugDCUs>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
         <Manifest_File>None</Manifest_File>
@@ -142,6 +143,7 @@
         <DCCReference Include="..\..\Modules\UI\uView.pas"/>
         <DCCReference Include="..\..\Modules\UI\uUIBuilder.pas"/>
         <DCCReference Include="..\..\Modules\UI\uInteractor.pas"/>
+        <DCCReference Include="..\..\Modules\UI\uLayout.pas"/>
         <DCCReference Include="..\..\Modules\Storage\uStorage.pas"/>
         <DCCReference Include="..\..\Modules\Storage\uParameters.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\uDrawStyles.pas"/>

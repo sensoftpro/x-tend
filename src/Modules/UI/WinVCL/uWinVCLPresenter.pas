@@ -10,7 +10,7 @@
  ---------------------------------------------------------------------------------
   MIT License
 
-  Copyright © 2021 Sensoft
+  Copyright © 2023 Sensoft
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -42,7 +42,7 @@ uses
 
   uDefinition, uPresenter, uInteractor, uView, uSettings,
 
-  StartForm, DebugInfoForm, SplashForm, uUIBuilder;
+  StartForm, DebugInfoForm, SplashForm, uUIBuilder, uLayout;
 
 type
   TImageResolution = (ir16x16, ir24x24, ir32x32);
@@ -59,6 +59,7 @@ type
     procedure ArrangeMozaic(const AMDIForm: TForm);
     procedure RestoreChildForms(const AInteractor: TInteractor);
     procedure StoreChildForms(const AInteractor: TInteractor; const AMainForm: TForm);
+    function GetLayoutKind(const AControl: TObject): TLayoutKind;
   protected
     //FOnRFIDRead: TRFIDReadEvent;
     FTrayIcon: TTrayIcon;
@@ -82,6 +83,7 @@ type
     function DoLogin(const ADomain: TObject): TInteractor; override;
     procedure DoLogout(const AInteractor: TInteractor); override;
 
+    function GetMainUIAreaClass: TUIAreaClass; override;
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); override;
     function DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult; override;
     procedure DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False); override;
@@ -96,11 +98,10 @@ type
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; override;
     procedure StoreUILayout(const AInteractor: TInteractor); override;
     procedure RestoreUILayout(const AInteractor: TInteractor); override;
-    function GetViewNameByLayoutType(const ALayout: TObject): string; override;
-    procedure DoEnumerateControls(const ALayout: TObject; const AControls: TList<TObject>); override;
-    procedure DoSetLayoutCaption(const ALayout: TObject; const ACaption: string); override;
-    function DoGetLayoutCaption(const ALayout: TObject): string; override;
-    function DoGetLayoutKind(const ALayout: TObject): TLayoutKind; override;
+    function GetViewNameByLayoutType(const ALayout: TLayout): string; override;
+    procedure DoEnumerateControls(const ALayout: TLayout); override;
+    procedure DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string); override;
+    function DoGetLayoutCaption(const ALayout: TLayout): string; override;
   public
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
@@ -115,7 +116,7 @@ type
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
 
-    function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject; override;
+    function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout; override;
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
 
     function GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
@@ -126,7 +127,7 @@ type
 implementation
 
 uses
-  Dialogs, Math, StrUtils, ShellAPI, ActiveX,
+  Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX,
   cxGraphics, dxGDIPlusClasses, cxImage, cxEdit, cxPC, cxLookAndFeels, cxLookAndFeelPainters, cxStyles, cxMemo,
 
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity, uEntityList, vclArea, uSession,
@@ -135,6 +136,10 @@ uses
 type
   TLoginedProc = procedure(const AInteractor: TInteractor) of object;
   TBeforeUIClosingFunc = function(const AInteractor: TInteractor): Boolean of object;
+
+type
+  TCrackedWinControl = class(TWinControl) end;
+  TCrackedControl = class(TControl) end;
 
 { TWinVCLPresenter }
 
@@ -255,27 +260,34 @@ begin
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
 end;
 
-function TWinVCLPresenter.CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TObject;
+function TWinVCLPresenter.CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout;
 var
   vParams: TStrings;
+  vControl: TObject;
 begin
   vParams := CreateDelimitedList(AParams);
   case ALayoutKind of
     lkPanel: begin
-        Result := TPanel.Create(nil);
-        TPanel(Result).BevelOuter := bvNone;
+        vControl := TPanel.Create(nil);
+        TPanel(vControl).BevelOuter := bvNone;
       end;
     lkPage: begin
-        Result := TTabSheet.Create(nil);
-        TTabSheet(Result).Caption := vParams.Values['Caption'];
-        TTabSheet(Result).ImageIndex := StrToIntDef(vParams.Values['ImageIndex'], -1);
-        TTabSheet(Result).Name := vParams.Values['Name'];
-        TTabSheet(Result).Tag := 11;
+        vControl := TTabSheet.Create(nil);
+        TTabSheet(vControl).Caption := vParams.Values['Caption'];
+        TTabSheet(vControl).ImageIndex := StrToIntDef(vParams.Values['ImageIndex'], -1);
+        TTabSheet(vControl).Name := vParams.Values['Name'];
+        TTabSheet(vControl).Tag := 11;
       end;
-    lkFrame: Result := TFrame.Create(nil);
+    lkFrame: vControl := TFrame.Create(nil);
+  else
+    vControl := nil;
+  end;
+
+  if Assigned(vControl) then
+    Result := TLayout.Create(ALayoutKind, vControl, True)
   else
     Result := nil;
-  end;
+
   FreeAndNil(vParams);
 end;
 
@@ -384,23 +396,44 @@ begin
   FDebugForm := nil;
 end;
 
-procedure TWinVCLPresenter.DoEnumerateControls(const ALayout: TObject; const AControls: TList<TObject>);
+procedure TWinVCLPresenter.DoEnumerateControls(const ALayout: TLayout);
 var
   vParentControl: TWinControl;
+  vControl: TControl;
+  vLayout: TLayout;
   i: Integer;
+
+  procedure CopyMenuItems(const ASource: TMenuItem; const ADestination: TNavigationItem);
+  var
+    i: Integer;
+    vNavItem: TNavigationItem;
+  begin
+    for i := 0 to ASource.Count - 1 do
+    begin
+      vNavItem := ADestination.Add(ASource[i].Caption);
+      vNavItem.RadioItem := ASource[i].RadioItem;
+      vNavItem.GroupIndex := ASource[i].GroupIndex;
+      CopyMenuItems(ASource[i], vNavItem);
+    end;
+  end;
 begin
-  if not (ALayout is TWinControl) then
-    Exit;
-  if TWinControl(ALayout).ControlCount <= 0 then
+  if not (ALayout.Control is TWinControl) then
     Exit;
 
-  vParentControl := TWinControl(ALayout);
-  for i := 0 to vParentControl.ComponentCount - 1 do
-    if vParentControl.Components[i] is TMenu then
-      AControls.Add(vParentControl.Components[i]);
+  vParentControl := TWinControl(ALayout.Control);
+  if Assigned(TCrackedControl(vParentControl).PopupMenu) then
+  begin
+    ALayout.Menu := TNavigationItem.Create(nil, '');
+    CopyMenuItems(TCrackedControl(vParentControl).PopupMenu.Items, ALayout.Menu);
+  end;
 
   for i := 0 to vParentControl.ControlCount - 1 do
-    AControls.Add(vParentControl.Controls[i]);
+  begin
+    vControl := vParentControl.Controls[i];
+    vLayout := TLayout.Create(GetLayoutKind(vControl), vControl);
+    ALayout.Add(vLayout);
+    DoEnumerateControls(vLayout);
+  end;
 end;
 
 procedure TWinVCLPresenter.DoFloatFormClose(Sender: TObject; var Action: TCloseAction);
@@ -444,32 +477,49 @@ begin
   end;
 end;
 
-function TWinVCLPresenter.DoGetLayoutCaption(const ALayout: TObject): string;
+function TWinVCLPresenter.DoGetLayoutCaption(const ALayout: TLayout): string;
 begin
-  if ALayout is TPageControl then
-    Result := TPageControl(ALayout).Hint
-  else if ALayout is TMemo then
+  if ALayout.Control is TPageControl then
+    Result := TPageControl(ALayout.Control).Hint
+  else if ALayout.Control is TMemo then
   begin
-    TMemo(ALayout).WordWrap := False;
-    TMemo(ALayout).WantReturns := False;
-    Result := TMemo(ALayout).Lines.Text;
+    TMemo(ALayout.Control).WordWrap := False;
+    TMemo(ALayout.Control).WantReturns := False;
+    Result := TMemo(ALayout.Control).Lines.Text;
   end
   else
-    Result := TPanel(ALayout).Caption;
+    Result := TPanel(ALayout.Control).Caption;
 end;
 
-function TWinVCLPresenter.DoGetLayoutKind(const ALayout: TObject): TLayoutKind;
+function TWinVCLPresenter.GetLayoutKind(const AControl: TObject): TLayoutKind;
 begin
-  if ALayout is TPanel then
+  if AControl is TPanel then
     Result := lkPanel
-  else if ALayout is TTabSheet then
+  else if AControl is TTabSheet then
     Result := lkPage
-  else if ALayout is TPageControl then
+  else if AControl is TPageControl then
     Result := lkPages
-  else if ALayout is TMemo then
+  else if AControl is TMemo then
     Result := lkMemo
+  else if AControl is TLabel then
+    Result := lkLabel
+  else if AControl is TImage then
+    Result := lkImage
+  else if AControl is TScrollBox then
+    Result := lkScrollBox
+  else if AControl is TBevel then
+    Result := lkBevel
+  else if AControl is TSplitter then
+    Result := lkSplitter
+  else if AControl is TShape then
+    Result := lkShape
   else
     Result := lkFrame;
+end;
+
+function TWinVCLPresenter.GetMainUIAreaClass: TUIAreaClass;
+begin
+  Result := TVCLArea;
 end;
 
 procedure TWinVCLPresenter.LoadImages(const AInteractor: TInteractor;
@@ -1316,9 +1366,9 @@ begin
   Screen.Cursor := cCursors[ACursorType];
 end;
 
-procedure TWinVCLPresenter.DoSetLayoutCaption(const ALayout: TObject; const ACaption: string);
+procedure TWinVCLPresenter.DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string);
 begin
-  TPanel(ALayout).Caption := ACaption;
+  TPanel(ALayout.Control).Caption := ACaption;
 end;
 
 function TWinVCLPresenter.DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
@@ -1459,9 +1509,9 @@ begin
   Application.ProcessMessages;
 end;
 
-function TWinVCLPresenter.GetViewNameByLayoutType(const ALayout: TObject): string;
+function TWinVCLPresenter.GetViewNameByLayoutType(const ALayout: TLayout): string;
 begin
-  if ALayout is TPageControl then
+  if Assigned(ALayout) and (ALayout.Control is TPageControl) then
     Result := 'pages'
   else
     Result := inherited;
