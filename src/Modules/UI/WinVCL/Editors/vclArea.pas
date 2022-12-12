@@ -40,6 +40,11 @@ uses
   uConsts, uUIBuilder, uDefinition, uEntity, uView, uLayout;
 
 type
+  TVCLControl = class(TNativeControl)
+  public
+    constructor Create(const AOwner: TUIArea; const AControl: TObject); override;
+  end;
+
   TLabelPosition = (lpTop, lpLeft);
 
   TVCLFieldArea = class;
@@ -166,7 +171,7 @@ type
   private
     FTypeSelectionMenu: TPopupMenu;
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure RefillArea(const AKind: Word); override;
   public
     destructor Destroy; override;
@@ -174,7 +179,7 @@ type
 
   TLinkArea = class(TActionArea)
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure RefillArea(const AKind: Word); override;
   end;
 
@@ -252,7 +257,7 @@ type
     FMenu: TMainMenu;
     FMenuItem: TMenuItem;
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
@@ -263,7 +268,7 @@ type
     FToolButton: TToolButton;
     FMenuItem: TMenuItem;
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
     procedure DoAfterCreate(const AInteractor: TObject); override;
@@ -280,7 +285,7 @@ type
     //procedure OnCustomDrawItem(Sender: TCustomTreeView; Node: TTreeNode; State: TCustomDrawState; var DefaultDraw: Boolean);
     //procedure DrawButton(ARect: TRect; Node: TTreeNode);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
     procedure DoExecuteUIAction(const AView: TView); override;
@@ -292,7 +297,7 @@ type
     FNavBarGroup: TdxNavBarGroup;
     FNavBarItem: TdxNavBarItem;
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
@@ -304,7 +309,7 @@ type
     FItem: TMenuItem;
     procedure OnClick(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
@@ -2309,7 +2314,7 @@ var
     if not Assigned(vControl) then
       Exit;
 
-    vGroupArea := MainUIClass.Create(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
+    vGroupArea := TUIArea.Create(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
     AParentArea.AddArea(vGroupArea);
 
     if ACurrentItem.Id = 'Libraries' then
@@ -2345,7 +2350,7 @@ var
     if not Assigned(vControl) then
       Exit;
 
-    vNavArea := MainUIClass.Create(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
+    vNavArea := TUIArea.Create(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
     AParentArea.AddArea(vNavArea);
 
     DoProcessChilds(vNavArea, ACurrentView, ACurrentItem, ALevel + 1);
@@ -2431,7 +2436,7 @@ end;
 
 { TNavBarArea }
 
-procedure TNavBarArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TNavBarArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   ASource: TPanel;
   AParams: string;
@@ -2497,7 +2502,7 @@ end;
 
 { TOneButtonArea }
 
-procedure TOneButtonArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TOneButtonArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   ASource: TPanel;
   vParent: TVCLArea absolute AParent;
@@ -2574,7 +2579,7 @@ end;
 
 { TMainMenuArea }
 
-procedure TMainMenuArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TMainMenuArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FMenu := TMainMenu.Create(TVCLArea(AParent).Component);
   FMenu.Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
@@ -2637,7 +2642,7 @@ begin
   end
 end;
 
-procedure TToolBarArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TToolBarArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FToolBar := TToolBar.Create(TVCLArea(AParent).Component);
   FToolBar.ShowCaptions := True;
@@ -2707,7 +2712,7 @@ end;
 
 { TTreeViewArea }
 
-procedure TTreeViewArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TTreeViewArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FTreeView := TTreeView.Create(nil);
   //FTreeView.Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
@@ -2886,7 +2891,7 @@ begin
   inherited Destroy;
 end;
 
-procedure TButtonArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TButtonArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vParams: TStrings;
   vButton: TcxButton;
@@ -3027,7 +3032,7 @@ end;
 
 { TLinkArea }
 
-procedure TLinkArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TLinkArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vParams: TStrings;
   vLabel: TcxLabel;
@@ -3092,6 +3097,13 @@ constructor TActionArea.Create(const AParent: TUIArea; const AView: TView; const
 begin
   FParams := AParams;
   inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
+end;
+
+{ TVCLControl }
+
+constructor TVCLControl.Create(const AOwner: TUIArea; const AControl: TObject);
+begin
+  inherited Create(AOwner, AControl);
 end;
 
 initialization

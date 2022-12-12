@@ -44,16 +44,23 @@ type
   TUIAreaClass = class of TUIArea;
 
   TNativeControl = class
+  private
+    procedure SetControl(const Value: TObject);
+    procedure SetParent(const Value: TUIArea);
   protected
     [Weak] FOwner: TUIArea;
-    [Weak] FParent: TNativeControl;
+    [Weak] FParent: TUIArea;
     [Weak] FControl: TObject;
   public
-    constructor Create(const AOwner: TUIArea; const AParent: TNativeControl; const AControl: TObject); virtual;
+    constructor Create(const AOwner: TUIArea; const AControl: TObject); virtual;
     destructor Destroy; override;
 
+    property Parent: TUIArea read FParent write SetParent;
     property Owner: TUIArea read FOwner;
+    property Control: TObject read FControl write SetControl;
   end;
+
+  TNativeControlClass = class of TNativeControl;
 
   TUIArea = class
   private
@@ -77,7 +84,7 @@ type
     function ParentInUpdate: Boolean;
     procedure SetLayout(const Value: TLayout);
   protected
-    FControl: TObject;
+    FControl: TNativeControl;
     FLayout: TLayout;
     FInternalParams: string;
     FCreateParams: TStrings;
@@ -126,7 +133,7 @@ type
     procedure SetControl(const AControl: TObject); virtual;
     function TryCreatePopupArea(const ALayout: TLayout): TUIArea; virtual;
     procedure SetPopupArea(const APopupArea: TUIArea); virtual;
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); virtual;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); virtual;
     procedure ArrangeChildAreas; virtual;
     procedure SaveLayoutToFile(const AFileName: string); virtual;
@@ -143,7 +150,7 @@ type
 
     procedure DM_ViewChanged(var AMessage: TViewChangedMessage); message DM_VIEW_CHANGED;
 
-    function MainUIClass: TUIAreaClass;
+    function NativeControlClass: TNativeControlClass;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
       const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); virtual;
@@ -169,7 +176,7 @@ type
     function QueryParameter(const AName: string; const ADefaultValue: string = ''): string;
     procedure SetBounds(const ALeft, ATop, AWidth, AHeight: Integer);
 
-    property Control: TObject read FControl;
+    property Control: TNativeControl read FControl;
     property Count: Integer read GetCount;
     property Areas[const AIndex: Integer]: TUIArea read GetArea; default;
     property Parent: TUIArea read FParent;
@@ -965,13 +972,14 @@ constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const AId
   const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
 var
   vPopupArea: TUIArea;
+  vControl: TObject;
 begin
   inherited Create;
 
   FId := AId;
   FUId := AId;
   FIsService := AIsService;
-  FControl := AControl;
+  FControl := NativeControlClass.Create(Self, AControl);
   FLayout := ALayout;
   FUpdateCount := 0;
 
@@ -990,7 +998,7 @@ begin
     TrySubscribeView;
 
   if not Assigned(AControl) then
-    DoCreateControl(AParent, ALayout);
+    vControl := DoCreateControl(AParent, ALayout);
   SetControl(FControl);
   SetParent(AParent);
 
@@ -1163,7 +1171,7 @@ end;
 destructor TUIArea.Destroy;
 begin
   FreeAndNil(FCreateParams);
-  FControl := nil;
+  FreeAndNil(FControl);
   if not (FLayout is TNavigationItem) then
     FreeAndNil(FLayout);
   //if Assigned(FLayout) and FLayout.IsOwner then
@@ -1253,9 +1261,9 @@ begin
   Result := nil;
 end;
 
-procedure TUIArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TUIArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FControl := nil;
+  Result := nil;
 end;
 
 procedure TUIArea.DoDisableContent;
@@ -1456,9 +1464,9 @@ begin
   end;
 end;
 
-function TUIArea.MainUIClass: TUIAreaClass;
+function TUIArea.NativeControlClass: TNativeControlClass;
 begin
-  Result := TPresenter(Presenter).MainUIAreaClass;
+  Result := TPresenter(Presenter).NativeControlClass;
 end;
 
 function TUIArea.GetCount: Integer;
@@ -1656,7 +1664,7 @@ end;
 
 procedure TUIArea.SetControl(const AControl: TObject);
 begin
-  FControl := AControl;
+  FControl.Control := AControl;
 end;
 
 procedure TUIArea.SetHolder(const AHolder: TObject);
@@ -1962,18 +1970,30 @@ end; *)
 
 { TNativeControl }
 
-constructor TNativeControl.Create(const AOwner: TUIArea; const AParent: TNativeControl; const AControl: TObject);
+constructor TNativeControl.Create(const AOwner: TUIArea; const AControl: TObject);
 begin
   inherited Create;
   FOwner := AOwner;
-  FParent := AParent;
+  FParent := AOwner.Parent;
   FControl := AControl;
 end;
 
 destructor TNativeControl.Destroy;
 begin
+  FOwner := nil;
+  FParent := nil;
+  FControl := nil;
+  inherited Destroy;
+end;
 
-  inherited;
+procedure TNativeControl.SetControl(const Value: TObject);
+begin
+  FControl := Value;
+end;
+
+procedure TNativeControl.SetParent(const Value: TUIArea);
+begin
+  FParent := Value;
 end;
 
 end.

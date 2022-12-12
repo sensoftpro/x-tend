@@ -83,7 +83,7 @@ type
     function DoLogin(const ADomain: TObject): TInteractor; override;
     procedure DoLogout(const AInteractor: TInteractor); override;
 
-    function GetMainUIAreaClass: TUIAreaClass; override;
+    function GetNativeControlClass: TNativeControlClass; override;
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); override;
     function DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult; override;
     procedure DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False); override;
@@ -517,9 +517,9 @@ begin
     Result := lkFrame;
 end;
 
-function TWinVCLPresenter.GetMainUIAreaClass: TUIAreaClass;
+function TWinVCLPresenter.GetNativeControlClass: TNativeControlClass;
 begin
-  Result := TVCLArea;
+  Result := TVCLControl;
 end;
 
 procedure TWinVCLPresenter.LoadImages(const AInteractor: TInteractor;
