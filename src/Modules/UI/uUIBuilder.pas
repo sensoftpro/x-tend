@@ -44,30 +44,16 @@ type
   TUIAreaClass = class of TUIArea;
 
   TNativeControl = class
-  private
-
   protected
     [Weak] FOwner: TUIArea;
     [Weak] FParent: TUIArea;
     [Weak] FControl: TObject;
-    [Weak] FUIBuilder: TUIBuilder;
-
-    FIsForm: Boolean;
-    FIsAutoReleased: Boolean;
-
-    function GetName: string; virtual;
-    function DoGetDescription: string; virtual;
-    procedure SetParent(const AParent: TUIArea); virtual;
-    procedure SetControl(const AControl: TObject); virtual;
-    function AreaFromSender(const ASender: TObject): TUIArea; virtual;
-    procedure DoAfterChildAreasCreated; virtual;
   public
     constructor Create(const AOwner: TUIArea; const AControl: TObject); virtual;
     destructor Destroy; override;
 
-    property Parent: TUIArea read FParent write SetParent;
     property Owner: TUIArea read FOwner;
-    property Control: TObject read FControl write SetControl;
+    property Control: TObject read FControl write FControl;
   end;
 
   TNativeControlClass = class of TNativeControl;
@@ -98,45 +84,39 @@ type
     FLayout: TLayout;
     FInternalParams: string;
     FCreateParams: TStrings;
-    ////
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); virtual; abstract;
-    ////
     procedure DoClose(const AModalResult: Integer); virtual; abstract;
-    ////
     function DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
     function DoCreateChildAction(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
     function DoCreateChildList(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
-    //
     function DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea; virtual;
     function DoCreateChildEditor(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
-    ////
     procedure AppendServiceArea(const ALayoutName: string); virtual; abstract;
     function CreateChildLayoutedArea(const ALayout: TLayout; const AView: TView;
       const AChildLayoutName: string; const AParams: string): TUIArea;
     function CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TProc = nil): TUIArea;
-    function AreaFromSender(const ASender: TObject): TUIArea;
-
-    //
+    function AreaFromSender(const ASender: TObject): TUIArea; virtual;
+    procedure DoAfterChildAreasCreated; virtual;
     procedure DoOnExit(Sender: TObject); virtual;
-    //
     procedure DoBeginUpdate; virtual;
-    //
     procedure DoEndUpdate; virtual;
 
     function GetAreaByView(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
     procedure Clear;
     procedure ClearContent;
     // Отвязать все нативные элементы
-    //
     procedure UnbindContent; virtual;
     // Отвязать все обработчики
-    //
     procedure DoDisableContent; virtual;
 
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
     function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
 
     procedure ProcessAreaClick(const AArea: TUIArea);
+
+    procedure OnEnter(Sender: TObject);
+    procedure OnExit(Sender: TObject);
+    procedure OnAreaClick(Sender: TObject);
   protected
     [Weak] FUIBuilder: TUIBuilder;
     [Weak] FView: TView;
@@ -144,11 +124,9 @@ type
     FId: string;
     FUId: string;
 
-    function GetName: string;
-    procedure SetParent(const Value: TUIArea);
-    procedure SetControl(const AControl: TObject);
-    function DoGetDescription: string;
-
+    function GetName: string; virtual;
+    procedure SetParent(const Value: TUIArea); virtual;
+    procedure SetControl(const AControl: TObject); virtual;
     function TryCreatePopupArea(const ALayout: TLayout): TUIArea; virtual;
     procedure SetPopupArea(const APopupArea: TUIArea); virtual;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
@@ -164,14 +142,11 @@ type
 
     procedure SetViewState(const AValue: TViewState); virtual; abstract;
     procedure CreateCaption(const AFieldDef: TFieldDef); virtual;
+    function DoGetDescription: string; virtual;
 
     procedure DM_ViewChanged(var AMessage: TViewChangedMessage); message DM_VIEW_CHANGED;
 
     function NativeControlClass: TNativeControlClass;
-  public
-    procedure OnEnter(Sender: TObject);
-    procedure OnExit(Sender: TObject);
-    procedure OnAreaClick(Sender: TObject);
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
       const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); virtual;
@@ -882,7 +857,7 @@ end;
 
 procedure TUIArea.AfterChildAreasCreated;
 begin
-  FControl.DoAfterChildAreasCreated;
+  DoAfterChildAreasCreated;
 end;
 
 function TUIArea.AreaById(const AId: string; const ARecoursive: Boolean = True): TUIArea;
@@ -920,7 +895,7 @@ end;
 
 function TUIArea.AreaFromSender(const ASender: TObject): TUIArea;
 begin
-  Result := FControl.AreaFromSender(ASender);
+  Result := nil;
 end;
 
 procedure TUIArea.ArrangeChildAreas;
@@ -1000,7 +975,6 @@ begin
   FId := AId;
   FUId := AId;
   FIsService := AIsService;
-  FControl := NativeControlClass.Create(Self, AControl);
   FLayout := ALayout;
   FUpdateCount := 0;
 
@@ -1013,14 +987,19 @@ begin
   FHolder := nil;
   FUIBuilder := TInteractor(AView.Interactor).UIBuilder;
   FSession := TUserSession(AView.Session);
+  FControl := NativeControlClass.Create(Self, AControl);
 
   FView := AView;
   if not FIsService then
     TrySubscribeView;
 
   if not Assigned(AControl) then
+  begin
     vControl := DoCreateControl(AParent, ALayout);
-  SetControl(vControl);
+    SetControl(vControl);
+  end
+  else // Для установки тэгов
+    SetControl(AControl);
   SetParent(AParent);
 
   if not Assigned(ALayout) then
@@ -1237,6 +1216,10 @@ procedure TUIArea.DoActivate(const AUrlParams: string);
 begin
 end;
 
+procedure TUIArea.DoAfterChildAreasCreated;
+begin
+end;
+
 procedure TUIArea.DoBeginUpdate;
 begin
 end;
@@ -1297,7 +1280,7 @@ end;
 
 function TUIArea.DoGetDescription: string;
 begin
-  Result := FControl.DoGetDescription;
+  Result := '';
 end;
 
 procedure TUIArea.DoOnExit(Sender: TObject);
@@ -1526,7 +1509,7 @@ end;
 
 function TUIArea.GetName: string;
 begin
-  Result := FControl.GetName;
+  Result := '[area]';
 end;
 
 function TUIArea.GetPresenter: TObject;
@@ -1703,7 +1686,6 @@ end;
 procedure TUIArea.SetParent(const Value: TUIArea);
 begin
   FParent := Value;
-  FControl.Parent := Value;
 end;
 
 procedure TUIArea.SetPopupArea(const APopupArea: TUIArea);
@@ -1988,20 +1970,12 @@ end; *)
 
 { TNativeControl }
 
-function TNativeControl.AreaFromSender(const ASender: TObject): TUIArea;
-begin
-  Result := nil;
-end;
-
 constructor TNativeControl.Create(const AOwner: TUIArea; const AControl: TObject);
 begin
   inherited Create;
   FOwner := AOwner;
   FParent := AOwner.Parent;
   FControl := AControl;
-  FUIBuilder := AOwner.UIBuilder;
-  FIsForm := False;
-  FIsAutoReleased := False;
 end;
 
 destructor TNativeControl.Destroy;
@@ -2010,30 +1984,6 @@ begin
   FParent := nil;
   FControl := nil;
   inherited Destroy;
-end;
-
-procedure TNativeControl.DoAfterChildAreasCreated;
-begin
-end;
-
-function TNativeControl.DoGetDescription: string;
-begin
-  Result := '';
-end;
-
-function TNativeControl.GetName: string;
-begin
-  Result := '[area]';
-end;
-
-procedure TNativeControl.SetControl(const AControl: TObject);
-begin
-  FControl := AControl;
-end;
-
-procedure TNativeControl.SetParent(const AParent: TUIArea);
-begin
-  FParent := AParent;
 end;
 
 end.

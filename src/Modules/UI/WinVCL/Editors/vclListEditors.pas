@@ -967,8 +967,8 @@ end;
 
 function TEntityListSelector2.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  Result := TcxCheckListBox.Create(nil);
-  FListBox := Result;
+  FListBox := TcxCheckListBox.Create(nil);
+  Result := FListBox;
   FEntityList := nil;
 end;
 
@@ -3066,8 +3066,8 @@ end;
 
 function TParametersEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  Result := TcxVerticalGrid.Create(nil);
-  FGrid := Result;
+  FGrid := TcxVerticalGrid.Create(nil);
+  Result := FGrid;
   FGrid.Width := 400;
 
   FParams := TList<TEntity>.Create;
@@ -4040,8 +4040,8 @@ var
   vInteractor: TInteractor;
 begin
   inherited;
-  Result := TcxCheckListBox.Create(nil);
-  FListBox := Result;
+  FListBox := TcxCheckListBox.Create(nil);
+  Result := FListBox;
   Assert(FView.Definition is TListFieldDef, 'FView.Definition не является TListFieldDef');
   vListFieldDef := TListFieldDef(FView.Definition);
   FFilterName := GetUrlParam(vListFieldDef.StyleName, 'filter', '');
@@ -4277,8 +4277,8 @@ end;
 
 function TPagedEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  Result := TcxPageControl.Create(nil);
-  FPages := Result;
+  FPages := TcxPageControl.Create(nil);
+  Result := FPages;
   FEntityList := nil;
   FInUpdate := False;
   FCreatedViews := TList<TView>.Create;
@@ -4402,8 +4402,8 @@ end;
 
 function TEntityListSelector3.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  Result := TcxCheckListBox.Create(nil);
-  FListBox := Result;
+  FListBox := TcxCheckListBox.Create(nil);
+  Result := FListBox;
   FMasterList := TEntityList(FView.DomainObject);
   FLookupCollection := TDefinition(FView.Definition).Name;
   Assert(Assigned(FCreateParams) and (FCreateParams.IndexOfName('lookupfield') > -1), 'не задан параметер lookupfield');

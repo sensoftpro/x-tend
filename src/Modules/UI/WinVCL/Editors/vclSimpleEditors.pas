@@ -462,30 +462,30 @@ var
 begin
   inherited;
   if VarIsNull(FView.FieldValue) then
-    TcxLabel(FControl).Caption := ''
+    TcxLabel(FControl.Control).Caption := ''
   else if FFieldDef.Kind = fkCurrency then
   begin
     if FFieldDef.Format <> '' then
-      TcxLabel(FControl).Caption := FormatFloat(GetFormat, FView.FieldValue)
+      TcxLabel(FControl.Control).Caption := FormatFloat(GetFormat, FView.FieldValue)
     else
-      TcxLabel(FControl).Caption := FormatFloat('#,##0.00;;0', FView.FieldValue);
+      TcxLabel(FControl.Control).Caption := FormatFloat('#,##0.00;;0', FView.FieldValue);
   end
   else if FFieldDef.Kind = fkFloat then
   begin
     if FFieldDef.Format <> '' then
-      TcxLabel(FControl).Caption := FormatFloat(GetFormat, FView.FieldValue)
+      TcxLabel(FControl.Control).Caption := FormatFloat(GetFormat, FView.FieldValue)
     else
-      TcxLabel(FControl).Caption := FView.FieldValue;
+      TcxLabel(FControl.Control).Caption := FView.FieldValue;
   end
   else if FFieldDef.Kind = fkDateTime then
   begin
     vValue := FView.FieldValue;
     if IsZero(vValue, 1e-6) then
-      TcxLabel(FControl).Caption := ''
+      TcxLabel(FControl.Control).Caption := ''
     else if FFieldDef.Format <> '' then
-      TcxLabel(FControl).Caption := FormatDateTime(GetFormat, vValue)
+      TcxLabel(FControl.Control).Caption := FormatDateTime(GetFormat, vValue)
     else
-      TcxLabel(FControl).Caption := FormatDateTime('dd.mm.yyyy hh:nn:ss', vValue);
+      TcxLabel(FControl.Control).Caption := FormatDateTime('dd.mm.yyyy hh:nn:ss', vValue);
   end
   else if FFieldDef.Kind = fkEnum then
   begin
@@ -493,26 +493,26 @@ begin
     if not Assigned(vEnum) then
     begin
       vEnum := TDomain(FView.Domain).Configuration.StateMachines.ObjectByName(TSimpleFieldDef(FFieldDef).Dictionary);
-      TcxLabel(FControl).Style.Font.Color := TState(vEnum.Items[Integer(FView.FieldValue)]).Color;
+      TcxLabel(FControl.Control).Style.Font.Color := TState(vEnum.Items[Integer(FView.FieldValue)]).Color;
     end;
-    TcxLabel(FControl).Caption := vEnum.Items[Integer(FView.FieldValue)].DisplayText;
+    TcxLabel(FControl.Control).Caption := vEnum.Items[Integer(FView.FieldValue)].DisplayText;
   end
   else if FFieldDef.Kind = fkObject then
   begin
     vEntity := TEntity(FView.FieldEntity);
     if not Assigned(vEntity) then
-      TcxLabel(FControl).Caption := TObjectFieldDef(FView.Definition)._ContentDefinition._EmptyValue
+      TcxLabel(FControl.Control).Caption := TObjectFieldDef(FView.Definition)._ContentDefinition._EmptyValue
     else begin
-      TcxLabel(FControl).Caption := vEntity['Name'];
+      TcxLabel(FControl.Control).Caption := vEntity['Name'];
       if vEntity.Definition.ColorFieldName <> '' then
       begin
         vColorField := vEntity.FieldByName(vEntity.Definition.ColorFieldName);
-        TcxLabel(FControl).Style.Font.Color := TColor(vColorField.Value);
+        TcxLabel(FControl.Control).Style.Font.Color := TColor(vColorField.Value);
       end;
     end;
   end
   else
-    TcxLabel(FControl).Caption := FView.FieldValue;
+    TcxLabel(FControl.Control).Caption := FView.FieldValue;
 end;
 
 { TDEIntegerEditControl }
@@ -550,17 +550,17 @@ end;
 
 procedure TDEIntegerFieldEditor.DoOnChange;
 begin
-  if TcxSpinEdit(FControl).EditingValue = 0 then
+  if TcxSpinEdit(FControl.Control).EditingValue = 0 then
     SetFieldValue(Null)
   else
-    SetFieldValue(TcxSpinEdit(FControl).EditingValue);
+    SetFieldValue(TcxSpinEdit(FControl.Control).EditingValue);
 end;
 
 procedure TDEIntegerFieldEditor.FillEditor;
 var
   vEdit: TcxSpinEdit;
 begin
-  vEdit := TcxSpinEdit(FControl);
+  vEdit := TcxSpinEdit(FControl.Control);
 
   if VarIsNull(FView.FieldValue) then
   begin
@@ -598,8 +598,8 @@ begin
   if not AFocused then
   begin
     // обрабатываем 0
-    TcxSpinEdit(FControl).PostEditValue;
-    SetFieldValue(TcxSpinEdit(FControl).EditingValue);
+    TcxSpinEdit(FControl.Control).PostEditValue;
+    SetFieldValue(TcxSpinEdit(FControl.Control).EditingValue);
   end;
 end;
 
@@ -607,7 +607,7 @@ procedure TDEIntegerFieldEditor.SwitchChangeHandlers(
   const AHandler: TNotifyEvent);
 begin
   inherited;
-  TcxSpinEdit(FControl).Properties.OnChange := AHandler
+  TcxSpinEdit(FControl.Control).Properties.OnChange := AHandler
 end;
 
 { TDEFloatEditControl }
@@ -619,7 +619,7 @@ begin
   if Length(FFieldDef.Format) > 0 then
     FAfterPoint := Length(FFieldDef.Format) - Pos('.', FFieldDef.Format);
 
-  with TcxMaskEdit(FControl).Properties do
+  with TcxMaskEdit(Result).Properties do
   begin
     ImmediatePost := True;
     MaskKind := emkRegExpr;
@@ -627,7 +627,7 @@ begin
     ValidationOptions := [evoAllowLoseFocus];
   end;
 
-  with TcxMaskEdit(FControl).Properties do
+  with TcxMaskEdit(Result).Properties do
   begin
     if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
       MaxValue := TSimpleFieldDef(FFieldDef).MaxValue;
@@ -679,27 +679,27 @@ procedure TDEFloatFieldEditor.DoOnChange;
     Result := StrToFloatDef(vStr, 0);
   end;  }
 begin
-  {if TcxMaskEdit(FControl).EditingValue = '' then
+  {if TcxMaskEdit(FControl.Control).EditingValue = '' then
     vValue := 0
   else
-    vValue := ToFloatDef(TcxMaskEdit(FControl).EditingValue);
+    vValue := ToFloatDef(TcxMaskEdit(FControl.Control).EditingValue);
 
-  if (not VarIsNull(TSimpleFieldDef(FFieldDef).MinValue)) and (vValue < TcxMaskEdit(FControl).Properties.MinValue) then
-    vValue := TcxMaskEdit(FControl).Properties.MinValue;
-  if (not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue)) and (vValue > TcxMaskEdit(FControl).Properties.MaxValue) then
-    vValue := TcxMaskEdit(FControl).Properties.MaxValue;
+  if (not VarIsNull(TSimpleFieldDef(FFieldDef).MinValue)) and (vValue < TcxMaskEdit(FControl.Control).Properties.MinValue) then
+    vValue := TcxMaskEdit(FControl.Control).Properties.MinValue;
+  if (not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue)) and (vValue > TcxMaskEdit(FControl.Control).Properties.MaxValue) then
+    vValue := TcxMaskEdit(FControl.Control).Properties.MaxValue;
   SetFieldValue(vValue);  }
-  if TcxSpinEdit(FControl).EditingValue = 0 then
+  if TcxSpinEdit(FControl.Control).EditingValue = 0 then
     SetFieldValue(Null)
   else
-    SetFieldValue(TcxSpinEdit(FControl).EditingValue);
+    SetFieldValue(TcxSpinEdit(FControl.Control).EditingValue);
 end;
 
 procedure TDEFloatFieldEditor.FillEditor;
 var
   vEdit: TcxSpinEdit;
 begin
-  vEdit := TcxSpinEdit(FControl);
+  vEdit := TcxSpinEdit(FControl.Control);
 
   if VarIsNull(FView.FieldValue) then
   begin
@@ -734,7 +734,7 @@ end;
 procedure TDEFloatFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
 begin
   inherited;
-  TcxSpinEdit(FControl).Properties.OnChange := AHandler
+  TcxSpinEdit(FControl.Control).Properties.OnChange := AHandler
 end;
 
 { TDEDateEditControl }
@@ -823,7 +823,7 @@ procedure TDEDateFieldEditor.DoOnChange;
 var
   vDate: TDateTime;
 begin
-  if MyTryStrToDate(TcxDateEdit(FControl).EditingText, vDate) then
+  if MyTryStrToDate(TcxDateEdit(FControl.Control).EditingText, vDate) then
     SetFieldValue(vDate)
   else
     SetFieldValue(Null);
@@ -834,7 +834,7 @@ var
   vEdit: TcxDateEdit;
   vDate: TDateTime;
 begin
-  vEdit := TcxDateEdit(FControl);
+  vEdit := TcxDateEdit(FControl.Control);
 
   if VarIsNull(FView.FieldValue) then
   begin
