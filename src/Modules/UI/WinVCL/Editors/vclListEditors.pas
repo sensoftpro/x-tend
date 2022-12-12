@@ -53,7 +53,7 @@ type
     FEntityList: TEntityList;
     procedure OnWinControlKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -68,7 +68,7 @@ type
     FEntityList: TEntityList;
     procedure OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
     function GetDefaultFocusedChild: TWinControl; override;
@@ -87,7 +87,7 @@ type
     procedure OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
     procedure FillLookupList;
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
     function GetDefaultFocusedChild: TWinControl; override;
@@ -103,7 +103,7 @@ type
     FInUpdate: Boolean;
     FCreatedViews: TList<TView>;
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -122,7 +122,7 @@ type
     procedure FillList;
     procedure OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -140,7 +140,7 @@ type
     procedure AddRow(const AName: string; const AValue: Variant; const AType: TEntity);
     procedure OnValueChanged(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -286,7 +286,7 @@ type
       AState: TOwnerDrawState);
     procedure GetPropertiesForEdit(Sender: TcxCustomGridTableItem; ARecord: TcxCustomGridRecord; var AProperties: TcxCustomEditProperties);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure SetPopupArea(const APopupArea: TUIArea); override;
     function GetLayoutPositionCount: Integer; override;
@@ -301,7 +301,7 @@ type
     procedure OnSelectionChanged(Sender: TObject);
     procedure OnDblClick(Sender: TObject);
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     function GetLayoutPositionCount: Integer; override;
@@ -869,14 +869,14 @@ end;
 procedure TEntityListSelector.DoBeforeFreeControl;
 begin
   inherited;
-  FControl := nil;
+  FControl.Control := nil;
   FreeAndNil(FListBox);
 end;
 
-procedure TEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FListBox := TCheckListBox.Create(nil);
-  FControl := FListBox;
+  Result := FListBox;
 
   FEntityList := nil;
   FListBox.OnKeyDown := OnWinControlKeyDown;
@@ -965,11 +965,11 @@ end;
 
 { TEntityListSelector2 }
 
-procedure TEntityListSelector2.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TEntityListSelector2.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FListBox := TcxCheckListBox.Create(nil);
+  Result := TcxCheckListBox.Create(nil);
+  FListBox := Result;
   FEntityList := nil;
-  FControl := FListBox;
 end;
 
 procedure TEntityListSelector2.DoOnChange;
@@ -1052,10 +1052,10 @@ begin
   inherited;
 end;
 
-procedure TListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FList := TcxTreeList.Create(nil);
-  FControl := FList;
+  Result := FList;
 
   FList.OnSelectionChanged := OnSelectionChanged;
   FList.OnDblClick := OnDblClick;
@@ -2662,7 +2662,7 @@ begin
   FreeAndNil(FSelectionStyle);
 end;
 
-procedure TColumnListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TColumnListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vFields: string;
   vListField: TListField;
@@ -2723,7 +2723,7 @@ begin
   end;
 
   FGrid := TcxGrid.Create(nil);
-  FControl := FGrid;
+  Result := FGrid;
 
   FGrid.LookAndFeel.NativeStyle := False;
   FGrid.LookAndFeel.Kind := lfFlat;
@@ -3064,14 +3064,13 @@ begin
   inherited;
 end;
 
-procedure TParametersEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TParametersEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FGrid := TcxVerticalGrid.Create(nil);
+  Result := TcxVerticalGrid.Create(nil);
+  FGrid := Result;
   FGrid.Width := 400;
 
   FParams := TList<TEntity>.Create;
-
-  FControl := FGrid;
 end;
 
 procedure TParametersEditor.FillEditor;
@@ -4026,11 +4025,11 @@ procedure TEntityListSelectorMTM.DoBeforeFreeControl;
 begin
   inherited;
   FreeAndNil(FEntityList);
-  FControl := nil;
+  FControl.Control := nil;
   FreeAndNil(FListBox);
 end;
 
-procedure TEntityListSelectorMTM.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TEntityListSelectorMTM.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vListFieldDef: TListFieldDef;
   vTransitFieldName: string;
@@ -4041,9 +4040,8 @@ var
   vInteractor: TInteractor;
 begin
   inherited;
-  FListBox := TcxCheckListBox.Create(nil);
-  FControl := FListBox;
-
+  Result := TcxCheckListBox.Create(nil);
+  FListBox := Result;
   Assert(FView.Definition is TListFieldDef, 'FView.Definition не является TListFieldDef');
   vListFieldDef := TListFieldDef(FView.Definition);
   FFilterName := GetUrlParam(vListFieldDef.StyleName, 'filter', '');
@@ -4270,18 +4268,18 @@ var
   vView: TView;
 begin
   inherited;
-  FControl := nil;
+  FControl.Control := nil;
   FreeAndNil(FPages);
   for vView in FCreatedViews do
     vView.RemoveListener(Self);
   FreeAndNil(FCreatedViews);
 end;
 
-procedure TPagedEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TPagedEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FPages := TcxPageControl.Create(nil);
+  Result := TcxPageControl.Create(nil);
+  FPages := Result;
   FEntityList := nil;
-  FControl := FPages;
   FInUpdate := False;
   FCreatedViews := TList<TView>.Create;
 end;
@@ -4402,11 +4400,11 @@ begin
   end;
 end;
 
-procedure TEntityListSelector3.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TEntityListSelector3.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FListBox := TcxCheckListBox.Create(nil);
+  Result := TcxCheckListBox.Create(nil);
+  FListBox := Result;
   FMasterList := TEntityList(FView.DomainObject);
-  FControl := FListBox;
   FLookupCollection := TDefinition(FView.Definition).Name;
   Assert(Assigned(FCreateParams) and (FCreateParams.IndexOfName('lookupfield') > -1), 'не задан параметер lookupfield');
   FLookupField := FCreateParams.Values['lookupfield'];

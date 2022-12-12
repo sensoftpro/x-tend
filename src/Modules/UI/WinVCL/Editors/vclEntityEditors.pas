@@ -50,7 +50,7 @@ type
     procedure CBOnInitPopup(Sender: TObject);
     function GetDisabledBorderStyle: TcxEditBorderStyle;
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
@@ -81,7 +81,7 @@ type
   protected
     procedure UpdateVisibility; virtual;
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     procedure SetFocused(const Value: Boolean); override;
@@ -94,7 +94,7 @@ type
     FEntities: TEntityList;
     procedure FillList;
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
@@ -118,7 +118,7 @@ type
     procedure DoOnFocusedNodeChanged(Sender: TcxCustomTreeList; APrevFocusedNode, AFocusedNode: TcxTreeListNode);
     procedure Reload;
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
   end;
@@ -139,7 +139,7 @@ type
     procedure OnFieldChange(Sender: TObject);
     procedure FreeEditors;
   protected
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure DoDisableContent; override;
     procedure FillEditor; override;
@@ -197,7 +197,7 @@ begin
   FreeAndNil(FTextEdit);
 end;
 
-procedure TVCLEntityFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TVCLEntityFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vDefinitions: TList<TDefinition>;
   i: Integer;
@@ -241,7 +241,7 @@ begin
   FTextEdit.TabStop := False;
   FTextEdit.Style.Color := clBtnFace;
 
-  FControl := FBasePanel;
+  Result := FBasePanel;
 
   FbtnAdd := TcxButton.Create(nil);
   FbtnAdd.Parent := FBasePanel;
@@ -317,7 +317,7 @@ end;
 
 procedure TVCLEntityFieldEditor.ClosePopup;
 begin
-  if PopupShowing and (not Focused) and (FSelectPopup.InvokedBy = FControl) then
+  if PopupShowing and (not Focused) and (FSelectPopup.InvokedBy = FControl.Control) then
     FSelectPopup.Close;
 end;
 
@@ -378,7 +378,7 @@ begin
     FUIBuilder.LastArea := Self;
     ExecuteUIAction(FButtonView);
     //if vSaved then
-    //  PostMessage(TWinControl(FControl).Handle, WM_NEXTDLGCTL, 0, 0)
+    //  PostMessage(TWinControl(FControl.Control).Handle, WM_NEXTDLGCTL, 0, 0)
   end;
 end;
 
@@ -393,7 +393,7 @@ begin
     SetFieldEntity(ANewEntity);
 
   ClosePopup;
-  PostMessage(TWinControl(TWinControl(FControl).Parent).Handle, WM_NEXTDLGCTL, 0, 0);
+  PostMessage(TWinControl(TWinControl(FControl.Control).Parent).Handle, WM_NEXTDLGCTL, 0, 0);
 end;
 
 procedure TVCLEntityFieldEditor.DoOnClose(Sender: TObject);
@@ -404,7 +404,7 @@ end;
 
 procedure TVCLEntityFieldEditor.OnSelectClick(Sender: TObject);
 begin
-  if PopupShowing and (FSelectPopup.InvokedBy = FControl) then
+  if PopupShowing and (FSelectPopup.InvokedBy = FControl.Control) then
     FSelectPopup.Close
   else
   begin
@@ -485,7 +485,7 @@ begin
     end;
 
     FSelectPopup.Init(FEntities, True, vEntity, AFilter);
-    FSelectPopup.ShowFor(TWinControl(FControl), '');
+    FSelectPopup.ShowFor(TWinControl(FControl.Control), '');
   finally
     TPresenter(vInteractor.Presenter).SetCursor(vPrevCursor);
   end;
@@ -517,7 +517,7 @@ begin
   FreeAndNil(FEntities);
 end;
 
-procedure TListEntityFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TListEntityFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FGrid := TcxTreeList.Create(nil);
   FGrid.OnDblClick := OnDblClick;
@@ -532,7 +532,7 @@ begin
   FGrid.OptionsData.Editing := False;
   FGrid.OptionsSelection.CellSelect := False;
 
-  FControl := FGrid;
+  Result := FGrid;
 end;
 
 procedure TListEntityFieldEditor.DoOnFocusedNodeChanged(Sender: TcxCustomTreeList; APrevFocusedNode,
@@ -679,16 +679,16 @@ begin
   FreeAndNil(FEntities);
 end;
 
-procedure TVCLEntitySelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TVCLEntitySelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vInteractor: TInteractor;
 begin
   vInteractor := TInteractor(FView.Interactor);
   FEntities := TEntityList.Create(vInteractor.Domain, vInteractor.Session);
 
-  FControl := TcxComboBox.Create(nil);
-  TcxComboBox(FControl).Properties.DropDownListStyle := lsFixedList;
-  TcxComboBox(FControl).Properties.OnInitPopup := CBOnInitPopup;
+  Result := TcxComboBox.Create(nil);
+  TcxComboBox(Result).Properties.DropDownListStyle := lsFixedList;
+  TcxComboBox(Result).Properties.OnInitPopup := CBOnInitPopup;
 
   if Assigned(ALayout) then
     FFlat := (TPanel(ALayout.Control).BevelOuter = bvNone) and (TPanel(ALayout.Control).BevelInner = bvNone)
@@ -699,7 +699,7 @@ procedure TVCLEntitySelector.DoOnChange;
 var
   vEntity: TEntity;
 begin
-  vEntity := TEntity(TcxComboBox(FControl).ItemObject);
+  vEntity := TEntity(TcxComboBox(FControl.Control).ItemObject);
   SetFieldEntity(vEntity);
 end;
 
@@ -710,7 +710,7 @@ var
 begin
   FillList;
 
-  vEdit := TcxComboBox(FControl);
+  vEdit := TcxComboBox(FControl.Control);
   vEntity := FView.FieldEntity;
   if Assigned(vEntity) then
   begin
@@ -745,15 +745,15 @@ var
   vField: TEntityField;
   vEntity: TEntity;
 begin
-  TcxComboBox(FControl).Properties.Items.BeginUpdate;
+  TcxComboBox(FControl.Control).Properties.Items.BeginUpdate;
   try
-    TcxComboBox(FControl).Properties.Items.Clear;
+    TcxComboBox(FControl.Control).Properties.Items.Clear;
     vField := FView.ExtractEntityField;
     vField.GetEntitiesForSelect(TInteractor(FView.Interactor).Session, FEntities);
     for vEntity in FEntities do
-      TcxComboBox(FControl).Properties.Items.AddObject(SafeDisplayName(vEntity), vEntity);
+      TcxComboBox(FControl.Control).Properties.Items.AddObject(SafeDisplayName(vEntity), vEntity);
   finally
-    TcxComboBox(FControl).Properties.Items.EndUpdate;
+    TcxComboBox(FControl.Control).Properties.Items.EndUpdate;
   end;
 end;
 
@@ -768,8 +768,8 @@ end;
 procedure TVCLEntitySelector.SwitchChangeHandlers(const AHandler: TNotifyEvent);
 begin
   inherited;
-  if Assigned(TcxComboBox(FControl).Properties) then
-    TcxComboBox(FControl).Properties.OnChange := AHandler;
+  if Assigned(TcxComboBox(FControl.Control).Properties) then
+    TcxComboBox(FControl.Control).Properties.OnChange := AHandler;
 end;
 
 { TEntityFieldListEditor }
@@ -901,14 +901,14 @@ begin
   FreeAndNil(FChildViews);
 end;
 
-procedure TEntityFieldListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TEntityFieldListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FEditor := TcxVerticalGrid.Create(nil);
   FEditor.OptionsView.ShowEditButtons := ecsbFocused;
   FEditor.OptionsView.PaintStyle := psDelphi;
   FEditor.BorderStyle := cxcbsNone;
 
-  FControl := FEditor;
+  Result := FEditor;
 
   FChildViews := TList<TView>.Create;
 
@@ -1165,13 +1165,13 @@ begin
   FreeAndNil(FEntities);
 end;
 
-procedure TRadioEntitySelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TRadioEntitySelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FControl := TcxRadioGroup.Create(nil);
-  TcxRadioGroup(FControl).Transparent := True;
-  TcxRadioGroup(FControl).Style.BorderStyle := ebsNone;
-  TcxRadioGroup(FControl).Name := 'radio';
-  TcxRadioGroup(FControl).Caption := '';
+  Result := TcxRadioGroup.Create(nil);
+  TcxRadioGroup(Result).Transparent := True;
+  TcxRadioGroup(Result).Style.BorderStyle := ebsNone;
+  TcxRadioGroup(Result).Name := 'radio';
+  TcxRadioGroup(Result).Caption := '';
   FNeedCreateCaption := False;
 
   FEntities := TEntityList.Create(TInteractor(FView.Interactor).Domain, TInteractor(FView.Interactor).Session);
@@ -1182,9 +1182,9 @@ var
   vIndex: Integer;
 begin
 //  if FFieldDef.HasFlag(cRequired) then
-//    vIndex := TcxRadioGroup(FControl).ItemIndex + 1
+//    vIndex := TcxRadioGroup(FControl.Control).ItemIndex + 1
 //  else
-  vIndex := TcxRadioGroup(FControl).ItemIndex;
+  vIndex := TcxRadioGroup(FControl.Control).ItemIndex;
   SetFieldEntity(FEntities[vIndex]);
 end;
 
@@ -1194,7 +1194,7 @@ var
 begin
   FillList;
 
-  vRadioEdit := TcxRadioGroup(FControl);
+  vRadioEdit := TcxRadioGroup(FControl.Control);
   if VarIsNull(FView.FieldValue) or (FView.FieldValue = 0) then
   begin
     // do nothing
@@ -1222,7 +1222,7 @@ begin
   vField := FView.ExtractEntityField;
   vField.GetEntitiesForSelect(TInteractor(FView.Interactor).Session, FEntities);
 
-  vRadioItems := TcxRadioGroup(FControl).Properties.Items;
+  vRadioItems := TcxRadioGroup(FControl.Control).Properties.Items;
   vRadioItems.BeginUpdate;
   try
     vRadioItems.Clear;
@@ -1235,7 +1235,7 @@ begin
         vRadioItem.Caption := vEnt.DisplayName;
         vRadioItem.Tag := Integer(vEnt);
         if vEnt = TEntity(Integer(FView.FieldValue)) then
-          TcxRadioGroup(FControl).ItemIndex := TcxRadioGroup(FControl).Properties.Items.Count - 1;
+          TcxRadioGroup(FControl.Control).ItemIndex := TcxRadioGroup(FControl.Control).Properties.Items.Count - 1;
       end;
       //todo: обработать <не задано> если нужно
     end;
@@ -1246,7 +1246,7 @@ end;
 
 procedure TRadioEntitySelector.SwitchChangeHandlers(const AHandler: TNotifyEvent);
 begin
-  TcxRadioGroup(FControl).Properties.OnChange := AHandler;
+  TcxRadioGroup(FControl.Control).Properties.OnChange := AHandler;
 end;
 
 initialization
