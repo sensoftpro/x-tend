@@ -53,6 +53,7 @@ type
     destructor Destroy; override;
 
     property Owner: TUIArea read FOwner;
+    property Parent: TUIArea read FParent write FParent;
     property Control: TObject read FControl write FControl;
   end;
 
@@ -62,6 +63,7 @@ type
   private
     [Weak] FParent: TUIArea;
     [Weak] FHolder: TObject;
+    FControl: TObject;
     FAreas: TList<TUIArea>;
     FParams: TStrings;
     FIsService: Boolean;
@@ -79,8 +81,9 @@ type
     procedure AfterChildAreasCreated;
     function ParentInUpdate: Boolean;
     procedure SetLayout(const Value: TLayout);
+    function GetInnerControl: TObject;
   protected
-    FControl: TNativeControl;
+    FNativeControl: TNativeControl;
     FLayout: TLayout;
     FInternalParams: string;
     FCreateParams: TStrings;
@@ -172,7 +175,7 @@ type
     function QueryParameter(const AName: string; const ADefaultValue: string = ''): string;
     procedure SetBounds(const ALeft, ATop, AWidth, AHeight: Integer);
 
-    property Control: TNativeControl read FControl;
+    property InnerControl: TObject read GetInnerControl;
     property Count: Integer read GetCount;
     property Areas[const AIndex: Integer]: TUIArea read GetArea; default;
     property Parent: TUIArea read FParent;
@@ -968,7 +971,6 @@ constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const AId
   const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
 var
   vPopupArea: TUIArea;
-  vControl: TObject;
 begin
   inherited Create;
 
@@ -987,19 +989,18 @@ begin
   FHolder := nil;
   FUIBuilder := TInteractor(AView.Interactor).UIBuilder;
   FSession := TUserSession(AView.Session);
-  FControl := NativeControlClass.Create(Self, AControl);
 
   FView := AView;
   if not FIsService then
     TrySubscribeView;
 
+  FParent := AParent;
   if not Assigned(AControl) then
-  begin
-    vControl := DoCreateControl(AParent, ALayout);
-    SetControl(vControl);
-  end
-  else // Для установки тэгов
-    SetControl(AControl);
+    FControl := DoCreateControl(AParent, ALayout)
+  else
+    FControl := AControl;
+  FNativeControl := NativeControlClass.Create(Self, FControl);
+  SetControl(FControl);
   SetParent(AParent);
 
   if not Assigned(ALayout) then
@@ -1171,7 +1172,8 @@ end;
 destructor TUIArea.Destroy;
 begin
   FreeAndNil(FCreateParams);
-  FreeAndNil(FControl);
+  FreeAndNil(FNativeControl);
+  FControl := nil;
   if not (FLayout is TNavigationItem) then
     FreeAndNil(FLayout);
   //if Assigned(FLayout) and FLayout.IsOwner then
@@ -1499,6 +1501,11 @@ begin
   Result := FUIBuilder.GetImageID(AImageID);
 end;
 
+function TUIArea.GetInnerControl: TObject;
+begin
+  Result := FNativeControl.Control;
+end;
+
 function TUIArea.GetInteractor: TObject;
 begin
   if Assigned(FUIBuilder) then
@@ -1664,7 +1671,8 @@ end;
 
 procedure TUIArea.SetControl(const AControl: TObject);
 begin
-  FControl.Control := AControl;
+  FNativeControl.Control := AControl;
+  FControl := AControl;
 end;
 
 procedure TUIArea.SetHolder(const AHolder: TObject);
@@ -1686,6 +1694,7 @@ end;
 procedure TUIArea.SetParent(const Value: TUIArea);
 begin
   FParent := Value;
+  FNativeControl.Parent := Value;
 end;
 
 procedure TUIArea.SetPopupArea(const APopupArea: TUIArea);
@@ -1733,8 +1742,8 @@ begin
   else
     vIndex := '// ';
 
-  if Assigned(FControl) then
-    vClassName := FControl.ClassName
+  if Assigned(FNativeControl.Control) then
+    vClassName := FNativeControl.Control.ClassName
   else
     vClassName := '???';
 

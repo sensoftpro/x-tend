@@ -63,7 +63,7 @@ type
     procedure OnActionMenuSelected(Sender: TObject);
     procedure SetLabelPosition(const Value: TLabelPosition);
     procedure OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
-    function GetControl: TControl;
+    function GetControl: TObject;
     function GetComponent: TComponent;
     procedure BeforeContextMenuShow(Sender: TObject);
     procedure CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
@@ -84,6 +84,8 @@ type
     procedure DoEndUpdate; override;
     procedure DoActivate(const AUrlParams: string); override;
     procedure DoAfterChildAreasCreated; override;
+
+    property FControl: TObject read GetControl;
   protected
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); override;
 
@@ -109,7 +111,7 @@ type
     destructor Destroy; override;
 
     property Component: TComponent read GetComponent;
-    property Control: TControl read GetControl;
+    //property Control: TControl read GetControl;
     property OnClose: TProc read FOnClose write FOnClose;
     property LabelPosition: TLabelPosition read FLabelPosition write SetLabelPosition;
   end;
@@ -386,7 +388,7 @@ var
       Result := 3;
   end;
 begin
-  vOneRowHeight := Abs(TCrackedWinControl(FControl.Control).Font.Height) + 8; //editor + label + borders
+  vOneRowHeight := Abs(TCrackedWinControl(FControl).Font.Height) + 8; //editor + label + borders
 
   vTotalHeight := 0;
   for i := 0 to Count - 1 do
@@ -431,7 +433,7 @@ begin
       cBorder + (vRealColumnCount - 1) * (cColumnWidth + cBetweenColumns), cBorder + cBetweenRows + vCurColumnHeight,
       cColumnWidth, CalcLayoutPositionCount(vEditor) * (vOneRowHeight + cBetweenRows) - cBetweenRows);
 
-    vCurColumnHeight := vCurColumnHeight + TVCLFieldArea(vEditor).Control.Height + cBetweenRows;
+    vCurColumnHeight := vCurColumnHeight + TControl(TVCLFieldArea(vEditor).FControl).Height + cBetweenRows;
     if vCurColumnHeight >= vHeightInColumn then
     begin
       if vCurColumnHeight > vRealMaxHeightInColumn then
@@ -442,10 +444,10 @@ begin
     end;
   end;
 
-  Control.ClientWidth := (vRealColumnCount * (cColumnWidth + cBetweenColumns) - cBetweenColumns) + cBorder*2;
-  Control.ClientHeight := vRealMaxHeightInColumn + cBorder * 2 + 8;
+  TControl(FControl).ClientWidth := (vRealColumnCount * (cColumnWidth + cBetweenColumns) - cBetweenColumns) + cBorder*2;
+  TControl(FControl).ClientHeight := vRealMaxHeightInColumn + cBorder * 2 + 8;
   if FIsForm and (FView.DefinitionKind <> dkDomain) then
-    Control.ClientHeight := Control.ClientHeight + cServiceAreaHeight;
+    TControl(FControl).ClientHeight := TControl(FControl).ClientHeight + cServiceAreaHeight;
 end;
 
 procedure TVCLArea.AssignFromLayout(const ALayout: TLayout; const AParams: string);
@@ -459,7 +461,7 @@ var
 begin
   if FIsForm then
   begin
-    vForm := TForm(FControl.Control);
+    vForm := TForm(FControl);
 
     if ALayout.Control is TFrame then
     begin
@@ -515,34 +517,34 @@ begin
   begin
     vFrame := TFrame(ALayout.Control);
     //vFrame.SetBounds(Control.Left, Control.Top, Control.Width, Control.Height);
-    if (vFrame.Hint <> '') and (FControl.Control is TcxTabSheet) then
+    if (vFrame.Hint <> '') and (FControl is TcxTabSheet) then
     begin
-      TcxTabSheet(FControl.Control).Caption := vFrame.Hint;
+      TcxTabSheet(FControl).Caption := vFrame.Hint;
       if Pos('=', vFrame.Hint) > 0 then // Hint содержит url-строку с параметрами
       begin
-        TcxTabSheet(FControl.Control).Caption := GetUrlParam(vFrame.Hint, 'Caption', '');
-        TcxTabSheet(FControl.Control).ImageIndex := GetImageId(StrToIntDef(GetUrlParam(vFrame.Hint, 'ImageIndex', ''), -1));
+        TcxTabSheet(FControl).Caption := GetUrlParam(vFrame.Hint, 'Caption', '');
+        TcxTabSheet(FControl).ImageIndex := GetImageId(StrToIntDef(GetUrlParam(vFrame.Hint, 'ImageIndex', ''), -1));
       end;
     end;
   end
-  else if ((ALayout.Control is TPanel) or (ALayout.Control is TMemo)) and (FControl.Control is TControl) then
+  else if ((ALayout.Control is TPanel) or (ALayout.Control is TMemo)) and (FControl is TControl) then
   begin
     vPanel := TCrackedWinControl(ALayout.Control);
 
     PlaceIntoBounds(vPanel.Left, vPanel.Top, vPanel.Width, vPanel.Height);
     SetCaptionProperty(ALayout);
 
-    if FControl.Control is TcxCustomEdit then
-      TcxCustomEdit(FControl.Control).Style.Font.Assign(vPanel.Font)
+    if FControl is TcxCustomEdit then
+      TcxCustomEdit(FControl).Style.Font.Assign(vPanel.Font)
     else
-      TCrackedWinControl(FControl.Control).Font.Assign(vPanel.Font);
+      TCrackedWinControl(FControl).Font.Assign(vPanel.Font);
 
-    Control.Anchors := vPanel.Anchors;
-    Control.Align := vPanel.Align;
-    Control.AlignWithMargins := vPanel.AlignWithMargins;
-    Control.Margins := vPanel.Margins;
-    if Control is TWinControl then
-      TWinControl(Control).Padding := vPanel.Padding;
+    TControl(FControl).Anchors := vPanel.Anchors;
+    TControl(FControl).Align := vPanel.Align;
+    TControl(FControl).AlignWithMargins := vPanel.AlignWithMargins;
+    TControl(FControl).Margins := vPanel.Margins;
+    if FControl is TWinControl then
+      TWinControl(FControl).Padding := vPanel.Padding;
 
     vAlignment := taLeftJustify;
 
@@ -553,34 +555,34 @@ begin
 
     if vAlignment = taRightJustify then
     begin
-      if FControl.Control.InheritsFrom(TLabel) then
-        TLabel(FControl.Control).Alignment := taRightJustify
-      else if FControl.Control.InheritsFrom(TEdit) then
-        TEdit(FControl.Control).Alignment := taRightJustify
-      else if FControl.Control.InheritsFrom(TStaticText) then
+      if FControl.InheritsFrom(TLabel) then
+        TLabel(FControl).Alignment := taRightJustify
+      else if FControl.InheritsFrom(TEdit) then
+        TEdit(FControl).Alignment := taRightJustify
+      else if FControl.InheritsFrom(TStaticText) then
       begin
-        TStaticText(FControl.Control).Alignment := taRightJustify;
-        TStaticText(FControl.Control).AutoSize := False;
-        TStaticText(FControl.Control).Height := vPanel.Height;
-        TStaticText(FControl.Control).Width := vPanel.Width;
+        TStaticText(FControl).Alignment := taRightJustify;
+        TStaticText(FControl).AutoSize := False;
+        TStaticText(FControl).Height := vPanel.Height;
+        TStaticText(FControl).Width := vPanel.Width;
       end
-      else if FControl.Control.InheritsFrom(TCheckBox) then
-        TCheckBox(FControl.Control).Alignment := taRightJustify
-      else if FControl.Control.InheritsFrom(TRadioButton) then
-        TRadioButton(FControl.Control).Alignment := taRightJustify
-      else if FControl.Control.InheritsFrom(TcxLabel) then
-        TcxLabel(FControl.Control).Properties.Alignment.Horz := taRightJustify
-      else if FControl.Control.InheritsFrom(TcxTextEdit) then
-        TcxTextEdit(FControl.Control).Properties.Alignment.Horz := taRightJustify
+      else if FControl.InheritsFrom(TCheckBox) then
+        TCheckBox(FControl).Alignment := taRightJustify
+      else if FControl.InheritsFrom(TRadioButton) then
+        TRadioButton(FControl).Alignment := taRightJustify
+      else if FControl.InheritsFrom(TcxLabel) then
+        TcxLabel(FControl).Properties.Alignment.Horz := taRightJustify
+      else if FControl.InheritsFrom(TcxTextEdit) then
+        TcxTextEdit(FControl).Properties.Alignment.Horz := taRightJustify
       else if Self is TFilenameFieldEditor then
         TFilenameFieldEditor(Self).TextEdit.Properties.Alignment.Horz := taRightJustify
     end;
 
     if not vPanel.ParentBackground then
     begin
-      TCrackedWinControl(FControl.Control).Color := vPanel.Color;
-      TCrackedWinControl(FControl.Control).ParentColor := False;
-      TCrackedWinControl(FControl.Control).ParentBackground := False;
+      TCrackedWinControl(FControl).Color := vPanel.Color;
+      TCrackedWinControl(FControl).ParentColor := False;
+      TCrackedWinControl(FControl).ParentBackground := False;
     end;
 
   end;
@@ -625,8 +627,8 @@ end;
 
 procedure TVCLArea.DoBeginUpdate;
 begin
-  if (not FIsForm) and (FControl.Control is TWinControl) then
-    LockControl(TWinControl(FControl.Control), True);
+  if (not FIsForm) and (FControl is TWinControl) then
+    LockControl(TWinControl(FControl), True);
 
   if FIsForm and (TInteractor(Interactor).Layout = 'mdi') then
     SendMessage(Application.MainForm.ClientHandle, WM_SETREDRAW, 0, 0);
@@ -840,11 +842,11 @@ begin
 
   if Assigned(ALayout) and (ALayout.Control is TWinControl) then
   begin
-    if FControl.Control is TWinControl then
+    if FControl is TWinControl then
     begin
       FTabStop := TWinControl(ALayout.Control).TabStop;
       FTabOrder := TWinControl(ALayout.Control).TabOrder;
-      TWinControl(FControl.Control).TabStop := FTabStop;
+      TWinControl(FControl).TabStop := FTabStop;
     end;
   end;
 end;
@@ -864,7 +866,7 @@ begin
   if FNeedCreateCaption then
   begin
     FCaption := TLabel.Create(nil);
-    FCaption.Parent := Control.Parent;
+    FCaption.Parent := TControl(FControl).Parent;
     FCaption.Transparent := True;
 
     if Assigned(CreateParams) and (CreateParams.IndexOfName('Caption') >= 0) then
@@ -913,21 +915,21 @@ var
 begin
   vChangeTab := SameText(GetUrlParam(AUrlParams, 'TabActivationOption', ''), 'ChangeTab');
 
-  if (FControl.Control is TcxTabSheet) then
+  if (FControl is TcxTabSheet) then
   begin
     if Assigned(Parent.CreateParams) and (Parent.CreateParams.IndexOfName('TabActivationOption') >= 0) and
       (not SameText(Parent.CreateParams.Values['TabActivationOption'], 'ChangeTab')) then
       vChangeTab := False;
     if vChangeTab then
-      TcxPageControl(Control.Parent).Properties.ActivePage := TcxTabSheet(FControl.Control);
+      TcxPageControl(TControl(FControl).Parent).Properties.ActivePage := TcxTabSheet(FControl);
   end
-  else if (FControl.Control is TForm) and (TForm(FControl.Control).FormStyle = fsMDIChild) then
+  else if (FControl is TForm) and (TForm(FControl).FormStyle = fsMDIChild) then
   begin
     if SameText(GetUrlParam(AUrlParams, 'State'), 'Max') then
-      TForm(FControl.Control).WindowState := wsMaximized
+      TForm(FControl).WindowState := wsMaximized
     else
     begin
-      TForm(FControl.Control).BringToFront;
+      TForm(FControl).BringToFront;
     end;
   end;
 end;
@@ -952,10 +954,10 @@ var
   begin
     Result := nil;
     for c := 0 to Count - 1 do
-      if (Areas[c].Control.Control <> ASplitter) and (Areas[c].Control.Control  is TControl)
-        and (TControl(Areas[c].Control.Control ).Align = ASplitter.Align) then
+      if (Areas[c].InnerControl <> ASplitter) and (Areas[c].InnerControl is TControl)
+        and (TControl(Areas[c].InnerControl).Align = ASplitter.Align) then
       begin
-        Result := TControl(Areas[c].Control.Control );
+        Result := TControl(Areas[c].InnerControl);
         Break;
       end;
   end;
@@ -968,13 +970,13 @@ var
     vList := TList<TVCLArea>.Create(TVCLAreaComparer.Create);
     try
       for v := 0 to Count - 1 do
-        if (Areas[v].Control.Control  is TWinControl) and TWinControl(Areas[v].Control.Control ).TabStop then
+        if (Areas[v].InnerControl is TWinControl) and TWinControl(Areas[v].InnerControl).TabStop then
           vList.Add(TVCLArea(Areas[v]));
 
       vList.Sort;
 
       for v := 0 to vList.Count - 1 do
-        TWinControl(vList[v].Control).TabOrder := vList[v].FTabOrder;
+        TWinControl(vList[v].InnerControl).TabOrder := vList[v].FTabOrder;
     finally
       FreeAndNil(vList);
     end;
@@ -982,8 +984,8 @@ var
 begin
   // прицепляем сплиттер к своему контролу, чтобы не отлипал в некоторых случаях, обрабатываем только простой случай: сплиттер с таким размещением один в текущей области
   for i := 0 to Count - 1 do
-    if Areas[i].Control.Control is TcxSplitter then
-      TcxSplitter(Areas[i].Control.Control).Control := FindControlForSplitter(TcxSplitter(Areas[i].Control.Control));
+    if Areas[i].InnerControl is TcxSplitter then
+      TcxSplitter(Areas[i].InnerControl).Control := FindControlForSplitter(TcxSplitter(Areas[i].InnerControl));
 
   if Count > 1 then
     ApplyTabOrder;
@@ -994,10 +996,10 @@ begin
   if FIsForm then
   begin
     if AModalResult = mrNone then
-      PostMessage(TForm(FControl.Control).Handle, WM_CLOSE, 0, 0)
+      PostMessage(TForm(FControl).Handle, WM_CLOSE, 0, 0)
     else begin
-      TForm(FControl.Control).Close;
-      TForm(FControl.Control).ModalResult := AModalResult;
+      TForm(FControl).Close;
+      TForm(FControl).ModalResult := AModalResult;
     end;
   end;
 end;
@@ -1381,19 +1383,19 @@ end;
 function TVCLArea.DoGetDescription: string;
 begin
   Result := inherited DoGetDescription;
-  if Assigned(FControl.Control) and (FControl.Control is TControl) then
+  if Assigned(FControl) and (FControl is TControl) then
   begin
-    if not Control.Visible then
+    if not TControl(FControl).Visible then
       Result := Result + ' HID';
-    if not Control.Enabled then
+    if not TControl(FControl).Enabled then
       Result := Result + ' DIS';
   end;
 end;
 
 procedure TVCLArea.DoEndUpdate;
 begin
-  if (not FIsForm) and (FControl.Control is TWinControl) then
-    LockControl(TWinControl(FControl.Control), False);
+  if (not FIsForm) and (FControl is TWinControl) then
+    LockControl(TWinControl(FControl), False);
 
   if FIsForm and (TInteractor(Interactor).Layout = 'mdi') then
   begin
@@ -1404,15 +1406,12 @@ end;
 
 function TVCLArea.GetComponent: TComponent;
 begin
-  Result := TComponent(FControl.Control)
+  Result := TComponent(FNativeControl.Control)
 end;
 
-function TVCLArea.GetControl: TControl;
+function TVCLArea.GetControl: TObject;
 begin
-  if FControl.Control is TControl then
-    Result := TControl(FControl.Control)
-  else
-    Result := nil;
+  Result := FNativeControl.Control;
 end;
 
 function TVCLArea.GetDisplayFormat(const AFieldDef: TFieldDef; const AEntity: TEntity): string;
@@ -1446,12 +1445,12 @@ end;
 
 function TVCLArea.GetName: string;
 begin
-  if not Assigned(FControl.Control) then
+  if not Assigned(FControl) then
     Result := 'NULL'
-  else if not (FControl.Control is TControl) then
+  else if not (FControl is TControl) then
     Result := FControl.ClassName + ': ' + Id
-  else if TCrackedWinControl(FControl.Control).Caption <> '' then
-    Result := FControl.ClassName + ': ' + Id + ' (' + TCrackedWinControl(FControl.Control).Caption + ')'
+  else if TCrackedWinControl(FControl).Caption <> '' then
+    Result := FControl.ClassName + ': ' + Id + ' (' + TCrackedWinControl(FControl).Caption + ')'
   else
     Result := FControl.ClassName + ': ' + Id;
 end;
@@ -1566,14 +1565,14 @@ procedure TVCLArea.PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer);
 var
   vLeft, vTop, vWidth, vHeight: Integer;
 begin
-  if FControl.Control is TControl then
+  if FControl is TControl then
   begin
     vLeft := ALeft; vTop := ATop; vWidth := AWidth; vHeight := AHeight;
-    if vLeft < 0 then vLeft := Control.Left;
-    if vTop < 0 then vTop := Control.Top;
-    if vWidth < 0 then vWidth := Control.Width;
-    if vHeight < 0 then vHeight := Control.Height;
-    Control.SetBounds(vLeft, vTop, vWidth, vHeight);
+    if vLeft < 0 then vLeft := TControl(FControl).Left;
+    if vTop < 0 then vTop := TControl(FControl).Top;
+    if vWidth < 0 then vWidth := TControl(FControl).Width;
+    if vHeight < 0 then vHeight := TControl(FControl).Height;
+    TControl(FControl).SetBounds(vLeft, vTop, vWidth, vHeight);
   end;
   FOriginLeft := ALeft; FOriginTop := ATop;
   PlaceLabel;
@@ -1588,21 +1587,21 @@ begin
 
   if FLabelPosition = lpTop then
   begin
-    FCaption.Left := Control.Left;
-    FCaption.Top := Control.Top - FCaption.Height - 4;
+    FCaption.Left := TControl(FControl).Left;
+    FCaption.Top := TControl(FControl).Top - FCaption.Height - 4;
     FCaption.AutoSize := True;
     FCaption.Layout := tlTop;
   end
   else if FLabelPosition = lpLeft then
   begin
     vSpace := FCaption.Width + 8;
-    FCaption.Left := Control.Left - vSpace;
-    FCaption.Top := Control.Top + 3;
+    FCaption.Left := TControl(FControl).Left - vSpace;
+    FCaption.Top := TControl(FControl).Top + 3;
     FCaption.AutoSize := False;
     //FCaption.Layout := tlCenter;
     //FCaption.Height := Control.Height;
   end;
-  FCaption.Parent := Control.Parent;
+  FCaption.Parent := TControl(FControl).Parent;
 end;
 
 procedure TVCLArea.RefillArea(const AKind: Word);
@@ -1625,7 +1624,7 @@ begin
     FreeAndNil(FCaption);
   end;
 
-  vControl := FControl.Control;
+  vControl := FControl;
 
   inherited Destroy;
 
@@ -1684,13 +1683,13 @@ begin
   begin
     if AControl is TTreeNode then
     begin
-      if Assigned(FControl.Control) then
-        TTreeNode(FControl.Control).Data := nil;
+      if Assigned(FControl) then
+        TTreeNode(FControl).Data := nil;
 
       inherited SetControl(AControl);
 
-      if Assigned(FControl.Control) then
-        TTreeNode(FControl.Control).Data := Self;
+      if Assigned(FControl) then
+        TTreeNode(FControl).Data := Self;
 
       FIsAutoReleased := True;
     end;
@@ -1698,30 +1697,30 @@ begin
     Exit;
   end;
 
-  if Assigned(FControl.Control) then
+  if Assigned(FControl) then
   begin
-    TCrackedWinControl(FControl.Control).Tag := 0;
-    if FControl.Control is TWinControl then
+    TCrackedWinControl(FControl).Tag := 0;
+    if FControl is TWinControl then
     begin
-      TCrackedWinControl(FControl.Control).OnEnter := nil;
-      TCrackedWinControl(FControl.Control).OnExit := nil;
+      TCrackedWinControl(FControl).OnEnter := nil;
+      TCrackedWinControl(FControl).OnExit := nil;
     end;
   end;
 
   inherited SetControl(AControl);
 
-  if Assigned(FControl.Control) then
+  if Assigned(FControl) then
   begin
-    TCrackedWinControl(FControl.Control).Tag := Integer(Self);
-    if FControl.Control is TWinControl then
+    TCrackedWinControl(FControl).Tag := Integer(Self);
+    if FControl is TWinControl then
     begin
-      TCrackedWinControl(FControl.Control).OnEnter := OnEnter;
-      TCrackedWinControl(FControl.Control).OnExit := OnExit;
+      TCrackedWinControl(FControl).OnEnter := OnEnter;
+      TCrackedWinControl(FControl).OnExit := OnExit;
     end;
   end;
 
-  FIsForm := FControl.Control is TForm;
-  FIsAutoReleased := FControl.Control is TMenuItem;
+  FIsForm := FControl is TForm;
+  FIsAutoReleased := FControl is TMenuItem;
 end;
 
 procedure TVCLArea.SetLabelPosition(const Value: TLabelPosition);
@@ -1734,47 +1733,47 @@ procedure TVCLArea.SetParent(const Value: TUIArea);
 begin
   inherited SetParent(Value);
 
-  if not (FControl.Control is TControl) then
+  if not (FControl is TControl) then
     Exit;
 
   // Установка родителя для контрола
   if FIsForm or not Assigned(Value) then
-    Control.Parent := nil
+    TControl(FControl).Parent := nil
   else
-    Control.Parent := TWinControl(TVCLArea(Value).Control);
+    TControl(FControl).Parent := TWinControl(TVCLArea(Value).InnerControl);
 end;
 
 procedure TVCLArea.SetPopupArea(const APopupArea: TUIArea);
 var
   vPopupMenu: TPopupMenu;
 begin
-  vPopupMenu := TPopupMenu(APopupArea.Control);
+  vPopupMenu := TPopupMenu(APopupArea.InnerControl);
   if not Assigned(vPopupMenu.OnPopup) then
     vPopupMenu.OnPopup := BeforeContextMenuShow;
-  TCrackedControl(FControl.Control).PopupMenu := vPopupMenu;
+  TCrackedControl(FControl).PopupMenu := vPopupMenu;
 end;
 
 procedure TVCLArea.SetViewState(const AValue: TViewState);
 var
   vBoolValue: Boolean;
 begin
-  if FControl.Control is TMenuItem then
+  if FControl is TMenuItem then
   begin
-    TMenuItem(FControl.Control).Visible := AValue > vsHidden;
-    TMenuItem(FControl.Control).Enabled := AValue > vsDisabled;
+    TMenuItem(FControl).Visible := AValue > vsHidden;
+    TMenuItem(FControl).Enabled := AValue > vsDisabled;
   end
-  else if (FControl.Control is TControl) and (not FIsForm) then
+  else if (FControl is TControl) and (not FIsForm) then
   begin
     vBoolValue := AValue > vsHidden;
       
-    if Control.Visible <> vBoolValue then
-      Control.Visible := vBoolValue;
+    if TControl(FControl).Visible <> vBoolValue then
+      TControl(FControl).Visible := vBoolValue;
 
     vBoolValue := AValue > vsDisabled;
-    if FControl.Control is TcxTabSheet then
-      TcxTabSheet(FControl.Control).AllowCloseButton := vBoolValue
-    else if Control.Enabled <> vBoolValue then
-      Control.Enabled := vBoolValue;
+    if FControl is TcxTabSheet then
+      TcxTabSheet(FControl).AllowCloseButton := vBoolValue
+    else if TControl(FControl).Enabled <> vBoolValue then
+      TControl(FControl).Enabled := vBoolValue;
   end;
 end;
 
@@ -1798,14 +1797,14 @@ end;
 procedure TVCLArea.UnbindContent;
 begin
   if FIsAutoReleased then
-    FControl.Control := nil;
+    inherited SetControl(nil);
 end;
 
 procedure TVCLArea.UpdateArea(const AKind: Word; const AParameter: TEntity = nil);
 begin
   RefillArea(AKind);
 
-  if not Assigned(FControl.Control) then
+  if not Assigned(FControl) then
     Exit;
 
   if not FIsForm then
@@ -1821,10 +1820,10 @@ begin
       {if (FControl is TcxButton) and (TcxButton(FControl).Align <> alNone) then
       begin
         // restore origin values to correct alignment order
-        if Control.Left <> FOriginLeft then
-          Control.Left := FOriginLeft;
-        if Control.Top <> FOriginTop then
-          Control.Top := FOriginTop;
+        if TControl(FControl).Left <> FOriginLeft then
+          TControl(FControl).Left := FOriginLeft;
+        if TControl(FControl).Top <> FOriginTop then
+          TControl(FControl).Top := FOriginTop;
       end;}
     finally
       //if (FControl is TWinControl) and Assigned(TWinControl(FControl)) then
@@ -1853,7 +1852,7 @@ begin
 
   inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
 
-  Assert(Assigned(FControl.Control), 'Не создан контрол для ' + FDefinitionName);
+  Assert(Assigned(FControl), 'Не создан контрол для ' + FDefinitionName);
 
   // Нужно делать после задания родителя, так как надпись использует родительский шрифт
   CreateCaption(FFieldDef);
@@ -1911,12 +1910,12 @@ end;
 
 function TVCLFieldArea.GetDefaultFocusedChild: TWinControl;
 begin
-  Result := TWinControl(FControl.Control);
+  Result := TWinControl(FControl);
 end;
 
 function TVCLFieldArea.GetFocused: Boolean;
 begin
-  Result := TWinControl(FControl.Control).Focused;
+  Result := TWinControl(FControl).Focused;
 end;
 
 function TVCLFieldArea.GetFormat: string;
@@ -2013,7 +2012,7 @@ procedure TVCLFieldArea.SetFocused(const Value: Boolean);
 var
   vControl: TWinControl;
 begin
-  if Value and TWinControl(FControl.Control).CanFocus then
+  if Value and TWinControl(FControl).CanFocus then
   begin
     vControl := GetDefaultFocusedChild;
     if Assigned(vControl) then
@@ -2058,8 +2057,8 @@ procedure TUILayout.Build(const AVCLArea: TVCLArea);
   var
     i: Integer;
   begin
-    if Assigned(AVCLArea.Control) then
-      ALayout.FillLayoutParams(ALayout, AVCLArea.Control);
+    if Assigned(AVCLArea.InnerControl) then
+      ALayout.FillLayoutParams(ALayout, TComponent(AVCLArea.InnerControl));
     for i := 0 to AVCLArea.Count - 1 do
       Process(ALayout.CreateChild, TVCLArea(AVCLArea[i]));
   end;
@@ -2413,7 +2412,7 @@ begin
     if AParentArea = Self then
       vParentObj := nil
     else
-      vParentObj := AParentArea.Control.Control;
+      vParentObj := AParentArea.InnerControl;
 
     vViewPath := CreateDelimitedList(vNavItem.ViewName, '/');
     try
@@ -2616,9 +2615,9 @@ begin
   if ANavItem.Id = 'Windows' then
   begin
     //FMenuItem.Visible := TInteractor(FView.Interactor).Layout = 'mdi';
-    if (TInteractor(FView.Interactor).Layout = 'mdi') and (Parent.Control.Control is TForm) then
+    if (TInteractor(FView.Interactor).Layout = 'mdi') and (Parent.InnerControl is TForm) then
     begin
-      vForm := TForm(Parent.Control);
+      vForm := TForm(Parent.InnerControl);
       if vForm.FormStyle = fsMDIForm then
         vForm.WindowMenu := FMenuItem;
     end;
@@ -3019,7 +3018,7 @@ begin
     Exit;
   end;
 
-  vButton := TcxButton(FControl.Control);
+  vButton := TcxButton(FControl);
 
   vActionDef := TDefinition(FView.Definition);
   vImageID := GetImageID(vActionDef._ImageID);
@@ -3084,7 +3083,7 @@ begin
     Exit;
   end;
 
-  vLabel := TcxLabel(FControl.Control);
+  vLabel := TcxLabel(FControl);
 
   vActionDef := TDefinition(FView.Definition);
   vLabel.Caption := GetTranslation(vActionDef);

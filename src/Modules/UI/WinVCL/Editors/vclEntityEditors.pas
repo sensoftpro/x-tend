@@ -317,7 +317,7 @@ end;
 
 procedure TVCLEntityFieldEditor.ClosePopup;
 begin
-  if PopupShowing and (not Focused) and (FSelectPopup.InvokedBy = FControl.Control) then
+  if PopupShowing and (not Focused) and (FSelectPopup.InvokedBy = FControl) then
     FSelectPopup.Close;
 end;
 
@@ -393,7 +393,7 @@ begin
     SetFieldEntity(ANewEntity);
 
   ClosePopup;
-  PostMessage(TWinControl(TWinControl(FControl.Control).Parent).Handle, WM_NEXTDLGCTL, 0, 0);
+  PostMessage(TWinControl(TWinControl(FControl).Parent).Handle, WM_NEXTDLGCTL, 0, 0);
 end;
 
 procedure TVCLEntityFieldEditor.DoOnClose(Sender: TObject);
@@ -404,7 +404,7 @@ end;
 
 procedure TVCLEntityFieldEditor.OnSelectClick(Sender: TObject);
 begin
-  if PopupShowing and (FSelectPopup.InvokedBy = FControl.Control) then
+  if PopupShowing and (FSelectPopup.InvokedBy = FControl) then
     FSelectPopup.Close
   else
   begin
@@ -485,7 +485,7 @@ begin
     end;
 
     FSelectPopup.Init(FEntities, True, vEntity, AFilter);
-    FSelectPopup.ShowFor(TWinControl(FControl.Control), '');
+    FSelectPopup.ShowFor(TWinControl(FControl), '');
   finally
     TPresenter(vInteractor.Presenter).SetCursor(vPrevCursor);
   end;
@@ -699,7 +699,7 @@ procedure TVCLEntitySelector.DoOnChange;
 var
   vEntity: TEntity;
 begin
-  vEntity := TEntity(TcxComboBox(FControl.Control).ItemObject);
+  vEntity := TEntity(TcxComboBox(FControl).ItemObject);
   SetFieldEntity(vEntity);
 end;
 
@@ -710,7 +710,7 @@ var
 begin
   FillList;
 
-  vEdit := TcxComboBox(FControl.Control);
+  vEdit := TcxComboBox(FControl);
   vEntity := FView.FieldEntity;
   if Assigned(vEntity) then
   begin
@@ -745,15 +745,15 @@ var
   vField: TEntityField;
   vEntity: TEntity;
 begin
-  TcxComboBox(FControl.Control).Properties.Items.BeginUpdate;
+  TcxComboBox(FControl).Properties.Items.BeginUpdate;
   try
-    TcxComboBox(FControl.Control).Properties.Items.Clear;
+    TcxComboBox(FControl).Properties.Items.Clear;
     vField := FView.ExtractEntityField;
     vField.GetEntitiesForSelect(TInteractor(FView.Interactor).Session, FEntities);
     for vEntity in FEntities do
-      TcxComboBox(FControl.Control).Properties.Items.AddObject(SafeDisplayName(vEntity), vEntity);
+      TcxComboBox(FControl).Properties.Items.AddObject(SafeDisplayName(vEntity), vEntity);
   finally
-    TcxComboBox(FControl.Control).Properties.Items.EndUpdate;
+    TcxComboBox(FControl).Properties.Items.EndUpdate;
   end;
 end;
 
@@ -768,8 +768,8 @@ end;
 procedure TVCLEntitySelector.SwitchChangeHandlers(const AHandler: TNotifyEvent);
 begin
   inherited;
-  if Assigned(TcxComboBox(FControl.Control).Properties) then
-    TcxComboBox(FControl.Control).Properties.OnChange := AHandler;
+  if Assigned(TcxComboBox(FControl).Properties) then
+    TcxComboBox(FControl).Properties.OnChange := AHandler;
 end;
 
 { TEntityFieldListEditor }
@@ -1184,7 +1184,7 @@ begin
 //  if FFieldDef.HasFlag(cRequired) then
 //    vIndex := TcxRadioGroup(FControl.Control).ItemIndex + 1
 //  else
-  vIndex := TcxRadioGroup(FControl.Control).ItemIndex;
+  vIndex := TcxRadioGroup(FControl).ItemIndex;
   SetFieldEntity(FEntities[vIndex]);
 end;
 
@@ -1194,7 +1194,7 @@ var
 begin
   FillList;
 
-  vRadioEdit := TcxRadioGroup(FControl.Control);
+  vRadioEdit := TcxRadioGroup(FControl);
   if VarIsNull(FView.FieldValue) or (FView.FieldValue = 0) then
   begin
     // do nothing
@@ -1222,7 +1222,7 @@ begin
   vField := FView.ExtractEntityField;
   vField.GetEntitiesForSelect(TInteractor(FView.Interactor).Session, FEntities);
 
-  vRadioItems := TcxRadioGroup(FControl.Control).Properties.Items;
+  vRadioItems := TcxRadioGroup(FControl).Properties.Items;
   vRadioItems.BeginUpdate;
   try
     vRadioItems.Clear;
@@ -1235,7 +1235,7 @@ begin
         vRadioItem.Caption := vEnt.DisplayName;
         vRadioItem.Tag := Integer(vEnt);
         if vEnt = TEntity(Integer(FView.FieldValue)) then
-          TcxRadioGroup(FControl.Control).ItemIndex := TcxRadioGroup(FControl.Control).Properties.Items.Count - 1;
+          TcxRadioGroup(FControl).ItemIndex := TcxRadioGroup(FControl).Properties.Items.Count - 1;
       end;
       //todo: обработать <не задано> если нужно
     end;
@@ -1246,7 +1246,7 @@ end;
 
 procedure TRadioEntitySelector.SwitchChangeHandlers(const AHandler: TNotifyEvent);
 begin
-  TcxRadioGroup(FControl.Control).Properties.OnChange := AHandler;
+  TcxRadioGroup(FControl).Properties.OnChange := AHandler;
 end;
 
 initialization

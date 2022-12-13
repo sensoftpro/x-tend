@@ -869,8 +869,8 @@ end;
 procedure TEntityListSelector.DoBeforeFreeControl;
 begin
   inherited;
-  FControl.Control := nil;
-  FreeAndNil(FListBox);
+  //FControl.Control := nil;
+  //FreeAndNil(FListBox);
 end;
 
 function TEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -1911,7 +1911,7 @@ procedure TCollectionEditor.SetPopupArea(const APopupArea: TUIArea);
 var
   vPopupMenu: TPopupMenu;
 begin
-  vPopupMenu := TPopupMenu(APopupArea.Control);
+  vPopupMenu := TPopupMenu(APopupArea.InnerControl);
   vPopupMenu.OnPopup := BeforeContextMenuShow;
   FMasterTableView.PopupMenu := vPopupMenu;
 end;
@@ -2935,7 +2935,7 @@ procedure TColumnListEditor.SetPopupArea(const APopupArea: TUIArea);
 var
   vPopupMenu: TPopupMenu;
 begin
-  vPopupMenu := TPopupMenu(APopupArea.Control);
+  vPopupMenu := TPopupMenu(APopupArea.InnerControl);
   vPopupMenu.OnPopup := BeforeContextMenuShow;
   FMasterTableView.PopupMenu := vPopupMenu;
 end;
@@ -3478,7 +3478,7 @@ procedure TPivotGrid.SetPopupArea(const APopupArea: TUIArea);
 var
   vPopupMenu: TPopupMenu;
 begin
-  vPopupMenu := TPopupMenu(APopupArea.Control);
+  vPopupMenu := TPopupMenu(APopupArea.InnerControl);
   vPopupMenu.OnPopup := BeforeContextMenuShow;
   FPivot.PopupMenu := vPopupMenu;
 end;
@@ -3880,7 +3880,7 @@ procedure TTreeCollectionEditor.SetPopupArea(const APopupArea: TUIArea);
 var
   vPopupMenu: TPopupMenu;
 begin
-  vPopupMenu := TPopupMenu(APopupArea.Control);
+  vPopupMenu := TPopupMenu(APopupArea.InnerControl);
   vPopupMenu.OnPopup := BeforeContextMenuShow;
   FTreeList.PopupMenu := vPopupMenu;
 end;
@@ -4025,8 +4025,8 @@ procedure TEntityListSelectorMTM.DoBeforeFreeControl;
 begin
   inherited;
   FreeAndNil(FEntityList);
-  FControl.Control := nil;
-  FreeAndNil(FListBox);
+  //FControl.Control := nil;
+  //FreeAndNil(FListBox);
 end;
 
 function TEntityListSelectorMTM.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -4268,8 +4268,8 @@ var
   vView: TView;
 begin
   inherited;
-  FControl.Control := nil;
-  FreeAndNil(FPages);
+  //FControl.Control := nil;
+  //FreeAndNil(FPages);
   for vView in FCreatedViews do
     vView.RemoveListener(Self);
   FreeAndNil(FCreatedViews);

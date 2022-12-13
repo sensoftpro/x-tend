@@ -82,7 +82,7 @@ var
 begin
   vDomain := TDomain(FView.Domain);
   vSceneClass := TSceneClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ChartPainter', 'Painting', vModuleName));
-  FScene := vSceneClass.Create(TVCLArea(AParent).Control);
+  FScene := vSceneClass.Create(TVCLArea(AParent).InnerControl);
   Result := TWinScene(FScene).Panel;
 end;
 
