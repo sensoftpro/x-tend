@@ -2550,6 +2550,7 @@ begin
     vPage := TcxTabSheet.Create(vPC);
     vPage.Caption := vSourceTab.Caption;
     vPage.ImageIndex := vSourceTab.ImageIndex;
+    vPage.Parent := vPC;
 
     vChildArea := TVCLArea.Create(Self, FView.Parent, vSourceTab.Name, False, vPage, vTabLayout);
     AddArea(vChildArea);
