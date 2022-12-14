@@ -72,6 +72,7 @@ type
 
     procedure DoBeginUpdate; virtual;
     procedure DoEndUpdate; virtual;
+    procedure DoAfterChildAreasCreated; virtual;
 
     procedure UnbindContent;
 
@@ -1257,6 +1258,7 @@ end;
 
 procedure TUIArea.DoAfterChildAreasCreated;
 begin
+  FNativeControl.DoAfterChildAreasCreated;
 end;
 
 function TUIArea.DoCreateChildAction(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
@@ -2126,10 +2128,15 @@ begin
   FControl := nil;
   FInteractor := nil;
   FUIBuilder := nil;
+
   inherited Destroy;
 end;
 
 procedure TNativeControl.DoActivate(const AUrlParams: string);
+begin
+end;
+
+procedure TNativeControl.DoAfterChildAreasCreated;
 begin
 end;
 

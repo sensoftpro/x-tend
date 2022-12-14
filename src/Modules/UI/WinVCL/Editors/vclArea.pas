@@ -63,6 +63,7 @@ type
     procedure DoEndUpdate; override;
 
     procedure ApplyTabStops(const ALayout: TLayout); override;
+    procedure DoAfterChildAreasCreated; override;
 
     procedure PlaceLabel;
     procedure SetLabelPosition(const Value: TLabelPosition);
@@ -86,13 +87,7 @@ type
   protected
     function DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea; override;
 
-    procedure DoAfterChildAreasCreated; override;
-
     property FControl: TObject read GetControl;
-  public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
-    destructor Destroy; override;
   end;
 
   TVCLFieldArea = class(TVCLArea)
@@ -203,6 +198,12 @@ type
   TCrackedWinControl = class(TWinControl) end;
   TCrackedControl = class(TControl) end;
 
+type
+  TUIAreaComparer = class(TComparer<TUIArea>)
+  public
+    function Compare(const ALeft, ARight: TUIArea): Integer; override;
+  end;
+
   TLayoutParam = class
     Name: string;
     Value: Variant;
@@ -311,70 +312,14 @@ begin
   end;
 end;
 
-{ TVCLArea }
+{ TUIAreaComparer }
 
-constructor TVCLArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
-begin
-  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
-end;
-
-type
-  TVCLAreaComparer = class(TComparer<TVCLArea>)
-  public
-    function Compare(const ALeft, ARight: TVCLArea): Integer; override;
-  end;
-
-function TVCLAreaComparer.Compare(const ALeft, ARight: TVCLArea): Integer;
+function TUIAreaComparer.Compare(const ALeft, ARight: TUIArea): Integer;
 begin
   Result := ARight.TabOrder - ALeft.TabOrder;
 end;
 
-procedure TVCLArea.DoAfterChildAreasCreated;
-var
-  i: Integer;
-  function FindControlForSplitter(const ASplitter: TcxSplitter): TControl;
-  var
-    c: Integer;
-  begin
-    Result := nil;
-    for c := 0 to Count - 1 do
-      if (Areas[c].InnerControl <> ASplitter) and (Areas[c].InnerControl is TControl)
-        and (TControl(Areas[c].InnerControl).Align = ASplitter.Align) then
-      begin
-        Result := TControl(Areas[c].InnerControl);
-        Break;
-      end;
-  end;
-
-  procedure ApplyTabOrder;
-  var
-    vList: TList<TVCLArea>;
-    v: Integer;
-  begin
-    vList := TList<TVCLArea>.Create(TVCLAreaComparer.Create);
-    try
-      for v := 0 to Count - 1 do
-        if (Areas[v].InnerControl is TWinControl) and TWinControl(Areas[v].InnerControl).TabStop then
-          vList.Add(TVCLArea(Areas[v]));
-
-      vList.Sort;
-
-      for v := 0 to vList.Count - 1 do
-        TWinControl(vList[v].InnerControl).TabOrder := vList[v].TabOrder;
-    finally
-      FreeAndNil(vList);
-    end;
-  end;
-begin
-  // прицепляем сплиттер к своему контролу, чтобы не отлипал в некоторых случаях, обрабатываем только простой случай: сплиттер с таким размещением один в текущей области
-  for i := 0 to Count - 1 do
-    if Areas[i].InnerControl is TcxSplitter then
-      TcxSplitter(Areas[i].InnerControl).Control := FindControlForSplitter(TcxSplitter(Areas[i].InnerControl));
-
-  if Count > 1 then
-    ApplyTabOrder;
-end;
+{ TVCLArea }
 
 function TVCLArea.DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
 var
@@ -395,28 +340,6 @@ end;
 function TVCLArea.GetControl: TObject;
 begin
   Result := FNativeControl.Control;
-end;
-
-destructor TVCLArea.Destroy;
-var
-  vControl: TObject;
-begin
-  vControl := FControl;
-
-  inherited Destroy;
-
-  if not Assigned(vControl) then
-    Exit;
-  if not (vControl is TComponent) then
-    Exit;
-
-  if vControl is TForm then
-  begin
-    if (TForm(vControl).FormStyle = fsMDIChild) or (FId = 'float') then
-      FreeAndNil(vControl);
-  end
-  else
-    FreeAndNil(vControl);
 end;
 
 { TVCLFieldArea }
@@ -1940,6 +1863,9 @@ begin
 end;
 
 destructor TVCLControl.Destroy;
+var
+  vControl: TObject;
+  vIsFloat: Boolean;
 begin
   if Assigned(FCaption) then
   begin
@@ -1947,7 +1873,23 @@ begin
     FreeAndNil(FCaption);
   end;
 
+  vControl := FControl;
+  vIsFloat := FOwner.Id = 'float';
+
   inherited Destroy;
+
+  if not Assigned(vControl) then
+    Exit;
+  if not (vControl is TComponent) then
+    Exit;
+
+  if vControl is TForm then
+  begin
+    if (TForm(vControl).FormStyle = fsMDIChild) or vIsFloat then
+      FreeAndNil(vControl);
+  end
+  else
+    FreeAndNil(vControl);
 end;
 
 procedure TVCLControl.DoActivate(const AUrlParams: string);
@@ -1973,6 +1915,52 @@ begin
       TForm(FControl).BringToFront;
     end;
   end;
+end;
+
+procedure TVCLControl.DoAfterChildAreasCreated;
+var
+  i: Integer;
+  function FindControlForSplitter(const ASplitter: TcxSplitter): TControl;
+  var
+    c: Integer;
+  begin
+    Result := nil;
+    for c := 0 to FOwner.Count - 1 do
+      if (FOwner[c].InnerControl <> ASplitter) and (FOwner[c].InnerControl is TControl)
+        and (TControl(FOwner[c].InnerControl).Align = ASplitter.Align) then
+      begin
+        Result := TControl(FOwner[c].InnerControl);
+        Break;
+      end;
+  end;
+
+  procedure ApplyTabOrder;
+  var
+    vList: TList<TUIArea>;
+    v: Integer;
+  begin
+    vList := TList<TUIArea>.Create(TUIAreaComparer.Create);
+    try
+      for v := 0 to FOwner.Count - 1 do
+        if (FOwner[v].InnerControl is TWinControl) and TWinControl(FOwner[v].InnerControl).TabStop then
+          vList.Add(TUIArea(FOwner[v]));
+
+      vList.Sort;
+
+      for v := 0 to vList.Count - 1 do
+        TWinControl(vList[v].InnerControl).TabOrder := vList[v].TabOrder;
+    finally
+      FreeAndNil(vList);
+    end;
+  end;
+begin
+  // прицепляем сплиттер к своему контролу, чтобы не отлипал в некоторых случаях, обрабатываем только простой случай: сплиттер с таким размещением один в текущей области
+  for i := 0 to FOwner.Count - 1 do
+    if FOwner[i].InnerControl is TcxSplitter then
+      TcxSplitter(FOwner[i].InnerControl).Control := FindControlForSplitter(TcxSplitter(FOwner[i].InnerControl));
+
+  if FOwner.Count > 1 then
+    ApplyTabOrder;
 end;
 
 procedure TVCLControl.DoBeginUpdate;
