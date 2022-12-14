@@ -66,7 +66,6 @@ type
 
     procedure OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
     procedure OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
-    procedure OnActionMenuSelected(Sender: TObject);
   protected
     //FOnRFIDRead: TRFIDReadEvent;
     FTrayIcon: TTrayIcon;
@@ -443,8 +442,7 @@ begin
             vDefinition := TDefinition(vDefinitions[j]);
             vChildItem := TMenuItem.Create(nil);
             vChildItem.Caption := AParent.GetTranslation(vDefinition);
-            vChildItem.Tag := Integer(vDestItem);
-            vChildItem.OnClick := OnActionMenuSelected;
+            vChildItem.OnClick := AParent.OnActionMenuSelected;
             vDestItem.Add(vChildItem);
           end;
         end
@@ -460,6 +458,9 @@ begin
         vDestItem.AutoCheck := True;
 
       vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, vDestItem, vSrcItem);
+      for j := 0 to vDestItem.Count - 1 do
+        vDestItem[j].Tag := Integer(vChildArea);
+
       TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
 
       AParent.AddArea(vChildArea);
@@ -1223,36 +1224,6 @@ begin
     msWarning: Result := MB_ICONWARNING;
     msError: Result := MB_ICONERROR;
   end;
-end;
-
-procedure TWinVCLPresenter.OnActionMenuSelected(Sender: TObject);
-var
-  vControl: TComponent;
-  vMenuItem: TMenuItem;
-  vArea: TVCLArea;
-  vSelectedIndex: Integer;
-begin
-  vMenuItem := TMenuItem(Sender);
-  vControl := TComponent(vMenuItem.Tag);
-  vArea := TVCLArea(vControl.Tag);
-  if not Assigned(vArea) then
-    Exit;
-  if not Assigned(vArea.View) then
-    Exit;
-  if not Assigned(vArea.View.DomainObject) then
-    Exit;
-
-  if vControl is TMenuItem then
-    vSelectedIndex := TMenuItem(vControl).IndexOf(vMenuItem)
-  else begin
-    if not Assigned(TcxButton(vControl).DropDownMenu) then
-      Exit;
-    vSelectedIndex := TPopupMenu(TcxButton(vControl).DropDownMenu).Items.IndexOf(vMenuItem);
-  end;
-
-  Assert(vSelectedIndex >= 0, 'Выбран неизвестный пункт меню');
-  TEntity(vArea.View.DomainObject)._SetFieldValue(TDomain(vArea.Domain).DomainHolder, 'SelectedIndex', vSelectedIndex);
-  vArea.OnAreaClick(vControl);
 end;
 
 procedure TWinVCLPresenter.OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);

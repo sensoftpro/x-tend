@@ -125,5 +125,8 @@ object EditForm: TEditForm
     object DistrictsWorkAreaWorkAreaLayoutCollection1: TMenuItem
       Caption = 'Districts?WorkArea=WorkArea&Layout=Collection'
     end
+    object DistrictsWorkAreaWorkAreaLayoutCollection2: TMenuItem
+      Caption = '_Owners?WorkArea=WorkArea&Layout=Collection'
+    end
   end
 end

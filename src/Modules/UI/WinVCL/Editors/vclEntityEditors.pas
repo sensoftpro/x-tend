@@ -67,6 +67,7 @@ type
     FSelectPopup: TSelectEntityPopup;
     FTypeSelectionMenu: TPopupMenu;
     FButtonView: TView;
+    FAddArea: TUIArea;
     procedure OnSelectClick(Sender: TObject);
     procedure OnAddClick(Sender: TObject);
     procedure ShowPopup(const AFilter: string);
@@ -77,7 +78,6 @@ type
     procedure OnWinControlKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure OnComboMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
     function GetDisabledBorderStyle: TcxEditBorderStyle;
-    procedure OnActionMenuSelected(Sender: TObject);
   protected
     procedure UpdateVisibility; virtual;
   protected
@@ -188,9 +188,6 @@ procedure TVCLEntityFieldEditor.DoBeforeFreeControl;
 begin
   inherited;
 
-  if Assigned(FButtonView) then
-    FButtonView.RemoveListener(Self);
-
   FreeAndNil(FTypeSelectionMenu);
   FreeAndNil(FSelectPopup);
   FreeAndNil(FEntities);
@@ -255,9 +252,10 @@ begin
   FbtnAdd.SpeedButtonOptions.Transparent := True;
   FbtnAdd.Align := alRight;
   FbtnAdd.TabStop := False;
-  //FbtnAdd.Tag := Integer();
   FButtonView := FView.BuildView('Create?place=embedded');
-  FButtonView.AddListener(Self);
+
+  FAddArea := TVCLArea.Create(Self, FButtonView, '', False, FbtnAdd, nil);
+  AddArea(FAddArea);
 
   vDefinitions := TEntityFieldDef(FFieldDef).ContentDefinitions;
   if vDefinitions.Count > 1 then
@@ -270,7 +268,7 @@ begin
       vMenuItem := TMenuItem.Create(nil);
       vMenuItem.Caption := GetTranslation(vDefinition);
       vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
-      vMenuItem.Tag := Integer(FbtnAdd);
+      vMenuItem.Tag := Integer(FAddArea);
       vMenuItem.OnClick := OnActionMenuSelected;
       FTypeSelectionMenu.Items.Add(vMenuItem);
     end;
@@ -296,24 +294,6 @@ end;
 
 type
   TWinControlAccess = class (TWinControl);
-
-procedure TVCLEntityFieldEditor.OnActionMenuSelected(Sender: TObject);
-var
-  vMenuItem: TMenuItem;
-  vSelectedIndex: Integer;
-begin
-  vMenuItem := TMenuItem(Sender);
-
-  vSelectedIndex := vMenuItem.MenuIndex;
-
-  Assert(vSelectedIndex >= 0, 'Выбран неизвестный пункт меню');
-  if Assigned(FButtonView) then
-  begin
-    TEntity(FButtonView.DomainObject)._SetFieldValue(FSession.NullHolder, 'SelectedIndex', vSelectedIndex);
-    FUIBuilder.LastArea := Self;
-    ExecuteUIAction(FButtonView);
-  end;
-end;
 
 procedure TVCLEntityFieldEditor.ClosePopup;
 begin

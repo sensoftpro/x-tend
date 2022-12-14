@@ -57,7 +57,9 @@ type
     FTabOrder: Integer;
     FTabStop: Boolean;
 
+    function IndexOfControl(const AControl: TObject): Integer; virtual;
     function AreaFromSender(const ASender: TObject): TUIArea; virtual;
+    function TagFromSender(const ASender: TObject): Integer; virtual;
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); virtual;
     procedure DoClose(const AModalResult: Integer); virtual;
     function GetName: string; virtual;
@@ -200,6 +202,7 @@ type
     procedure Activate(const AUrlParams: string);
     procedure OnEnter(Sender: TObject);
     procedure OnExit(Sender: TObject);
+    procedure OnActionMenuSelected(Sender: TObject);
     procedure OnAreaClick(Sender: TObject);
 
     procedure AddParams(const AParams: TStrings);
@@ -1590,6 +1593,28 @@ begin
   Result := FUIBuilder.FPresenter;
 end;
 
+procedure TUIArea.OnActionMenuSelected(Sender: TObject);
+var
+  vControl: TObject;
+  vArea: TUIArea;
+  vSelectedIndex: Integer;
+begin
+  vArea := FNativeControl.AreaFromSender(Sender);
+  if not Assigned(vArea) then
+    Exit;
+  if not Assigned(vArea.View) then
+    Exit;
+  if not Assigned(vArea.View.DomainObject) then
+    Exit;
+
+  vControl := vArea.InnerControl;
+  vSelectedIndex := FNativeControl.IndexOfControl(Sender);
+  Assert(vSelectedIndex >= 0, 'Выбран неизвестный пункт меню');
+
+  TEntity(vArea.View.DomainObject)._SetFieldValue(FSession.NullHolder, 'SelectedIndex', vSelectedIndex);
+  OnAreaClick(vControl);
+end;
+
 procedure TUIArea.OnAreaClick(Sender: TObject);
 var
   vArea: TUIArea;
@@ -1643,11 +1668,15 @@ begin
     Exit;
 
   vNavItem := TNavigationItem(AArea.Layout);
-  Assert(Assigned(vNavItem), 'Ууупс!');
-
-  vOwner := vNavItem.Owner;
-  if Assigned(vOwner) then
-    vDefaultWorkArea := vOwner.ExtractString('contentworkarea', 'WorkArea')
+  if Assigned(vNavItem) then
+  begin
+    //Assert(Assigned(vNavItem), 'Ууупс!');
+    vOwner := vNavItem.Owner;
+    if Assigned(vOwner) then
+      vDefaultWorkArea := vOwner.ExtractString('contentworkarea', 'WorkArea')
+    else
+      vDefaultWorkArea := 'WorkArea';
+  end
   else
     vDefaultWorkArea := 'WorkArea';
 
@@ -2126,6 +2155,11 @@ begin
   Result := '[area]';
 end;
 
+function TNativeControl.IndexOfControl(const AControl: TObject): Integer;
+begin
+  Result := -1;
+end;
+
 procedure TNativeControl.PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer);
 begin
 end;
@@ -2146,6 +2180,11 @@ end;
 
 procedure TNativeControl.SetViewState(const AValue: TViewState);
 begin
+end;
+
+function TNativeControl.TagFromSender(const ASender: TObject): Integer;
+begin
+  Result := -1;
 end;
 
 procedure TNativeControl.UnbindContent;

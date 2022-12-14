@@ -48,6 +48,7 @@ type
     FCaption: TLabel;
     procedure BeforeContextMenuShow(Sender: TObject);
   protected
+    function IndexOfControl(const AControl: TObject): Integer; override;
     function AreaFromSender(const ASender: TObject): TUIArea; override;
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); override;
     procedure DoClose(const AModalResult: Integer); override;
@@ -82,16 +83,12 @@ type
   private
     // Выполнение действий (Actions и переходы)
     function GetControl: TObject;
-    procedure OnActionMenuSelected(Sender: TObject);
   protected
     function DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea; override;
 
     procedure DoAfterChildAreasCreated; override;
 
     property FControl: TObject read GetControl;
-  protected
-    procedure ArrangeChildAreas; override;
-    procedure SaveLayoutToFile(const AFileName: string); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
       const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
@@ -316,99 +313,6 @@ end;
 
 { TVCLArea }
 
-procedure TVCLArea.ArrangeChildAreas;
-const
-  cColumnWidth = 250;
-  cBetweenRows = 27;
-  cBetweenColumns = 25;
-  cSideRate = 3/2;
-  cBorder = 12;
-var
-  vTotalHeight: Integer;
-  vEditor: TVCLArea;
-  vCurColumnHeight: Integer;
-  vRealMaxHeightInColumn: Integer;
-  vOneRowHeight: Integer;
-  vColumnCount: Integer;
-  i: Integer;
-  vRealColumnCount: Integer;
-  vBestRate: Double;
-  vHeightInColumn: Integer;
-  vCurRate: Double;
-  vBestColumnCount: Integer;
-
-  function CalcLayoutPositionCount(const AArea: TUIArea): Integer;
-  begin
-    if AArea is TVCLFieldArea then
-      Result := TVCLFieldArea(AArea).LayoutPositionCount
-    else if AArea.View.DefinitionKind = dkAction then
-      Result := 1
-    else
-      Result := 3;
-  end;
-begin
-  vOneRowHeight := Abs(TCrackedWinControl(FControl).Font.Height) + 8; //editor + label + borders
-
-  vTotalHeight := 0;
-  for i := 0 to Count - 1 do
-    vTotalHeight := vTotalHeight + CalcLayoutPositionCount(Areas[i]) * (vOneRowHeight + cBetweenRows);
-  vBestRate := -1000;
-  vBestColumnCount := -1;
-  // select best columnt count
-  for vColumnCount := 1 to 4 do
-  begin
-    vHeightInColumn := vTotalHeight div vColumnCount;
-    vCurColumnHeight := 0;
-    vRealMaxHeightInColumn := 0;
-    for i := 0 to Count - 1 do
-    begin
-      vCurColumnHeight := vCurColumnHeight + CalcLayoutPositionCount(Areas[i]) * (vOneRowHeight + cBetweenRows);
-      if vCurColumnHeight >= vHeightInColumn then
-      begin
-        if vCurColumnHeight > vRealMaxHeightInColumn then
-          vRealMaxHeightInColumn := vCurColumnHeight;
-        vCurColumnHeight := 0;
-      end;
-    end;
-    //vCurRate := width/height
-    vCurRate := (vColumnCount * (cColumnWidth + cBetweenColumns) - cBetweenColumns) / vRealMaxHeightInColumn;
-    if Min(vCurRate, cSideRate) / Max(vCurRate, cSideRate) > Min(vBestRate, cSideRate) / Max(vBestRate, cSideRate) then
-    begin
-      vBestColumnCount := vColumnCount;
-      vBestRate := vCurRate;
-    end
-    else
-      Break;
-  end;
-  vHeightInColumn := vTotalHeight div vBestColumnCount;
-  vCurColumnHeight := 0;
-  vRealMaxHeightInColumn := 0;
-  vRealColumnCount := 1;
-
-  for i := 0 to Count - 1 do
-  begin
-    vEditor := TVCLArea(Areas[i]);
-    vEditor.SetBounds(
-      cBorder + (vRealColumnCount - 1) * (cColumnWidth + cBetweenColumns), cBorder + cBetweenRows + vCurColumnHeight,
-      cColumnWidth, CalcLayoutPositionCount(vEditor) * (vOneRowHeight + cBetweenRows) - cBetweenRows);
-
-    vCurColumnHeight := vCurColumnHeight + TControl(TVCLFieldArea(vEditor).FControl).Height + cBetweenRows;
-    if vCurColumnHeight >= vHeightInColumn then
-    begin
-      if vCurColumnHeight > vRealMaxHeightInColumn then
-        vRealMaxHeightInColumn := vCurColumnHeight;
-      vCurColumnHeight := 0;
-      if i < Count - 1 then  // not last
-        vRealColumnCount := vRealColumnCount + 1;
-    end;
-  end;
-
-  TControl(FControl).ClientWidth := (vRealColumnCount * (cColumnWidth + cBetweenColumns) - cBetweenColumns) + cBorder*2;
-  TControl(FControl).ClientHeight := vRealMaxHeightInColumn + cBorder * 2 + 8;
-  if FNativeControl.IsForm and (FView.DefinitionKind <> dkDomain) then
-    TControl(FControl).ClientHeight := TControl(FControl).ClientHeight + cServiceAreaHeight;
-end;
-
 constructor TVCLArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
   const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
 begin
@@ -493,36 +397,6 @@ begin
   Result := FNativeControl.Control;
 end;
 
-procedure TVCLArea.OnActionMenuSelected(Sender: TObject);
-var
-  vControl: TComponent;
-  vMenuItem: TMenuItem;
-  vArea: TVCLArea;
-  vSelectedIndex: Integer;
-begin
-  vMenuItem := TMenuItem(Sender);
-  vControl := TComponent(vMenuItem.Tag);
-  vArea := TVCLArea(vControl.Tag);
-  if not Assigned(vArea) then
-    Exit;
-  if not Assigned(vArea.View) then
-    Exit;
-  if not Assigned(vArea.View.DomainObject) then
-    Exit;
-
-  if vControl is TMenuItem then
-    vSelectedIndex := TMenuItem(vControl).IndexOf(vMenuItem)
-  else begin
-    if not Assigned(TcxButton(vControl).DropDownMenu) then
-      Exit;
-    vSelectedIndex := TPopupMenu(TcxButton(vControl).DropDownMenu).Items.IndexOf(vMenuItem);
-  end;
-
-  Assert(vSelectedIndex >= 0, 'Выбран неизвестный пункт меню');
-  TEntity(vArea.View.DomainObject)._SetFieldValue(FSession.NullHolder, 'SelectedIndex', vSelectedIndex);
-  OnAreaClick(vControl);
-end;
-
 destructor TVCLArea.Destroy;
 var
   vControl: TObject;
@@ -543,19 +417,6 @@ begin
   end
   else
     FreeAndNil(vControl);
-end;
-
-procedure TVCLArea.SaveLayoutToFile(const AFileName: string);
-var
-  vLayout: TUILayout;
-begin
-  vLayout := TUILayout.Create;
-  try
-    vLayout.Build(Self);
-    vLayout.SaveToDFM(AFileName);
-  finally
-    vLayout.Free;
-  end;
 end;
 
 { TVCLFieldArea }
@@ -1703,7 +1564,7 @@ begin
         if Length(vOverriddenCaption) > 0 then
           vMenuItem.Caption := vOverriddenCaption;
         vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
-        vMenuItem.Tag := Integer(vButton);
+        vMenuItem.Tag := Integer(Self); //Integer(vButton);
         vMenuItem.OnClick := OnActionMenuSelected;
         FTypeSelectionMenu.Items.Add(vMenuItem);
       end;
@@ -2170,6 +2031,16 @@ begin
     Result := FControl.ClassName + ': ' + FOwner.Id + ' (' + TCrackedWinControl(FControl).Caption + ')'
   else
     Result := FControl.ClassName + ': ' + FOwner.Id;
+end;
+
+function TVCLControl.IndexOfControl(const AControl: TObject): Integer;
+var
+  vMenuItem: TMenuItem absolute AControl;
+begin
+  if vMenuItem.HasParent then
+    Result := vMenuItem.Parent.IndexOf(vMenuItem)
+  else
+    Result := -1;
 end;
 
 procedure TVCLControl.PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer);

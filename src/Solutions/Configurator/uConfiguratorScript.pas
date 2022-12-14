@@ -267,10 +267,18 @@ begin
   vDefinition := AddDefinition('Configurations', '_Configurations', 'Конфигурации', cNullItemName, 0).SetImageID(9);
   vDefinition.AddAction('MakeSolution', 'Создать приложение', 0);
 
-
   vDefinition := AddDefinition('Streets', '', 'Улицы', cNullItemName);
   vDefinition.AddSimpleFieldDef('Name', 'name', 'Наименование', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);
   vDefinition.AddListFieldDef('Districts', 'Street', 'Район', 'StreetDistrictRelations', '', 'mtm?transit=District', vsFullAccess, 0, estUserSort, '', rpStrong);
+  vDefinition.AddListFieldDef('Owners', 'Street', 'Владельцы', '_Owners', '', '', vsFullAccess, 0, estUserSort, '', rpStrong);
+  vDefinition.AddEntityFieldDef('Owner', 'owner', 'Главный', '', '_Owners', 0, vsFullAccess, cRequired);
+
+  vDefinition := AddDefinition('_Owners', '', 'Владельцы', cNullItemName, 0, clkMixin);
+  vDefinition.AddEntityFieldDef('Street', 'street', 'Улица', '', 'Streets', 0, vsHidden, cRequired);
+  vDefinition.AddSimpleFieldDef('Name', 'name', 'Наименование', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);
+
+  AddDefinition('Persons', '_Owners', 'Люди', cNullItemName);
+  AddDefinition('Animals', '_Owners', 'Животные', cNullItemName);
 
   vDefinition := AddDefinition('Districts', '', 'Районы', cNullItemName);
   vDefinition.AddSimpleFieldDef('Name', 'name', 'Наименование', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);

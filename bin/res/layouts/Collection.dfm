@@ -25,6 +25,7 @@ object EditForm: TEditForm
     ParentFont = False
     PopupMenu = GridPopup
     TabOrder = 0
+    ExplicitTop = 82
   end
   object Panel3: TPanel
     Left = 0

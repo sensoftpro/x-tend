@@ -27,6 +27,7 @@ type
     Panel4: TPanel;
     ConfigurationsCaption1: TMenuItem;
     Configurations1: TMenuItem;
+    DistrictsWorkAreaWorkAreaLayoutCollection2: TMenuItem;
   end;
 
 implementation
