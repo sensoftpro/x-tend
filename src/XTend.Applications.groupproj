@@ -6,6 +6,12 @@
         <Projects Include="Solutions\Configurator\Configurator.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Solutions\test\test.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Solutions\test123\test123.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -23,14 +29,32 @@
     <Target Name="Configurator:Make">
         <MSBuild Projects="Solutions\Configurator\Configurator.dproj" Targets="Make"/>
     </Target>
+    <Target Name="test">
+        <MSBuild Projects="Solutions\test\test.dproj"/>
+    </Target>
+    <Target Name="test:Clean">
+        <MSBuild Projects="Solutions\test\test.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="test:Make">
+        <MSBuild Projects="Solutions\test\test.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="test123">
+        <MSBuild Projects="Solutions\test123\test123.dproj"/>
+    </Target>
+    <Target Name="test123:Clean">
+        <MSBuild Projects="Solutions\test123\test123.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="test123:Make">
+        <MSBuild Projects="Solutions\test123\test123.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Configurator"/>
+        <CallTarget Targets="Configurator;test;test123"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Configurator:Clean"/>
+        <CallTarget Targets="Configurator:Clean;test:Clean;test123:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Configurator:Make"/>
+        <CallTarget Targets="Configurator:Make;test:Make;test123:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>

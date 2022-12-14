@@ -67,7 +67,7 @@ begin
 
   if Assigned(FScene) then
     FChart := TDataChart.Create(FScene, nil);
-    //FAliveRect := TAliveRect.Create(FScene, nil, RectF(100, 100, 500, 300), TAlphaColorRec.Blueviolet, TAlphaColorRec.Blue, 1.2);
+//    FAliveRect := TAliveRect.Create(FScene, nil, RectF(100, 100, 500, 300), TAlphaColorRec.Blueviolet, TAlphaColorRec.Blue, 1.2);
 end;
 
 procedure TfmMain.btnMeasureClick(Sender: TObject);
