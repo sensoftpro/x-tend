@@ -102,6 +102,9 @@ type
     procedure DoEnumerateControls(const ALayout: TLayout); override;
     procedure DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string); override;
     function DoGetLayoutCaption(const ALayout: TLayout): string; override;
+    procedure DoSetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer); override;
+    procedure DoSetLayoutXY(const ALayout: TLayout; const AX, AY: Integer); override;
+    function DoGetLayoutBounds(const ALayout: TLayout): TRect; override;
   public
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
@@ -284,7 +287,10 @@ begin
   end;
 
   if Assigned(vControl) then
-    Result := TLayout.Create(ALayoutKind, vControl, True)
+  begin
+    Result := TLayout.Create(ALayoutKind, vControl, True);
+    Result.Presenter := Self;
+  end
   else
     Result := nil;
 
@@ -475,6 +481,16 @@ begin
   finally
     vCloseView.RemoveListener(vArea);
   end;
+end;
+
+function TWinVCLPresenter.DoGetLayoutBounds(const ALayout: TLayout): TRect;
+begin
+  if Assigned(TControl(ALayout.Control).Parent) then
+    Result := TControl(ALayout.Control).ClientRect
+  else
+    Result := Rect(TControl(ALayout.Control).Left, TControl(ALayout.Control).Top,
+      TControl(ALayout.Control).Left + TControl(ALayout.Control).Width,
+      TControl(ALayout.Control).Top + TControl(ALayout.Control).Height);
 end;
 
 function TWinVCLPresenter.DoGetLayoutCaption(const ALayout: TLayout): string;
@@ -1366,9 +1382,20 @@ begin
   Screen.Cursor := cCursors[ACursorType];
 end;
 
+procedure TWinVCLPresenter.DoSetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer);
+begin
+  TControl(ALayout.Control).SetBounds(AX, AY, AWidth, AHeight);
+end;
+
 procedure TWinVCLPresenter.DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string);
 begin
   TPanel(ALayout.Control).Caption := ACaption;
+end;
+
+procedure TWinVCLPresenter.DoSetLayoutXY(const ALayout: TLayout; const AX, AY: Integer);
+begin
+  TControl(ALayout.Control).Left := AX;
+  TControl(ALayout.Control).Top := AY;
 end;
 
 function TWinVCLPresenter.DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;

@@ -242,8 +242,8 @@ type
     [Weak] FInteractor: TObject;
     [Weak] FPresenter: TObject;
 
-    procedure MakeLayoutFromFile(const AArea: TUIArea; const AView: TView; const AFileName: string; const AParams: string);
-    procedure MakeDefaultLayout(const AArea: TUIArea; const AView: TView);
+    function MakeLayoutFromFile(const AFileName: string; const AParams: string): TLayout;
+    function MakeDefaultLayout(const AView: TView; const ALayoutName: string): TLayout;
     procedure SetLastArea(const Value: TUIArea);
     procedure SetPagedArea(const Value: TUIArea);
 
@@ -293,6 +293,7 @@ var
   vRoles: TListField;
   vRole: TEntity;
   vPostfix, vParams: string;
+  vLayout: TLayout;
 begin
   vParams := AParams;
   if Pos('childLayout=' + ALayoutName, AParams) > 0 then
@@ -315,20 +316,25 @@ begin
 
   vFileName := TConfiguration(TInteractor(FInteractor).Configuration).FindLayoutFile(ALayoutName, LAYOUT_DFM_EXT, vPostfix);
   if FileExists(vFileName) then
-    MakeLayoutFromFile(AArea, AView, vFileName, vParams)
+    vLayout := MakeLayoutFromFile(vFileName, vParams)
   else
-  begin
-    MakeDefaultLayout(AArea, AView);
-    if (_Platform.DeploymentType = 'dev') or (_Platform.DeploymentType = 'mock') then
-      AArea.SaveLayoutToFile(TPath.Combine(TPath.GetTempPath, ALayoutName + '_auto'));
-  end;
+    vLayout := MakeDefaultLayout(AView, ALayoutName);
 
-  AArea.SetBounds(
-    StrToIntDef(GetUrlParam(AParams, 'Left', ''), -1),
-    StrToIntDef(GetUrlParam(AParams, 'Top', ''), -1),
-    StrToIntDef(GetUrlParam(AParams, 'Width', ''), -1),
-    StrToIntDef(GetUrlParam(AParams, 'Height', ''), -1)
-  );
+  AArea.BeginUpdate;
+  try
+    TPresenter(FPresenter).EnumerateControls(vLayout);
+    AArea.AssignFromLayout(vLayout, AParams);
+    AArea.SetView(AView);
+    CreateChildAreas(AArea, vLayout, AParams);
+    AArea.SetBounds(
+      StrToIntDef(GetUrlParam(AParams, 'Left', ''), -1),
+      StrToIntDef(GetUrlParam(AParams, 'Top', ''), -1),
+      StrToIntDef(GetUrlParam(AParams, 'Width', ''), -1),
+      StrToIntDef(GetUrlParam(AParams, 'Height', ''), -1)
+    );
+  finally
+    AArea.EndUpdate;
+  end;
 end;
 
 procedure TUIBuilder.CloseCurrentArea(const AModalResult: Integer);
@@ -407,16 +413,25 @@ begin
   Result := TInteractor(FInteractor).GetImageIndex(AImageID);
 end;
 
-procedure TUIBuilder.MakeDefaultLayout(const AArea: TUIArea; const AView: TView);
+function TUIBuilder.MakeDefaultLayout(const AView: TView; const ALayoutName: string): TLayout;
 var
   vDefinition: TDefinition;
   vFieldDef: TFieldDef;
   vAction: TActionDef;
   vView: TView;
-  vArea: TUIArea;
-  vParentLayout: TLayout;
   vLayout: TLayout;
+  vOneRowHeight: Integer;
+  function CalcLayoutPositionCount(const AFieldKind: TFieldKind; const AViewName: string): Integer;
+  begin
+    if ((AFieldKind = fkString) and (AViewName = 'memo')) or (AFieldKind = fkBlob) then
+      Result := 2
+    else if AFieldKind = fkList then
+      Result := 3
+    else
+      Result := 1;
+  end;
 begin
+  Result := nil;
   if not Assigned(AView) or not (AView.DefinitionKind in [dkEntity, dkAction, dkObjectField]) then
     Exit;
 
@@ -433,70 +448,57 @@ begin
   if not Assigned(vDefinition) then
     Exit;
 
-  vParentLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
-  AView.AddListener(AArea);
-  try
-    for vAction in vDefinition.Actions.Objects do
-    begin
-      vView := AView.BuildView(vAction.Name);
-      if Assigned(vView) then
-      begin
-        if vView.State > vsHidden then
-        begin
-          vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
-          vParentLayout.Add(vLayout);
-          vArea := AArea.DoCreateChildAction(vLayout, vView, 'place=embedded');
-          AArea.AddArea(vArea);
-          vArea.UpdateArea(dckViewStateChanged);
-        end
-        else
-          vView.CleanView;
-      end;
-    end;
+  Result := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
 
-    for vFieldDef in vDefinition.Fields do
+  for vAction in vDefinition.Actions.Objects do
+  begin
+    vView := AView.BuildView(vAction.Name);
+    if Assigned(vView) then
     begin
-      vView := AView.BuildView(vFieldDef.Name);
-      if Assigned(vView) then
+      if vView.State > vsHidden then
       begin
-        if not TInteractor(FInteractor).NeedSkipField(nil, vFieldDef) and (vFieldDef.Kind <> fkComplex) then
-        begin
-          vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
-          vParentLayout.Add(vLayout);
-
-          if vFieldDef.Kind = fkList then
-          begin
-            vArea := AArea.CreateChildLayoutedArea(vLayout, AView.ViewByName(vFieldDef.Name), 'DefaultList', '');
-            vArea.CreateCaption(vFieldDef);
-          end
-          else
-            vArea := AArea.DoCreateChildEditor(vLayout, vView, '');
-          AArea.AddArea(vArea);
-          vArea.UpdateArea(dckFieldChanged);
-        end
-        else
-          vView.CleanView;
-      end;
+        vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
+        TPresenter(FPresenter).SetLayoutCaption(vLayout, vAction.Name);
+        Result.Add(vLayout);
+      end
+      else
+        vView.CleanView;
     end;
-  finally
-    AView.RemoveListener(AArea);
   end;
 
-  AArea.Layout := vParentLayout;
+  vOneRowHeight := TPresenter(Presenter).GetLayoutFontHeight(Result) + 8;
 
-  if AArea.Count > 0 then
-    AArea.ArrangeChildAreas;
+  for vFieldDef in vDefinition.Fields do
+  begin
+    vView := AView.BuildView(vFieldDef.Name);
+    if Assigned(vView) then
+    begin
+      if not TInteractor(FInteractor).NeedSkipField(nil, vFieldDef) and (vFieldDef.Kind <> fkComplex) then
+      begin
+        vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
+        TPresenter(FPresenter).SetLayoutCaption(vLayout, vFieldDef.Name);
+        TPresenter(FPresenter).SetLayoutBounds(vLayout, 0, 0, cDefaultColumnWidth, CalcLayoutPositionCount(vFieldDef.Kind, vFieldDef.StyleName) * (vOneRowHeight + cBetweenRows) - cBetweenRows);
+        Result.Add(vLayout);
+      end
+      else
+        vView.CleanView;
+    end;
+  end;
+
+  Result.ArrangeChildAreas;
+
+  if (_Platform.DeploymentType = 'dev') or (_Platform.DeploymentType = 'mock') then
+    Result.SaveToDFM(TPath.Combine(TPath.GetTempPath, ALayoutName + '_auto'));
 end;
 
-procedure TUIBuilder.MakeLayoutFromFile(const AArea: TUIArea; const AView: TView; const AFileName: string; const AParams: string);
+function TUIBuilder.MakeLayoutFromFile(const AFileName: string; const AParams: string): TLayout;
 var
   vFileStream: TStream;
   vMemStream: TStream;
-  vLayout: TLayout;
   vFrame: TComponent;
 begin
-  vLayout := TPresenter(FPresenter).CreateLayoutArea(lkFrame);
-  vFrame := TComponent(vLayout.Control);
+  Result := TPresenter(FPresenter).CreateLayoutArea(lkFrame);
+  vFrame := TComponent(Result.Control);
   vFileStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyNone);
   vMemStream := TMemoryStream.Create;
   try
@@ -507,16 +509,6 @@ begin
   finally
     FreeAndNil(vFileStream);
     FreeAndNil(vMemStream);
-  end;
-
-  AArea.BeginUpdate;
-  try
-    TPresenter(FPresenter).EnumerateControls(vLayout);
-    AArea.AssignFromLayout(vLayout, AParams);
-    AArea.SetView(AView);
-    CreateChildAreas(AArea, vLayout, AParams);
-  finally
-    AArea.EndUpdate;
   end;
 end;
 

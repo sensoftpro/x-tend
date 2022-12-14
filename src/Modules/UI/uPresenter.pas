@@ -36,7 +36,7 @@ unit uPresenter;
 interface
 
 uses
-  Classes, Generics.Collections, SysUtils, uModule, uSettings, uInteractor, uView, uConsts, uUIBuilder, uLayout, uIcon;
+  Classes, Generics.Collections, SysUtils, uModule, uSettings, uInteractor, uView, uConsts, uUIBuilder, uLayout, uIcon, Types;
 
 type
   { НАВИГАЦИЯ И ИДЕНТИФИКАЦИЯ ПОЛЕЙ }
@@ -228,6 +228,11 @@ type
     procedure DoEnumerateControls(const ALayout: TLayout); virtual;
     procedure DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string); virtual;
     function DoGetLayoutCaption(const ALayout: TLayout): string; virtual;
+    procedure DoSetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer); virtual;
+    procedure DoSetLayoutXY(const ALayout: TLayout; const AX, AY: Integer); virtual;
+    function DoGetLayoutBounds(const ALayout: TLayout): TRect; virtual;
+    function DoGetLayoutFontHeight(const ALayout: TLayout): Integer; virtual;
+    function DoGetLayoutServiceAreaHeight(const ALayout: TLayout): Integer; virtual;
 
     function ActiveInteractor: TInteractor;
   public
@@ -258,6 +263,11 @@ type
     procedure EnumerateControls(const ALayout: TLayout);
     procedure SetLayoutCaption(const ALayout: TLayout; const ACaption: string);
     function GetLayoutCaption(const ALayout: TLayout): string;
+    procedure SetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer);
+    procedure SetLayoutXY(const ALayout: TLayout; const AX, AY: Integer);
+    function GetLayoutBounds(const ALayout: TLayout): TRect;
+    function GetLayoutFontHeight(const ALayout: TLayout): Integer;
+    function GetLayoutServiceAreaHeight(const ALayout: TLayout): Integer;
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; virtual;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
@@ -429,9 +439,24 @@ procedure TPresenter.DoEnumerateControls(const ALayout: TLayout);
 begin
 end;
 
+function TPresenter.DoGetLayoutBounds(const ALayout: TLayout): TRect;
+begin
+  Result := Rect(0, 0, 0, 0);
+end;
+
 function TPresenter.DoGetLayoutCaption(const ALayout: TLayout): string;
 begin
   Result := '';
+end;
+
+function TPresenter.DoGetLayoutFontHeight(const ALayout: TLayout): Integer;
+begin
+  Result := 10;
+end;
+
+function TPresenter.DoGetLayoutServiceAreaHeight(const ALayout: TLayout): Integer;
+begin
+  Result := 44;
 end;
 
 function TPresenter.DoLogin(const ADomain: TObject): TInteractor;
@@ -466,11 +491,19 @@ begin
   Result := False;
 end;
 
+procedure TPresenter.DoSetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer);
+begin
+end;
+
 procedure TPresenter.DoSetCursor(const ACursorType: TCursorType);
 begin
 end;
 
 procedure TPresenter.DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string);
+begin
+end;
+
+procedure TPresenter.DoSetLayoutXY(const ALayout: TLayout; const AX, AY: Integer);
 begin
 end;
 
@@ -498,9 +531,24 @@ begin
   DoEnumerateControls(ALayout);
 end;
 
+function TPresenter.GetLayoutBounds(const ALayout: TLayout): TRect;
+begin
+  Result := DoGetLayoutBounds(ALayout);
+end;
+
 function TPresenter.GetLayoutCaption(const ALayout: TLayout): string;
 begin
   Result := DoGetLayoutCaption(ALayout)
+end;
+
+function TPresenter.GetLayoutFontHeight(const ALayout: TLayout): Integer;
+begin
+  Result := DoGetLayoutFontHeight(ALayout);
+end;
+
+function TPresenter.GetLayoutServiceAreaHeight(const ALayout: TLayout): Integer;
+begin
+  Result := DoGetLayoutServiceAreaHeight(ALayout);
 end;
 
 class function TPresenter.GetPageClass(const APresenterName, APageName: string): TClass;
@@ -637,6 +685,11 @@ begin
   DoRun(AParameter);
 end;
 
+procedure TPresenter.SetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer);
+begin
+  DoSetLayoutBounds(ALayout, AX, AY, AWidth, AHeight);
+end;
+
 function TPresenter.SetCursor(const ACursorType: TCursorType): TCursorType;
 begin
   Result := FCursorType;
@@ -649,6 +702,11 @@ end;
 procedure TPresenter.SetLayoutCaption(const ALayout: TLayout; const ACaption: string);
 begin
   DoSetLayoutCaption(ALayout, ACaption);
+end;
+
+procedure TPresenter.SetLayoutXY(const ALayout: TLayout; const AX, AY: Integer);
+begin
+  DoSetLayoutXY(ALayout, AX, AY);
 end;
 
 function TPresenter.ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
