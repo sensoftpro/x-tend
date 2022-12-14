@@ -166,18 +166,19 @@ type
     FContentLayout: TLayout;
     FMenu: TNavigationItem;
     FControl: TObject;
+    FUrlParser: TUrlParser;
     FKind: TLayoutKind;
     FIsOwner: Boolean;
     FIndex: Integer;
     procedure SetContentLayout(const Value: TLayout);
     function GetItems: TList<TLayout>;
+    procedure SetMenu(const Value: TNavigationItem);
   protected
     [Weak] FParent: TLayout;
     FItems: TList<TLayout>;
 
     procedure InternalLoad(const AJSON: TJSONObject); virtual;
     function InternalSave: TJSONObject; virtual;
-    procedure SetUrl(const AUrl: string); virtual;
   public
     class var _Count: Integer;
 
@@ -187,19 +188,24 @@ type
     procedure Add(const AChild: TLayout);
     procedure Save(const AParent: TJSONObject; const AName: string);
 
+    procedure SetUrl(const AUrl: string); virtual;
+    function ExtractInteger(const AParamName: string; const ADefault: Integer = -1): Integer;
+    function ExtractString(const AParamName: string; const ADefault: string = ''): string;
+
     property Kind: TLayoutKind read FKind;
     property Control: TObject read FControl;
     property Parent: TLayout read FParent;
     property Items: TList<TLayout> read GetItems;
 
     property ContentLayout: TLayout read FContentLayout write SetContentLayout;
-    property Menu: TNavigationItem read FMenu write FMenu;
+    property Menu: TNavigationItem read FMenu write SetMenu;
     property IsOwner: Boolean read FIsOwner;
     property _Index: Integer read FIndex;
   end;
 
   TNavigationItem = class(TLayout)
   private
+    FOwner: TLayout;
     FId: string;
     FCaption: string;
     FHint: string;
@@ -210,10 +216,10 @@ type
     FContentCaption: string;
     FGroupIndex: Byte;
     FRadioItem: Boolean;
+    function GetOwner: TLayout;
   protected
     procedure InternalLoad(const AJSON: TJSONObject); override;
     function InternalSave: TJSONObject; override;
-    procedure SetUrl(const AUrl: string); override;
   public
     constructor Create(const AParent: TNavigationItem; const AJSON: TJSONObject); overload;
     constructor Create(const AParent: TNavigationItem; const AUrl: string); overload;
@@ -221,6 +227,7 @@ type
 
     function Add(const ACaption: string): TNavigationItem;
     function IsLine: Boolean;
+    procedure SetUrl(const AUrl: string); override;
 
     property Id: string read FId;
     property Caption: string read FCaption;
@@ -232,6 +239,7 @@ type
     property ContentCaption: string read FContentCaption;
     property GroupIndex: Byte read FGroupIndex write FGroupIndex;
     property RadioItem: Boolean read FRadioItem write FRadioItem;
+    property Owner: TLayout read GetOwner;
   end;
 
   TLayoutItem = class(TLayout)
@@ -1129,6 +1137,7 @@ constructor TNavigationItem.Create(const AParent: TNavigationItem; const AUrl: s
 begin
   inherited Create(lkAction, nil, True);
   FParent := AParent;
+  FOwner := nil;
 
   SetUrl(AUrl);
   FRadioItem := False;
@@ -1138,6 +1147,7 @@ end;
 constructor TNavigationItem.Create(const AParent: TNavigationItem; const AJSON: TJSONObject);
 begin
   inherited Create(lkAction, nil, True);
+  FOwner := nil;
   FParent := AParent;
   InternalLoad(AJSON);
 end;
@@ -1150,6 +1160,13 @@ begin
     FItems[i].Free;
   FParent := nil;
   inherited Destroy;
+end;
+
+function TNavigationItem.GetOwner: TLayout;
+begin
+  if not Assigned(FOwner) and Assigned(FParent) then
+    FOwner := TNavigationItem(FParent).Owner;
+  Result := FOwner;
 end;
 
 procedure TNavigationItem.InternalLoad(const AJSON: TJSONObject);
@@ -1197,25 +1214,20 @@ begin
 end;
 
 procedure TNavigationItem.SetUrl(const AUrl: string);
-var
-  vUrlParser: TUrlParser;
 begin
-  vUrlParser := TUrlParser.Create(AUrl);
-  try
-    FViewName := vUrlParser.Path;
-    if FViewName = '-' then
-      FCaption := '-'
-    else
-      FCaption := vUrlParser.ExtractString('caption');
-    FId := vUrlParser.ExtractString('id');
-    FHint := vUrlParser.ExtractString('hint');
-    FImageID := vUrlParser.ExtractInteger('imageindex');
-    FContentLayout := vUrlParser.ExtractString('contentlayout');
-    FContentWorkArea := vUrlParser.ExtractString('contentworkarea');
-    FContentCaption := vUrlParser.ExtractString('contentcaption');
-  finally
-    FreeAndNil(vUrlParser);
-  end;
+  inherited SetUrl(AUrl);
+
+  FViewName := FUrlParser.Path;
+  if FViewName = '-' then
+    FCaption := '-'
+  else
+    FCaption := FUrlParser.ExtractString('caption');
+  FId := FUrlParser.ExtractString('id');
+  FHint := FUrlParser.ExtractString('hint');
+  FImageID := FUrlParser.ExtractInteger('imageindex');
+  FContentLayout := FUrlParser.ExtractString('contentlayout');
+  FContentWorkArea := FUrlParser.ExtractString('contentworkarea');
+  FContentCaption := FUrlParser.ExtractString('contentcaption');
 end;
 
 { TLayout }
@@ -1233,6 +1245,7 @@ begin
   FItems := TList<TLayout>.Create;
   FContentLayout := nil;
   FMenu := nil;
+  FUrlParser := nil;
   FIsOwner := AIsOwner;
   FControl := AControl;
   FKind := AKind;
@@ -1245,12 +1258,29 @@ begin
   FParent := nil;
   FreeAndNil(FContentLayout);
   FreeAndNil(FItems);
+  FreeAndNil(FUrlParser);
   if FIsOwner then
     FreeAndNil(FControl)
   else
     FControl := nil;
   FreeAndNil(FMenu);
   inherited Destroy;
+end;
+
+function TLayout.ExtractInteger(const AParamName: string; const ADefault: Integer): Integer;
+begin
+  if Assigned(FUrlParser) then
+    Result := FUrlParser.ExtractInteger(AParamName, ADefault)
+  else
+    Result := ADefault;
+end;
+
+function TLayout.ExtractString(const AParamName, ADefault: string): string;
+begin
+  if Assigned(FUrlParser) then
+    Result := FUrlParser.ExtractString(AParamName, ADefault)
+  else
+    Result := ADefault;
 end;
 
 function TLayout.GetItems: TList<TLayout>;
@@ -1285,8 +1315,17 @@ begin
   FContentLayout := Value;
 end;
 
+procedure TLayout.SetMenu(const Value: TNavigationItem);
+begin
+  FMenu := Value;
+  FMenu.FOwner := Self;
+end;
+
 procedure TLayout.SetUrl(const AUrl: string);
 begin
+  if Assigned(FUrlParser) then
+    FreeAndNil(FUrlParser);
+  FUrlParser := TUrlParser.Create(AUrl);
 end;
 
 { TUrlParser }

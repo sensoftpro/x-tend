@@ -57,7 +57,6 @@ type
     function AreaFromSender(const ASender: TObject): TUIArea; virtual;
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); virtual;
     procedure DoClose(const AModalResult: Integer); virtual;
-    procedure SetViewState(const AValue: TViewState); virtual;
     function GetName: string; virtual;
     procedure DoActivate(const AUrlParams: string); virtual;
     procedure SetParent(const AParent: TUIArea); virtual;
@@ -71,6 +70,8 @@ type
   public
     constructor Create(const AOwner: TUIArea; const AControl: TObject); virtual;
     destructor Destroy; override;
+
+    procedure SetViewState(const AValue: TViewState); virtual;
 
     property Owner: TUIArea read FOwner;
     property Parent: TUIArea read FParent write SetParent;
@@ -154,8 +155,6 @@ type
     procedure SaveLayoutToFile(const AFileName: string); virtual;
     procedure RefillArea(const AKind: Word); virtual;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); virtual;
-
-    procedure SetViewState(const AValue: TViewState);
 
     procedure BeginUpdate;
     procedure EndUpdate;
@@ -1054,6 +1053,7 @@ begin
   end
   else begin
     vCaption := Trim(vPresenter.GetLayoutCaption(ALayout));
+    ALayout.SetUrl(vCaption);
 
     vQuery := '';
     vPos := Pos('?', vCaption);
@@ -1563,11 +1563,12 @@ end;
 procedure TUIArea.ProcessAreaClick(const AArea: TUIArea);
 var
   vView: TView;
-  vLayout: TNavigationItem;
+  vNavItem: TNavigationItem;
   vWorkArea: string;
   vLayoutName: string;
   vHolder: TChangeHolder;
   vDefaultWorkArea: string;
+  vOwner: TLayout;
 begin
   FUIBuilder.LastArea := AArea;
   if not Assigned(AArea) then
@@ -1577,33 +1578,38 @@ begin
   if not Assigned(vView) then
     Exit;
 
-  vLayout := TNavigationItem(AArea.Layout);
-  Assert(Assigned(vLayout), 'Ууупс!');
+  vNavItem := TNavigationItem(AArea.Layout);
+  Assert(Assigned(vNavItem), 'Ууупс!');
+
+  vOwner := vNavItem.Owner;
+  if Assigned(vOwner) then
+    vDefaultWorkArea := vOwner.ExtractString('contentworkarea', 'WorkArea')
+  else
+    vDefaultWorkArea := 'WorkArea';
 
   if vView.DefinitionKind = dkAction then
     AArea.ExecuteUIAction(vView)
   else if vView.DefinitionKind = dkCollection then
   begin
-    vWorkArea := vLayout.ContentWorkArea;
+    vWorkArea := vNavItem.ContentWorkArea;
     if vWorkArea = '' then
-      vWorkArea := 'WorkArea';
-    vLayoutName := vLayout.ContentLayout;
+      vWorkArea := vDefaultWorkArea;
+    vLayoutName := vNavItem.ContentLayout;
     if vLayoutName = '' then
       vLayoutName := 'Collection';
 
     FUIBuilder.Navigate(vView, vWorkArea, vLayoutName, 'operation=opencollection',
-      nil, nil, vLayout.ContentCaption);
+      nil, nil, vNavItem.ContentCaption);
   end
   else if vView.DefinitionKind in [dkEntity, dkObjectField] then
   begin
-    vDefaultWorkArea := 'WorkArea';
-    vWorkArea := vLayout.ContentWorkArea;
+    vWorkArea := vNavItem.ContentWorkArea;
     if vWorkArea = '' then
       vWorkArea := vDefaultWorkArea;
 
     vHolder := TUserSession(FView.Session).Edit(nil);
-    FUIBuilder.Navigate(vView, vWorkArea, vLayout.ContentLayout, 'operation=slap',
-      vHolder, nil, vLayout.ContentCaption);
+    FUIBuilder.Navigate(vView, vWorkArea, vNavItem.ContentLayout, 'operation=slap',
+      vHolder, nil, vNavItem.ContentCaption);
   end;
 end;
 
@@ -1710,11 +1716,6 @@ begin
   TryUnsubscribeView;
   FView := Value;
   TrySubscribeView;
-end;
-
-procedure TUIArea.SetViewState(const AValue: TViewState);
-begin
-  FNativeControl.SetViewState(AValue);
 end;
 
 function TUIArea.TextHierarchy(const AIndent: string): string;

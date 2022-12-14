@@ -47,7 +47,6 @@ type
     procedure DoClose(const AModalResult: Integer); override;
     function GetName: string; override;
     procedure DoActivate(const AUrlParams: string); override;
-    procedure SetViewState(const AValue: TViewState); override;
     procedure SetParent(const AParent: TUIArea); override;
     procedure SetControl(const AControl: TObject); override;
     function DoGetDescription: string; override;
@@ -55,6 +54,8 @@ type
     procedure DoEndUpdate; override;
   public
     constructor Create(const AOwner: TUIArea; const AControl: TObject); override;
+
+    procedure SetViewState(const AValue: TViewState); override;
   end;
 
   TLabelPosition = (lpTop, lpLeft);
@@ -1604,7 +1605,7 @@ begin
     Exit;
 
   if not FNativeControl.IsForm then
-    SetViewState(FView.State);
+    FNativeControl.SetViewState(FView.State);
 end;
 
 { TVCLFieldArea }
