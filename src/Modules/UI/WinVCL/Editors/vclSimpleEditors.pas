@@ -107,7 +107,6 @@ type
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
-    function GetLayoutPositionCount: Integer; override;
   end;
 
   TIntegerFlagsEditor = class(TDEEditor)
@@ -256,7 +255,6 @@ type
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
-    function GetLayoutPositionCount: Integer; override;
   end;
 
   TDELogFieldEditor = class (TDEMemoFieldEditor)
@@ -325,7 +323,6 @@ type
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
-    function GetLayoutPositionCount: Integer; override;
   end;
 
   TDEBLOBEditor = class(TDEEditor)
@@ -1221,11 +1218,6 @@ begin
   TcxImage(FControl).Enabled := FView.State = vsFullAccess;
 end;
 
-function TDEImageEditor.GetLayoutPositionCount: Integer;
-begin
-  Result := 2;
-end;
-
 { TDEMemoFieldEditor }
 
 function TDEMemoFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -1277,11 +1269,6 @@ begin
       vEdit.TabStop := TabStop;
     end;
   end;
-end;
-
-function TDEMemoFieldEditor.GetLayoutPositionCount: Integer;
-begin
-  Result := 2;
 end;
 
 procedure TDEMemoFieldEditor.OnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -2777,11 +2764,6 @@ begin
   finally
     vList.Items.EndUpdate;
   end;
-end;
-
-function TDEFlagsEditor.GetLayoutPositionCount: Integer;
-begin
-  Result := 3;
 end;
 
 procedure TDEFlagsEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);

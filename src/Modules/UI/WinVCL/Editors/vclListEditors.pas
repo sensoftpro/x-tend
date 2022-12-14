@@ -56,8 +56,6 @@ type
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
-    function GetLayoutPositionCount: Integer; override;
-    function GetDefaultFocusedChild: TWinControl; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
     procedure DoOnChange; override;
   end;
@@ -70,8 +68,6 @@ type
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
-    function GetLayoutPositionCount: Integer; override;
-    function GetDefaultFocusedChild: TWinControl; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
     procedure DoOnChange; override;
   end;
@@ -89,8 +85,6 @@ type
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
-    function GetLayoutPositionCount: Integer; override;
-    function GetDefaultFocusedChild: TWinControl; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
     procedure DoOnChange; override;
     procedure DoDisableContent; override;
@@ -106,8 +100,6 @@ type
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
-    function GetLayoutPositionCount: Integer; override;
-    function GetDefaultFocusedChild: TWinControl; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
     procedure DoOnChange; override;
   end;
@@ -125,8 +117,6 @@ type
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
-    function GetLayoutPositionCount: Integer; override;
-    function GetDefaultFocusedChild: TWinControl; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
     procedure DoOnChange; override;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
@@ -143,7 +133,6 @@ type
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
-    function GetLayoutPositionCount: Integer; override;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
   end;
 
@@ -289,7 +278,6 @@ type
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure SetPopupArea(const APopupArea: TUIArea); override;
-    function GetLayoutPositionCount: Integer; override;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
   public
     destructor Destroy; override;
@@ -304,7 +292,6 @@ type
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
-    function GetLayoutPositionCount: Integer; override;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
   end;
 
@@ -923,16 +910,6 @@ begin
     FListBox.Items.AddObject(SafeDisplayName(FEntityList[i]), FEntityList[i]);
 end;
 
-function TEntityListSelector.GetDefaultFocusedChild: TWinControl;
-begin
-  Result := FListBox;
-end;
-
-function TEntityListSelector.GetLayoutPositionCount: Integer;
-begin
-  Result := 5;
-end;
-
 procedure TEntityListSelector.OnWinControlKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 var
   i: Integer;
@@ -1020,16 +997,6 @@ begin
   end;
 end;
 
-function TEntityListSelector2.GetDefaultFocusedChild: TWinControl;
-begin
-  Result := FListBox;
-end;
-
-function TEntityListSelector2.GetLayoutPositionCount: Integer;
-begin
-  Result := 5;
-end;
-
 procedure TEntityListSelector2.SwitchChangeHandlers(const AHandler: TNotifyEvent);
 begin
   inherited;
@@ -1114,11 +1081,6 @@ begin
   finally
     FList.EndUpdate;
   end;
-end;
-
-function TListEditor.GetLayoutPositionCount: Integer;
-begin
-  Result := 3;
 end;
 
 procedure TListEditor.OnDblClick(Sender: TObject);
@@ -2831,11 +2793,6 @@ begin
   end;
 end;
 
-function TColumnListEditor.GetLayoutPositionCount: Integer;
-begin
-  Result := 3;
-end;
-
 procedure TColumnListEditor.LoadColumnWidths;
 begin
   FLayoutExists := LoadGridColumnWidths(TInteractor(FView.Interactor).Domain, FMasterTableView, FFieldDef.FullName);
@@ -3094,11 +3051,6 @@ begin
   FGrid.Height := FGrid.Margins.Top + FGrid.Margins.Bottom + vGridHeight + 4;
 
   FGrid.OptionsView.RowHeaderWidth := FGrid.Width div 2;
-end;
-
-function TParametersEditor.GetLayoutPositionCount: Integer;
-begin
-  Result := 2;
 end;
 
 procedure TParametersEditor.OnValueChanged(Sender: TObject);
@@ -4147,16 +4099,6 @@ begin
   end;
 end;
 
-function TEntityListSelectorMTM.GetDefaultFocusedChild: TWinControl;
-begin
-  Result := FListBox;
-end;
-
-function TEntityListSelectorMTM.GetLayoutPositionCount: Integer;
-begin
-  Result := 4;
-end;
-
 procedure TEntityListSelectorMTM.OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
 var
   vEntity: TEntity;
@@ -4343,16 +4285,6 @@ begin
 
 end;
 
-function TPagedEntityListSelector.GetDefaultFocusedChild: TWinControl;
-begin
-  Result := FPages;
-end;
-
-function TPagedEntityListSelector.GetLayoutPositionCount: Integer;
-begin
-  Result := 6;
-end;
-
 procedure TPagedEntityListSelector.SwitchChangeHandlers(const AHandler: TNotifyEvent);
 begin
   inherited;
@@ -4448,16 +4380,6 @@ begin
     if Result.ExtractEntity(FLookupField) = ALookupItem then
       Exit;
   Result := nil;
-end;
-
-function TEntityListSelector3.GetDefaultFocusedChild: TWinControl;
-begin
-  Result := FListBox;
-end;
-
-function TEntityListSelector3.GetLayoutPositionCount: Integer;
-begin
-  Result := 5;
 end;
 
 procedure TEntityListSelector3.OnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);

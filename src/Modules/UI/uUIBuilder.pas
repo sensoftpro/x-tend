@@ -73,6 +73,10 @@ type
     procedure DoBeginUpdate; virtual;
     procedure DoEndUpdate; virtual;
     procedure DoAfterChildAreasCreated; virtual;
+    function GetFocused: Boolean; virtual;
+    procedure SetFocused(const Value: Boolean); virtual;
+    function GetDefaultFocusedChild: TObject; virtual;
+    procedure PlaceLabel; virtual;
 
     procedure UnbindContent;
 
@@ -177,6 +181,17 @@ type
     procedure BeginUpdate;
     procedure EndUpdate;
 
+    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); virtual;
+    function GetFocused: Boolean;
+    procedure SetFocused(const Value: Boolean); virtual;
+    function GetDefaultFocusedChild: TObject; virtual;
+    procedure FocusedChanged(const AFocused: Boolean); virtual;
+    procedure DoBeforeFreeControl; virtual;
+    procedure DoDeinit; virtual;
+    function CanChangeArea: Boolean; virtual;
+    procedure DoOnChange; virtual;
+    procedure FillEditor; virtual;
+
     procedure DM_ViewChanged(var AMessage: TViewChangedMessage); message DM_VIEW_CHANGED;
 
     function NativeControlClass: TNativeControlClass;
@@ -200,11 +215,14 @@ type
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
     function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
 
+    procedure Validate;
+    procedure Deinit;
     procedure Activate(const AUrlParams: string);
     procedure OnEnter(Sender: TObject);
     procedure OnExit(Sender: TObject);
     procedure OnActionMenuSelected(Sender: TObject);
     procedure OnAreaClick(Sender: TObject);
+    procedure OnChange(Sender: TObject);
 
     procedure AddParams(const AParams: TStrings);
     procedure SetHolder(const AHolder: TObject);
@@ -234,6 +252,7 @@ type
     property TabOrder: Integer read GetTabOrder;
     property TabStop: Boolean read GetTabStop;
     property OnClose: TProc read FOnClose write FOnClose;
+    property Focused: Boolean read GetFocused write SetFocused;
   end;
 
   (*TNavigationArea = class(TUIArea)
@@ -450,9 +469,19 @@ var
   vOneRowHeight: Integer;
   function CalcLayoutPositionCount(const AFieldKind: TFieldKind; const AViewName: string): Integer;
   begin
-    if ((AFieldKind = fkString) and (AViewName = 'memo')) or (AFieldKind = fkBlob) then
+    if ((AFieldKind = fkString) and (AViewName = 'memo')) or ((AFieldKind = fkBlob) and (AViewName = 'image'))
+      or ((AFieldKind = fkList) and (AViewName = 'parameters'))
+    then
       Result := 2
-    else if AFieldKind = fkList then
+    else if (AFieldKind = fkList) and ((AViewName = 'selector') or (AViewName = 'multiselect')
+      or (AViewName = 'multiselect3') or (AViewName = 'multiselect'))
+    then
+      Result := 5
+    else if (AFieldKind = fkList) and (AViewName = 'paged') then
+      Result := 6
+    else if (AFieldKind = fkList) and (AViewName = 'mtm') then
+      Result := 4
+    else if AFieldKind in [fkList, fkFlag] then
       Result := 3
     else
       Result := 1;
@@ -956,6 +985,11 @@ begin
   FNativeControl.DoBeginUpdate;
 end;
 
+function TUIArea.CanChangeArea: Boolean;
+begin
+  Result := False;
+end;
+
 procedure TUIArea.Clear;
 var
   i: Integer;
@@ -1208,8 +1242,15 @@ begin
   FUIBuilder.ApplyLayout(Result, AView, vChildLayoutName, AParams);
 end;
 
+procedure TUIArea.Deinit;
+begin
+  DoDeinit;
+end;
+
 destructor TUIArea.Destroy;
 begin
+  DoBeforeFreeControl;
+
   FOnClose := nil;
   FreeAndNil(FCreateParams);
   FreeAndNil(FNativeControl);
@@ -1261,6 +1302,10 @@ begin
   FNativeControl.DoAfterChildAreasCreated;
 end;
 
+procedure TUIArea.DoBeforeFreeControl;
+begin
+end;
+
 function TUIArea.DoCreateChildAction(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
 var
   vStyleName: string;
@@ -1309,11 +1354,20 @@ begin
   Result := nil;
 end;
 
+procedure TUIArea.DoDeinit;
+begin
+
+end;
+
 procedure TUIArea.DoDisableContent;
 begin
 end;
 
 procedure TUIArea.DoExecuteUIAction(const AView: TView);
+begin
+end;
+
+procedure TUIArea.DoOnChange;
 begin
 end;
 
@@ -1412,6 +1466,17 @@ begin
 
     AView.ExecuteAction(vParentHolder);
   end;
+end;
+
+procedure TUIArea.FillEditor;
+begin
+end;
+
+procedure TUIArea.FocusedChanged(const AFocused: Boolean);
+begin
+  FNativeControl.PlaceLabel;
+  if not AFocused then
+    Validate;
 end;
 
 function TUIArea.GetArea(const AIndex: Integer): TUIArea;
@@ -1518,6 +1583,11 @@ begin
   Result := FAreas.Count;
 end;
 
+function TUIArea.GetDefaultFocusedChild: TObject;
+begin
+  Result := FNativeControl.GetDefaultFocusedChild;
+end;
+
 function TUIArea.GetDisplayFormat(const AFieldDef: TFieldDef; const AEntity: TEntity): string;
 var
   i: Integer;
@@ -1555,6 +1625,11 @@ end;
 function TUIArea.GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart): string;
 begin
   Result := FUIBuilder.GetFieldTranslation(AFieldDef, ATranslationPart);
+end;
+
+function TUIArea.GetFocused: Boolean;
+begin
+  Result := FNativeControl.GetFocused;
 end;
 
 function TUIArea.GetHolder: TObject;
@@ -1624,6 +1699,32 @@ begin
   vArea := FNativeControl.AreaFromSender(Sender);
   if Assigned(vArea) then
     ProcessAreaClick(vArea);
+end;
+
+procedure TUIArea.OnChange(Sender: TObject);
+begin
+  if not CanChangeArea then
+  begin
+    RefillArea(dckFieldChanged);
+    Exit;
+  end;
+
+  FView.AddListener(FUIBuilder.RootArea);
+  try
+    // Отключить прослушивание событий
+    SwitchChangeHandlers(nil);
+    FView.RemoveListener(Self);
+    try
+      DoOnChange;
+    finally
+      SwitchChangeHandlers(OnChange);
+      FView.AddListener(Self);
+    end;
+  finally
+    FView.RemoveListener(FUIBuilder.RootArea);
+  end;
+
+  Validate;
 end;
 
 procedure TUIArea.OnEnter(Sender: TObject);
@@ -1779,6 +1880,11 @@ begin
   FNativeControl.Control := AControl;
 end;
 
+procedure TUIArea.SetFocused(const Value: Boolean);
+begin
+  FNativeControl.SetFocused(Value);
+end;
+
 procedure TUIArea.SetHolder(const AHolder: TObject);
 begin
   FHolder := AHolder;
@@ -1814,6 +1920,10 @@ begin
   TryUnsubscribeView;
   FView := Value;
   TrySubscribeView;
+end;
+
+procedure TUIArea.SwitchChangeHandlers(const AHandler: TNotifyEvent);
+begin
 end;
 
 function TUIArea.TextHierarchy(const AIndent: string): string;
@@ -1887,6 +1997,17 @@ begin
   if not FNativeControl.IsForm then
     FNativeControl.SetViewState(FView.State);
 end;
+procedure TUIArea.Validate;
+var
+  vEntity: TEntity;
+begin
+  vEntity := TEntity(FView.ParentDomainObject);
+  if not Assigned(vEntity) then
+    Exit;
+
+//  SetWarningVisible(vEntity.FieldByName(FFieldDef.Name).ValidationStatus = vsInvalid);
+end;
+
 (*
 { TNavigationArea }
 
@@ -2157,6 +2278,16 @@ begin
   Result := '';
 end;
 
+function TNativeControl.GetDefaultFocusedChild: TObject;
+begin
+  Result := FControl;
+end;
+
+function TNativeControl.GetFocused: Boolean;
+begin
+  Result := False;
+end;
+
 function TNativeControl.GetName: string;
 begin
   Result := '[area]';
@@ -2171,9 +2302,17 @@ procedure TNativeControl.PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Int
 begin
 end;
 
+procedure TNativeControl.PlaceLabel;
+begin
+end;
+
 procedure TNativeControl.SetControl(const AControl: TObject);
 begin
   FControl := AControl;
+end;
+
+procedure TNativeControl.SetFocused(const Value: Boolean);
+begin
 end;
 
 procedure TNativeControl.SetParent(const AParent: TUIArea);

@@ -61,11 +61,13 @@ type
     procedure SetPopupArea(const APopupArea: TUIArea); override;
     procedure DoBeginUpdate; override;
     procedure DoEndUpdate; override;
+    function GetFocused: Boolean; override;
+    procedure SetFocused(const Value: Boolean); override;
 
     procedure ApplyTabStops(const ALayout: TLayout); override;
     procedure DoAfterChildAreasCreated; override;
 
-    procedure PlaceLabel;
+    procedure PlaceLabel; override;
     procedure SetLabelPosition(const Value: TLabelPosition);
     procedure SetCaptionProperty(const ALayout: TLayout); virtual;
   public
@@ -91,30 +93,13 @@ type
   end;
 
   TVCLFieldArea = class(TVCLArea)
-  private
-    procedure Validate;
-
   protected
     FFieldDef: TFieldDef;
     FDefinitionName: string;
 
-    procedure OnChange(Sender: TObject);
-
-    // Not implemented here
-    procedure FillEditor; virtual;
-    procedure DoBeforeFreeControl; virtual;
-    procedure DoDeinit; virtual;
-    procedure DoOnChange; virtual;
-    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); virtual;
     function GetNewValue: Variant; virtual;
 
-    // Partially implemented, can be overridden in descendants
-    function GetLayoutPositionCount: Integer; virtual;
-
-    function GetFocused: Boolean;
-    procedure SetFocused(const Value: Boolean); virtual;
-    function GetDefaultFocusedChild: TWinControl; virtual;
-    procedure FocusedChanged(const AFocused: Boolean); virtual;
+    function CanChangeArea: Boolean; override;
 
     function GetName: string; override;
     procedure RefillArea(const AKind: Word); override;
@@ -127,12 +112,6 @@ type
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
       const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
-    destructor Destroy; override;
-
-    procedure Deinit;
-
-    property Focused: Boolean read GetFocused write SetFocused;
-    property LayoutPositionCount: Integer read GetLayoutPositionCount;
   end;
 
   TActionArea = class(TVCLArea)
@@ -344,6 +323,14 @@ end;
 
 { TVCLFieldArea }
 
+function TVCLFieldArea.CanChangeArea: Boolean;
+var
+  vEntity: TEntity;
+begin
+  vEntity := TEntity(FView.ParentDomainObject);
+  Result := TCanChangeFieldFunc(TDomain(FView.Domain).Configuration.CanChangeFieldFunc)(FView, vEntity, FDefinitionName, GetNewValue);
+end;
+
 constructor TVCLFieldArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
   const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
 begin
@@ -375,61 +362,9 @@ begin
   end;
 end;
 
-procedure TVCLFieldArea.Deinit;
-begin
-  DoDeinit;
-end;
-
-destructor TVCLFieldArea.Destroy;
-begin
-  DoBeforeFreeControl;
-
-  inherited Destroy;
-end;
-
-procedure TVCLFieldArea.DoBeforeFreeControl;
-begin
-end;
-
-procedure TVCLFieldArea.DoDeinit;
-begin
-end;
-
-procedure TVCLFieldArea.DoOnChange;
-begin
-end;
-
-procedure TVCLFieldArea.FillEditor;
-begin
-end;
-
-procedure TVCLFieldArea.FocusedChanged(const AFocused: Boolean);
-begin
-  TVCLControl(FNativeControl).PlaceLabel;
-
-  if not AFocused then
-    Validate;
-end;
-
-function TVCLFieldArea.GetDefaultFocusedChild: TWinControl;
-begin
-  Result := TWinControl(FControl);
-end;
-
-function TVCLFieldArea.GetFocused: Boolean;
-begin
-  Result := TWinControl(FControl).Focused;
-end;
-
 function TVCLFieldArea.GetFormat: string;
 begin
   Result := GetDisplayFormat(FFieldDef, FView.ParentDomainObject as TEntity);
-end;
-
-function TVCLFieldArea.GetLayoutPositionCount: Integer;
-begin
-  //todo: Переделать
-  Result := 1;
 end;
 
 function TVCLFieldArea.GetName: string;
@@ -440,35 +375,6 @@ end;
 function TVCLFieldArea.GetNewValue: Variant;
 begin
   Result := Null;
-end;
-
-procedure TVCLFieldArea.OnChange(Sender: TObject);
-var
-  vEntity: TEntity;
-begin
-  vEntity := TEntity(FView.ParentDomainObject);
-  if not TCanChangeFieldFunc(TDomain(FView.Domain).Configuration.CanChangeFieldFunc)(FView, vEntity, FDefinitionName, GetNewValue) then
-  begin
-    RefillArea(dckFieldChanged);
-    Exit;
-  end;
-
-  FView.AddListener(FUIBuilder.RootArea);
-  try
-    // Отключить прослушивание событий
-    SwitchChangeHandlers(nil);
-    FView.RemoveListener(Self);
-    try
-      DoOnChange;
-    finally
-      SwitchChangeHandlers(OnChange);
-      FView.AddListener(Self);
-    end;
-  finally
-    FView.RemoveListener(FUIBuilder.RootArea);
-  end;
-
-  Validate;
 end;
 
 procedure TVCLFieldArea.RefillArea(const AKind: Word);
@@ -508,33 +414,6 @@ end;
 procedure TVCLFieldArea.SetFieldValue(const AValue: Variant);
 begin
   FView.SetFieldValue(Holder, AValue);
-end;
-
-procedure TVCLFieldArea.SetFocused(const Value: Boolean);
-var
-  vControl: TWinControl;
-begin
-  if Value and TWinControl(FControl).CanFocus then
-  begin
-    vControl := GetDefaultFocusedChild;
-    if Assigned(vControl) then
-      vControl.SetFocus;
-  end;
-end;
-
-procedure TVCLFieldArea.SwitchChangeHandlers(const AHandler: TNotifyEvent);
-begin
-end;
-
-procedure TVCLFieldArea.Validate;
-var
-  vEntity: TEntity;
-begin
-  vEntity := TEntity(FView.ParentDomainObject);
-  if not Assigned(vEntity) then
-    Exit;
-
-//  SetWarningVisible(vEntity.FieldByName(FFieldDef.Name).ValidationStatus = vsInvalid);
 end;
 
 { TLayoutParam }
@@ -2009,6 +1888,14 @@ begin
   end;
 end;
 
+function TVCLControl.GetFocused: Boolean;
+begin
+  if FControl is TWinControl then
+    Result := TWinControl(FControl).Focused
+  else
+    Result := False;
+end;
+
 function TVCLControl.GetName: string;
 begin
   if not Assigned(FControl) then
@@ -2140,6 +2027,21 @@ begin
 
   FIsForm := FControl is TForm;
   FIsAutoReleased := FControl is TMenuItem;
+end;
+
+procedure TVCLControl.SetFocused(const Value: Boolean);
+var
+  vControl: TWinControl;
+begin
+  if not (FControl is TWinControl) then
+    Exit;
+
+  if Value and TWinControl(FControl).CanFocus then
+  begin
+    vControl := TWinControl(GetDefaultFocusedChild);
+    if Assigned(vControl) then
+      vControl.SetFocus;
+  end;
 end;
 
 procedure TVCLControl.SetLabelPosition(const Value: TLabelPosition);
