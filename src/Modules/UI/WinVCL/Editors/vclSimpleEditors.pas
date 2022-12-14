@@ -585,7 +585,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
     end;
   end;
 
@@ -725,7 +725,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtAlways;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
       vEdit.Properties.SpinButtons.Visible := False; // пока скрываем, чтобы не переделывать лэйауты
     end;
   end;
@@ -867,7 +867,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
     end;
   end;
 
@@ -947,7 +947,7 @@ begin
     end
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
       vEdit.Style.Color := clWindow;
     end;
   end;
@@ -1072,7 +1072,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
     end;
   end;
 end;
@@ -1134,7 +1134,7 @@ begin
   TcxCheckBox(FControl).Enabled := FView.State = vsFullAccess;
   TcxCheckBox(FControl).Properties.ReadOnly := FView.State < vsFullAccess;
   if TcxCheckBox(FControl).Enabled then
-    TcxCheckBox(FControl).TabStop := FTabStop
+    TcxCheckBox(FControl).TabStop := TabStop
   else
     TcxCheckBox(FControl).TabStop := False;
 end;
@@ -1274,7 +1274,7 @@ begin
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
     end;
   end;
 end;
@@ -1355,7 +1355,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
     end;
   end;
 
@@ -1442,7 +1442,7 @@ begin
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
     end;
   end;
 end;
@@ -1515,7 +1515,7 @@ begin
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
     end;
   end;
 end;
@@ -1679,7 +1679,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
     end;
   end;
 
@@ -1772,7 +1772,7 @@ begin
     end
     else begin
       FText.Style.BorderStyle := ebsUltraFlat;
-      FText.TabStop := FTabStop;
+      FText.TabStop := TabStop;
       FText.Style.Color := clWindow;
     end;
   end;
@@ -1871,7 +1871,7 @@ begin
     end
     else begin
       FText.Style.BorderStyle := ebsUltraFlat;
-      FText.TabStop := FTabStop;
+      FText.TabStop := TabStop;
       FText.Style.Color := clWindow;
     end;
   end;
@@ -2028,7 +2028,7 @@ begin
     end
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
       if FView.State = vsSelectOnly then
         vEdit.Style.Color := clBtnFace
       else
@@ -2270,7 +2270,7 @@ begin
       end
       else begin
 //        vRadioEdit.Style.BorderStyle := ebsUltraFlat;
-        vRadioEdit.TabStop := FTabStop;
+        vRadioEdit.TabStop := TabStop;
       end;
     end;
   end
@@ -2302,7 +2302,7 @@ begin
       end
       else begin
         vEdit.Style.BorderStyle := ebsUltraFlat;
-        vEdit.TabStop := FTabStop;
+        vEdit.TabStop := TabStop;
       end;
     end;
 
@@ -2439,7 +2439,7 @@ begin
     end
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
     end;
   end;
 
@@ -2748,7 +2748,7 @@ begin
   end
   else begin
     vList.Style.BorderStyle := cbsUltraFlat;
-    vList.TabStop := FTabStop;
+    vList.TabStop := TabStop;
   end;
 end;
 
@@ -2961,7 +2961,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
     end;
   end;
 end;
@@ -3099,7 +3099,7 @@ begin
   end
   else begin
     vList.Style.BorderStyle := cbsNone;
-    vList.TabStop := FTabStop;
+    vList.TabStop := TabStop;
   end;
 end;
 

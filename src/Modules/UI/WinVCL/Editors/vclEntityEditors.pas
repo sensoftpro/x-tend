@@ -730,7 +730,7 @@ begin
       end
       else
         vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.TabStop := FTabStop;
+      vEdit.TabStop := TabStop;
     end;
   end
   else begin
@@ -1207,7 +1207,7 @@ begin
     if vRadioEdit.Properties.ReadOnly then
       vRadioEdit.TabStop := False
     else
-      vRadioEdit.TabStop := FTabStop;
+      vRadioEdit.TabStop := TabStop;
   end;
 end;
 

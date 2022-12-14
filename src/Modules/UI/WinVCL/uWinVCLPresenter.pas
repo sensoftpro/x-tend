@@ -60,6 +60,13 @@ type
     procedure RestoreChildForms(const AInteractor: TInteractor);
     procedure StoreChildForms(const AInteractor: TInteractor; const AMainForm: TForm);
     function GetLayoutKind(const AControl: TObject): TLayoutKind;
+
+    procedure CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
+      const ASrcItem: TNavigationItem; const ADestMenu: TMenuItem);
+
+    procedure OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
+    procedure OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
+    procedure OnActionMenuSelected(Sender: TObject);
   protected
     //FOnRFIDRead: TRFIDReadEvent;
     FTrayIcon: TTrayIcon;
@@ -116,7 +123,12 @@ type
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
 
+    function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
+      const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
     function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout; override;
+    function AppendServiceArea(const AParent: TUIArea): TUIArea; override;
+    function CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea; override;
+
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
 
     function GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
@@ -129,9 +141,14 @@ implementation
 uses
   Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX,
   cxGraphics, dxGDIPlusClasses, cxImage, cxEdit, cxPC, cxLookAndFeels, cxLookAndFeelPainters, cxStyles, cxMemo,
+  cxLabel, cxTextEdit, cxButtons, cxScrollBox, cxControls, cxSplitter,
 
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity, uEntityList, vclArea, uSession,
   uManagedForm, AboutForm, ReportConfigureForm, OptionsForm, LoginForm, FloatForm, uCollection;
+
+const
+  cPCNavigatorFlag = 1;
+  cServiceAreaHeight = 44;
 
 type
   TLoginedProc = procedure(const AInteractor: TInteractor) of object;
@@ -140,8 +157,20 @@ type
 type
   TCrackedWinControl = class(TWinControl) end;
   TCrackedControl = class(TControl) end;
+  TCrackedArea = class(TUIArea) end;
 
 { TWinVCLPresenter }
+
+function TWinVCLPresenter.AppendServiceArea(const AParent: TUIArea): TUIArea;
+var
+  vPanel: TPanel;
+begin
+  vPanel := TPanel.Create(nil);
+  vPanel.BevelOuter := bvNone;
+  vPanel.Height := cServiceAreaHeight;
+  vPanel.Align := alBottom;
+  Result := TVCLArea.Create(AParent, AParent.View, '', True, vPanel);
+end;
 
 procedure TWinVCLPresenter.ArrangeMozaic(const AMDIForm: TForm);
 var
@@ -248,6 +277,202 @@ begin
     SetAsMainForm(TForm(TVCLArea(ANewArea).InnerControl));
 end;
 
+procedure TWinVCLPresenter.CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
+  const ASrcItem: TNavigationItem; const ADestMenu: TMenuItem);
+var
+  vCaption: string;
+  vParams: TStrings;
+  vActions: TList<TActionDef>;
+  vReports: TList<TRTFReport>;
+  vDefinitions: TList<TDefinition>;
+  vId: string;
+  i, j: Integer;
+  vDefinition: TDefinition;
+  vSrcItem: TNavigationItem;
+  vDestItem: TMenuItem;
+  vChildItem: TMenuItem;
+  vView: TView;
+  vAction: TActionDef;
+  vReport: TRTFReport;
+  vChildArea: TVCLArea;
+begin
+  for i := 0 to ASrcItem.Items.Count - 1 do
+  begin
+    vSrcItem := TNavigationItem(ASrcItem.Items[i]);
+    vCaption := vSrcItem.ViewName;
+
+    if SameText(vCaption, '#Placeholder') then
+    begin
+      if AView.DefinitionKind <> dkCollection then
+        Continue;
+
+      vDefinition := TDefinition(AView.Definition);
+      vActions := TList<TActionDef>.Create;
+      vDefinition.GetAllActions(vActions);
+      for vAction in vActions do
+      begin
+        if vAction.HasFlag(ccHideInMenu) then
+          Continue;
+
+        if vAction.HasFlag(ccContextAction) then
+        begin
+          vView := AParent.UIBuilder.RootView.BuildView(AView.Name + '/Selected/' + vAction.Name);
+        end
+        else
+          vView := AParent.UIBuilder.RootView.BuildView(AView.Name + '/' + vAction.Name);
+
+        if Assigned(vView) then
+        begin
+          if vView.DefinitionKind = dkAction then
+          begin
+            vDestItem := TMenuItem.Create(nil);
+            vDestItem.Caption := AParent.GetTranslation(vAction);
+            vDestItem.Hint := vDestItem.Caption;
+            vDestItem.ImageIndex := AParent.GetImageID(vAction._ImageID);
+            vDestItem.OnClick := AParent.OnAreaClick;
+            vDestItem.RadioItem := vSrcItem.RadioItem;
+            vDestItem.GroupIndex := vSrcItem.GroupIndex;
+
+            if Assigned(vView.DomainObject) and TEntity(vView.DomainObject).FieldExists('IsChecked') then
+              vDestItem.AutoCheck := True;
+
+            vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, vDestItem, vSrcItem);
+            TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
+            AParent.AddArea(vChildArea);
+
+            ADestMenu.Add(vDestItem);
+          end
+          else
+            vView.CleanView;
+        end;
+      end;
+
+      if vActions.Count > 0 then
+      begin
+        vDestItem := TMenuItem.Create(nil);
+        vDestItem.Caption := '-';
+        ADestMenu.Add(vDestItem);
+      end;
+
+      FreeAndNil(vActions);
+
+      vReports := TList<TRTFReport>.Create;
+      vDefinition.GetAllReports(vReports);
+      for vReport in vReports do
+      begin
+        vView := AParent.UIBuilder.RootView.BuildView(AView.Name + '/Selected/' + vReport.Name);
+
+        if Assigned(vView) then
+        begin
+          if vView.DefinitionKind = dkAction then
+          begin
+            vDestItem := TMenuItem.Create(nil);
+            vDestItem.Caption := AParent.GetTranslation(vReport);
+            vDestItem.Hint := vDestItem.Caption;
+            vDestItem.ImageIndex := 31;
+            vDestItem.OnClick := AParent.OnAreaClick;
+
+            vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, vDestItem, vSrcItem);
+            TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
+            AParent.AddArea(vChildArea);
+
+            ADestMenu.Add(vDestItem);
+          end
+          else
+            vView.CleanView;
+        end;
+      end;
+
+      if vReports.Count > 0 then
+      begin
+        vDestItem := TMenuItem.Create(nil);
+        vDestItem.Caption := '-';
+        ADestMenu.Add(vDestItem);
+      end;
+
+      FreeAndNil(vReports);
+
+      Continue;
+    end
+    else if Pos('@', vCaption) > 0 then
+    begin
+      vParams := CreateDelimitedList(vCaption, '@');
+      try
+        vId := vParams.Values['Id'];
+        vCaption := vParams.Values['Caption'];
+      finally
+        FreeAndNil(vParams);
+      end;
+
+      vDestItem := TMenuItem.Create(nil);
+      if vId <> '' then
+        vDestItem.Caption := TInteractor(AParent.Interactor).Translate(vId, vCaption)
+      else
+        vDestItem.Caption := vCaption;
+
+      vChildArea := TVCLArea.Create(AParent, AParent.View, vSrcItem.ViewName, False, vDestItem, vSrcItem);
+      AParent.AddArea(vChildArea);
+
+      ADestMenu.Add(vDestItem);
+      CopyPopupMenuItems(vChildArea, AView, vSrcItem, vDestItem);
+
+      Continue;
+    end
+    else
+      vView := AView.BuildView(vCaption);
+
+    vDestItem := TMenuItem.Create(nil);
+
+    if Assigned(vView) and (vView.DefinitionKind = dkAction) then
+    begin
+      vAction := TActionDef(vView.Definition);
+      vDestItem.Caption := AParent.GetTranslation(vAction);
+      vDestItem.Hint := vDestItem.Caption;
+      vDestItem.ImageIndex := AParent.GetImageID(vAction._ImageID);
+
+      if (vAction.Name = 'Add') and Assigned(vView.ParentDomainObject) and (vView.ParentDomainObject is TEntityList) then
+      begin
+        vDefinitions := TEntityList(vView.ParentDomainObject).ContentDefinitions;
+        if vDefinitions.Count > 1 then
+        begin
+          for j := 0 to vDefinitions.Count - 1 do
+          begin
+            vDefinition := TDefinition(vDefinitions[j]);
+            vChildItem := TMenuItem.Create(nil);
+            vChildItem.Caption := AParent.GetTranslation(vDefinition);
+            vChildItem.Tag := Integer(vDestItem);
+            vChildItem.OnClick := OnActionMenuSelected;
+            vDestItem.Add(vChildItem);
+          end;
+        end
+        else
+          vDestItem.OnClick := AParent.OnAreaClick;
+      end
+      else
+        vDestItem.OnClick := AParent.OnAreaClick;
+
+      vDestItem.RadioItem := vSrcItem.RadioItem;
+      vDestItem.GroupIndex := vSrcItem.GroupIndex;
+      if Assigned(vView.DomainObject) and TEntity(vView.DomainObject).FieldExists('IsChecked') then
+        vDestItem.AutoCheck := True;
+
+      vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, vDestItem, vSrcItem);
+      TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
+
+      AParent.AddArea(vChildArea);
+    end
+    else begin
+      if Assigned(vView) and (vView.DefinitionKind = dkUndefined) then
+        vView.CleanView;
+
+      vDestItem.Caption := vCaption;
+      vDestItem.Enabled := False;
+    end;
+
+    ADestMenu.Add(vDestItem);
+  end;
+end;
+
 constructor TWinVCLPresenter.Create(const AName: string; const ASettings: TSettings);
 begin
   inherited Create(AName, ASettings);
@@ -258,6 +483,366 @@ begin
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue(AName, 'ShowSplash'), False)
   else
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
+end;
+
+function TWinVCLPresenter.CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
+  const AParams: string; const AOnClose: TProc): TUIArea;
+var
+  vSourceLabel: TLabel;
+  vSourceImage: TImage;
+  vSourcePC: TPageControl;
+  vSourceTabSheet: TTabSheet;
+  vSourcePanel: TPanel;
+  vSourceBox: TScrollBox;
+  vSourceBevel: TBevel;
+  vSourceSplitter: TSplitter;
+  vSourceShape: TShape;
+  vDomain: TDomain;
+  vPos: Integer;
+  vCaption: string;
+  vUIParams: string;
+  vStartPageName: string;
+  vStartPageStr: string;
+  vLabel: TcxLabel; //TStaticText;
+  vImage: TcxImage;
+  vPC: TcxPageControl;
+  vToolBar: TToolBar;
+  vTab: TcxTabSheet;
+  vPanel: TPanel;
+  vParams: TStrings;
+  vBox: TcxScrollBox;
+  vBevel: TBevel;
+  vSplitter: TcxSplitter;
+  vResolution: Integer;
+  vNavItems: TList<TDefinition>;
+  vNavDefinition: TDefinition;
+  vChildArea: TUIArea;
+  vMenu: TMenu;
+  vForm: TForm;
+  vShape: TShape;
+  vListView: TListView;
+  vImageList: TImageList;
+  vMenuArea: TVCLArea;
+begin
+  Result := nil;
+
+  if not Assigned(ALayout) then
+    Exit;
+
+  vDomain := TDomain(TInteractor(AView.Interactor).Domain);
+
+  if ALayout.Control is TShape then
+  begin
+    vSourceShape := TShape(ALayout.Control);
+    vShape := TShape.Create(nil);
+    vShape.Left := vSourceShape.Left;
+    vShape.Top := vSourceShape.Top;
+    vShape.Width := vSourceShape.Width;
+    vShape.Height := vSourceShape.Height;
+    vShape.Anchors := vSourceShape.Anchors;
+    vShape.Align := vSourceShape.Align;
+    vShape.Hint := vSourceShape.Hint;
+    vShape.Visible := vSourceShape.Visible;
+    vShape.Pen.Color := vSourceShape.Pen.Color;
+    vShape.Brush.Color := vSourceShape.Brush.Color;
+    vShape.AlignWithMargins := vSourceShape.AlignWithMargins;
+    vShape.Margins := vSourceShape.Margins;
+
+    Result := TVCLArea.Create(AParent, AView, '', False, vShape, ALayout);
+  end
+  else if ALayout.Control is TLabel then
+  begin
+    vSourceLabel := TLabel(ALayout.Control);
+    vLabel := TcxLabel.Create(nil);   // заменил с TLabel на TcxLabel, потому что TLabel мерцал при растягивании формы
+    vLabel.Left := vSourceLabel.Left;
+    vLabel.Top := vSourceLabel.Top;
+    vLabel.Width := vSourceLabel.Width;
+    vLabel.Height := vSourceLabel.Height;
+    vLabel.Transparent := vSourceLabel.Transparent;
+    vLabel.AutoSize := vSourceLabel.AutoSize;
+    vLabel.Properties.WordWrap := vSourceLabel.WordWrap;
+    vLabel.Style.Font.Size := vSourceLabel.Font.Size;
+    vLabel.Style.Font.Color := vSourceLabel.Font.Color;
+    vLabel.Style.Font.Style := vSourceLabel.Font.Style;
+    vLabel.Anchors := vSourceLabel.Anchors;
+
+    vCaption := vSourceLabel.Caption;
+    vUIParams := '';
+    vPos := Pos('@', vCaption);
+    if vPos > 1 then
+    begin
+      vUIParams := vCaption;
+      Delete(vUIParams, 1, vPos);
+      vCaption := Copy(vCaption, 1, vPos - 1);
+
+      // Обработка служебных надписей
+      if (vCaption = '$') and (AView.DefinitionKind = dkCollection) and (vUIParams = 'Caption') then
+        vCaption := AParent.GetTranslation(TDefinition(AView.Definition))
+      else
+        // Обработать другие ситуации
+    end
+    else
+      vCaption := vSourceLabel.Caption; //FView.Interactor.Translate('@' + {FFullAreaName или FLayoutName +} '.' +
+        //vSourceLabel.Name + '@Caption', vSourceLabel.Caption);
+
+    vLabel.Caption := vCaption;
+
+    Result := TVCLArea.Create(AParent, AView, '', False, vLabel, ALayout);
+  end
+  else if ALayout.Control is TImage then
+  begin
+    vSourceImage := TImage(ALayout.Control);
+    vImage := TcxImage.Create(nil);
+    vImage.Style.BorderStyle := ebsNone;
+    vImage.ControlStyle := vImage.ControlStyle + [csOpaque];
+    vImage.Width := vSourceImage.Width;
+    vImage.Height := vSourceImage.Height;
+    vImage.Left := vSourceImage.Left;
+    vImage.Top := vSourceImage.Top;
+    vImage.Picture.Assign(vSourceImage.Picture);
+    vImage.Anchors := vSourceImage.Anchors;
+    vImage.Align := vSourceImage.Align;
+    vImage.Transparent := vSourceImage.Transparent;
+    vImage.Properties.ShowFocusRect := False;
+    vImage.Properties.PopupMenuLayout.MenuItems := [];
+    vImage.Properties.FitMode := ifmNormal;
+    vImage.DoubleBuffered := True;
+    vImage.Properties.Stretch := vSourceImage.Stretch;
+    vImage.Properties.Proportional := vSourceImage.Proportional;
+    vImage.Hint := vSourceImage.Hint;
+    vImage.AlignWithMargins := vSourceImage.AlignWithMargins;
+    vImage.Margins := vSourceImage.Margins;
+    vImage.Properties.Center := vSourceImage.Center;
+
+    Result := TVCLArea.Create(AParent, AView, '', False, vImage, ALayout);
+  end
+  else if ALayout.Control is TPageControl then
+  begin
+    vSourcePC := TPagecontrol(ALayout.Control);
+    vPC := TcxPageControl.Create(nil);
+    vPC.DoubleBuffered := True;
+    vPC.Width := vSourcePC.Width;
+    vPC.Height := vSourcePC.Height;
+    vPC.Left := vSourcePC.Left;
+    vPC.Top := vSourcePC.Top;
+    vPC.Properties.TabPosition := TcxTabPosition(vSourcePC.TabPosition);
+    vPC.Properties.TabHeight := vSourcePC.TabHeight;
+    vPC.Properties.TabWidth := vSourcePC.TabWidth;
+    vPC.Font.Assign(vSourcePC.Font);
+    vPC.Align := vSourcePC.Align;
+    vPC.AlignWithMargins := vSourcePC.AlignWithMargins;
+    vPC.Margins := vSourcePC.Margins;
+    vPC.Anchors := vSourcePC.Anchors;
+    vPC.Visible := vSourcePC.Visible;
+    if (vSourcePC.Tag and cPCNavigatorFlag) > 0 then
+    begin
+      vPC.Properties.Rotate := True;
+      vPC.Properties.Images := TDragImageList(TInteractor(AView.Interactor).Images[32]);
+      vPC.Properties.TabCaptionAlignment := taLeftJustify;
+    end
+    else
+    begin
+      vPC.Properties.Options := vPC.Properties.Options + [pcoTopToBottomText];
+      vPC.LookAndFeel.NativeStyle := False;
+      vPC.LookAndFeel.Kind := lfUltraFlat;
+    end;
+
+    Result := TVCLArea.Create(AParent, AView, '', False, vPC, ALayout);
+  end
+  else if ALayout.Control is TTabSheet then
+  begin
+    vSourceTabSheet := TTabSheet(ALayout.Control);
+    if (TInteractor(AView.Interactor).Layout = 'mdi') and (vSourceTabSheet.Tag = 11) then
+    begin
+      vForm := TForm.Create(nil);
+      vForm.Caption := vSourceTabSheet.Caption;
+      vForm.Position := poDefault;
+      vForm.FormStyle := fsMDIChild;
+      vForm.OnClose := OnCloseMDIForm;
+      vForm.ShowHint := True;
+      if AView.DefinitionKind in [dkCollection, dkAction, dkEntity] then
+        TDragImageList(TInteractor(AView.Interactor).Images[16]).GetIcon(AParent.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
+      Result := TVCLArea.Create(AParent, AView, vSourceTabSheet.Name, False, vForm, ALayout);
+      TVCLArea(Result).OnClose := AOnClose;
+    end
+    else begin
+      vTab := TcxTabSheet.Create(TComponent(AParent.InnerControl));
+      vTab.Caption := vSourceTabSheet.Caption;
+      vTab.ImageIndex := AParent.GetImageID(vSourceTabSheet.ImageIndex);
+
+      vStartPageName := TDomain(AParent.View.Domain).Settings.GetValue('Core', 'StartPage', '');
+      vTab.AllowCloseButton := not SameText(vSourceTabSheet.Name, vStartPageName);
+      vTab.TabVisible := vSourceTabSheet.TabVisible;
+
+      Result := TVCLArea.Create(AParent, AView, vSourceTabSheet.Name, False, vTab, ALayout);
+
+//      if vSourceTabSheet.Visible then // это нужно? иначе лишние перерисовки контролов идут
+//        TcxPageControl(AParent.InnerControl).ActivePage := vTab;
+    end;
+  end
+  else if ALayout.Control is TPopupMenu then
+  begin
+    Result := nil;
+  end
+  else if ALayout.Control is TBevel then
+  begin
+    vSourceBevel := TBevel(ALayout.Control);
+    vBevel := TBevel.Create(nil);
+    vBevel.SetBounds(vSourceBevel.Left, vSourceBevel.Top, vSourceBevel.Width, vSourceBevel.Height);
+    vBevel.Align := vSourceBevel.Align;
+    vBevel.Shape := vSourceBevel.Shape;
+    vBevel.Style := vSourceBevel.Style;
+    vBevel.AlignWithMargins := vSourceBevel.AlignWithMargins;
+    vBevel.Margins := vSourceBevel.Margins;
+    Result := TVCLArea.Create(AParent, AView, '-bevel-', False, vBevel, ALayout);
+  end
+  else if ALayout.Control is TSplitter then
+  begin
+    vSourceSplitter := TSplitter(ALayout.Control);
+    vSplitter := TcxSplitter.Create(nil);
+    case vSourceSplitter.Align of
+      alTop: vSplitter.AlignSplitter := salTop;
+      alLeft: vSplitter.AlignSplitter := salLeft;
+      alRight: vSplitter.AlignSplitter := salRight;
+    else
+      vSplitter.AlignSplitter := salBottom;
+    end;
+    vSplitter.Cursor := vSourceSplitter.Cursor;
+    //vSplitter.Control := TVCLArea(TInteractor(Interactor).UIBuilder.RootArea).Control;
+    //vSplitter.AllowHotZoneDrag := False;
+    vSplitter.HotZone := TcxSimpleStyle.Create(vSplitter);
+    vSplitter.SetBounds(vSourceSplitter.Left, vSourceSplitter.Top, vSourceSplitter.Width, vSourceSplitter.Height);
+    vSplitter.Color := vSourceSplitter.Color;
+    vSplitter.ParentColor := False;
+    vSplitter.NativeBackground := False;
+    Result := TVCLArea.Create(AParent, AView, '-splitter-', False, vSplitter, ALayout);
+  end
+  else if ALayout.Control is TPanel then
+  begin
+    vSourcePanel := TPanel(ALayout.Control);
+
+    if AParams <> '' then
+      vParams := CreateDelimitedList(AParams, '&')
+    else
+      vParams := nil;
+
+    if Assigned(vParams) and (vParams.Values['ViewType'] = 'Paged') then
+    begin
+      if TInteractor(AParent.View.Interactor).Layout = 'mdi' then
+      begin
+        AParent.UIBuilder.DefaultParams := AParams;
+        FreeAndNil(vParams);
+        Exit(nil);
+      end;
+
+      vPC := TcxPageControl.Create(nil);
+      vPC.DoubleBuffered := True;
+      vPC.Width := vSourcePanel.Width;
+      vPC.Height := vSourcePanel.Height;
+      vPC.Left := vSourcePanel.Left;
+      vPC.Top := vSourcePanel.Top;
+      vPC.Properties.Images := TDragImageList(TInteractor(AView.Interactor).Images[16]);
+      vPC.Properties.TabPosition := tpBottom;
+      if vParams.Values['PageLayout'] = 'Top' then
+        vPC.Properties.TabPosition := tpTop;
+      vPC.Properties.CloseButtonMode := cbmActiveTab;
+      vPC.OnCanClose := OnPCCanClose;
+      vPC.Align := vSourcePanel.Align;
+      vPC.Anchors := vSourcePanel.Anchors;
+      vPC.Font.Assign(vSourcePanel.Font);
+      Result := TVCLArea.Create(AParent, AView, Trim(vSourcePanel.Caption), False, vPC, ALayout);
+
+      // Здесь можно подкорректировать параметры
+      if StrToBoolDef(vDomain.UserSettings.GetValue('Core', 'ShowStartPage'), True) then
+      begin
+        vStartPageStr := vDomain.Settings.GetValue('Core', 'StartPage', '');
+
+        vStartPageName := GetUrlCommand(vStartPageStr);
+        if (vStartPageName <> '') and FileExists(vDomain.Configuration.FindLayoutFile(vStartPageName, LAYOUT_DFM_EXT)) then
+        begin
+          vParams.Values['Layout'] := vStartPageName;
+          vParams.Values['View'] := '';
+          vParams.Values['Options'] := DecodeUrl(GetUrlParam(vStartPageStr, 'Options', ''));
+        end;
+      end;
+
+      AParent.UIBuilder.PagedArea := Result;
+    end
+    else
+    begin
+      vPanel := TPanel.Create(nil);
+      vPanel.Width := vSourcePanel.Width;
+      vPanel.Height := vSourcePanel.Height;
+      vPanel.Left := vSourcePanel.Left;
+      vPanel.Top := vSourcePanel.Top;
+      vPanel.Align := vSourcePanel.Align;
+      vPanel.AlignWithMargins := vSourcePanel.AlignWithMargins;
+      vPanel.Margins := vSourcePanel.Margins;
+      vPanel.Padding := vSourcePanel.Padding;
+      if AView.DefinitionKind <> dkListField then
+        vPanel.BevelOuter := vSourcePanel.BevelOuter
+      else
+        vPanel.BevelOuter := bvNone;
+      vPanel.Anchors := vSourcePanel.Anchors;
+      if not vSourcePanel.ParentBackground then
+      begin
+        vPanel.Color := vSourcePanel.Color;
+        vPanel.ParentColor := False;
+        vPanel.ParentBackground := False;
+      end;
+      Result := TVCLArea.Create(AParent, AView, Trim(vSourcePanel.Caption), False, vPanel, ALayout, AParams);
+    end;
+
+    Result.AddParams(vParams);
+  end
+  else if ALayout.Control is TScrollBox then
+  begin
+    vSourceBox := TScrollBox(ALayout.Control);
+    vBox := TcxScrollBox.Create(nil);
+    vBox.Width := vSourceBox.Width;
+    vBox.Height := vSourceBox.Height;
+    vBox.Left := vSourceBox.Left;
+    vBox.Top := vSourceBox.Top;
+    vBox.Align := vSourceBox.Align;
+    vBox.AlignWithMargins := vSourceBox.AlignWithMargins;
+    vBox.Margins := vSourceBox.Margins;
+    vBox.Padding := vSourceBox.Padding;
+    vBox.LookAndFeel.ScrollbarMode := sbmClassic;
+    if vSourceBox.BorderStyle = bsNone then
+      vBox.BorderStyle := cxcbsNone;
+    vBox.Anchors := vSourceBox.Anchors;
+    Result := TVCLArea.Create(AParent, AView, '', False, vBox, ALayout);
+  end
+  else if ALayout.Control is TMemo then
+  begin
+    vSourcePanel := TPanel(ALayout.Control);
+
+    vPanel := TPanel.Create(nil);
+    vPanel.Width := vSourcePanel.Width;
+    vPanel.Height := vSourcePanel.Height;
+    vPanel.Left := vSourcePanel.Left;
+    vPanel.Top := vSourcePanel.Top;
+    vPanel.Align := vSourcePanel.Align;
+    vPanel.AlignWithMargins := vSourcePanel.AlignWithMargins;
+    vPanel.Margins := vSourcePanel.Margins;
+    vPanel.Padding := vSourcePanel.Padding;
+    if AView.DefinitionKind <> dkListField then
+      vPanel.BevelOuter := vSourcePanel.BevelOuter
+    else
+      vPanel.BevelOuter := bvNone;
+    vPanel.Anchors := vSourcePanel.Anchors;
+    if not vSourcePanel.ParentBackground then
+    begin
+      vPanel.Color := vSourcePanel.Color;
+      vPanel.ParentColor := False;
+      vPanel.ParentBackground := False;
+    end;
+    Result := TVCLArea.Create(AParent, AView, Trim(vSourcePanel.Caption), False, vPanel, ALayout);
+  end
+  else if Assigned(ALayout.Control) then
+    Assert(False, 'Класс [' + ALayout.Control.ClassName + '] не поддерживается для создания лэйаутов')
+  else
+    Assert(False, 'Пустой класс для лэйаута');
 end;
 
 function TWinVCLPresenter.CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout;
@@ -289,6 +874,23 @@ begin
     Result := nil;
 
   FreeAndNil(vParams);
+end;
+
+function TWinVCLPresenter.CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea;
+var
+  vMenu: TPopupMenu;
+  vView: TView;
+begin
+  if Assigned(ALayout) and Assigned(ALayout.Menu) then
+  begin
+    vMenu := TPopupMenu.Create(TComponent(AParent.InnerControl));
+    vMenu.Images := TDragImageList(TInteractor(AParent.Interactor).Images[16]);
+    vView := AParent.UIBuilder.RootView;
+    Result := TVCLArea.Create(AParent, vView, '-popup-', False, vMenu);
+    CopyPopupMenuItems(AParent, AParent.View, ALayout.Menu, vMenu.Items);
+  end
+  else
+    Result := nil;
 end;
 
 function TWinVCLPresenter.CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
@@ -607,6 +1209,87 @@ begin
   end;
 end;
 
+procedure TWinVCLPresenter.OnActionMenuSelected(Sender: TObject);
+var
+  vControl: TComponent;
+  vMenuItem: TMenuItem;
+  vArea: TVCLArea;
+  vSelectedIndex: Integer;
+begin
+  vMenuItem := TMenuItem(Sender);
+  vControl := TComponent(vMenuItem.Tag);
+  vArea := TVCLArea(vControl.Tag);
+  if not Assigned(vArea) then
+    Exit;
+  if not Assigned(vArea.View) then
+    Exit;
+  if not Assigned(vArea.View.DomainObject) then
+    Exit;
+
+  if vControl is TMenuItem then
+    vSelectedIndex := TMenuItem(vControl).IndexOf(vMenuItem)
+  else begin
+    if not Assigned(TcxButton(vControl).DropDownMenu) then
+      Exit;
+    vSelectedIndex := TPopupMenu(TcxButton(vControl).DropDownMenu).Items.IndexOf(vMenuItem);
+  end;
+
+  Assert(vSelectedIndex >= 0, 'Выбран неизвестный пункт меню');
+  TEntity(vArea.View.DomainObject)._SetFieldValue(TDomain(vArea.Domain).DomainHolder, 'SelectedIndex', vSelectedIndex);
+  vArea.OnAreaClick(vControl);
+end;
+
+procedure TWinVCLPresenter.OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
+var
+  vArea: TUIArea;
+  vView: TView;
+  vCloseView: TView;
+  vInteractor: TInteractor;
+  vCanBeClosed: Boolean;
+  vCloseProc: TProc;
+  vDelEntity: TEntity;
+begin
+  vArea := TUIArea(Pointer(TForm(Sender).Tag));
+  vView := vArea.View;
+  vInteractor := TInteractor(vArea.Interactor);
+
+  vCloseView := vView.BuildView('Close');
+  vCloseView.AddListener(vArea);
+  vCloseProc := nil;
+  vDelEntity := nil;
+
+  try
+    vCanBeClosed := not (Assigned(vCloseView) and (TCheckActionFlagsFunc(TConfiguration(vInteractor.Configuration).
+      CheckActionFlagsFunc)(vCloseView) <> vsFullAccess));
+
+    if (vView.DomainObject is TEntity) and TEntity(vView.DomainObject).InstanceOf('_FormLayout') then
+      vDelEntity := TEntity(vView.DomainObject);
+
+    if vCanBeClosed then
+    begin
+      vCloseProc := TVCLArea(vArea).OnClose;
+      vArea.SetControl(nil);
+      vArea.UIBuilder.RootArea.RemoveArea(vArea); // the form will be destroyed here
+    end
+    else
+      Action := caNone;
+  finally
+    vCloseView.RemoveListener(vArea);
+  end;
+
+  if vCanBeClosed and Assigned(vDelEntity) then
+  begin
+    TUserSession(vInteractor.Session).AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
+    begin
+      vDelEntity.Delete(AHolder);
+      Result := True;
+    end, nil);
+  end;
+
+  if Assigned(vCloseProc) then
+    vCloseProc;
+end;
+
 procedure TWinVCLPresenter.OnDomainError(const ACaption, AText: string);
 begin
   ShowMessage(ACaption, AText, msError);
@@ -619,6 +1302,31 @@ begin
     FProgressInfo.SetProgress(AProgress, AInfo);
     ShowPage(nil, 'splash', FProgressInfo);
   end;
+end;
+
+procedure TWinVCLPresenter.OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
+var
+  vPC: TcxPageControl;
+  vTab: TcxTabSheet;
+  vPCArea: TUIArea;
+  vTabArea: TUIArea;
+begin
+  // Closing will be done using TUIArea mechanics
+  ACanClose := False;
+
+  vPC := TcxPageControl(Sender);
+  vTab := vPC.ActivePage;
+  if vTab = nil then
+    Exit;
+
+  vPCArea := TUIArea(vPC.Tag);
+  vTabArea := TUIArea(vTab.Tag);
+
+  vPCArea.UIBuilder.LastArea := nil;
+
+  vPCArea.RemoveArea(vTabArea);
+
+  vPCArea.UIBuilder.PrintHierarchy;
 end;
 
 procedure TWinVCLPresenter.OnShortCut(var Msg: TWMKey; var Handled: Boolean);

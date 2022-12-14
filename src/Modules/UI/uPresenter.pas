@@ -263,7 +263,12 @@ type
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
     procedure CloseAllPages(const AInteractor: TInteractor);
 
+    function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
+      const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
     function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout; virtual; abstract;
+    function AppendServiceArea(const AParent: TUIArea): TUIArea; virtual; abstract;
+    function CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea; virtual; abstract;
+
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
     function SetCursor(const ACursorType: TCursorType): TCursorType;
 

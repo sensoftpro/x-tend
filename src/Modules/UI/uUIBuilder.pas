@@ -53,6 +53,9 @@ type
 
     FIsForm: Boolean;
     FIsAutoReleased: Boolean;
+    FShowCaption: Boolean;
+    FTabOrder: Integer;
+    FTabStop: Boolean;
 
     function AreaFromSender(const ASender: TObject): TUIArea; virtual;
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); virtual;
@@ -62,21 +65,30 @@ type
     procedure SetParent(const AParent: TUIArea); virtual;
     procedure SetControl(const AControl: TObject); virtual;
     function DoGetDescription: string; virtual;
+    procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); virtual;
+    procedure SetPopupArea(const APopupArea: TUIArea); virtual;
 
     procedure DoBeginUpdate; virtual;
     procedure DoEndUpdate; virtual;
 
     procedure UnbindContent;
+
+    procedure ApplyTabStops(const ALayout: TLayout); virtual;
   public
     constructor Create(const AOwner: TUIArea; const AControl: TObject); virtual;
     destructor Destroy; override;
 
     procedure SetViewState(const AValue: TViewState); virtual;
+    procedure CreateCaption(const AFieldDef: TFieldDef); virtual;
+    procedure UpdateCaptionVisibility; virtual;
 
     property Owner: TUIArea read FOwner;
     property Parent: TUIArea read FParent write SetParent;
     property Control: TObject read FControl write SetControl;
     property IsForm: Boolean read FIsForm;
+    property ShowCaption: Boolean read FShowCaption;
+    property TabOrder: Integer read FTabOrder;
+    property TabStop: Boolean read FTabStop;
   end;
 
   TNativeControlClass = class of TNativeControl;
@@ -89,6 +101,7 @@ type
     FParams: TStrings;
     FIsService: Boolean;
     FUpdateCount: Integer;
+    FOnClose: TProc;
     function GetArea(const AIndex: Integer): TUIArea;
     function GetCount: Integer;
     function GetInteractor: TObject;
@@ -103,12 +116,15 @@ type
     function ParentInUpdate: Boolean;
     procedure SetLayout(const Value: TLayout);
     function GetInnerControl: TObject;
+    function GetTabOrder: Integer;
+    function GetTabStop: Boolean;
   protected
     FNativeControl: TNativeControl;
     FLayout: TLayout;
+
     FInternalParams: string;
     FCreateParams: TStrings;
-    function DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
+    function DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string = ''; const AOnClose: TProc = nil): TUIArea;
     function DoCreateChildAction(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
     function DoCreateChildList(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
     function DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea; virtual;
@@ -117,8 +133,7 @@ type
       const AChildLayoutName: string; const AParams: string): TUIArea;
     function CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TProc = nil): TUIArea;
 
-    procedure CreateCaption(const AFieldDef: TFieldDef); virtual;
-    function AppendServiceArea: TUIArea; virtual; abstract;
+    function AppendServiceArea: TUIArea;
 
     function GetAreaByView(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
     procedure Clear;
@@ -126,8 +141,7 @@ type
     // Отвязать все нативные элементы
     procedure UnbindContent;
 
-    function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
-    function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
+    function GetDisplayFormat(const AFieldDef: TFieldDef; const AEntity: TEntity): string;
 
     procedure ProcessAreaClick(const AArea: TUIArea);
   protected
@@ -136,6 +150,7 @@ type
     [Weak] FSession: TUserSession;
     FId: string;
     FUId: string;
+    FNeedCreateCaption: Boolean;
 
     function GetName: string; virtual;
     procedure DoAfterChildAreasCreated; virtual;
@@ -145,10 +160,10 @@ type
     procedure DoDisableContent; virtual;
     procedure DoExecuteUIAction(const AView: TView); virtual;
     procedure SetParent(const Value: TUIArea); virtual;
-    procedure SetControl(const AControl: TObject); virtual;
 
     function TryCreatePopupArea(const ALayout: TLayout): TUIArea; virtual;
     procedure SetPopupArea(const APopupArea: TUIArea); virtual;
+
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); virtual;
     procedure ArrangeChildAreas; virtual;
@@ -179,6 +194,8 @@ type
     procedure ExecuteUIAction(const AView: TView);
 
     function LessThanUIState(const ADefinition: TDefinition; const ASession: TObject; const AState: TViewState): Boolean;
+    function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
+    function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
 
     procedure Activate(const AUrlParams: string);
     procedure OnEnter(Sender: TObject);
@@ -189,7 +206,9 @@ type
     procedure SetHolder(const AHolder: TObject);
     function QueryParameter(const AName: string; const ADefaultValue: string = ''): string;
     procedure SetBounds(const ALeft, ATop, AWidth, AHeight: Integer);
+    procedure SetControl(const AControl: TObject);
 
+    //property NativeControl: TNativeControl read FNativeControl;
     property InnerControl: TObject read GetInnerControl;
     property Count: Integer read GetCount;
     property Areas[const AIndex: Integer]: TUIArea read GetArea; default;
@@ -207,6 +226,10 @@ type
     property UId: string read FUId write FUId;
     property Holder: TObject read GetHolder;
     property ThisHolder: TObject read FHolder;
+    property NeedCreateCaption: Boolean read FNeedCreateCaption;
+    property TabOrder: Integer read GetTabOrder;
+    property TabStop: Boolean read GetTabStop;
+    property OnClose: TProc read FOnClose write FOnClose;
   end;
 
   (*TNavigationArea = class(TUIArea)
@@ -467,7 +490,7 @@ begin
           if vFieldDef.Kind = fkList then
           begin
             vArea := AArea.CreateChildLayoutedArea(vLayout, AView.ViewByName(vFieldDef.Name), 'DefaultList', '');
-            vArea.CreateCaption(vFieldDef);
+            vArea.FNativeControl.CreateCaption(vFieldDef);
           end
           else
             vArea := AArea.DoCreateChildEditor(vLayout, vView, '');
@@ -881,6 +904,11 @@ begin
   DoAfterChildAreasCreated;
 end;
 
+function TUIArea.AppendServiceArea: TUIArea;
+begin
+  Result := TPresenter(FUIBuilder.Presenter).AppendServiceArea(Self);
+end;
+
 function TUIArea.AreaById(const AId: string; const ARecoursive: Boolean = True): TUIArea;
 var
   i: Integer;
@@ -920,6 +948,7 @@ end;
 
 procedure TUIArea.AssignFromLayout(const ALayout: TLayout; const AParams: string);
 begin
+  FNativeControl.AssignFromLayout(ALayout, AParams);
 end;
 
 procedure TUIArea.BeginUpdate;
@@ -993,6 +1022,7 @@ begin
   FIsService := AIsService;
   FLayout := ALayout;
   FUpdateCount := 0;
+  FNeedCreateCaption := True;
 
   FInternalParams := AParams;
   FCreateParams := nil;
@@ -1013,23 +1043,21 @@ begin
     vControl := DoCreateControl(AParent, ALayout)
   else
     vControl := AControl;
-  FNativeControl := NativeControlClass.Create(Self, vControl);
+  FNativeControl := NativeControlClass.Create(Self, vControl); //?? Создать меню здесь?
   SetControl(vControl);
   SetParent(AParent);
 
-  if not Assigned(ALayout) then
-    Exit;
-
-  vPopupArea := TryCreatePopupArea(ALayout);
-  if Assigned(vPopupArea) then
+  if Assigned(ALayout) then
   begin
-    SetPopupArea(vPopupArea);
-    FAreas.Add(vPopupArea);
-  end;
-end;
+    FNativeControl.ApplyTabStops(ALayout);
 
-procedure TUIArea.CreateCaption(const AFieldDef: TFieldDef);
-begin
+    vPopupArea := TryCreatePopupArea(ALayout);
+    if Assigned(vPopupArea) then
+    begin
+      SetPopupArea(vPopupArea);
+      FAreas.Add(vPopupArea);
+    end;
+  end;
 end;
 
 function TUIArea.CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TProc = nil): TUIArea;
@@ -1186,13 +1214,12 @@ end;
 
 destructor TUIArea.Destroy;
 begin
+  FOnClose := nil;
   FreeAndNil(FCreateParams);
   FreeAndNil(FNativeControl);
   if not (FLayout is TNavigationItem) then
     FreeAndNil(FLayout);
-  //if Assigned(FLayout) and FLayout.IsOwner then
-  //  FLayout.Control.Free;
-  //FLayout := nil;
+
   inherited Destroy;
 end;
 
@@ -1244,6 +1271,12 @@ begin
   vStyleName := GetUrlParam(AParams, 'ViewStyle'{'view'});
 
   Result := TPresenter(FUIBuilder.Presenter).CreateActionArea(Self, ALayout, AView, vStyleName, AParams);
+end;
+
+function TUIArea.DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string;
+  const AOnClose: TProc): TUIArea;
+begin
+  Result := TPresenter(FUIBuilder.Presenter).CreateArea(Self, ALayout, AView, AParams, AOnClose);
 end;
 
 function TUIArea.DoCreateChildEditor(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
@@ -1441,13 +1474,23 @@ begin
             Result := DoCreateChildEditor(ALayout, AView, AParams)
           else begin
             Result := CreateChildLayoutedArea(ALayout, AView, 'DefaultList', AParams);
-            Result.CreateCaption(TFieldDef(AView.Definition));
+            Result.FNativeControl.CreateCaption(TFieldDef(AView.Definition));
           end;
         end;
     end;
   finally
     FreeAndNil(vParams);
   end;
+end;
+
+function TUIArea.GetTabOrder: Integer;
+begin
+  Result := FNativeControl.TabOrder;
+end;
+
+function TUIArea.GetTabStop: Boolean;
+begin
+  Result := FNativeControl.TabStop;
 end;
 
 function TUIArea.GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart): string;
@@ -1476,6 +1519,35 @@ end;
 function TUIArea.GetCount: Integer;
 begin
   Result := FAreas.Count;
+end;
+
+function TUIArea.GetDisplayFormat(const AFieldDef: TFieldDef; const AEntity: TEntity): string;
+var
+  i: Integer;
+  vFieldName: string;
+  vFormat: string;
+begin
+  if Length(AFieldDef.Format) > 0 then
+    vFormat := AFieldDef.Format
+  else if AEntity.FieldExists('Format') then
+    vFormat := AEntity['Format'];
+
+  i := Pos('@field=', vFormat);
+
+  if i > 0 then
+  begin
+    if Assigned(AEntity) then
+    begin
+      vFieldName := Copy(vFormat, i + Length('@field='), Length(vFormat) - i);
+      try
+        Result := AEntity[vFieldName];
+        Exit;
+      except
+      end;
+    end;
+  end;
+
+  Result := vFormat;
 end;
 
 function TUIArea.GetDomain: TObject;
@@ -1649,6 +1721,8 @@ begin
   else if FView.DefinitionKind = dkCollection then
   begin
   end;
+
+  FNativeControl.UpdateCaptionVisibility;
 end;
 
 procedure TUIArea.Release;
@@ -1706,6 +1780,7 @@ end;
 
 procedure TUIArea.SetPopupArea(const APopupArea: TUIArea);
 begin
+  FNativeControl.SetPopupArea(APopupArea);
 end;
 
 procedure TUIArea.SetView(const Value: TView);
@@ -1762,7 +1837,7 @@ end;
 
 function TUIArea.TryCreatePopupArea(const ALayout: TLayout): TUIArea;
 begin
-  Result := nil;
+  Result := TPresenter(Presenter).CreatePopupArea(Self, ALayout);
 end;
 
 procedure TUIArea.TrySubscribeView;
@@ -1784,6 +1859,10 @@ end;
 
 procedure TUIArea.UpdateArea(const AKind: Word; const AParameter: TEntity = nil);
 begin
+  RefillArea(AKind);
+
+  if not FNativeControl.IsForm then
+    FNativeControl.SetViewState(FView.State);
 end;
 (*
 { TNavigationArea }
@@ -1987,9 +2066,17 @@ end; *)
 
 { TNativeControl }
 
+procedure TNativeControl.ApplyTabStops(const ALayout: TLayout);
+begin
+end;
+
 function TNativeControl.AreaFromSender(const ASender: TObject): TUIArea;
 begin
   Result := nil;
+end;
+
+procedure TNativeControl.AssignFromLayout(const ALayout: TLayout; const AParams: string);
+begin
 end;
 
 constructor TNativeControl.Create(const AOwner: TUIArea; const AControl: TObject);
@@ -2002,6 +2089,13 @@ begin
   FUIBuilder := AOwner.UIBuilder;
   FIsForm := False;
   FIsAutoReleased := False;
+  FShowCaption := True;
+  FTabOrder := -1;
+  FTabStop := False;
+end;
+
+procedure TNativeControl.CreateCaption(const AFieldDef: TFieldDef);
+begin
 end;
 
 destructor TNativeControl.Destroy;
@@ -2054,6 +2148,10 @@ begin
   FParent := AParent;
 end;
 
+procedure TNativeControl.SetPopupArea(const APopupArea: TUIArea);
+begin
+end;
+
 procedure TNativeControl.SetViewState(const AValue: TViewState);
 begin
 end;
@@ -2062,6 +2160,10 @@ procedure TNativeControl.UnbindContent;
 begin
   if FIsAutoReleased then
     FControl := nil;
+end;
+
+procedure TNativeControl.UpdateCaptionVisibility;
+begin
 end;
 
 end.
