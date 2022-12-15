@@ -263,6 +263,8 @@ type
       const ACallback: TNotifyEvent = nil; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; virtual;
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; virtual;
     procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); virtual;
+    function CreateFilledArea(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''): TUIArea; virtual;
 
     // Layouts operations
     function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TLayout;
@@ -425,6 +427,13 @@ begin
   Result := vFieldAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
 end;
 
+function TPresenter.CreateFilledArea(const AParent: TUIArea; const AView: TView; const AId: string;
+  const AIsService: Boolean; const AControl: TObject; const ALayout: TLayout; const AParams: string): TUIArea;
+begin
+  Result := TUIArea.Create(AParent, AView, AId, AIsService, nil, ALayout, AParams);
+  Result.SetControl(AControl);
+end;
+
 function TPresenter.CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
 begin
   Result := DoCreateImages(AInteractor, ASize);
@@ -453,7 +462,8 @@ begin
   else
     vParams := vParams + '&' + AParams;
 
-  Result := vControlClass.Create(AArea, ALayout, AView, vParams);
+  //Result := vControlClass.Create(AArea, ALayout, AView, vParams);
+  Result := nil;
 end;
 
 function TPresenter.CreateNavigationArea(const AParentArea: TUIArea; const ALayout: TLayout; const AView: TView;

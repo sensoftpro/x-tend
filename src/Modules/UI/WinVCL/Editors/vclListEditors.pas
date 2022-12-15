@@ -157,7 +157,7 @@ type
     FEntities: TList<TEntity>;
     FColumns: TObjectList<TColumnBinding>;
     FIsLoading: Boolean;
-    FEditor: TUIArea;
+    FEditor: TVCLArea;
   protected
     function AppendRecord: TcxDataRecordHandle; override;
     procedure DeleteRecord(ARecordHandle: TcxDataRecordHandle); override;
@@ -169,7 +169,7 @@ type
     function IsNativeCompare: Boolean; override;
     procedure SetValue(ARecordHandle: TcxDataRecordHandle; AItemHandle: TcxDataItemHandle; const AValue: Variant); override;
   public
-    constructor Create(const AEditor: TUIArea);
+    constructor Create(const AEditor: TVCLArea);
     destructor Destroy; override;
 
     procedure DataChanged; override;
@@ -186,7 +186,7 @@ type
     property IsLoading: Boolean read FIsLoading;
   end;
 
-  TCollectionEditor = class(TUIArea)
+  TCollectionEditor = class(TVCLArea)
   private
     FGrid: TcxGrid;
     FMasterTableView: TcxGridTableView;
@@ -233,7 +233,7 @@ type
     procedure SetPopupArea(const APopupArea: TUIArea); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TNativeControl = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -312,7 +312,7 @@ type
     property Data: TList<TEntity> read FEntities;
   end;
 
-  TPivotGrid = class (TUIArea)
+  TPivotGrid = class (TVCLArea)
   private
     FPivot: TcxPivotGrid;
     FCube: TDataCube;
@@ -329,7 +329,7 @@ type
     procedure SetPopupArea(const APopupArea: TUIArea); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TNativeControl = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -342,7 +342,7 @@ type
     destructor Destroy; override;
   end;
 
-  TTreeCollectionEditor = class (TUIArea)
+  TTreeCollectionEditor = class (TVCLArea)
   private
     FTreeList: TcxVirtualTreeList;
     FBGStyle: TcxStyle;
@@ -390,7 +390,7 @@ type
     procedure SetPopupArea(const APopupArea: TUIArea); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TNativeControl = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -522,7 +522,7 @@ begin
   //vDblClickView.ExecuteAction(AArea.Holder);
 end;
 
-procedure GetContentStyle(const AArea: TUIArea; const AList: TEntityList; const AColorFieldName: string;
+procedure GetContentStyle(const AArea: TVCLArea; const AList: TEntityList; const AColorFieldName: string;
   const AFilteredList: TList<TEntity>; Sender: TcxCustomGridTableView; ARecord: TcxCustomGridRecord;
   AItem: TcxCustomGridTableItem; var AStyle: TcxStyle);
 var
@@ -1087,11 +1087,11 @@ procedure TListEditor.OnDblClick(Sender: TObject);
 var
   vSelectedView: TView;
   vActionView: TView;
-  vArea: TUIArea;
+  vArea: TVCLArea;
   vHolder: TObject;
 begin
   if not TcxTreeList(Sender).HitTest.HitAtNode then Exit;
-  vArea := TUIArea(TComponent(Sender).Tag);
+  vArea := TVCLArea(TComponent(Sender).Tag);
   Assert(Assigned(vArea), 'Нет холдера для грида');
 
   vHolder := vArea.Holder;
@@ -1201,7 +1201,7 @@ procedure TCollectionEditor.BeforeContextMenuShow(Sender: TObject);
 var
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
-  vArea: TUIArea;
+  vArea: TVCLArea;
   vParams: TEntity;
   i: Integer;
 begin
@@ -1212,7 +1212,7 @@ begin
   for i := 0 to vMenu.Items.Count - 1 do
   begin
     vMenuItem := vMenu.Items[i];
-    vArea := TUIArea(vMenuItem.Tag);
+    vArea := TVCLArea(vMenuItem.Tag);
     if not Assigned(vArea) then
       Continue;
 
@@ -1236,7 +1236,7 @@ begin
 end;
 
 constructor TCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TNativeControl = nil; const ALayout: TLayout = nil; const AParams: string = '');
+  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
 var
   vDefinition: TDefinition;
   vView: TView;
@@ -1297,8 +1297,7 @@ begin
 //  FGrid.Levels.Add.GridView := FChartView;
   FGrid.Font.Size := 12;
 
-  inherited Create(AParent, AView, AId, AIsService, nil, ALayout, AParams);
-  SetControl(FGrid);
+  inherited Create(AParent, AView, AId, AIsService, FGrid, ALayout, AParams);
 
   // after inherited Create, Interactor must be initialized
   cxSetResourceString(@scxGridGroupByBoxCaption, TInteractor(Interactor).Translate('txtMoveColumnForGrouping',
@@ -2024,7 +2023,7 @@ begin
   Result := TcxDataRecordHandle(FEntities.Last);
 end;
 
-constructor TUserDataSource.Create(const AEditor: TUIArea);
+constructor TUserDataSource.Create(const AEditor: TVCLArea);
 begin
   FEntities := TList<TEntity>.Create;
   FColumns := TObjectList<TColumnBinding>.Create;
@@ -2289,7 +2288,7 @@ procedure TColumnListEditor.BeforeContextMenuShow(Sender: TObject);
 var
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
-  vArea: TUIArea;
+  vArea: TVCLArea;
   vParams: TEntity;
   i: Integer;
 begin
@@ -2300,7 +2299,7 @@ begin
   for i := 0 to vMenu.Items.Count - 1 do
   begin
     vMenuItem := vMenu.Items[i];
-    vArea := TUIArea(vMenuItem.Tag);
+    vArea := TVCLArea(vMenuItem.Tag);
     if not Assigned(vArea) then
       Continue;
 
@@ -3161,7 +3160,7 @@ procedure TPivotGrid.BeforeContextMenuShow(Sender: TObject);
 var
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
-  vArea: TUIArea;
+  vArea: TVCLArea;
   //vParams: TEntity;
   i: Integer;
 begin
@@ -3172,7 +3171,7 @@ begin
   for i := 0 to vMenu.Items.Count - 1 do
   begin
     vMenuItem := vMenu.Items[i];
-    vArea := TUIArea(vMenuItem.Tag);
+    vArea := TVCLArea(vMenuItem.Tag);
     if not Assigned(vArea) then
       Continue;
 
@@ -3196,7 +3195,7 @@ begin
 end;
 
 constructor TPivotGrid.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TNativeControl = nil; const ALayout: TLayout = nil; const AParams: string = '');
+  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
 begin
   FPivot := TcxPivotGrid.Create(nil);
   FId := 'Pivot';
@@ -3268,8 +3267,7 @@ begin
   cxSetResourceString(@scxPrefilterIsEmpty, '<Фильтр не задан>');
   cxSetResourceString(@scxPrefilterCustomizeButtonCaption, 'Фильтрация...');
 
-  inherited Create(AParent, AView, AId, AIsService, nil, ALayout, AParams);
-  SetControl(FPivot);
+  inherited Create(AParent, AView, AId, AIsService, FPivot, ALayout, AParams);
 
   FAllData := TEntityList(AView.DomainObject);
   FMasterDS := TPivotDataSource.Create;
@@ -3502,7 +3500,7 @@ begin
 end;
 
 constructor TTreeCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TNativeControl = nil; const ALayout: TLayout = nil; const AParams: string = '');
+  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
 var
   vFields: string;
 begin
@@ -3549,8 +3547,7 @@ begin
 
   FTreeList.Font.Size := 12;
 
-  inherited Create(AParent, AView, AId, AIsService, nil, ALayout, AParams);
-  SetControl(FTreeList);
+  inherited Create(AParent, AView, AId, AIsService, FTreeList, ALayout, AParams);
 
   FAllData := TEntityList(FView.DomainObject);
 

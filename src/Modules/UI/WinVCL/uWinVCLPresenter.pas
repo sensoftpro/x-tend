@@ -122,6 +122,8 @@ type
       const ACallback: TNotifyEvent = nil; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; override;
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
     procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); override;
+    function CreateFilledArea(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''): TUIArea; override;
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
@@ -172,8 +174,7 @@ begin
   vPanel.BevelOuter := bvNone;
   vPanel.Height := cServiceAreaHeight;
   vPanel.Align := alBottom;
-  Result := TVCLArea.Create(AParent, AParent.View, '', True, nil);
-  Result.SetControl(vPanel);
+  Result := CreateFilledArea(AParent, AParent.View, '', True, vPanel);
 end;
 
 procedure TWinVCLPresenter.ArrangeMozaic(const AMDIForm: TForm);
@@ -340,8 +341,7 @@ begin
             if Assigned(vView.DomainObject) and TEntity(vView.DomainObject).FieldExists('IsChecked') then
               vDestItem.AutoCheck := True;
 
-            vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, nil, vSrcItem);
-            vChildArea.SetControl(vDestItem);
+            vChildArea := TVCLArea(CreateFilledArea(AParent, vView, vCaption, False, vDestItem, vSrcItem));
             TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
 
@@ -377,8 +377,7 @@ begin
             vDestItem.ImageIndex := 31;
             vDestItem.OnClick := AParent.OnAreaClick;
 
-            vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, nil, vSrcItem);
-            vChildArea.SetControl(vDestItem);
+            vChildArea := TVCLArea(CreateFilledArea(AParent, vView, vCaption, False, vDestItem, vSrcItem));
             TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
 
@@ -416,8 +415,7 @@ begin
       else
         vDestItem.Caption := vCaption;
 
-      vChildArea := TVCLArea.Create(AParent, AParent.View, vSrcItem.ViewName, False, nil, vSrcItem);
-      vChildArea.SetControl(vDestItem);
+      vChildArea := TVCLArea(CreateFilledArea(AParent, AParent.View, vSrcItem.ViewName, False, vDestItem, vSrcItem));
       AParent.AddArea(vChildArea);
 
       ADestMenu.Add(vDestItem);
@@ -462,8 +460,7 @@ begin
       if Assigned(vView.DomainObject) and TEntity(vView.DomainObject).FieldExists('IsChecked') then
         vDestItem.AutoCheck := True;
 
-      vChildArea := TVCLArea.Create(AParent, vView, vCaption, False, nil, vSrcItem);
-      vChildArea.SetControl(vDestItem);
+      vChildArea := TVCLArea(CreateFilledArea(AParent, vView, vCaption, False, vDestItem, vSrcItem));
       for j := 0 to vDestItem.Count - 1 do
         vDestItem[j].Tag := Integer(vChildArea);
 
@@ -558,8 +555,7 @@ begin
     vShape.AlignWithMargins := vSourceShape.AlignWithMargins;
     vShape.Margins := vSourceShape.Margins;
 
-    Result := TVCLArea.Create(AParent, AView, '', False, nil, ALayout);
-    Result.SetControl(vShape);
+    Result := CreateFilledArea(AParent, AView, '', False, vShape, ALayout);
   end
   else if ALayout.Control is TLabel then
   begin
@@ -598,8 +594,7 @@ begin
 
     vLabel.Caption := vCaption;
 
-    Result := TVCLArea.Create(AParent, AView, '', False, nil, ALayout);
-    Result.SetControl(vLabel);
+    Result := CreateFilledArea(AParent, AView, '', False, vLabel, ALayout);
   end
   else if ALayout.Control is TImage then
   begin
@@ -626,8 +621,7 @@ begin
     vImage.Margins := vSourceImage.Margins;
     vImage.Properties.Center := vSourceImage.Center;
 
-    Result := TVCLArea.Create(AParent, AView, '', False, nil, ALayout);
-    Result.SetControl(vImage);
+    Result := CreateFilledArea(AParent, AView, '', False, vImage, ALayout);
   end
   else if ALayout.Control is TPageControl then
   begin
@@ -660,8 +654,7 @@ begin
       vPC.LookAndFeel.Kind := lfUltraFlat;
     end;
 
-    Result := TVCLArea.Create(AParent, AView, '', False, nil, ALayout);
-    Result.SetControl(vPC);
+    Result := CreateFilledArea(AParent, AView, '', False, vPC, ALayout);
   end
   else if ALayout.Control is TTabSheet then
   begin
@@ -676,8 +669,7 @@ begin
       vForm.ShowHint := True;
       if AView.DefinitionKind in [dkCollection, dkAction, dkEntity] then
         TDragImageList(TInteractor(AView.Interactor).Images[16]).GetIcon(AParent.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
-      Result := TVCLArea.Create(AParent, AView, vSourceTabSheet.Name, False, nil, ALayout);
-      Result.SetControl(vForm);
+      Result := CreateFilledArea(AParent, AView, vSourceTabSheet.Name, False, vForm, ALayout);
       TVCLArea(Result).OnClose := AOnClose;
     end
     else begin
@@ -689,8 +681,7 @@ begin
       vTab.AllowCloseButton := not SameText(vSourceTabSheet.Name, vStartPageName);
       vTab.TabVisible := vSourceTabSheet.TabVisible;
 
-      Result := TVCLArea.Create(AParent, AView, vSourceTabSheet.Name, False, nil, ALayout);
-      Result.SetControl(vTab);
+      Result := CreateFilledArea(AParent, AView, vSourceTabSheet.Name, False, vTab, ALayout);
 
 //      if vSourceTabSheet.Visible then // это нужно? иначе лишние перерисовки контролов идут
 //        TcxPageControl(AParent.InnerControl).ActivePage := vTab;
@@ -710,8 +701,7 @@ begin
     vBevel.Style := vSourceBevel.Style;
     vBevel.AlignWithMargins := vSourceBevel.AlignWithMargins;
     vBevel.Margins := vSourceBevel.Margins;
-    Result := TVCLArea.Create(AParent, AView, '-bevel-', False, nil, ALayout);
-    Result.SetControl(vBevel);
+    Result := CreateFilledArea(AParent, AView, '-bevel-', False, vBevel, ALayout);
   end
   else if ALayout.Control is TSplitter then
   begin
@@ -732,8 +722,7 @@ begin
     vSplitter.Color := vSourceSplitter.Color;
     vSplitter.ParentColor := False;
     vSplitter.NativeBackground := False;
-    Result := TVCLArea.Create(AParent, AView, '-splitter-', False, nil, ALayout);
-    Result.SetControl(vSplitter);
+    Result := CreateFilledArea(AParent, AView, '-splitter-', False, vSplitter, ALayout);
   end
   else if ALayout.Control is TPanel then
   begin
@@ -768,8 +757,7 @@ begin
       vPC.Align := vSourcePanel.Align;
       vPC.Anchors := vSourcePanel.Anchors;
       vPC.Font.Assign(vSourcePanel.Font);
-      Result := TVCLArea.Create(AParent, AView, Trim(vSourcePanel.Caption), False, nil, ALayout);
-      Result.SetControl(vPC);
+      Result := CreateFilledArea(AParent, AView, Trim(vSourcePanel.Caption), False, vPC, ALayout);
 
       // Здесь можно подкорректировать параметры
       if StrToBoolDef(vDomain.UserSettings.GetValue('Core', 'ShowStartPage'), True) then
@@ -809,8 +797,7 @@ begin
         vPanel.ParentColor := False;
         vPanel.ParentBackground := False;
       end;
-      Result := TVCLArea.Create(AParent, AView, Trim(vSourcePanel.Caption), False, nil, ALayout, AParams);
-      Result.SetControl(vPanel);
+      Result := CreateFilledArea(AParent, AView, Trim(vSourcePanel.Caption), False, vPanel, ALayout, AParams);
     end;
 
     Result.AddParams(vParams);
@@ -831,8 +818,7 @@ begin
     if vSourceBox.BorderStyle = bsNone then
       vBox.BorderStyle := cxcbsNone;
     vBox.Anchors := vSourceBox.Anchors;
-    Result := TVCLArea.Create(AParent, AView, '', False, nil, ALayout);
-    Result.SetControl(vBox);
+    Result := CreateFilledArea(AParent, AView, '', False, vBox, ALayout);
   end
   else if ALayout.Control is TMemo then
   begin
@@ -858,13 +844,18 @@ begin
       vPanel.ParentColor := False;
       vPanel.ParentBackground := False;
     end;
-    Result := TVCLArea.Create(AParent, AView, Trim(vSourcePanel.Caption), False, nil, ALayout);
-    Result.SetControl(vPanel);
+    Result := CreateFilledArea(AParent, AView, Trim(vSourcePanel.Caption), False, vPanel, ALayout);
   end
   else if Assigned(ALayout.Control) then
     Assert(False, 'Класс [' + ALayout.Control.ClassName + '] не поддерживается для создания лэйаутов')
   else
     Assert(False, 'Пустой класс для лэйаута');
+end;
+
+function TWinVCLPresenter.CreateFilledArea(const AParent: TUIArea; const AView: TView; const AId: string;
+  const AIsService: Boolean; const AControl: TObject; const ALayout: TLayout; const AParams: string): TUIArea;
+begin
+  Result := TVCLArea.Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
 end;
 
 function TWinVCLPresenter.CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout;
@@ -912,8 +903,7 @@ begin
     vMenu := TPopupMenu.Create(TComponent(AParent.InnerControl));
     vMenu.Images := TDragImageList(TInteractor(AParent.Interactor).Images[16]);
     vView := AParent.UIBuilder.RootView;
-    Result := TVCLArea.Create(AParent, vView, '-popup-', False, nil);
-    Result.SetControl(vMenu);
+    Result := CreateFilledArea(AParent, vView, '-popup-', False, vMenu);
     CopyPopupMenuItems(AParent, AParent.View, ALayout.Menu, vMenu.Items);
   end
   else
@@ -993,8 +983,7 @@ begin
   Assert(not Assigned(vForm.OnShow), 'vForm.OnShow already assigned');
   vForm.OnShow := DoOnFormShow;
   try
-    Result := TVCLArea.Create(AParent, AView, AAreaName, True, nil, nil, '');
-    Result.SetControl(vForm);
+    Result := CreateFilledArea(AParent, AView, AAreaName, True, vForm, nil, '');
     if Assigned(AOnClose) then
       TVCLArea(Result).OnClose := AOnClose;
 

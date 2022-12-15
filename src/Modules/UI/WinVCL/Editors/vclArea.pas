@@ -71,7 +71,7 @@ type
     procedure SetLabelPosition(const Value: TLabelPosition);
     procedure SetCaptionProperty(const ALayout: TLayout); virtual;
   public
-    constructor Create(const AOwner: TUIArea; const ALayout: TLayout; const AView: TView; const AParams: string = ''); override;
+    constructor Create(const AOwner: TUIArea; const AControl: TObject); override;
     destructor Destroy; override;
 
     procedure SetViewState(const AValue: TViewState); override;
@@ -79,7 +79,60 @@ type
     procedure UpdateCaptionVisibility; override;
   end;
 
+  TVCLFieldArea = class;
+  TVCLFieldAreaClass = class of TVCLFieldArea;
+
   TVCLArea = class(TUIArea)
+  protected
+    function DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea; override;
+  end;
+
+  TVCLFieldArea = class(TVCLArea)
+  protected
+    FFieldDef: TFieldDef;
+    FDefinitionName: string;
+
+    function GetNewValue: Variant; virtual;
+
+    function CanChangeArea: Boolean; override;
+
+    function GetName: string; override;
+    procedure RefillArea(const AKind: Word); override;
+
+    procedure SetFieldValue(const AValue: Variant);
+    procedure SetFieldEntity(const AEntity: TEntity);
+    procedure SetFieldStream(const AStream: TStream);
+
+    function GetFormat: string;
+  public
+    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+  end;
+
+  TActionArea = class(TVCLArea)
+  protected
+    FParams: string;
+  public
+    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+
+    property ActionParams: string read FParams write FParams;
+  end;
+
+  TButtonArea = class(TActionArea)
+  private
+    FTypeSelectionMenu: TPopupMenu;
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure RefillArea(const AKind: Word); override;
+  public
+    destructor Destroy; override;
+  end;
+
+  TLinkArea = class(TActionArea)
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure RefillArea(const AKind: Word); override;
   end;
 
   TButtonControl = class(TVCLControl)
@@ -97,6 +150,30 @@ type
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure RefillArea(const AKind: Word); override;
   end;
+
+  TNavigationArea = class(TVCLArea)
+  private
+    function CreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem;
+      const AView: TView; const ALevel: Integer): TObject;
+  protected
+    FInitialMenu: TNavigationItem;
+    FParams: string;
+    function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
+      const ACaption, AHint: string; const AImageIndex: Integer): TObject; virtual; abstract;
+    procedure DoAfterCreate(const AInteractor: TObject); virtual;
+    procedure DoProcessChilds(const AParentArea: TUIArea; const AView: TView; const ANavItem: TNavigationItem;
+      const ALevel: Integer); virtual;
+    function TryCreatePopupArea(const ALayout: TLayout): TUIArea; override;
+  public
+    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+    destructor Destroy; override;
+
+    procedure ProcessChilds;
+  end;
+
+type
+  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
 
 implementation
 
@@ -202,6 +279,318 @@ end;
 function TUIAreaComparer.Compare(const ALeft, ARight: TUIArea): Integer;
 begin
   Result := ARight.TabOrder - ALeft.TabOrder;
+end;
+
+{ TVCLArea }
+
+function TVCLArea.DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
+var
+  vStyleName: string;
+  vSourcePanel: TPanel;
+  vNavArea: TNavigationArea;
+begin
+  vSourcePanel := TPanel(ALayout.Control);
+  Assert(Assigned(vSourcePanel.PopupMenu), 'У панели с именем ' + vSourcePanel.Name + ' задан Caption ' + vSourcePanel.Caption + '. Это навигационная область. Для неё нужно указать PopupMenu.');
+
+  vStyleName := GetUrlParam(AParams, 'ViewType');
+  vNavArea := TNavigationArea(TPresenter(FUIBuilder.Presenter).CreateNavigationArea(Self, ALayout, AView, vStyleName, AParams));
+  vNavArea.ProcessChilds;
+
+  Result := vNavArea;
+end;
+
+{ TVCLFieldArea }
+
+function TVCLFieldArea.CanChangeArea: Boolean;
+var
+  vEntity: TEntity;
+begin
+  vEntity := TEntity(FView.ParentDomainObject);
+  Result := TCanChangeFieldFunc(TDomain(FView.Domain).Configuration.CanChangeFieldFunc)(FView, vEntity, FDefinitionName, GetNewValue);
+end;
+
+constructor TVCLFieldArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
+begin
+  if AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField] then
+  begin
+    FFieldDef := TFieldDef(AView.Definition);
+    FDefinitionName := FFieldDef.Name;
+  end
+  else begin
+    FFieldDef := nil;
+    FDefinitionName := TDefinition(AView.Definition).Name;
+  end;
+
+  FId := FDefinitionName;
+  FUId := FDefinitionName;
+
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
+
+  Assert(Assigned(FControl), 'Не создан контрол для ' + FDefinitionName);
+
+  // Нужно делать после задания родителя, так как надпись использует родительский шрифт
+  FNativeControl.CreateCaption(FFieldDef);
+
+  if Assigned(TComponent(FControl)) then
+  begin
+    TComponent(FControl).Name := FDefinitionName;
+    if TComponent(FControl) is TPanel then
+      TPanel(TComponent(FControl)).Caption := '';
+  end;
+end;
+
+function TVCLFieldArea.GetFormat: string;
+begin
+  Result := GetDisplayFormat(FFieldDef, FView.ParentDomainObject as TEntity);
+end;
+
+function TVCLFieldArea.GetName: string;
+begin
+  Result := FDefinitionName;
+end;
+
+function TVCLFieldArea.GetNewValue: Variant;
+begin
+  Result := Null;
+end;
+
+procedure TVCLFieldArea.RefillArea(const AKind: Word);
+var
+  vEntity: TEntity;
+begin
+  FNativeControl.UpdateCaptionVisibility;
+
+  vEntity := TEntity(FView.ParentDomainObject);
+  if not Assigned(vEntity) then
+    Exit;
+
+  try
+    SwitchChangeHandlers(nil);
+    if not Assigned(FView.ParentDomainObject) then
+      DoDeinit
+    else begin
+      FillEditor;
+      Validate;
+    end;
+    SwitchChangeHandlers(OnChange);
+  except
+    TInteractor(FView.Interactor).ShowMessage('Error in FillEditorFromModel, Field: ' + FFieldDef.Name);
+  end;
+end;
+
+procedure TVCLFieldArea.SetFieldEntity(const AEntity: TEntity);
+begin
+  FView.SetFieldEntity(Holder, AEntity);
+end;
+
+procedure TVCLFieldArea.SetFieldStream(const AStream: TStream);
+begin
+  FView.SetFieldStream(Holder, AStream);
+end;
+
+procedure TVCLFieldArea.SetFieldValue(const AValue: Variant);
+begin
+  FView.SetFieldValue(Holder, AValue);
+end;
+
+{ TNavigationArea }
+
+constructor TNavigationArea.Create(const AParent: TUIArea; const AView: TView; const AId: string;
+  const AIsService: Boolean; const AControl: TObject; const ALayout: TLayout; const AParams: string);
+begin
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
+  FParams := AParams;
+  Assert(Assigned(ALayout) and Assigned(ALayout.Menu), 'Для навигационной области не задано меню');
+  FInitialMenu := ALayout.Menu;
+end;
+
+function TNavigationArea.CreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const AView: TView;
+  const ALevel: Integer): TObject;
+var
+  vDefinition: TDefinition;
+  vEntity: TEntity;
+  vCaption, vHint: string;
+  vImageID: Integer;
+begin
+  vCaption := ANavItem.Caption;
+  vHint := ANavItem.Hint;
+  vImageID := ANavItem.ImageID;
+
+  if AView.DefinitionKind in [dkAction, dkCollection] then
+  begin
+    vDefinition := TDefinition(AView.Definition);
+    if vCaption = '' then
+      vCaption := GetTranslation(vDefinition);
+    if vHint = '' then
+      vHint := vCaption;
+    if vImageID < 0 then
+      vImageID := vDefinition._ImageID;
+
+    Result := DoCreateItem(AParentObj, ANavItem, ALevel, vCaption, vHint, GetImageID(vImageID));
+  end
+  else if (AView.DefinitionKind in [dkEntity, dkObjectField]) and (AView.DomainObject is TEntity) then
+  begin
+    vEntity := AView.DomainObject as TEntity;
+    if (vCaption = '') and Assigned(vEntity) then
+      vCaption := SafeDisplayName(vEntity, 'NULL');
+    if vHint = '' then
+      vHint := vCaption;
+
+    Result := DoCreateItem(AParentObj, ANavItem, ALevel, vCaption, vCaption, GetImageID(vImageID));
+  end
+  else
+    Result := nil;
+end;
+
+destructor TNavigationArea.Destroy;
+begin
+  FInitialMenu := nil;
+  inherited Destroy;
+end;
+
+procedure TNavigationArea.DoAfterCreate(const AInteractor: TObject);
+begin
+end;
+
+procedure TNavigationArea.DoProcessChilds(const AParentArea: TUIArea; const AView: TView;
+  const ANavItem: TNavigationItem; const ALevel: Integer);
+var
+  i: Integer;
+  vNavItem: TNavigationItem;
+  vParentObj: TObject;
+  vViewPath: TStrings;
+
+  procedure CreateGroupNode(const ACurrentItem: TNavigationItem; const ACurrentView: TView);
+  var
+    vControl: TObject;
+    vGroupArea: TUIArea;
+    vDefinition: TDefinition;
+    vDefinitions: TList<TDefinition>;
+  begin
+    vControl := DoCreateItem(vParentObj, ACurrentItem, ALevel, ACurrentItem.Caption, ACurrentItem.Hint,
+      GetImageID(ACurrentItem.ImageID));
+    if not Assigned(vControl) then
+      Exit;
+
+    vGroupArea := TVCLArea.Create(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
+    AParentArea.AddArea(vGroupArea);
+
+    if ACurrentItem.Id = 'Libraries' then
+    begin
+      vDefinitions := TList<TDefinition>.Create;
+      try
+        TConfiguration(TInteractor(Interactor).Configuration).Definitions.DefinitionsByKind(vDefinitions, clkLibrary);
+        vDefinitions.Sort(TComparer<TDefinition>.Construct(function(const Left, Right: TDefinition): Integer
+          begin
+            Result := CompareText(Left._Caption, Right._Caption);
+          end));
+        for vDefinition in vDefinitions do
+          if not LessThanUIState(vDefinition, TInteractor(Interactor).Session, vsReadOnly)
+            and not vDefinition.HasFlag(ccNotSave) and not vDefinition.HasFlag(ccHideInMenu)
+          then begin
+            //#Check Возможно, лучше явно отстроить эти области без изменения vNavItem
+            ACurrentItem.Add(vDefinition.Name);
+          end;
+      finally
+        FreeAndNil(vDefinitions);
+      end;
+    end;
+
+    DoProcessChilds(vGroupArea, ACurrentView, ACurrentItem, ALevel + 1);
+  end;
+
+  procedure CreateNavigationNode(const ACurrentItem: TNavigationItem; const ACurrentView: TView);
+  var
+    vControl: TObject;
+    vNavArea: TUIArea;
+  begin
+    vControl := CreateItem(vParentObj, ACurrentItem, ACurrentView, ALevel);
+    if not Assigned(vControl) then
+      Exit;
+
+    vNavArea := TVCLArea.Create(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
+    AParentArea.AddArea(vNavArea);
+
+    DoProcessChilds(vNavArea, ACurrentView, ACurrentItem, ALevel + 1);
+  end;
+
+  procedure ProcessNavigationNode(const ACurrentItem: TNavigationItem; const ACurrentView: TView; const AViewPath: TStrings);
+  var
+    vViewName: string;
+    vNextView: TView;
+    vEntityList: TEntityList;
+    vEntity: TEntity;
+  begin
+    if AViewPath.Count = 0 then
+    begin
+      CreateNavigationNode(ACurrentItem, ACurrentView);
+      Exit;
+    end;
+
+    vViewName := Trim(AViewPath[0]);
+    AViewPath.Delete(0);
+    try
+      if vViewName = '' then
+        ProcessNavigationNode(ACurrentItem, ACurrentView, AViewPath)
+      else if vViewName = '-' then
+        CreateGroupNode(ACurrentItem, ACurrentView)
+      else if Pos('@', vViewName) = 1 then
+      begin
+        // Нужно итерироваться
+        if vViewName = '@' then
+        begin
+          if ACurrentView.DefinitionKind in [dkCollection, dkListField] then
+          begin
+            vEntityList := TEntityList(ACurrentView.DomainObject);
+            for vEntity in vEntityList do
+            begin
+              vNextView := TInteractor(ACurrentView.Interactor).GetViewOfEntity(vEntity);
+              ProcessNavigationNode(ACurrentItem, vNextView, AViewPath)
+            end;
+          end
+          else
+            Assert(False, 'Тип не поддерживается для итераций в меню');
+        end
+        else
+          CreateGroupNode(ACurrentItem, ACurrentView);
+      end
+      else begin
+        vNextView := ACurrentView.BuildView(vViewName);
+        ProcessNavigationNode(ACurrentItem, vNextView, AViewPath);
+      end;
+    finally
+      AViewPath.Insert(0, vViewName);
+    end;
+  end;
+begin
+  for i := 0 to ANavItem.Items.Count - 1 do
+  begin
+    vNavItem := TNavigationItem(ANavItem.Items[i]);
+
+    if AParentArea = Self then
+      vParentObj := nil
+    else
+      vParentObj := AParentArea.InnerControl;
+
+    vViewPath := CreateDelimitedList(vNavItem.ViewName, '/');
+    try
+      ProcessNavigationNode(vNavItem, AView, vViewPath);
+    finally
+      FreeAndNil(vViewPath);
+    end;
+  end;
+end;
+
+procedure TNavigationArea.ProcessChilds;
+begin
+  DoProcessChilds(Self, FView, FInitialMenu, 0);
+  DoAfterCreate(FView.Interactor);
+end;
+
+function TNavigationArea.TryCreatePopupArea(const ALayout: TLayout): TUIArea;
+begin
+  Result := nil;
 end;
 
 { TNavBarArea }
@@ -653,6 +1042,222 @@ begin
     ProcessAreaClick(vArea);
 end;
 
+{ TButtonArea }
+
+destructor TButtonArea.Destroy;
+begin
+  FreeAndNil(FTypeSelectionMenu);
+  inherited Destroy;
+end;
+
+function TButtonArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vParams: TStrings;
+  vButton: TcxButton;
+  vActionDef: TDefinition;
+  vDefinitions: TList<TDefinition>;
+  i: Integer;
+  vMenuItem: TMenuItem;
+  vDefinition: TDefinition;
+  vImageID: Integer;
+  vImageSize: Integer;
+  vComposition: string;
+  vViewStyle: string;
+  vOverriddenCaption, vOverriddenHint: string;
+begin
+  vParams := CreateDelimitedList(FParams, '&');
+
+  vActionDef := TDefinition(FView.Definition);
+
+  vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
+  vImageID := StrToIntDef(vParams.Values['ImageID'], vActionDef._ImageID);
+  vComposition := Trim(vParams.Values['Composition']);
+  vViewStyle := Trim(vParams.Values['ViewStyle']);
+  vOverriddenCaption := Trim(vParams.Values['Caption']);
+  vOverriddenHint := Trim(vParams.Values['Hint']);
+
+  vButton := TcxButton.Create(nil);
+  vButton.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[vImageSize]);
+  vImageID := GetImageID(vImageID);
+
+  if (TPanel(ALayout.Control).BevelOuter = bvNone) and (TPanel(ALayout.Control).BevelInner = bvNone)
+    and (TPanel(ALayout.Control).BevelKind = TBevelKind.bkNone)
+  then begin
+    vButton.SpeedButtonOptions.Flat := True;
+    vButton.SpeedButtonOptions.CanBeFocused := False;
+  end;
+
+  vButton.Caption := GetTranslation(vActionDef);
+  vButton.Hint := vButton.Caption;
+  if Length(vOverriddenCaption) > 0 then
+    vButton.Caption := vOverriddenCaption;
+  if Length(vOverriddenHint) > 0 then
+    vButton.Hint := vOverriddenHint;
+
+  if (vButton.OptionsImage.Images.Count + 1 >= vImageID) and (vImageID > 0) then
+  begin
+    if vComposition = '' then
+    begin
+      if TPanel(ALayout.Control).ShowHint then
+        vButton.PaintStyle := bpsDefault
+      else
+        vButton.PaintStyle := bpsGlyph;
+    end
+    else if vComposition = 'TextOnly' then
+    begin
+      vButton.PaintStyle := bpsCaption;
+    end
+    else if vComposition = 'ImageOnly' then
+      vButton.PaintStyle := bpsGlyph
+    else
+    begin
+      vButton.PaintStyle := bpsDefault;
+      if vComposition = 'ImageRight' then
+        vButton.Layout := TButtonLayout.blGlyphRight
+      else if vComposition = 'ImageTop' then
+        vButton.Layout := TButtonLayout.blGlyphTop
+      else if vComposition = 'ImageBottom' then
+        vButton.Layout := TButtonLayout.blGlyphBottom
+      else
+        vButton.Layout := TButtonLayout.blGlyphLeft;
+    end;
+    vButton.OptionsImage.ImageIndex := vImageID;
+  end
+  else
+  begin
+    vButton.PaintStyle := bpsCaption;
+    vButton.WordWrap := True;
+  end;
+
+  if (vActionDef.Name = 'Add') and Assigned(FView.ParentDomainObject) and (FView.ParentDomainObject is TEntityList) then
+  begin
+    vDefinitions := TEntityList(FView.ParentDomainObject).ContentDefinitions;
+    if vDefinitions.Count > 1 then
+    begin
+      FTypeSelectionMenu := TPopupMenu.Create(nil);
+      FTypeSelectionMenu.Images := TDragImageList(TInteractor(Interactor).Images[16]);
+      for i := 0 to vDefinitions.Count - 1 do
+      begin
+        vDefinition := TDefinition(vDefinitions[i]);
+        vMenuItem := TMenuItem.Create(nil);
+        vMenuItem.Caption := GetTranslation(vDefinition);
+        if Length(vOverriddenCaption) > 0 then
+          vMenuItem.Caption := vOverriddenCaption;
+        vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
+        vMenuItem.Tag := Integer(Self); //Integer(vButton);
+        vMenuItem.OnClick := OnActionMenuSelected;
+        FTypeSelectionMenu.Items.Add(vMenuItem);
+      end;
+      vButton.DropDownMenu := FTypeSelectionMenu;
+      vButton.Kind := cxbkOfficeDropDown;
+      vButton.OptionsImage.Margin := 4;
+    end
+    else begin
+      vButton.OnClick := OnAreaClick;
+      TWinControl(ALayout.Control).Width := TWinControl(ALayout.Control).Height;
+    end;
+  end
+  else
+    vButton.OnClick := OnAreaClick;
+
+  AddParams(vParams);
+
+  Result := vButton;
+end;
+
+procedure TButtonArea.RefillArea(const AKind: Word);
+var
+  vButton: TcxButton;
+  vActionDef: TDefinition;
+  vImageID: Integer;
+begin
+  if AKind <> dckContentTypeChanged then
+  begin
+    inherited RefillArea(AKind);
+    Exit;
+  end;
+
+  vButton := TcxButton(FControl);
+
+  vActionDef := TDefinition(FView.Definition);
+  vImageID := GetImageID(vActionDef._ImageID);
+
+  if (vButton.OptionsImage.Images.Count + 1 >= vImageID) and (vImageID > 0) then
+    vButton.OptionsImage.ImageIndex := vImageID;
+
+  vButton.Caption := GetTranslation(vActionDef);
+  vButton.Hint := vButton.Caption;
+end;
+
+{ TLinkArea }
+
+function TLinkArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vParams: TStrings;
+  vLabel: TcxLabel;
+  vActionDef: TDefinition;
+  vComposition: string;
+  vViewStyle: string;
+  vOverriddenCaption, vOverriddenHint: string;
+begin
+  vParams := CreateDelimitedList(FParams, '&');
+
+  vActionDef := TDefinition(FView.Definition);
+
+  vComposition := Trim(vParams.Values['Composition']);
+  vViewStyle := Trim(vParams.Values['ViewStyle']);
+  vOverriddenCaption := Trim(vParams.Values['Caption']);
+  vOverriddenHint := Trim(vParams.Values['Hint']);
+
+  vLabel := TcxLabel.Create(nil);
+  vLabel.Caption := GetTranslation(vActionDef);
+  vLabel.Hint := vLabel.Caption;
+  if Length(vOverriddenCaption) > 0 then
+    vLabel.Caption := vOverriddenCaption;
+  if Length(vOverriddenHint) > 0 then
+    vLabel.Hint := vOverriddenHint;
+  vLabel.Cursor := crHandPoint;
+  vLabel.Transparent := True;
+  vLabel.Properties.Alignment.Vert := TcxEditVertAlignment.taVCenter;
+  vLabel.Style.TextColor := TPanel(ALayout.Control).Font.Color;
+  //vLabel.Style.TextStyle := [fsUnderline];
+  vLabel.Style.HotTrack := True;
+  //vLabel.StyleHot.TextColor := clBlue;
+  vLabel.StyleHot.TextStyle := [fsUnderline];
+  vLabel.OnClick := OnAreaClick;
+
+  AddParams(vParams);
+
+  Result := vLabel;
+end;
+
+procedure TLinkArea.RefillArea(const AKind: Word);
+var
+  vLabel: TcxLabel;
+  vActionDef: TDefinition;
+begin
+  if AKind <> dckContentTypeChanged then
+  begin
+    inherited RefillArea(AKind);
+    Exit;
+  end;
+
+  vLabel := TcxLabel(FControl);
+
+  vActionDef := TDefinition(FView.Definition);
+  vLabel.Caption := GetTranslation(vActionDef);
+  vLabel.Hint := vLabel.Caption;
+end;
+
+{ TActionArea }
+
+constructor TActionArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean;
+  const AControl: TObject; const ALayout: TLayout; const AParams: string);
+begin
+  FParams := AParams;
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
+end;
+
 { TVCLControl }
 
 procedure TVCLControl.ApplyTabStops(const ALayout: TLayout);
@@ -855,12 +1460,12 @@ begin
     CheckMenuItems(vMenuItem);
 end;
 
-constructor TVCLControl.Create(const AOwner: TUIArea; const ALayout: TLayout; const AView: TView; const AParams: string = '');
+constructor TVCLControl.Create(const AOwner: TUIArea; const AControl: TObject);
 begin
-  inherited Create(AOwner, ALayout, AView, AParams);
+  inherited Create(AOwner, AControl);
 
-  FIsForm := FControl is TForm;
-  FIsAutoReleased := FControl is TMenuItem;
+  FIsForm := AControl is TForm;
+  FIsAutoReleased := AControl is TMenuItem;
 end;
 
 procedure TVCLControl.CreateCaption(const AFieldDef: TFieldDef);
@@ -1504,6 +2109,9 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'NavBar', TNavBar
 TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'MainMenu', TMainMenuArea);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'ToolBar', TToolBarArea);
 //TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'OneButton', TOneButtonArea);
+
+TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, '', TButtonArea);
+TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'link', TLinkArea);
 
 TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, '', TButtonControl);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, 'link', TLinkControl);

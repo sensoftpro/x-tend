@@ -4,53 +4,72 @@ object EditForm: TEditForm
   Width = 945
   Height = 579
   TabOrder = 0
-  object Label1: TLabel
-    Left = 192
-    Top = 268
-    Width = 113
-    Height = 33
-    Caption = 'Label1'
-  end
-  object Bevel1: TBevel
-    Left = 628
-    Top = 88
-    Width = 137
-    Height = 137
-  end
-  object Panel1: TPanel
-    Left = 380
-    Top = 184
-    Width = 185
-    Height = 41
+  object WorkArea: TPanel
+    Left = 274
+    Top = 66
+    Width = 671
+    Height = 513
+    Align = alClient
+    Caption = '@WorkArea?ViewType=Paged&View=Configurations&Layout=Collection'
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWindowText
+    Font.Height = -12
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentFont = False
     TabOrder = 0
   end
-  object Panel2: TPanel
-    Left = 396
-    Top = 328
-    Width = 185
-    Height = 41
-    Caption = 'Quit'
+  object Panel1: TPanel
+    Left = 0
+    Top = 0
+    Width = 945
+    Height = 17
+    Align = alTop
+    Caption = '@NavigationArea?ViewType=MainMenu'
+    PopupMenu = MainMenu
     TabOrder = 1
   end
-  object Panel3: TPanel
-    Left = 396
-    Top = 404
-    Width = 185
-    Height = 41
-    Caption = 'Quit?ViewStyle=link'
+  object Panel2: TPanel
+    Left = 0
+    Top = 17
+    Width = 945
+    Height = 49
+    Align = alTop
+    Caption = '@NavigationArea?ViewType=ToolBar'
+    PopupMenu = ToolBar
     TabOrder = 2
   end
-  object Panel4: TPanel
-    Left = 404
-    Top = 252
-    Width = 185
-    Height = 41
-    Caption = 'Quit?ViewStyle=panel'
+  object Panel3: TPanel
+    Left = 0
+    Top = 66
+    Width = 137
+    Height = 513
+    Align = alLeft
+    Caption = '@NavigationArea?ViewType=TreeView'
+    PopupMenu = MainMenu
     TabOrder = 3
   end
+  object Panel4: TPanel
+    Left = 137
+    Top = 66
+    Width = 137
+    Height = 513
+    Align = alLeft
+    Caption = '@NavigationArea?ViewType=NavBar'
+    Color = clTeal
+    Font.Charset = DEFAULT_CHARSET
+    Font.Color = clWhite
+    Font.Height = -19
+    Font.Name = 'Tahoma'
+    Font.Style = []
+    ParentBackground = False
+    ParentFont = False
+    PopupMenu = MainMenu
+    TabOrder = 4
+  end
   object MainMenu: TPopupMenu
-    Left = 300
-    Top = 107
+    Left = 340
+    Top = 171
     object System1: TMenuItem
       Caption = '@System?Id=System&Caption='#1057#1080#1089#1090#1077#1084#1072
       object ShowSysLog1: TMenuItem
@@ -89,6 +108,25 @@ object EditForm: TEditForm
     end
     object ShowAbout1: TMenuItem
       Caption = 'ShowAbout'
+    end
+  end
+  object ToolBar: TPopupMenu
+    Left = 784
+    Top = 16
+    object SysUsersWorkAreaWorkAreaLayoutCollection1: TMenuItem
+      Caption = 'SysUsers?WorkArea=ContentWorkArea&Layout=Collection'
+    end
+    object ConfigurationsWorkAreaWorkAreaLayoutCollection1: TMenuItem
+      Caption = 'Configurations?WorkArea=WorkArea&Layout=Collection'
+    end
+    object StreetsWorkAreaWorkAreaLayoutCollection1: TMenuItem
+      Caption = 'Streets?WorkArea=WorkArea&Layout=Collection'
+    end
+    object DistrictsWorkAreaWorkAreaLayoutCollection1: TMenuItem
+      Caption = 'Districts?WorkArea=WorkArea&Layout=Collection'
+    end
+    object DistrictsWorkAreaWorkAreaLayoutCollection2: TMenuItem
+      Caption = '_Owners?WorkArea=WorkArea&Layout=Collection'
     end
   end
 end
