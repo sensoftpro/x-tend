@@ -47,6 +47,7 @@ type
   protected
     [Weak] FOwner: TUIArea;
     [Weak] FParent: TUIArea;
+    [Weak] FLayout: TLayout;
     [Weak] FControl: TObject;
     [Weak] FInteractor: TObject;
     [Weak] FUIBuilder: TUIBuilder;
@@ -64,6 +65,7 @@ type
     procedure DoClose(const AModalResult: Integer); virtual;
     function GetName: string; virtual;
     procedure DoActivate(const AUrlParams: string); virtual;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
     procedure SetParent(const AParent: TUIArea); virtual;
     procedure SetControl(const AControl: TObject); virtual;
     function DoGetDescription: string; virtual;
@@ -82,7 +84,8 @@ type
 
     procedure ApplyTabStops(const ALayout: TLayout); virtual;
   public
-    constructor Create(const AOwner: TUIArea; const AControl: TObject); virtual;
+    constructor Create(const AOwner: TUIArea; const ALayout: TLayout; const AView: TView; const AParams: string = ''); virtual;
+
     destructor Destroy; override;
 
     procedure SetViewState(const AValue: TViewState); virtual;
@@ -125,6 +128,7 @@ type
     function GetInnerControl: TObject;
     function GetTabOrder: Integer;
     function GetTabStop: Boolean;
+    function GetControl: TObject;
   protected
     FNativeControl: TNativeControl;
     FLayout: TLayout;
@@ -139,6 +143,7 @@ type
     function CreateChildLayoutedArea(const ALayout: TLayout; const AView: TView;
       const AChildLayoutName: string; const AParams: string): TUIArea;
     function CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TProc = nil): TUIArea;
+    function CreateNativeControl(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TNativeControl;
 
     function AppendServiceArea: TUIArea;
 
@@ -151,6 +156,8 @@ type
     function GetDisplayFormat(const AFieldDef: TFieldDef; const AEntity: TEntity): string;
 
     procedure ProcessAreaClick(const AArea: TUIArea);
+
+    property FControl: TObject read GetControl;
   protected
     [Weak] FUIBuilder: TUIBuilder;
     [Weak] FView: TView;
@@ -255,7 +262,7 @@ type
     property Focused: Boolean read GetFocused write SetFocused;
   end;
 
-  (*TNavigationArea = class(TUIArea)
+  TNavigationArea = class(TUIArea)
   private
     function CreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem;
       const AView: TView; const ALevel: Integer): TObject;
@@ -274,7 +281,7 @@ type
     destructor Destroy; override;
 
     procedure ProcessChilds;
-  end; *)
+  end;
 
   TUIBuilder = class
   private
@@ -1070,10 +1077,14 @@ begin
 
   FParent := AParent;
   if not Assigned(AControl) then
-    vControl := DoCreateControl(AParent, ALayout)
-  else
+  begin
+    FNativeControl := CreateNativeControl(ALayout, AView, AParams);
+    vControl := FNativeControl.Control;
+  end
+  else begin
     vControl := AControl;
-  FNativeControl := NativeControlClass.Create(Self, vControl); //?? Создать меню здесь?
+    FNativeControl := NativeControlClass.Create(Self, ALayout, AView, AParams);
+  end;
   SetControl(vControl);
   SetParent(AParent);
 
@@ -1242,6 +1253,37 @@ begin
   FUIBuilder.ApplyLayout(Result, AView, vChildLayoutName, AParams);
 end;
 
+function TUIArea.CreateNativeControl(const ALayout: TLayout; const AView: TView; const AParams: string): TNativeControl;
+var
+  vStyleName: string;
+  vControlType: TUIItemType;
+begin
+  vStyleName := GetUrlParam(AParams, 'view');
+  if vStyleName = '' then
+    vStyleName := GetUrlParam(AParams, 'style');
+
+  if vStyleName = '' then
+  begin
+    if AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField] then
+      vStyleName := TFieldDef(AView.Definition).StyleName;
+  end;
+
+  if FIsService or (AView.DefinitionKind in [dkUndefined, dkDomain]) then
+    vControlType := uiDecor
+  else if AView.DefinitionKind = dkEntity then
+    vControlType := uiEntityEdit
+  else if AView.DefinitionKind = dkCollection then
+    vControlType := uiCollection
+  else if AView.DefinitionKind = dkAction then
+    vControlType := uiAction
+  else if AView.DefinitionKind = dkNavigation then
+    vControlType := uiNavigation
+  else
+    vControlType := ItemTypeByFieldType(TFieldDef(AView.Definition).Kind);
+
+  Result := TPresenter(Presenter).CreateNativeControl(Self, ALayout, AView, vControlType, vStyleName, AParams);
+end;
+
 procedure TUIArea.Deinit;
 begin
   DoDeinit;
@@ -1327,11 +1369,8 @@ var
 begin
   vStyleName := GetUrlParam(AParams, 'view');
 
-  if vStyleName = '' then
-  begin
-    if AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField] then
-      vStyleName := TFieldDef(AView.Definition).StyleName;
-  end;
+  if (vStyleName = '') and (AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField]) then
+    vStyleName := TFieldDef(AView.Definition).StyleName;
 
   Result := TPresenter(FUIBuilder.Presenter).CreateFieldArea(Self, ALayout, AView, vStyleName, AParams);
 end;
@@ -1345,8 +1384,19 @@ begin
 end;
 
 function TUIArea.DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
+var
+  vStyleName: string;
+  //vSourcePanel: TPanel;
+  vNavArea: TNavigationArea;
 begin
-  Result := nil;
+  //vSourcePanel := TPanel(ALayout.Control);
+  //Assert(Assigned(vSourcePanel.PopupMenu), 'У панели с именем ' + vSourcePanel.Name + ' задан Caption ' + vSourcePanel.Caption + '. Это навигационная область. Для неё нужно указать PopupMenu.');
+
+  vStyleName := GetUrlParam(AParams, 'ViewType');
+  vNavArea := TNavigationArea(TPresenter(FUIBuilder.Presenter).CreateNavigationArea(Self, ALayout, AView, vStyleName, AParams));
+  vNavArea.ProcessChilds;
+
+  Result := vNavArea;
 end;
 
 function TUIArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -1576,6 +1626,11 @@ end;
 function TUIArea.NativeControlClass: TNativeControlClass;
 begin
   Result := TPresenter(Presenter).NativeControlClass;
+end;
+
+function TUIArea.GetControl: TObject;
+begin
+  Result := FNativeControl.Control;
 end;
 
 function TUIArea.GetCount: Integer;
@@ -2008,7 +2063,6 @@ begin
 //  SetWarningVisible(vEntity.FieldByName(FFieldDef.Name).ValidationStatus = vsInvalid);
 end;
 
-(*
 { TNavigationArea }
 
 constructor TNavigationArea.Create(const AParent: TUIArea; const AView: TView; const AId: string;
@@ -2088,7 +2142,7 @@ var
     if not Assigned(vControl) then
       Exit;
 
-    vGroupArea := MainUIClass.Create(AParentArea, ACurrentView, '', False, vControl, nil, '');
+    vGroupArea := TUIArea.Create(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
     AParentArea.AddArea(vGroupArea);
 
     if ACurrentItem.Id = 'Libraries' then
@@ -2124,7 +2178,7 @@ var
     if not Assigned(vControl) then
       Exit;
 
-    vNavArea := MainUIClass.Create(AParentArea, ACurrentView, '', False, vControl, nil, '');
+    vNavArea := TUIArea.Create(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
     AParentArea.AddArea(vNavArea);
 
     DoProcessChilds(vNavArea, ACurrentView, ACurrentItem, ALevel + 1);
@@ -2179,14 +2233,14 @@ var
     end;
   end;
 begin
-  for i := 0 to ANavItem.Count - 1 do
+  for i := 0 to ANavItem.Items.Count - 1 do
   begin
-    vNavItem := ANavItem[i];
+    vNavItem := TNavigationItem(ANavItem.Items[i]);
 
     if AParentArea = Self then
       vParentObj := nil
     else
-      vParentObj := AParentArea.Control;
+      vParentObj := AParentArea.InnerControl;
 
     vViewPath := CreateDelimitedList(vNavItem.ViewName, '/');
     try
@@ -2206,7 +2260,7 @@ end;
 function TNavigationArea.TryCreatePopupArea(const ALayout: TLayout): TUIArea;
 begin
   Result := nil;
-end; *)
+end;
 
 { TNativeControl }
 
@@ -2223,19 +2277,22 @@ procedure TNativeControl.AssignFromLayout(const ALayout: TLayout; const AParams:
 begin
 end;
 
-constructor TNativeControl.Create(const AOwner: TUIArea; const AControl: TObject);
+constructor TNativeControl.Create(const AOwner: TUIArea; const ALayout: TLayout; const AView: TView; const AParams: string = '');
 begin
   inherited Create;
   FOwner := AOwner;
   FParent := AOwner.Parent;
-  FControl := AControl;
+  FLayout := AOwner.Layout;
   FInteractor := AOwner.Interactor;
   FUIBuilder := AOwner.UIBuilder;
+
   FIsForm := False;
   FIsAutoReleased := False;
   FShowCaption := True;
   FTabOrder := -1;
   FTabStop := False;
+
+  FControl := DoCreateControl(FParent, ALayout);
 end;
 
 procedure TNativeControl.CreateCaption(const AFieldDef: TFieldDef);
@@ -2267,6 +2324,11 @@ end;
 
 procedure TNativeControl.DoClose(const AModalResult: Integer);
 begin
+end;
+
+function TNativeControl.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+begin
+  Result := nil;
 end;
 
 procedure TNativeControl.DoEndUpdate;

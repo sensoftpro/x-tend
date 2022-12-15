@@ -158,6 +158,16 @@ type
       const AViewName: string; const AItemClass: TUIAreaClass);
   end;
 
+  TControlClassInfo = class
+  private
+    FName: string;
+    FType: TUIItemType;
+    FControlClass: TNativeControlClass;
+  public
+    constructor Create(const AControlType: TUIItemType; const AStyleName: string;
+      const AControlClass: TNativeControlClass);
+  end;
+
   TProgressInfo = class
   private
     FProgress: Integer;
@@ -180,13 +190,18 @@ type
   private
     class var RegisteredUIClasses: TObjectDictionary<string, TObjectDictionary<string, TUIClassInfo>>;
     class var RegisteredPages: TObjectDictionary<string, TDictionary<string, TClass>>;
+    class var RegisteredControlClasses: TObjectDictionary<string, TObjectDictionary<string, TControlClassInfo>>;
   public
     class procedure RegisterUIClass(const APresenterName: string; const AItemType: TUIItemType;
       const AViewName: string; const AElementClass: TUIAreaClass);
     class procedure RegisterPage(const APresenterName: string; const APageName: string; const APageClass: TClass);
+    class procedure RegisterControlClass(const APresenterName: string; const AControlType: TUIItemType;
+      const AStyleName: string; const AControlClass: TNativeControlClass);
     class function GetUIClass(const APresenterName: string; const AItemType: TUIItemType;
       const AViewName: string): TUIAreaClass;
     class function GetPageClass(const APresenterName: string; const APageName: string): TClass;
+    class function GetControlClass(const APresenterName: string; const AControlType: TUIItemType;
+      const AStyleName: string): TNativeControlClass;
   private
     FNativeControlClass: TNativeControlClass;
     FOnAppStarted: TStartedEvent;
@@ -198,7 +213,6 @@ type
     FCommonIcons: TIcons;
 
     procedure DoOnAppStarted;
-    function ItemTypeByFieldType(const AFieldKind: TFieldKind): TUIItemType;
 
     procedure DoRun(const AParameter: string); virtual;
     procedure DoUnfreeze; virtual;
@@ -259,6 +273,8 @@ type
       const AView: TView; const AStyleName, AParams: string): TUIArea;
     function CreateNavigationArea(const AParentArea: TUIArea; const ALayout: TLayout;
       const AView: TView; const AStyleName, AParams: string): TUIArea;
+    function CreateNativeControl(const AArea: TUIArea; const ALayout: TLayout;
+      const AView: TView; const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
     procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
     procedure EnumerateControls(const ALayout: TLayout);
     procedure SetLayoutCaption(const ALayout: TLayout; const ACaption: string);
@@ -301,7 +317,7 @@ type
 implementation
 
 uses
-  Math, IOUtils, TypInfo, uDefinition, uUtils, uSession;
+  Math, IOUtils, uDefinition, uUtils, uSession;
 
 { TPresenter }
 
@@ -410,6 +426,32 @@ end;
 function TPresenter.CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
 begin
   Result := DoCreateImages(AInteractor, ASize);
+end;
+
+function TPresenter.CreateNativeControl(const AArea: TUIArea; const ALayout: TLayout; const AView: TView;
+  const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
+var
+  vParams: string;
+  vStyleName: string;
+  vControlClass: TNativeControlClass;
+begin
+  if ALayout.Kind = lkPages then
+    vStyleName := 'pages'
+  else
+    vStyleName := GetUrlCommand(AStyleName, AStyleName);
+  vParams := ExtractUrlParams(AStyleName);
+
+  vControlClass := TNativeControlClass(GetControlClass(FName, AControlType, vStyleName));
+  if not Assigned(vControlClass) then
+    Assert(Assigned(vControlClass), 'Control class not found for type: "' + cControlTypeNames[AControlType] +
+      '", style name: "' + vStyleName + '" in UI: ' + ClassName);
+
+  if vParams = '' then
+    vParams := AParams
+  else
+    vParams := vParams + '&' + AParams;
+
+  Result := vControlClass.Create(AArea, ALayout, AView, vParams);
 end;
 
 function TPresenter.CreateNavigationArea(const AParentArea: TUIArea; const ALayout: TLayout; const AView: TView;
@@ -536,6 +578,31 @@ begin
   DoEnumerateControls(ALayout);
 end;
 
+class function TPresenter.GetControlClass(const APresenterName: string; const AControlType: TUIItemType;
+  const AStyleName: string): TNativeControlClass;
+var
+  vTypeName, vStyleName: string;
+  vClassesList: TObjectDictionary<string, TControlClassInfo>;
+  vClassInfo: TControlClassInfo;
+begin
+  Result := nil;
+  if not RegisteredControlClasses.TryGetValue(APresenterName, vClassesList) then
+    Exit;
+
+  vTypeName := cControlTypeNames[AControlType];
+  vStyleName := AnsiLowerCase(AStyleName);
+
+  if not vClassesList.TryGetValue(vTypeName + vStyleName, vClassInfo) and (vStyleName <> '') then
+    if not vClassesList.TryGetValue(vTypeName, vClassInfo) then
+      vClassInfo := nil;
+
+  if Assigned(vClassInfo) then
+    Result := vClassInfo.FControlClass
+  else
+    Assert(False, 'Control class not found for type: "' + vTypeName +
+      '", style Name: "' + vStyleName + '" in UI: ' + ClassName);
+end;
+
 function TPresenter.GetLayoutBounds(const ALayout: TLayout): TRect;
 begin
   Result := DoGetLayoutBounds(ALayout);
@@ -566,7 +633,7 @@ begin
 
   if not vClassesList.TryGetValue(APageName, Result) then
     Assert(False, 'Page is not found for type: "' + APageName +
-    '" in presenter: "' + APresenterName + '" classified as: ' + ClassName);
+      '" in presenter: "' + APresenterName + '" classified as: ' + ClassName);
 end;
 
 class function TPresenter.GetUIClass(const APresenterName: string; const AItemType: TUIItemType; const AViewName: string): TUIAreaClass;
@@ -579,7 +646,7 @@ begin
   if not RegisteredUIClasses.TryGetValue(APresenterName, vClassesList) then
     Exit;
 
-  vTypeName := GetEnumName(TypeInfo(TUIItemType), Integer(AItemType));
+  vTypeName := cControlTypeNames[AItemType];
   vViewName := AnsiLowerCase(AViewName);
 
   if not vClassesList.TryGetValue(vTypeName + vViewName, vClassInfo) and (vViewName <> '') then
@@ -596,26 +663,6 @@ end;
 function TPresenter.GetViewNameByLayoutType(const ALayout: TLayout): string;
 begin
   Result := '';
-end;
-
-function TPresenter.ItemTypeByFieldType(const AFieldKind: TFieldKind): TUIItemType;
-begin
-  Result := uiTextEdit;
-  case AFieldKind of
-    fkInteger: Result := uiIntegerEdit;
-    fkEnum: Result := uiEnumEdit;
-    fkFlag: Result := uiFlagEdit;
-    fkFloat: Result := uiFloatEdit;
-    fkString: Result := uiTextEdit;
-    fkDateTime: Result := uiDateEdit;
-    fkBoolean: Result := uiBoolEdit;
-    fkCurrency: Result := uiCurrencyEdit;
-    fkObject: Result := uiEntityEdit;
-    fkList: Result := uiListEdit;
-    fkBlob: Result := uiBLOBEdit;
-    fkComplex: Result := uiComplexEdit;
-    fkColor: Result := uiColorEdit;
-  end;
 end;
 
 function TPresenter.Login(const ADomain: TObject): TInteractor;
@@ -644,6 +691,28 @@ begin
   DoOpenFile(AFileName, ADefaultApp, Await);
 end;
 
+class procedure TPresenter.RegisterControlClass(const APresenterName: string; const AControlType: TUIItemType;
+  const AStyleName: string; const AControlClass: TNativeControlClass);
+var
+  vTypeName, vStyleName: string;
+  vClassesList: TObjectDictionary<string, TControlClassInfo>;
+  vClassInfo: TControlClassInfo;
+begin
+  vTypeName := cControlTypeNames[AControlType];
+  vStyleName := AnsiLowerCase(vStyleName);
+  if not RegisteredControlClasses.TryGetValue(APresenterName, vClassesList) then
+  begin
+    vClassesList := TObjectDictionary<string, TControlClassInfo>.Create([doOwnsValues]);
+    RegisteredControlClasses.Add(APresenterName, vClassesList);
+  end
+  else
+    Assert(not vClassesList.TryGetValue(vTypeName + vStyleName, vClassInfo),
+      'Control class already registered for type: "' + vTypeName + '", style name: "' + vStyleName + '"');
+
+  vClassInfo := TControlClassInfo.Create(AControlType, vStyleName, AControlClass);
+  vClassesList.Add(vTypeName + vStyleName, vClassInfo);
+end;
+
 class procedure TPresenter.RegisterPage(const APresenterName, APageName: string; const APageClass: TClass);
 var
   vClassesList: TDictionary<string, TClass>;
@@ -666,7 +735,7 @@ var
   vClassesList: TObjectDictionary<string, TUIClassInfo>;
   vClassInfo: TUIClassInfo;
 begin
-  vTypeName := GetEnumName(TypeInfo(TUIItemType), Integer(AItemType));
+  vTypeName := cControlTypeNames[AItemType];
   vViewName := AnsiLowerCase(AViewName);
   if not RegisteredUIClasses.TryGetValue(APresenterName, vClassesList) then
   begin
@@ -808,14 +877,26 @@ begin
   FInfo := '[' + FormatFloat('0.##', vElapsedTime) + '] ' + AInfo + '...';
 end;
 
+{ TControlClassInfo }
+
+constructor TControlClassInfo.Create(const AControlType: TUIItemType; const AStyleName: string;
+  const AControlClass: TNativeControlClass);
+begin
+  FName := AStyleName;
+  FType := AControlType;
+  FControlClass := AControlClass;
+end;
+
 initialization
 
 TPresenter.RegisteredUIClasses := TObjectDictionary<string, TObjectDictionary<string, TUIClassInfo>>.Create([doOwnsValues]);
 TPresenter.RegisteredPages := TObjectDictionary<string, TDictionary<string, TClass>>.Create([doOwnsValues]);
+TPresenter.RegisteredControlClasses := TObjectDictionary<string, TObjectDictionary<string, TControlClassInfo>>.Create([doOwnsValues]);
 
 finalization
 
 FreeAndNil(TPresenter.RegisteredUIClasses);
 FreeAndNil(TPresenter.RegisteredPages);
+FreeAndNil(TPresenter.RegisteredControlClasses);
 
 end.

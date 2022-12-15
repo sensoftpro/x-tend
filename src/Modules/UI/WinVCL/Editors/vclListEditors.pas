@@ -157,7 +157,7 @@ type
     FEntities: TList<TEntity>;
     FColumns: TObjectList<TColumnBinding>;
     FIsLoading: Boolean;
-    FEditor: TVCLArea;
+    FEditor: TUIArea;
   protected
     function AppendRecord: TcxDataRecordHandle; override;
     procedure DeleteRecord(ARecordHandle: TcxDataRecordHandle); override;
@@ -169,7 +169,7 @@ type
     function IsNativeCompare: Boolean; override;
     procedure SetValue(ARecordHandle: TcxDataRecordHandle; AItemHandle: TcxDataItemHandle; const AValue: Variant); override;
   public
-    constructor Create(const AEditor: TVCLArea);
+    constructor Create(const AEditor: TUIArea);
     destructor Destroy; override;
 
     procedure DataChanged; override;
@@ -186,7 +186,7 @@ type
     property IsLoading: Boolean read FIsLoading;
   end;
 
-  TCollectionEditor = class(TVCLArea)
+  TCollectionEditor = class(TUIArea)
   private
     FGrid: TcxGrid;
     FMasterTableView: TcxGridTableView;
@@ -312,7 +312,7 @@ type
     property Data: TList<TEntity> read FEntities;
   end;
 
-  TPivotGrid = class (TVCLArea)
+  TPivotGrid = class (TUIArea)
   private
     FPivot: TcxPivotGrid;
     FCube: TDataCube;
@@ -342,7 +342,7 @@ type
     destructor Destroy; override;
   end;
 
-  TTreeCollectionEditor = class (TVCLArea)
+  TTreeCollectionEditor = class (TUIArea)
   private
     FTreeList: TcxVirtualTreeList;
     FBGStyle: TcxStyle;
@@ -522,7 +522,7 @@ begin
   //vDblClickView.ExecuteAction(AArea.Holder);
 end;
 
-procedure GetContentStyle(const AArea: TVCLArea; const AList: TEntityList; const AColorFieldName: string;
+procedure GetContentStyle(const AArea: TUIArea; const AList: TEntityList; const AColorFieldName: string;
   const AFilteredList: TList<TEntity>; Sender: TcxCustomGridTableView; ARecord: TcxCustomGridRecord;
   AItem: TcxCustomGridTableItem; var AStyle: TcxStyle);
 var
@@ -1087,11 +1087,11 @@ procedure TListEditor.OnDblClick(Sender: TObject);
 var
   vSelectedView: TView;
   vActionView: TView;
-  vArea: TVCLArea;
+  vArea: TUIArea;
   vHolder: TObject;
 begin
   if not TcxTreeList(Sender).HitTest.HitAtNode then Exit;
-  vArea := TVCLArea(TComponent(Sender).Tag);
+  vArea := TUIArea(TComponent(Sender).Tag);
   Assert(Assigned(vArea), 'Нет холдера для грида');
 
   vHolder := vArea.Holder;
@@ -1201,7 +1201,7 @@ procedure TCollectionEditor.BeforeContextMenuShow(Sender: TObject);
 var
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
-  vArea: TVCLArea;
+  vArea: TUIArea;
   vParams: TEntity;
   i: Integer;
 begin
@@ -1212,7 +1212,7 @@ begin
   for i := 0 to vMenu.Items.Count - 1 do
   begin
     vMenuItem := vMenu.Items[i];
-    vArea := TVCLArea(vMenuItem.Tag);
+    vArea := TUIArea(vMenuItem.Tag);
     if not Assigned(vArea) then
       Continue;
 
@@ -2023,7 +2023,7 @@ begin
   Result := TcxDataRecordHandle(FEntities.Last);
 end;
 
-constructor TUserDataSource.Create(const AEditor: TVCLArea);
+constructor TUserDataSource.Create(const AEditor: TUIArea);
 begin
   FEntities := TList<TEntity>.Create;
   FColumns := TObjectList<TColumnBinding>.Create;
@@ -2288,7 +2288,7 @@ procedure TColumnListEditor.BeforeContextMenuShow(Sender: TObject);
 var
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
-  vArea: TVCLArea;
+  vArea: TUIArea;
   vParams: TEntity;
   i: Integer;
 begin
@@ -2299,7 +2299,7 @@ begin
   for i := 0 to vMenu.Items.Count - 1 do
   begin
     vMenuItem := vMenu.Items[i];
-    vArea := TVCLArea(vMenuItem.Tag);
+    vArea := TUIArea(vMenuItem.Tag);
     if not Assigned(vArea) then
       Continue;
 
@@ -3160,7 +3160,7 @@ procedure TPivotGrid.BeforeContextMenuShow(Sender: TObject);
 var
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
-  vArea: TVCLArea;
+  vArea: TUIArea;
   //vParams: TEntity;
   i: Integer;
 begin
@@ -3171,7 +3171,7 @@ begin
   for i := 0 to vMenu.Items.Count - 1 do
   begin
     vMenuItem := vMenu.Items[i];
-    vArea := TVCLArea(vMenuItem.Tag);
+    vArea := TUIArea(vMenuItem.Tag);
     if not Assigned(vArea) then
       Continue;
 

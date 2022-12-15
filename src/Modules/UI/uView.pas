@@ -39,7 +39,7 @@ uses
   Classes, Generics.Collections, uFastClasses, uConsts, uEntity, uObjectField, uComplexObject;
 
 type
-  TDefinitionKind = (dkUndefined, dkDomain, dkCollection, dkEntity, dkAction,
+  TDefinitionKind = (dkUndefined, dkDomain, dkNavigation, dkCollection, dkEntity, dkAction,
     dkListField, dkObjectField, dkSimpleField, dkComplexField);
 
 type
@@ -153,7 +153,7 @@ type
 
 const
   cDefinitionKindNames: array[TDefinitionKind] of string = (
-    '? ? ?', 'Domain', 'Collection', 'Entity', 'Action', 'List field',
+    '? ? ?', 'Domain', 'Navigation', 'Collection', 'Entity', 'Action', 'List field',
     'Object field', 'Simple field', 'Complex field');
 
 { TView }

@@ -225,7 +225,7 @@ type
   TConditionKind = (ckUndefined, ckEqualTo, ckMatchesTo,
     ckGreaterThan, ckLessThan, ckPartOf, ckContains, ckCrosses);
 
-  TUIItemType = (uiTextEdit, uiBoolEdit, uiEntityEdit, uiIntegerEdit, uiEnumEdit, uiFlagEdit,
+  TUIItemType = (uiDecor, uiTextEdit, uiBoolEdit, uiEntityEdit, uiIntegerEdit, uiEnumEdit, uiFlagEdit,
     uiFloatEdit, uiDateEdit, uiCurrencyEdit, uiListEdit, uiBLOBEdit, uiComplexEdit, uiColorEdit,
     uiAction, uiCollection, uiNavigation);
 
@@ -294,6 +294,8 @@ const
 function Background(AColor: TColor;
   ARelativeRed: SmallInt; ARelativeGreen: SmallInt; ARelativeBlue: SmallInt): TBackground;
 
+function ItemTypeByFieldType(const AFieldKind: TFieldKind): TUIItemType;
+
 const
   cSaveActionNames: array[TEntitySaveAction] of string =
     ('Undefined', 'Insertion', 'Modification', 'Deletion');
@@ -302,6 +304,8 @@ const
   cFieldKindNames: array[TFieldKind] of string =
     ('<undefined>', 'String', 'Integer', 'Enumeration', 'Flag', 'Float', 'DateTime', 'Boolean',
      'Color', 'Currency', 'Object', 'List', 'Blob', 'Complex');
+  cControlTypeNames: array[TUIItemType] of string = ('Decor', 'Text', 'Bool', 'Entity', 'Integer', 'Enum', 'Flag',
+    'Float', 'Date', 'Currency', 'List', 'BLOB', 'Complex', 'Color', 'Action', 'Collection', 'Navigation');
   cEnumTypeNames: array[TEnumType] of string =
     ('По порядку', 'Битовая маска', 'Произвольный');
   cStorageKindNames: array[TStorageKind] of string =
@@ -461,6 +465,25 @@ begin
   end;
 end;
 
+function ItemTypeByFieldType(const AFieldKind: TFieldKind): TUIItemType;
+begin
+  Result := uiTextEdit;
+  case AFieldKind of
+    fkInteger: Result := uiIntegerEdit;
+    fkEnum: Result := uiEnumEdit;
+    fkFlag: Result := uiFlagEdit;
+    fkFloat: Result := uiFloatEdit;
+    fkString: Result := uiTextEdit;
+    fkDateTime: Result := uiDateEdit;
+    fkBoolean: Result := uiBoolEdit;
+    fkCurrency: Result := uiCurrencyEdit;
+    fkObject: Result := uiEntityEdit;
+    fkList: Result := uiListEdit;
+    fkBlob: Result := uiBLOBEdit;
+    fkComplex: Result := uiComplexEdit;
+    fkColor: Result := uiColorEdit;
+  end;
+end;
 
 function Background(AColor: TColor;
   ARelativeRed: SmallInt; ARelativeGreen: SmallInt; ARelativeBlue: SmallInt): TBackground;
