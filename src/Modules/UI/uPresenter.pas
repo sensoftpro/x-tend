@@ -402,6 +402,7 @@ function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: T
   const AView: TView; const AStyleName, AParams: string): TUIArea;
 var
   vParams, vViewName: string;
+  vControlType: TUIItemType;
   vFieldAreaClass: TUIAreaClass;
 begin
   vViewName := GetViewNameByLayoutType(ALayout);
@@ -411,9 +412,10 @@ begin
   vParams := ExtractUrlParams(AStyleName);
 
   if AView.DefinitionKind = dkEntity then
-    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, uiEntityEdit, vViewName))
+    vControlType := uiEntityEdit
   else
-    vFieldAreaClass := TUIAreaClass(GetUIClass(FName, ItemTypeByFieldType(TFieldDef(AView.Definition).Kind), vViewName));
+    vControlType := ItemTypeByFieldType(TFieldDef(AView.Definition).Kind);
+  vFieldAreaClass := TUIAreaClass(GetUIClass(FName, vControlType, vViewName));
 
   if vParams = '' then
     vParams := AParams
@@ -699,7 +701,7 @@ var
   vClassInfo: TControlClassInfo;
 begin
   vTypeName := cControlTypeNames[AControlType];
-  vStyleName := AnsiLowerCase(vStyleName);
+  vStyleName := AnsiLowerCase(AStyleName);
   if not RegisteredControlClasses.TryGetValue(APresenterName, vClassesList) then
   begin
     vClassesList := TObjectDictionary<string, TControlClassInfo>.Create([doOwnsValues]);

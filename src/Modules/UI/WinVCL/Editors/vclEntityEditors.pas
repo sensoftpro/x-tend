@@ -254,7 +254,8 @@ begin
   FbtnAdd.TabStop := False;
   FButtonView := FView.BuildView('Create?place=embedded');
 
-  FAddArea := TVCLArea.Create(Self, FButtonView, '', False, FbtnAdd, nil);
+  FAddArea := TVCLArea.Create(Self, FButtonView, '', False, nil, nil);
+  FAddArea.SetControl(FbtnAdd);
   AddArea(FAddArea);
 
   vDefinitions := TEntityFieldDef(FFieldDef).ContentDefinitions;

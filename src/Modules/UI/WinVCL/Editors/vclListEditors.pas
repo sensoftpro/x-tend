@@ -233,7 +233,7 @@ type
     procedure SetPopupArea(const APopupArea: TUIArea); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+      const AControl: TNativeControl = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -329,7 +329,7 @@ type
     procedure SetPopupArea(const APopupArea: TUIArea); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+      const AControl: TNativeControl = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -390,7 +390,7 @@ type
     procedure SetPopupArea(const APopupArea: TUIArea); override;
   public
     constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+      const AControl: TNativeControl = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -1236,7 +1236,7 @@ begin
 end;
 
 constructor TCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
+  const AControl: TNativeControl = nil; const ALayout: TLayout = nil; const AParams: string = '');
 var
   vDefinition: TDefinition;
   vView: TView;
@@ -1297,7 +1297,8 @@ begin
 //  FGrid.Levels.Add.GridView := FChartView;
   FGrid.Font.Size := 12;
 
-  inherited Create(AParent, AView, AId, AIsService, FGrid, ALayout, AParams);
+  inherited Create(AParent, AView, AId, AIsService, nil, ALayout, AParams);
+  SetControl(FGrid);
 
   // after inherited Create, Interactor must be initialized
   cxSetResourceString(@scxGridGroupByBoxCaption, TInteractor(Interactor).Translate('txtMoveColumnForGrouping',
@@ -3195,7 +3196,7 @@ begin
 end;
 
 constructor TPivotGrid.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
+  const AControl: TNativeControl = nil; const ALayout: TLayout = nil; const AParams: string = '');
 begin
   FPivot := TcxPivotGrid.Create(nil);
   FId := 'Pivot';
@@ -3267,7 +3268,8 @@ begin
   cxSetResourceString(@scxPrefilterIsEmpty, '<Фильтр не задан>');
   cxSetResourceString(@scxPrefilterCustomizeButtonCaption, 'Фильтрация...');
 
-  inherited Create(AParent, AView, AId, AIsService, FPivot, ALayout, AParams);
+  inherited Create(AParent, AView, AId, AIsService, nil, ALayout, AParams);
+  SetControl(FPivot);
 
   FAllData := TEntityList(AView.DomainObject);
   FMasterDS := TPivotDataSource.Create;
@@ -3500,7 +3502,7 @@ begin
 end;
 
 constructor TTreeCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
+  const AControl: TNativeControl = nil; const ALayout: TLayout = nil; const AParams: string = '');
 var
   vFields: string;
 begin
@@ -3547,7 +3549,8 @@ begin
 
   FTreeList.Font.Size := 12;
 
-  inherited Create(AParent, AView, AId, AIsService, FTreeList, ALayout, AParams);
+  inherited Create(AParent, AView, AId, AIsService, nil, ALayout, AParams);
+  SetControl(FTreeList);
 
   FAllData := TEntityList(FView.DomainObject);
 

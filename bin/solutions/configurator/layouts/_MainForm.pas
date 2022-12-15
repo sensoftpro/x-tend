@@ -1,4 +1,4 @@
-unit MainForm;
+unit _MainForm;
 
 interface
 
@@ -8,26 +8,26 @@ uses
 
 type
   TEditForm = class(TFrame)
-    Panel1: TPanel;
-    Panel2: TPanel;
-    Panel3: TPanel;
-    Panel4: TPanel;
+    WorkArea: TPanel;
     MainMenu: TPopupMenu;
     System1: TMenuItem;
-    ShowSysLog1: TMenuItem;
-    ShowSettings1: TMenuItem;
     ShowOptions1: TMenuItem;
-    LoadChanges1: TMenuItem;
     N1: TMenuItem;
     Quit1: TMenuItem;
-    Libraries1: TMenuItem;
+    ShowAbout1: TMenuItem;
+    ShowSettings1: TMenuItem;
+    ToolBar: TPopupMenu;
+    SysUsersWorkAreaWorkAreaLayoutCollection1: TMenuItem;
+    ConfigurationsWorkAreaWorkAreaLayoutCollection1: TMenuItem;
+    Panel1: TPanel;
+    Panel2: TPanel;
+    StreetsWorkAreaWorkAreaLayoutCollection1: TMenuItem;
+    DistrictsWorkAreaWorkAreaLayoutCollection1: TMenuItem;
+    Panel3: TPanel;
+    Panel4: TPanel;
     ConfigurationsCaption1: TMenuItem;
     Configurations1: TMenuItem;
-    Windows1: TMenuItem;
-    CloseAllPages1: TMenuItem;
-    ShowAbout1: TMenuItem;
-    Label1: TLabel;
-    Bevel1: TBevel;
+    DistrictsWorkAreaWorkAreaLayoutCollection2: TMenuItem;
   end;
 
 implementation

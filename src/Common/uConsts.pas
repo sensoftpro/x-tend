@@ -225,7 +225,7 @@ type
   TConditionKind = (ckUndefined, ckEqualTo, ckMatchesTo,
     ckGreaterThan, ckLessThan, ckPartOf, ckContains, ckCrosses);
 
-  TUIItemType = (uiDecor, uiTextEdit, uiBoolEdit, uiEntityEdit, uiIntegerEdit, uiEnumEdit, uiFlagEdit,
+  TUIItemType = (uiUnknown, uiDecor, uiTextEdit, uiBoolEdit, uiEntityEdit, uiIntegerEdit, uiEnumEdit, uiFlagEdit,
     uiFloatEdit, uiDateEdit, uiCurrencyEdit, uiListEdit, uiBLOBEdit, uiComplexEdit, uiColorEdit,
     uiAction, uiCollection, uiNavigation);
 
@@ -304,7 +304,7 @@ const
   cFieldKindNames: array[TFieldKind] of string =
     ('<undefined>', 'String', 'Integer', 'Enumeration', 'Flag', 'Float', 'DateTime', 'Boolean',
      'Color', 'Currency', 'Object', 'List', 'Blob', 'Complex');
-  cControlTypeNames: array[TUIItemType] of string = ('Decor', 'Text', 'Bool', 'Entity', 'Integer', 'Enum', 'Flag',
+  cControlTypeNames: array[TUIItemType] of string = ('???', 'Decor', 'Text', 'Bool', 'Entity', 'Integer', 'Enum', 'Flag',
     'Float', 'Date', 'Currency', 'List', 'BLOB', 'Complex', 'Color', 'Action', 'Collection', 'Navigation');
   cEnumTypeNames: array[TEnumType] of string =
     ('По порядку', 'Битовая маска', 'Произвольный');

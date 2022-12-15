@@ -79,42 +79,10 @@ type
     procedure UpdateCaptionVisibility; override;
   end;
 
-  TVCLFieldArea = class;
-  TVCLFieldAreaClass = class of TVCLFieldArea;
-
   TVCLArea = class(TUIArea)
   end;
 
-  TVCLFieldArea = class(TUIArea)
-  protected
-    FFieldDef: TFieldDef;
-    FDefinitionName: string;
-
-    function GetNewValue: Variant; virtual;
-    function CanChangeArea: Boolean; override;
-
-    function GetName: string; override;
-    procedure RefillArea(const AKind: Word); override;
-
-    procedure SetFieldValue(const AValue: Variant);
-    procedure SetFieldEntity(const AEntity: TEntity);
-    procedure SetFieldStream(const AStream: TStream);
-
-    function GetFormat: string;
-  public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
-  end;
-
-  TActionArea = class(TUIArea)
-  protected
-    FParams: string;
-  public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
-  end;
-
-  TButtonArea = class(TActionArea)
+  TButtonControl = class(TVCLControl)
   private
     FTypeSelectionMenu: TPopupMenu;
   protected
@@ -124,14 +92,11 @@ type
     destructor Destroy; override;
   end;
 
-  TLinkArea = class(TActionArea)
+  TLinkControl = class(TVCLControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure RefillArea(const AKind: Word); override;
   end;
-
-type
-  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
 
 implementation
 
@@ -152,36 +117,6 @@ type
   TUIAreaComparer = class(TComparer<TUIArea>)
   public
     function Compare(const ALeft, ARight: TUIArea): Integer; override;
-  end;
-
-  TLayoutParam = class
-    Name: string;
-    Value: Variant;
-    constructor Create(const AName: string);
-  end;
-
-  TUILayout = class
-  private
-    FParams: TList;
-    FParent: TUILayout;
-    FChildLayouts: TList;
-    FName: string;
-    FType: string;
-    FLevel: Integer;
-    procedure Clear;
-    procedure FillLayoutParams(const ALayout: TUILayout; const AComponent: TComponent);
-    procedure GenerateDFMText(const AText: TStrings; const ALevel: Integer);
-    procedure GeneratePASText(const AText: TStrings);
-    function FindChild(const AName: string): TUILayout;
-    function ParamByName(const AName: string): TLayoutParam;
-    function CreateChild: TUILayout;
-    function GenerateUniqueName(const AComponent: TComponent): string;
-  public
-    constructor Create;
-    destructor Destroy; override;
-
-    procedure Build(const AVCLArea: TVCLArea);
-    procedure SaveToDFM(const AFileName: string);
   end;
 
   TMainMenuArea = class(TNavigationArea)
@@ -267,301 +202,6 @@ end;
 function TUIAreaComparer.Compare(const ALeft, ARight: TUIArea): Integer;
 begin
   Result := ARight.TabOrder - ALeft.TabOrder;
-end;
-
-{ TVCLFieldArea }
-
-function TVCLFieldArea.CanChangeArea: Boolean;
-var
-  vEntity: TEntity;
-begin
-  vEntity := TEntity(FView.ParentDomainObject);
-  Result := TCanChangeFieldFunc(TDomain(FView.Domain).Configuration.CanChangeFieldFunc)(FView, vEntity, FDefinitionName, GetNewValue);
-end;
-
-constructor TVCLFieldArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
-begin
-  if AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField] then
-  begin
-    FFieldDef := TFieldDef(AView.Definition);
-    FDefinitionName := FFieldDef.Name;
-  end
-  else begin
-    FFieldDef := nil;
-    FDefinitionName := TDefinition(AView.Definition).Name;
-  end;
-
-  FId := FDefinitionName;
-  FUId := FDefinitionName;
-
-  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
-
-  Assert(Assigned(FControl), 'Не создан контрол для ' + FDefinitionName);
-
-  // Нужно делать после задания родителя, так как надпись использует родительский шрифт
-  FNativeControl.CreateCaption(FFieldDef);
-
-  if Assigned(TComponent(FControl)) then
-  begin
-    TComponent(FControl).Name := FDefinitionName;
-    if TComponent(FControl) is TPanel then
-      TPanel(TComponent(FControl)).Caption := '';
-  end;
-end;
-
-function TVCLFieldArea.GetFormat: string;
-begin
-  Result := GetDisplayFormat(FFieldDef, FView.ParentDomainObject as TEntity);
-end;
-
-function TVCLFieldArea.GetName: string;
-begin
-  Result := FDefinitionName;
-end;
-
-function TVCLFieldArea.GetNewValue: Variant;
-begin
-  Result := Null;
-end;
-
-procedure TVCLFieldArea.RefillArea(const AKind: Word);
-var
-  vEntity: TEntity;
-begin
-  FNativeControl.UpdateCaptionVisibility;
-
-  vEntity := TEntity(FView.ParentDomainObject);
-  if not Assigned(vEntity) then
-    Exit;
-
-  try
-    SwitchChangeHandlers(nil);
-    if not Assigned(FView.ParentDomainObject) then
-      DoDeinit
-    else begin
-      FillEditor;
-      Validate;
-    end;
-    SwitchChangeHandlers(OnChange);
-  except
-    TInteractor(FView.Interactor).ShowMessage('Error in FillEditorFromModel, Field: ' + FFieldDef.Name);
-  end;
-end;
-
-procedure TVCLFieldArea.SetFieldEntity(const AEntity: TEntity);
-begin
-  FView.SetFieldEntity(Holder, AEntity);
-end;
-
-procedure TVCLFieldArea.SetFieldStream(const AStream: TStream);
-begin
-  FView.SetFieldStream(Holder, AStream);
-end;
-
-procedure TVCLFieldArea.SetFieldValue(const AValue: Variant);
-begin
-  FView.SetFieldValue(Holder, AValue);
-end;
-
-{ TLayoutParam }
-
-constructor TLayoutParam.Create(const AName: string);
-begin
-  Name := AName;
-end;
-
-{ TUILayout }
-
-function TUILayout.CreateChild: TUILayout;
-begin
-  Result := TUILayout.Create;
-  Result.FParent := Self;
-  Result.FLevel := FLevel + 1;
-  FChildLayouts.Add(Result);
-end;
-
-procedure TUILayout.Build(const AVCLArea: TVCLArea);
-  procedure Process(const ALayout: TUILayout; const AVCLArea: TVCLArea);
-  var
-    i: Integer;
-  begin
-    if Assigned(AVCLArea.InnerControl) then
-      ALayout.FillLayoutParams(ALayout, TComponent(AVCLArea.InnerControl));
-    for i := 0 to AVCLArea.Count - 1 do
-      Process(ALayout.CreateChild, TVCLArea(AVCLArea[i]));
-  end;
-begin
-  Clear;
-  Process(Self, AVCLArea);
-end;
-
-procedure TUILayout.Clear;
-var
-  i: Integer;
-begin
-  for i := 0 to FChildLayouts.Count - 1 do
-    TUILayout(FChildLayouts[i]).Free;
-  FChildLayouts.Clear;
-
-  for i := 0 to FParams.Count - 1 do
-    TLayoutParam(FParams[i]).Free;
-  FParams.Clear;
-end;
-
-constructor TUILayout.Create;
-begin
-  FName := 'emptyname';
-  FType := 'emptytype';
-  FChildLayouts := TList.Create;
-  FParams := TList.Create;
-end;
-
-function TUILayout.FindChild(const AName: string): TUILayout;
-var
-  i: Integer;
-begin
-  Result := nil;
-  for i := 0 to FChildLayouts.Count - 1 do
-    if TUILayout(FChildLayouts[i]).FName = AName then
-    begin
-      Result := TUILayout(FChildLayouts[i]);
-      Break;
-    end;
-end;
-
-destructor TUILayout.Destroy;
-begin
-  Clear;
-  FreeAndNil(FParams);
-  FreeAndNil(FChildLayouts);
-  inherited;
-end;
-
-procedure TUILayout.GenerateDFMText(const AText: TStrings; const ALevel: Integer);
-var
-  i: Integer;
-  vSelfIndent, vChildIndent: string;
-  vParam: TLayoutParam;
-begin
-  vSelfIndent := DupeString('  ', ALevel);
-  vChildIndent := DupeString('  ', ALevel + 1);
-  AText.Append(vSelfIndent + 'object ' + FName + ': ' + FType);
-  for i := 0 to FParams.Count - 1 do
-  begin
-    vParam := TLayoutParam(FParams[i]);
-    AText.Append(vChildIndent +  vParam.Name + ' = ' + VarToString(vParam.Value, ''));
-  end;
-  for i := 0 to FChildLayouts.Count - 1 do
-    TUILayout(FChildLayouts[i]).GenerateDFMText(AText, ALevel + 1);
-  AText.Append(vSelfIndent + 'end');
-end;
-
-procedure TUILayout.GeneratePASText(const AText: TStrings);
-var
-  vStr: string;
-begin
-  vStr :=
-    'unit ' + FName + ';' + #13#10#13#10 +
-    'interface' + #13#10#13#10 +
-    'uses' + #13#10 +
-    '  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms;'#13#10#13#10 +
-    'type'#13#10 +
-    '  ' + FType + ' = class(TFrame)'#13#10 +
-    '  end;'#13#10#13#10 +
-    'implementation'#13#10#13#10 +
-    '{$R *.dfm}'#13#10#13#10 +
-    'end.';
-  AText.Append(vStr);
-end;
-
-function TUILayout.GenerateUniqueName(const AComponent: TComponent): string;
-begin
-  Result := Copy(AComponent.ClassName, 2, Length(AComponent.ClassName)) + IntToStr(FLevel);
-  if Assigned(FParent) then
-    while FParent.FindChild(Result) <> nil do
-      Result := Result + 'a';
-end;
-
-procedure TUILayout.FillLayoutParams(const ALayout: TUILayout; const AComponent: TComponent);
-var
-  vName: string;
-begin
-  vName := AComponent.Name;
-  if Length(vName) = 0 then
-    vName := GenerateUniqueName(AComponent);
-
-  ALayout.FName := vName;
-  if AComponent is TForm then
-    ALayout.FType := AComponent.ClassName
-  else
-    ALayout.FType := 'TPanel';
-
-  if AComponent is TControl then
-  begin
-    ALayout.ParamByName('Width').Value := TControl(AComponent).Width;
-    ALayout.ParamByName('Height').Value := TControl(AComponent).Height;
-    ALayout.ParamByName('Left').Value := TControl(AComponent).Left;
-    ALayout.ParamByName('Top').Value := TControl(AComponent).Top;
-  end;
-
-  if AComponent is TWinControl then
-    if not (AComponent is TForm) then
-      ALayout.ParamByName('Caption').Value := QuotedStr(vName);
-
-  if AComponent is TPageControl then
-    ALayout.ParamByName('PagePosition').Value := TPageControl(AComponent).TabPosition;
-
-  if AComponent is TImage then
-    ALayout.ParamByName('Stretch').Value := TImage(AComponent).Stretch;
-
-  if AComponent is TPanel then
-  begin
-    if (not TPanel(AComponent).ParentColor) then
-      ALayout.ParamByName('Color').Value := TPanel(AComponent).Color;
-  end;
-end;
-
-function TUILayout.ParamByName(const AName: string): TLayoutParam;
-var
-  i: Integer;
-begin
-  Result := nil;
-  for i := 0 to FParams.Count - 1 do
-    if TLayoutParam(FParams[i]).Name = AName then
-    begin
-      Result := TLayoutParam(FParams[i]);
-      Break;
-    end;
-  if Result = nil then
-  begin
-    Result := TLayoutParam.Create(AName);
-    FParams.Add(Result);
-  end;
-end;
-
-procedure TUILayout.SaveToDFM(const AFileName: string);
-var
-  vFileName: string;
-  vFile: TStringList;
-begin
-  vFileName := AFileName + '.dfm';
-  vFile := TStringList.Create;
-  try
-    GenerateDFMText(vFile, 0);
-    vFile.SaveToFile(vFileName);
-  finally
-    vFile.Free;
-  end;
-
-  vFileName := AFileName + '.pas';
-  vFile := TStringList.Create;
-  try
-    GeneratePASText(vFile);
-    vFile.SaveToFile(vFileName);
-  finally
-    vFile.Free;
-  end;
 end;
 
 { TNavBarArea }
@@ -1011,222 +651,6 @@ begin
   vArea := TUIArea(ANode.Data);
   if Assigned(vArea) then
     ProcessAreaClick(vArea);
-end;
-
-{ TButtonArea }
-
-destructor TButtonArea.Destroy;
-begin
-  FreeAndNil(FTypeSelectionMenu);
-  inherited Destroy;
-end;
-
-function TButtonArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
-var
-  vParams: TStrings;
-  vButton: TcxButton;
-  vActionDef: TDefinition;
-  vDefinitions: TList<TDefinition>;
-  i: Integer;
-  vMenuItem: TMenuItem;
-  vDefinition: TDefinition;
-  vImageID: Integer;
-  vImageSize: Integer;
-  vComposition: string;
-  vViewStyle: string;
-  vOverriddenCaption, vOverriddenHint: string;
-begin
-  vParams := CreateDelimitedList(FParams, '&');
-
-  vActionDef := TDefinition(FView.Definition);
-
-  vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
-  vImageID := StrToIntDef(vParams.Values['ImageID'], vActionDef._ImageID);
-  vComposition := Trim(vParams.Values['Composition']);
-  vViewStyle := Trim(vParams.Values['ViewStyle']);
-  vOverriddenCaption := Trim(vParams.Values['Caption']);
-  vOverriddenHint := Trim(vParams.Values['Hint']);
-
-  vButton := TcxButton.Create(nil);
-  vButton.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[vImageSize]);
-  vImageID := GetImageID(vImageID);
-
-  if (TPanel(ALayout.Control).BevelOuter = bvNone) and (TPanel(ALayout.Control).BevelInner = bvNone)
-    and (TPanel(ALayout.Control).BevelKind = TBevelKind.bkNone)
-  then begin
-    vButton.SpeedButtonOptions.Flat := True;
-    vButton.SpeedButtonOptions.CanBeFocused := False;
-  end;
-
-  vButton.Caption := GetTranslation(vActionDef);
-  vButton.Hint := vButton.Caption;
-  if Length(vOverriddenCaption) > 0 then
-    vButton.Caption := vOverriddenCaption;
-  if Length(vOverriddenHint) > 0 then
-    vButton.Hint := vOverriddenHint;
-
-  if (vButton.OptionsImage.Images.Count + 1 >= vImageID) and (vImageID > 0) then
-  begin
-    if vComposition = '' then
-    begin
-      if TPanel(ALayout.Control).ShowHint then
-        vButton.PaintStyle := bpsDefault
-      else
-        vButton.PaintStyle := bpsGlyph;
-    end
-    else if vComposition = 'TextOnly' then
-    begin
-      vButton.PaintStyle := bpsCaption;
-    end
-    else if vComposition = 'ImageOnly' then
-      vButton.PaintStyle := bpsGlyph
-    else
-    begin
-      vButton.PaintStyle := bpsDefault;
-      if vComposition = 'ImageRight' then
-        vButton.Layout := TButtonLayout.blGlyphRight
-      else if vComposition = 'ImageTop' then
-        vButton.Layout := TButtonLayout.blGlyphTop
-      else if vComposition = 'ImageBottom' then
-        vButton.Layout := TButtonLayout.blGlyphBottom
-      else
-        vButton.Layout := TButtonLayout.blGlyphLeft;
-    end;
-    vButton.OptionsImage.ImageIndex := vImageID;
-  end
-  else
-  begin
-    vButton.PaintStyle := bpsCaption;
-    vButton.WordWrap := True;
-  end;
-
-  if (vActionDef.Name = 'Add') and Assigned(FView.ParentDomainObject) and (FView.ParentDomainObject is TEntityList) then
-  begin
-    vDefinitions := TEntityList(FView.ParentDomainObject).ContentDefinitions;
-    if vDefinitions.Count > 1 then
-    begin
-      FTypeSelectionMenu := TPopupMenu.Create(nil);
-      FTypeSelectionMenu.Images := TDragImageList(TInteractor(Interactor).Images[16]);
-      for i := 0 to vDefinitions.Count - 1 do
-      begin
-        vDefinition := TDefinition(vDefinitions[i]);
-        vMenuItem := TMenuItem.Create(nil);
-        vMenuItem.Caption := GetTranslation(vDefinition);
-        if Length(vOverriddenCaption) > 0 then
-          vMenuItem.Caption := vOverriddenCaption;
-        vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
-        vMenuItem.Tag := Integer(Self); //Integer(vButton);
-        vMenuItem.OnClick := OnActionMenuSelected;
-        FTypeSelectionMenu.Items.Add(vMenuItem);
-      end;
-      vButton.DropDownMenu := FTypeSelectionMenu;
-      vButton.Kind := cxbkOfficeDropDown;
-      vButton.OptionsImage.Margin := 4;
-    end
-    else begin
-      vButton.OnClick := OnAreaClick;
-      TWinControl(ALayout.Control).Width := TWinControl(ALayout.Control).Height;
-    end;
-  end
-  else
-    vButton.OnClick := OnAreaClick;
-
-  AddParams(vParams);
-
-  Result := vButton;
-end;
-
-procedure TButtonArea.RefillArea(const AKind: Word);
-var
-  vButton: TcxButton;
-  vActionDef: TDefinition;
-  vImageID: Integer;
-begin
-  if AKind <> dckContentTypeChanged then
-  begin
-    inherited RefillArea(AKind);
-    Exit;
-  end;
-
-  vButton := TcxButton(FControl);
-
-  vActionDef := TDefinition(FView.Definition);
-  vImageID := GetImageID(vActionDef._ImageID);
-
-  if (vButton.OptionsImage.Images.Count + 1 >= vImageID) and (vImageID > 0) then
-    vButton.OptionsImage.ImageIndex := vImageID;
-
-  vButton.Caption := GetTranslation(vActionDef);
-  vButton.Hint := vButton.Caption;
-end;
-
-{ TLinkArea }
-
-function TLinkArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
-var
-  vParams: TStrings;
-  vLabel: TcxLabel;
-  vActionDef: TDefinition;
-  vComposition: string;
-  vViewStyle: string;
-  vOverriddenCaption, vOverriddenHint: string;
-begin
-  vParams := CreateDelimitedList(FParams, '&');
-
-  vActionDef := TDefinition(FView.Definition);
-
-  vComposition := Trim(vParams.Values['Composition']);
-  vViewStyle := Trim(vParams.Values['ViewStyle']);
-  vOverriddenCaption := Trim(vParams.Values['Caption']);
-  vOverriddenHint := Trim(vParams.Values['Hint']);
-
-  vLabel := TcxLabel.Create(nil);
-  vLabel.Caption := GetTranslation(vActionDef);
-  vLabel.Hint := vLabel.Caption;
-  if Length(vOverriddenCaption) > 0 then
-    vLabel.Caption := vOverriddenCaption;
-  if Length(vOverriddenHint) > 0 then
-    vLabel.Hint := vOverriddenHint;
-  vLabel.Cursor := crHandPoint;
-  vLabel.Transparent := True;
-  vLabel.Properties.Alignment.Vert := TcxEditVertAlignment.taVCenter;
-  vLabel.Style.TextColor := TPanel(ALayout.Control).Font.Color;
-  //vLabel.Style.TextStyle := [fsUnderline];
-  vLabel.Style.HotTrack := True;
-  //vLabel.StyleHot.TextColor := clBlue;
-  vLabel.StyleHot.TextStyle := [fsUnderline];
-  vLabel.OnClick := OnAreaClick;
-
-  AddParams(vParams);
-
-  Result := vLabel;
-end;
-
-procedure TLinkArea.RefillArea(const AKind: Word);
-var
-  vLabel: TcxLabel;
-  vActionDef: TDefinition;
-begin
-  if AKind <> dckContentTypeChanged then
-  begin
-    inherited RefillArea(AKind);
-    Exit;
-  end;
-
-  vLabel := TcxLabel(FControl);
-
-  vActionDef := TDefinition(FView.Definition);
-  vLabel.Caption := GetTranslation(vActionDef);
-  vLabel.Hint := vLabel.Caption;
-end;
-
-{ TActionArea }
-
-constructor TActionArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean;
-  const AControl: TObject; const ALayout: TLayout; const AParams: string);
-begin
-  FParams := AParams;
-  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
 end;
 
 { TVCLControl }
@@ -1861,6 +1285,213 @@ begin
     FCaption.Visible := FShowCaption and (FOwner.View.State > vsHidden);
 end;
 
+{ TButtonControl }
+
+destructor TButtonControl.Destroy;
+begin
+  FreeAndNil(FTypeSelectionMenu);
+  inherited Destroy;
+end;
+
+function TButtonControl.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vParams: TStrings;
+  vButton: TcxButton;
+  vActionDef: TDefinition;
+  vDefinitions: TList<TDefinition>;
+  i: Integer;
+  vMenuItem: TMenuItem;
+  vDefinition: TDefinition;
+  vImageID: Integer;
+  vImageSize: Integer;
+  vComposition: string;
+  vViewStyle: string;
+  vOverriddenCaption, vOverriddenHint: string;
+begin
+  vParams := CreateDelimitedList(TActionArea(FOwner).ActionParams, '&');
+
+  vActionDef := TDefinition(FView.Definition);
+
+  vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
+  vImageID := StrToIntDef(vParams.Values['ImageID'], vActionDef._ImageID);
+  vComposition := Trim(vParams.Values['Composition']);
+  vViewStyle := Trim(vParams.Values['ViewStyle']);
+  vOverriddenCaption := Trim(vParams.Values['Caption']);
+  vOverriddenHint := Trim(vParams.Values['Hint']);
+
+  vButton := TcxButton.Create(nil);
+  vButton.OptionsImage.Images := TDragImageList(TInteractor(FInteractor).Images[vImageSize]);
+  vImageID := FOwner.GetImageID(vImageID);
+
+  if (TPanel(ALayout.Control).BevelOuter = bvNone) and (TPanel(ALayout.Control).BevelInner = bvNone)
+    and (TPanel(ALayout.Control).BevelKind = TBevelKind.bkNone)
+  then begin
+    vButton.SpeedButtonOptions.Flat := True;
+    vButton.SpeedButtonOptions.CanBeFocused := False;
+  end;
+
+  vButton.Caption := FOwner.GetTranslation(vActionDef);
+  vButton.Hint := vButton.Caption;
+  if Length(vOverriddenCaption) > 0 then
+    vButton.Caption := vOverriddenCaption;
+  if Length(vOverriddenHint) > 0 then
+    vButton.Hint := vOverriddenHint;
+
+  if (vButton.OptionsImage.Images.Count + 1 >= vImageID) and (vImageID > 0) then
+  begin
+    if vComposition = '' then
+    begin
+      if TPanel(ALayout.Control).ShowHint then
+        vButton.PaintStyle := bpsDefault
+      else
+        vButton.PaintStyle := bpsGlyph;
+    end
+    else if vComposition = 'TextOnly' then
+    begin
+      vButton.PaintStyle := bpsCaption;
+    end
+    else if vComposition = 'ImageOnly' then
+      vButton.PaintStyle := bpsGlyph
+    else
+    begin
+      vButton.PaintStyle := bpsDefault;
+      if vComposition = 'ImageRight' then
+        vButton.Layout := TButtonLayout.blGlyphRight
+      else if vComposition = 'ImageTop' then
+        vButton.Layout := TButtonLayout.blGlyphTop
+      else if vComposition = 'ImageBottom' then
+        vButton.Layout := TButtonLayout.blGlyphBottom
+      else
+        vButton.Layout := TButtonLayout.blGlyphLeft;
+    end;
+    vButton.OptionsImage.ImageIndex := vImageID;
+  end
+  else
+  begin
+    vButton.PaintStyle := bpsCaption;
+    vButton.WordWrap := True;
+  end;
+
+  if (vActionDef.Name = 'Add') and Assigned(FView.ParentDomainObject) and (FView.ParentDomainObject is TEntityList) then
+  begin
+    vDefinitions := TEntityList(FView.ParentDomainObject).ContentDefinitions;
+    if vDefinitions.Count > 1 then
+    begin
+      FTypeSelectionMenu := TPopupMenu.Create(nil);
+      FTypeSelectionMenu.Images := TDragImageList(TInteractor(FInteractor).Images[16]);
+      for i := 0 to vDefinitions.Count - 1 do
+      begin
+        vDefinition := TDefinition(vDefinitions[i]);
+        vMenuItem := TMenuItem.Create(nil);
+        vMenuItem.Caption := FOwner.GetTranslation(vDefinition);
+        if Length(vOverriddenCaption) > 0 then
+          vMenuItem.Caption := vOverriddenCaption;
+        vMenuItem.ImageIndex := FOwner.GetImageID(vDefinition._ImageID);
+        vMenuItem.Tag := Integer(Self); //Integer(vButton);
+        vMenuItem.OnClick := FOwner.OnActionMenuSelected;
+        FTypeSelectionMenu.Items.Add(vMenuItem);
+      end;
+      vButton.DropDownMenu := FTypeSelectionMenu;
+      vButton.Kind := cxbkOfficeDropDown;
+      vButton.OptionsImage.Margin := 4;
+    end
+    else begin
+      vButton.OnClick := FOwner.OnAreaClick;
+      TWinControl(ALayout.Control).Width := TWinControl(ALayout.Control).Height;
+    end;
+  end
+  else
+    vButton.OnClick := FOwner.OnAreaClick;
+
+  FOwner.AddParams(vParams);
+
+  Result := vButton;
+end;
+
+procedure TButtonControl.RefillArea(const AKind: Word);
+var
+  vButton: TcxButton;
+  vActionDef: TDefinition;
+  vImageID: Integer;
+begin
+  if AKind <> dckContentTypeChanged then
+  begin
+    inherited RefillArea(AKind);
+    Exit;
+  end;
+
+  vButton := TcxButton(FControl);
+
+  vActionDef := TDefinition(FView.Definition);
+  vImageID := FOwner.GetImageID(vActionDef._ImageID);
+
+  if (vButton.OptionsImage.Images.Count + 1 >= vImageID) and (vImageID > 0) then
+    vButton.OptionsImage.ImageIndex := vImageID;
+
+  vButton.Caption := FOwner.GetTranslation(vActionDef);
+  vButton.Hint := vButton.Caption;
+end;
+
+{ TLinkControl }
+
+function TLinkControl.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vParams: TStrings;
+  vLabel: TcxLabel;
+  vActionDef: TDefinition;
+  vComposition: string;
+  vViewStyle: string;
+  vOverriddenCaption, vOverriddenHint: string;
+begin
+  vParams := CreateDelimitedList(TActionArea(FOwner).ActionParams, '&');
+
+  vActionDef := TDefinition(FView.Definition);
+
+  vComposition := Trim(vParams.Values['Composition']);
+  vViewStyle := Trim(vParams.Values['ViewStyle']);
+  vOverriddenCaption := Trim(vParams.Values['Caption']);
+  vOverriddenHint := Trim(vParams.Values['Hint']);
+
+  vLabel := TcxLabel.Create(nil);
+  vLabel.Caption := FOwner.GetTranslation(vActionDef);
+  vLabel.Hint := vLabel.Caption;
+  if Length(vOverriddenCaption) > 0 then
+    vLabel.Caption := vOverriddenCaption;
+  if Length(vOverriddenHint) > 0 then
+    vLabel.Hint := vOverriddenHint;
+  vLabel.Cursor := crHandPoint;
+  vLabel.Transparent := True;
+  vLabel.Properties.Alignment.Vert := TcxEditVertAlignment.taVCenter;
+  vLabel.Style.TextColor := TPanel(ALayout.Control).Font.Color;
+  //vLabel.Style.TextStyle := [fsUnderline];
+  vLabel.Style.HotTrack := True;
+  //vLabel.StyleHot.TextColor := clBlue;
+  vLabel.StyleHot.TextStyle := [fsUnderline];
+  vLabel.OnClick := FOwner.OnAreaClick;
+
+  FOwner.AddParams(vParams);
+
+  Result := vLabel;
+end;
+
+procedure TLinkControl.RefillArea(const AKind: Word);
+var
+  vLabel: TcxLabel;
+  vActionDef: TDefinition;
+begin
+  if AKind <> dckContentTypeChanged then
+  begin
+    inherited RefillArea(AKind);
+    Exit;
+  end;
+
+  vLabel := TcxLabel(FControl);
+
+  vActionDef := TDefinition(FView.Definition);
+  vLabel.Caption := FOwner.GetTranslation(vActionDef);
+  vLabel.Hint := vLabel.Caption;
+end;
+
 initialization
 
 RegisterClasses([TLabel, TPanel, TSplitter, TImage, TBevel, TPageControl, TMemo,
@@ -1874,7 +1505,7 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'MainMenu', TMain
 TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'ToolBar', TToolBarArea);
 //TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'OneButton', TOneButtonArea);
 
-TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, '', TButtonArea);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'link', TLinkArea);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, '', TButtonControl);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, 'link', TLinkControl);
 
 end.

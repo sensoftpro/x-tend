@@ -2488,7 +2488,7 @@ var
   vSourceTab: TTabSheet;
   vTabLayout: TLayout;
   vPage: TcxTabSheet;
-  vChildArea: TVCLArea;
+  vChildArea: TUIArea;
   i: Integer;
 begin
   FNeedCreateCaption := False;
@@ -2539,8 +2539,10 @@ begin
     vPage.ImageIndex := vSourceTab.ImageIndex;
     vPage.Parent := vPC;
 
-    vChildArea := TVCLArea.Create(Self, FView.Parent, vSourceTab.Name, False, vPage, vTabLayout);
+    vChildArea := TUIArea.Create(Self, FView.Parent, vSourceTab.Name, False, nil, vTabLayout);
+    vChildArea.SetControl(vPage);
     AddArea(vChildArea);
+
     TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vTabLayout, '');
   end;
 end;
