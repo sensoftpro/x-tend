@@ -513,6 +513,8 @@ begin
 
   Result := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
 
+  vOneRowHeight := TPresenter(Presenter).GetLayoutFontHeight(Result) + 8;
+
   for vAction in vDefinition.Actions.Objects do
   begin
     vView := AView.BuildView(vAction.Name);
@@ -522,14 +524,13 @@ begin
       begin
         vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
         TPresenter(FPresenter).SetLayoutCaption(vLayout, vAction.Name);
+        TPresenter(FPresenter).SetLayoutBounds(vLayout, 0, 0, cDefaultColumnWidth, vOneRowHeight);
         Result.Add(vLayout);
       end
       else
         vView.CleanView;
     end;
   end;
-
-  vOneRowHeight := TPresenter(Presenter).GetLayoutFontHeight(Result) + 8;
 
   for vFieldDef in vDefinition.Fields do
   begin

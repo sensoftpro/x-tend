@@ -498,7 +498,7 @@ end;
 
 function TPresenter.DoGetLayoutFontHeight(const ALayout: TLayout): Integer;
 begin
-  Result := 10;
+  Result := 16;
 end;
 
 function TPresenter.DoGetLayoutServiceAreaHeight(const ALayout: TLayout): Integer;
