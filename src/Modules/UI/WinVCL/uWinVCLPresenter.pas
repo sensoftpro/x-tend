@@ -111,6 +111,7 @@ type
     procedure DoSetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer); override;
     procedure DoSetLayoutXY(const ALayout: TLayout; const AX, AY: Integer); override;
     function DoGetLayoutBounds(const ALayout: TLayout): TRect; override;
+    function DoGetLayoutFontHeight(const ALayout: TLayout): Integer; override;
   public
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
@@ -858,6 +859,7 @@ begin
   case ALayoutKind of
     lkPanel: begin
         vControl := TPanel.Create(nil);
+        TPanel(vControl).Font.Size := 10;
         TPanel(vControl).BevelOuter := bvNone;
       end;
     lkPage: begin
@@ -1106,8 +1108,17 @@ begin
     TMemo(ALayout.Control).WantReturns := False;
     Result := TMemo(ALayout.Control).Lines.Text;
   end
+  else if ALayout.Control is TPanel then
+    Result := TPanel(ALayout.Control).Caption
   else
-    Result := TPanel(ALayout.Control).Caption;
+    Result := '';
+end;
+
+function TWinVCLPresenter.DoGetLayoutFontHeight(const ALayout: TLayout): Integer;
+begin
+  Result := TCrackedControl(ALayout.Control).Font.Height;
+  if Result < 0 then
+    Result := TCrackedControl(ALayout.Control).Font.Size * TCrackedControl(ALayout.Control).Font.PixelsPerInch div 72;
 end;
 
 function TWinVCLPresenter.GetLayoutKind(const AControl: TObject): TLayoutKind;

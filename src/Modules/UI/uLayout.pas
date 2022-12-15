@@ -1342,6 +1342,7 @@ begin
   for i := 0 to vItems.Count - 1 do
   begin
     vLayout := vItems[i];
+
     TPresenter(Presenter).SetLayoutXY(vLayout, cBorder + (vRealColumnCount - 1) * (cDefaultColumnWidth + cBetweenColumns), cBorder + cBetweenRows + vCurColumnHeight);
 
     vCurColumnHeight := vCurColumnHeight + TPresenter(vLayout.Presenter).GetLayoutBounds(vLayout).Height + cBetweenRows;

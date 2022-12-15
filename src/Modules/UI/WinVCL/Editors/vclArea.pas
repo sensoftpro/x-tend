@@ -1557,11 +1557,19 @@ begin
         vForm.Caption := vFrame.Hint;
       vForm.Color := vFrame.Color;
     end
-    else begin
+    else if ALayout.Control is TPanel then
+    begin
       vForm.BorderStyle := bsSizeable;
       vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
-      vForm.Caption := TTabSheet(ALayout.Control).Caption;
-    end;
+      vForm.Caption := TPanel(ALayout.Control).Caption;
+      vForm.ClientWidth := TPanel(ALayout.Control).Width;
+      if FOwner.View.DefinitionKind = dkDomain then
+        vForm.ClientHeight := TPanel(ALayout.Control).Height
+      else
+        vForm.ClientHeight := TPanel(ALayout.Control).Height + cServiceAreaHeight;
+    end
+    else
+      Assert(False, 'Непонятно какой контрол в лэйауте');
   end
   else if ALayout.Control is TFrame then
   begin
