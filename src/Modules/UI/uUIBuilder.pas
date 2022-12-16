@@ -51,6 +51,7 @@ type
     [Weak] FParent: TUIArea;
     [Weak] FLayout: TLayout;
     [Weak] FView: TView;
+    [Weak] FCaption: TObject;
     [Weak] FControl: TObject;
     [Weak] FInteractor: TObject;
     [Weak] FUIBuilder: TUIBuilder;
@@ -69,6 +70,7 @@ type
     function GetName: string; virtual;
     procedure DoActivate(const AUrlParams: string); virtual;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
+    function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; virtual;
     procedure SetParent(const AParent: TUIArea); virtual;
     procedure SetControl(const AControl: TObject); virtual;
     function DoGetDescription: string; virtual;
@@ -93,7 +95,7 @@ type
     destructor Destroy; override;
 
     procedure SetViewState(const AValue: TViewState); virtual;
-    procedure CreateCaption(const AFieldDef: TFieldDef); virtual;
+    procedure CreateCaption(const AFieldDef: TFieldDef);
     procedure UpdateCaptionVisibility; virtual;
 
     property Owner: TUIArea read FOwner;
@@ -134,6 +136,7 @@ type
     function GetTabStop: Boolean;
     function GetControl: TObject;
   protected
+    FCaption: TNativeControl;
     FNativeControl: TNativeControl;
     FLayout: TLayout;
 
@@ -183,6 +186,7 @@ type
     function TryCreatePopupArea(const ALayout: TLayout): TUIArea; virtual;
     procedure SetPopupArea(const APopupArea: TUIArea); virtual;
 
+    function DoCreateCaption(const AParent: TUIArea): TObject; virtual;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); virtual;
     procedure ArrangeChildAreas; virtual;
@@ -1379,6 +1383,11 @@ procedure TUIArea.DoBeforeFreeControl;
 begin
 end;
 
+function TUIArea.DoCreateCaption(const AParent: TUIArea): TObject;
+begin
+  Result := nil;
+end;
+
 function TUIArea.DoCreateChildAction(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
 var
   vStyleName: string;
@@ -2427,11 +2436,53 @@ begin
 end;
 
 procedure TNativeControl.CreateCaption(const AFieldDef: TFieldDef);
+var
+  vInteractor: TInteractor;
+  vMarkRequiredFields: Boolean;
+  vCaption: string;
+  vHint: string;
 begin
+  if not Assigned(AFieldDef) then
+    Exit;
+
+  vInteractor := TInteractor(FView.Interactor);
+
+  if FOwner.NeedCreateCaption then
+  begin
+    if Assigned(FOwner.CreateParams) and (FOwner.CreateParams.IndexOfName('Caption') >= 0) then
+      vCaption := FOwner.CreateParams.Values['Caption']
+    else
+      vCaption := FOwner.GetFieldTranslation(AFieldDef);
+
+    if Assigned(FOwner.CreateParams) and (FOwner.CreateParams.IndexOfName('Hint') >= 0) then
+      vHint := FOwner.CreateParams.Values['Hint']
+    else
+      vHint := FOwner.GetFieldTranslation(AFieldDef, tpHint);
+
+    FShowCaption := True;
+    vMarkRequiredFields := StrToBoolDef(TDomain(vInteractor.Domain).UserSettings.GetValue('Core', 'MarkRequiredFields'), True);
+
+    if AFieldDef.HasFlag(cRequired) then
+    begin
+      if vMarkRequiredFields then
+        vCaption := vCaption + '**';
+      vHint := vHint + vInteractor.Translate('txtRequired', 'Обязательное');
+    end
+    else if AFieldDef.HasFlag(cRecommended) then
+    begin
+      if vMarkRequiredFields then
+        vCaption := vCaption + '*';
+      vHint := vHint + vInteractor.Translate('txtRecommendedToFill', 'Рекомендуется заполнить');
+    end;
+
+    FCaption := DoCreateCaption(FOwner, vCaption, vHint);
+  end;
 end;
 
 destructor TNativeControl.Destroy;
 begin
+  FreeAndNil(FCaption);
+
   FOwner := nil;
   FParent := nil;
   FControl := nil;
@@ -2455,6 +2506,11 @@ end;
 
 procedure TNativeControl.DoClose(const AModalResult: Integer);
 begin
+end;
+
+function TNativeControl.DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject;
+begin
+  Result := nil;
 end;
 
 function TNativeControl.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -2492,6 +2548,7 @@ end;
 
 procedure TNativeControl.PlaceLabel;
 begin
+
 end;
 
 procedure TNativeControl.RefillArea(const AKind: Word);

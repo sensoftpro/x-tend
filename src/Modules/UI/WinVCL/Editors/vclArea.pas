@@ -42,7 +42,6 @@ uses
 type
   TVCLControl = class(TNativeControl)
   private
-    FCaption: TLabel;
     procedure BeforeContextMenuShow(Sender: TObject);
   protected
     function IndexOfControl(const AControl: TObject): Integer; override;
@@ -51,6 +50,8 @@ type
     procedure DoClose(const AModalResult: Integer); override;
     function GetName: string; override;
     procedure DoActivate(const AUrlParams: string); override;
+
+    function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; override;
     procedure SetParent(const AParent: TUIArea); override;
     procedure SetControl(const AControl: TObject); override;
     function DoGetDescription: string; override;
@@ -72,7 +73,6 @@ type
     destructor Destroy; override;
 
     procedure SetViewState(const AValue: TViewState); override;
-    procedure CreateCaption(const AFieldDef: TFieldDef); override;
     procedure UpdateCaptionVisibility; override;
   end;
 
@@ -1074,73 +1074,13 @@ begin
   FIsAutoReleased := AControl is TMenuItem;
 end;
 
-procedure TVCLControl.CreateCaption(const AFieldDef: TFieldDef);
-var
-  vInteractor: TInteractor;
-  vMarkRequiredFields: Boolean;
-begin
-  if not Assigned(AFieldDef) then
-    Exit;
-
-  vInteractor := TInteractor(FOwner.View.Interactor);
-
-  if FOwner.NeedCreateCaption then
-  begin
-    FCaption := TLabel.Create(nil);
-    FCaption.Parent := TControl(FControl).Parent;
-    FCaption.Transparent := True;
-
-    if Assigned(FOwner.CreateParams) and (FOwner.CreateParams.IndexOfName('Caption') >= 0) then
-      FCaption.Caption := FOwner.CreateParams.Values['Caption']
-    else
-      FCaption.Caption := FOwner.GetFieldTranslation(AFieldDef);
-
-    if Assigned(FOwner.CreateParams) and (FOwner.CreateParams.IndexOfName('Hint') >= 0) then
-      FCaption.Hint := FOwner.CreateParams.Values['Hint']
-    else
-      FCaption.Hint := FOwner.GetFieldTranslation(AFieldDef, tpHint);
-
-    FShowCaption := True;
-    vMarkRequiredFields := StrToBoolDef(TDomain(vInteractor.Domain).UserSettings.GetValue('Core', 'MarkRequiredFields'), True);
-
-    if AFieldDef.HasFlag(cRequired) then
-    begin
-      if vMarkRequiredFields then
-        FCaption.Caption := FCaption.Caption + '**';
-      FCaption.Hint := FCaption.Hint + vInteractor.Translate('txtRequired', 'Обязательное');
-    end
-    else if AFieldDef.HasFlag(cRecommended) then
-    begin
-      if vMarkRequiredFields then
-        FCaption.Caption := FCaption.Caption + '*';
-      FCaption.Hint := FCaption.Hint + vInteractor.Translate('txtRecommendedToFill', 'Рекомендуется заполнить');
-    end;
-
-    if Assigned(FOwner.View.Parent) and (FOwner.View.Parent.DefinitionKind = dkAction)
-      and TDefinition(FOwner.View.Parent.Definition).HasFlag(ccInstantExecution) then
-    begin
-      FCaption.ParentFont := True;
-      FCaption.Font.Size := 9;
-    end
-    else begin
-      FCaption.Font.Color := clGray;
-      FCaption.Font.Size := FCaption.Font.Size - 3;
-      if FCaption.Font.Size < 8 then
-        FCaption.Font.Size := 8;
-    end;
-  end;
-end;
-
 destructor TVCLControl.Destroy;
 var
   vControl: TObject;
   vIsFloat: Boolean;
 begin
   if Assigned(FCaption) then
-  begin
-    FCaption.Parent := nil;
-    FreeAndNil(FCaption);
-  end;
+    TLabel(FCaption).Parent := nil;
 
   vControl := FControl;
   vIsFloat := FOwner.Id = 'float';
@@ -1254,6 +1194,35 @@ begin
   end;
 end;
 
+function TVCLControl.DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject;
+var
+  vLabel: TLabel;
+  vFontSize: Integer;
+begin
+  vLabel := TLabel.Create(nil);
+  Result := vLabel;
+
+  vLabel.Parent := TWinControl(FParent.InnerControl);
+  vLabel.Transparent := True;
+  vLabel.Caption := ACaption;
+  vLabel.Hint := AHint;
+
+  if Assigned(FOwner.View.Parent) and (FOwner.View.Parent.DefinitionKind = dkAction)
+    and TDefinition(FOwner.View.Parent.Definition).HasFlag(ccInstantExecution) then
+  begin
+    vLabel.ParentFont := True;
+    vLabel.Font.Size := 9;
+  end
+  else begin
+    vFontSize := vLabel.Font.Size;
+    vFontSize := vFontSize - 3;
+    if vFontSize < 8 then
+      vFontSize := 8;
+    vLabel.Font.Size := vFontSize;
+    vLabel.Font.Color := clGray;
+  end;
+end;
+
 procedure TVCLControl.DoEndUpdate;
 begin
   if (not FIsForm) and (FControl is TWinControl) then
@@ -1323,27 +1292,29 @@ end;
 procedure TVCLControl.PlaceLabel;
 var
   vSpace: Integer;
+  vLabel: TLabel;
 begin
   if FCaption = nil then
     Exit;
 
+  vLabel := TLabel(FCaption);
   if FLabelPosition = lpTop then
   begin
-    FCaption.Left := TControl(FControl).Left;
-    FCaption.Top := TControl(FControl).Top - FCaption.Height - 4;
-    FCaption.AutoSize := True;
-    FCaption.Layout := tlTop;
+    vLabel.Left := TControl(FControl).Left;
+    vLabel.Top := TControl(FControl).Top - vLabel.Height - 4;
+    vLabel.AutoSize := True;
+    vLabel.Layout := tlTop;
   end
   else if FLabelPosition = lpLeft then
   begin
-    vSpace := FCaption.Width + 8;
-    FCaption.Left := TControl(FControl).Left - vSpace;
-    FCaption.Top := TControl(FControl).Top + 3;
-    FCaption.AutoSize := False;
-    //FCaption.Layout := tlCenter;
-    //FCaption.Height := Control.Height;
+    vSpace := vLabel.Width + 8;
+    vLabel.Left := TControl(FControl).Left - vSpace;
+    vLabel.Top := TControl(FControl).Top + 3;
+    vLabel.AutoSize := False;
+    //vLabel.Layout := tlCenter;
+    //vLabel.Height := Control.Height;
   end;
-  FCaption.Parent := TControl(FControl).Parent;
+  vLabel.Parent := TControl(FControl).Parent;
 end;
 
 procedure TVCLControl.SetCaptionProperty(const ALayout: TLayout);
@@ -1357,11 +1328,11 @@ begin
   if Assigned(vPanel) then
   begin
     FShowCaption := vPanel.ShowCaption;
-    FCaption.Visible := FShowCaption and (FOwner.View.State > vsHidden);
+    TLabel(FCaption).Visible := FShowCaption and (FOwner.View.State > vsHidden);
     if akTop in vPanel.Anchors then
-      FCaption.Anchors := [akLeft, akTop]
+      TLabel(FCaption).Anchors := [akLeft, akTop]
     else
-      FCaption.Anchors := [akLeft, akBottom];
+      TLabel(FCaption).Anchors := [akLeft, akBottom];
 
     if vPanel.DoubleBuffered then
       SetLabelPosition(lpLeft);
@@ -1480,7 +1451,7 @@ end;
 procedure TVCLControl.UpdateCaptionVisibility;
 begin
   if Assigned(FCaption) then
-    FCaption.Visible := FShowCaption and (FOwner.View.State > vsHidden);
+    TLabel(FCaption).Visible := FShowCaption and (FOwner.View.State > vsHidden);
 end;
 
 initialization
