@@ -238,7 +238,6 @@ type
     procedure StoreUILayout(const AInteractor: TInteractor); virtual;
     procedure RestoreUILayout(const AInteractor: TInteractor); virtual;
 
-    function GetViewNameByLayoutType(const ALayout: TLayout): string; virtual;
     procedure DoEnumerateControls(const ALayout: TLayout); virtual;
     procedure DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string); virtual;
     function DoGetLayoutCaption(const ALayout: TLayout): string; virtual;
@@ -407,9 +406,9 @@ var
   vControlType: TUIItemType;
   vFieldAreaClass: TUIAreaClass;
 begin
-  vViewName := GetViewNameByLayoutType(ALayout);
-
-  if vViewName = '' then
+  if Assigned(ALayout) and (ALayout.Kind = lkPages) then
+    vViewName := 'pages'
+  else
     vViewName := GetUrlCommand(AStyleName, AStyleName);
   vParams := ExtractUrlParams(AStyleName);
 
@@ -670,11 +669,6 @@ begin
   else
     Assert(False, 'UI Class not found for type: "' + vTypeName +
     '", View Name: "' + vViewName + '" in UI: ' + ClassName);
-end;
-
-function TPresenter.GetViewNameByLayoutType(const ALayout: TLayout): string;
-begin
-  Result := '';
 end;
 
 function TPresenter.Login(const ADomain: TObject): TInteractor;
