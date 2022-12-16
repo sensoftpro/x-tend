@@ -39,6 +39,8 @@ uses
   Classes, Generics.Collections, Generics.Defaults, UITypes, SysUtils, uConsts, uView, uDefinition, uEntity, uSession, uLayout;
 
 type
+  TLabelPosition = (lpTop, lpLeft);
+
   TUIBuilder = class;
   TUIArea = class;
   TUIAreaClass = class of TUIArea;
@@ -58,6 +60,7 @@ type
     FShowCaption: Boolean;
     FTabOrder: Integer;
     FTabStop: Boolean;
+    FLabelPosition: TLabelPosition;
 
     function IndexOfControl(const AControl: TObject): Integer; virtual;
     function AreaFromSender(const ASender: TObject): TUIArea; virtual;

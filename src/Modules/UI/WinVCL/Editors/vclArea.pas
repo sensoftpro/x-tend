@@ -40,11 +40,8 @@ uses
   uConsts, uUIBuilder, uDefinition, uEntity, uView, uLayout;
 
 type
-  TLabelPosition = (lpTop, lpLeft);
-
   TVCLControl = class(TNativeControl)
   private
-    FLabelPosition: TLabelPosition;
     FCaption: TLabel;
     procedure BeforeContextMenuShow(Sender: TObject);
   protected
@@ -1477,8 +1474,6 @@ begin
     Exit;
 
   vInteractor := TInteractor(FOwner.View.Interactor);
-
-  FLabelPosition := lpTop;
 
   if FOwner.NeedCreateCaption then
   begin
