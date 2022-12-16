@@ -42,7 +42,7 @@ uses
   Buttons, vclArea, vclPopupForm, uUIBuilder, uLayout, uView, uEntity, uEntityList, uDefinition, Controls;
 
 type
-  TVCLEntitySelector = class(TVCLFieldArea)
+  TVCLEntitySelector = class(TFieldArea)
   private
     FFlat: Boolean;
     FEntities: TEntityList;
@@ -57,7 +57,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TVCLEntityFieldEditor = class(TVCLFieldArea)
+  TVCLEntityFieldEditor = class(TFieldArea)
   private
     FBasePanel: TPanel;
     FSelectButton: TcxComboBox;
@@ -89,7 +89,7 @@ type
     procedure DoDeinit; override;
   end;
 
-  TRadioEntitySelector = class(TVCLFieldArea)
+  TRadioEntitySelector = class(TFieldArea)
   private
     FEntities: TEntityList;
     procedure FillList;
@@ -110,7 +110,7 @@ type
     procedure UpdateVisibility; override;
   end;
 
-  TListEntityFieldEditor = class (TVCLFieldArea)
+  TListEntityFieldEditor = class (TFieldArea)
   private
     FGrid: TcxTreeList;
     FEntities: TEntityList;
@@ -123,7 +123,7 @@ type
     procedure FillEditor; override;
   end;
 
-  TEntityFieldListEditor = class(TVCLFieldArea) // property editor
+  TEntityFieldListEditor = class(TFieldArea) // property editor
   private
     FEditor: TcxVerticalGrid;
     FDomainObject: TEntity;

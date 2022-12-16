@@ -64,7 +64,6 @@ type
 
     function IndexOfControl(const AControl: TObject): Integer; virtual;
     function AreaFromSender(const ASender: TObject): TUIArea; virtual;
-    function TagFromSender(const ASender: TObject): Integer; virtual;
     procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); virtual;
     procedure DoClose(const AModalResult: Integer); virtual;
     function GetName: string; virtual;
@@ -81,7 +80,6 @@ type
     procedure DoAfterChildAreasCreated; virtual;
     function GetFocused: Boolean; virtual;
     procedure SetFocused(const Value: Boolean); virtual;
-    function GetDefaultFocusedChild: TObject; virtual;
     procedure PlaceLabel; virtual;
 
     procedure RefillArea(const AKind: Word); virtual;
@@ -144,12 +142,12 @@ type
     function DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string = ''; const AOnClose: TProc = nil): TUIArea;
     function DoCreateChildAction(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
     function DoCreateChildList(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
-    function DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea; virtual;
+    function DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
     function DoCreateChildEditor(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
     function CreateChildLayoutedArea(const ALayout: TLayout; const AView: TView;
       const AChildLayoutName: string; const AParams: string): TUIArea;
     function CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TProc = nil): TUIArea;
-    function CreateNativeControl(const ALayout: TLayout; const AView: TView; const AControlType: TUIItemType;
+    function _CreateNativeControl(const ALayout: TLayout; const AView: TView; const AControlType: TUIItemType;
       const AParams: string = ''): TNativeControl;
 
     function AppendServiceArea: TUIArea;
@@ -198,7 +196,6 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); virtual;
     function GetFocused: Boolean;
     procedure SetFocused(const Value: Boolean); virtual;
-    function GetDefaultFocusedChild: TObject; virtual;
     procedure FocusedChanged(const AFocused: Boolean); virtual;
     procedure DoBeforeFreeControl; virtual;
     procedure DoDeinit; virtual;
@@ -269,6 +266,59 @@ type
     property Focused: Boolean read GetFocused write SetFocused;
   end;
 
+  TFieldArea = class(TUIArea)
+  protected
+    FFieldDef: TFieldDef;
+    FDefinitionName: string;
+
+    function GetNewValue: Variant; virtual;
+
+    function CanChangeArea: Boolean; override;
+
+    function GetName: string; override;
+    procedure RefillArea(const AKind: Word); override;
+
+    procedure SetFieldValue(const AValue: Variant);
+    procedure SetFieldEntity(const AEntity: TEntity);
+    procedure SetFieldStream(const AStream: TStream);
+
+    function GetFormat: string;
+  public
+    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+  end;
+
+  TActionArea = class(TUIArea)
+  protected
+    FParams: string;
+  public
+    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+
+    property ActionParams: string read FParams write FParams;
+  end;
+
+  TNavigationArea = class(TUIArea)
+  private
+    function CreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem;
+      const AView: TView; const ALevel: Integer): TObject;
+  protected
+    FInitialMenu: TNavigationItem;
+    FParams: string;
+    function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
+      const ACaption, AHint: string; const AImageIndex: Integer): TObject; virtual; abstract;
+    procedure DoAfterCreate(const AInteractor: TObject); virtual;
+    procedure DoProcessChilds(const AParentArea: TUIArea; const AView: TView; const ANavItem: TNavigationItem;
+      const ALevel: Integer); virtual;
+    function TryCreatePopupArea(const ALayout: TLayout): TUIArea; override;
+  public
+    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+    destructor Destroy; override;
+
+    procedure ProcessChilds;
+  end;
+
   TUIBuilder = class
   private
     FRootView: TView;
@@ -314,6 +364,9 @@ type
     property ActiveArea: TUIArea read FActiveArea write FActiveArea;
     property Presenter: TObject read FPresenter;
   end;
+
+type
+  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
 
 implementation
 
@@ -1036,7 +1089,6 @@ end;
 constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
   const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
 var
-  vPopupArea: TUIArea;
   vControl: TObject;
 begin
   inherited Create;
@@ -1069,19 +1121,6 @@ begin
     vControl := AControl;
   FNativeControl := NativeControlClass.Create(Self, vControl); //?? Создать меню здесь?
   SetControl(vControl);
-  SetParent(AParent);
-
-  if Assigned(ALayout) then
-  begin
-    FNativeControl.ApplyTabStops(ALayout);
-
-    vPopupArea := TryCreatePopupArea(ALayout);
-    if Assigned(vPopupArea) then
-    begin
-      SetPopupArea(vPopupArea);
-      FAreas.Add(vPopupArea);
-    end;
-  end;
 end;
 
 function TUIArea.CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TProc = nil): TUIArea;
@@ -1236,7 +1275,7 @@ begin
   FUIBuilder.ApplyLayout(Result, AView, vChildLayoutName, AParams);
 end;
 
-function TUIArea.CreateNativeControl(const ALayout: TLayout; const AView: TView; const AControlType: TUIItemType;
+function TUIArea._CreateNativeControl(const ALayout: TLayout; const AView: TView; const AControlType: TUIItemType;
   const AParams: string): TNativeControl;
 var
   vStyleName: string;
@@ -1379,8 +1418,17 @@ begin
 end;
 
 function TUIArea.DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
+var
+  vStyleName: string;
+  vNavArea: TNavigationArea;
 begin
-  Result := nil;
+  Assert(Assigned(ALayout.Menu), 'У панели навигации [' + AView.InitialName + '] не задано PopupMenu.');
+
+  vStyleName := GetUrlParam(AParams, 'ViewType');
+  vNavArea := TNavigationArea(TPresenter(FUIBuilder.Presenter).CreateNavigationArea(Self, ALayout, AView, vStyleName, AParams));
+  vNavArea.ProcessChilds;
+
+  Result := vNavArea;
 end;
 
 function TUIArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -1620,11 +1668,6 @@ end;
 function TUIArea.GetCount: Integer;
 begin
   Result := FAreas.Count;
-end;
-
-function TUIArea.GetDefaultFocusedChild: TObject;
-begin
-  Result := FNativeControl.GetDefaultFocusedChild;
 end;
 
 function TUIArea.GetDisplayFormat(const AFieldDef: TFieldDef; const AEntity: TEntity): string;
@@ -1891,8 +1934,26 @@ begin
 end;
 
 procedure TUIArea.SetControl(const AControl: TObject);
+var
+  vPopupArea: TUIArea;
 begin
   FNativeControl.Control := AControl;
+  if not Assigned(AControl) then
+    Exit;
+	
+  SetParent(FParent);
+
+  if Assigned(FLayout) then
+  begin
+    FNativeControl.ApplyTabStops(FLayout);
+
+    vPopupArea := TryCreatePopupArea(FLayout);
+    if Assigned(vPopupArea) then
+    begin
+      SetPopupArea(vPopupArea);
+      FAreas.Add(vPopupArea);
+    end;
+  end;
 end;
 
 procedure TUIArea.SetFocused(const Value: Boolean);
@@ -2021,6 +2082,318 @@ begin
 //  SetWarningVisible(vEntity.FieldByName(FFieldDef.Name).ValidationStatus = vsInvalid);
 end;
 
+{ TFieldArea }
+
+function TFieldArea.CanChangeArea: Boolean;
+var
+  vEntity: TEntity;
+begin
+  vEntity := TEntity(FView.ParentDomainObject);
+  Result := TCanChangeFieldFunc(TDomain(FView.Domain).Configuration.CanChangeFieldFunc)(FView, vEntity, FDefinitionName, GetNewValue);
+end;
+
+constructor TFieldArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
+  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
+begin
+  if AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField] then
+  begin
+    FFieldDef := TFieldDef(AView.Definition);
+    FDefinitionName := FFieldDef.Name;
+  end
+  else begin
+    FFieldDef := nil;
+    FDefinitionName := TDefinition(AView.Definition).Name;
+  end;
+
+  FId := FDefinitionName;
+  FUId := FDefinitionName;
+
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
+
+  Assert(Assigned(FControl), 'Не создан контрол для ' + FDefinitionName);
+
+  // Нужно делать после задания родителя, так как надпись использует родительский шрифт
+  FNativeControl.CreateCaption(FFieldDef);
+
+  {if Assigned(FControl) then
+  begin
+    TComponent(FControl).Name := FDefinitionName;
+    if TComponent(FControl) is TPanel then
+      TPanel(TComponent(FControl)).Caption := '';
+  end;}
+end;
+
+function TFieldArea.GetFormat: string;
+begin
+  Result := GetDisplayFormat(FFieldDef, FView.ParentDomainObject as TEntity);
+end;
+
+function TFieldArea.GetName: string;
+begin
+  Result := FDefinitionName;
+end;
+
+function TFieldArea.GetNewValue: Variant;
+begin
+  Result := Null;
+end;
+
+procedure TFieldArea.RefillArea(const AKind: Word);
+var
+  vEntity: TEntity;
+begin
+  FNativeControl.UpdateCaptionVisibility;
+
+  vEntity := TEntity(FView.ParentDomainObject);
+  if not Assigned(vEntity) then
+    Exit;
+
+  try
+    SwitchChangeHandlers(nil);
+    if not Assigned(FView.ParentDomainObject) then
+      DoDeinit
+    else begin
+      FillEditor;
+      Validate;
+    end;
+    SwitchChangeHandlers(OnChange);
+  except
+    TInteractor(FView.Interactor).ShowMessage('Error in FillEditorFromModel, Field: ' + FFieldDef.Name);
+  end;
+end;
+
+procedure TFieldArea.SetFieldEntity(const AEntity: TEntity);
+begin
+  FView.SetFieldEntity(Holder, AEntity);
+end;
+
+procedure TFieldArea.SetFieldStream(const AStream: TStream);
+begin
+  FView.SetFieldStream(Holder, AStream);
+end;
+
+procedure TFieldArea.SetFieldValue(const AValue: Variant);
+begin
+  FView.SetFieldValue(Holder, AValue);
+end;
+
+{ TActionArea }
+
+constructor TActionArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean;
+  const AControl: TObject; const ALayout: TLayout; const AParams: string);
+begin
+  FParams := AParams;
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
+end;
+
+{ TNavigationArea }
+
+constructor TNavigationArea.Create(const AParent: TUIArea; const AView: TView; const AId: string;
+  const AIsService: Boolean; const AControl: TObject; const ALayout: TLayout; const AParams: string);
+begin
+  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
+  FParams := AParams;
+  Assert(Assigned(ALayout) and Assigned(ALayout.Menu), 'Для навигационной области не задано меню');
+  FInitialMenu := ALayout.Menu;
+end;
+
+function TNavigationArea.CreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const AView: TView;
+  const ALevel: Integer): TObject;
+var
+  vDefinition: TDefinition;
+  vEntity: TEntity;
+  vCaption, vHint: string;
+  vImageID: Integer;
+begin
+  vCaption := ANavItem.Caption;
+  vHint := ANavItem.Hint;
+  vImageID := ANavItem.ImageID;
+
+  if AView.DefinitionKind in [dkAction, dkCollection] then
+  begin
+    vDefinition := TDefinition(AView.Definition);
+    if vCaption = '' then
+      vCaption := GetTranslation(vDefinition);
+    if vHint = '' then
+      vHint := vCaption;
+    if vImageID < 0 then
+      vImageID := vDefinition._ImageID;
+
+    Result := DoCreateItem(AParentObj, ANavItem, ALevel, vCaption, vHint, GetImageID(vImageID));
+  end
+  else if (AView.DefinitionKind in [dkEntity, dkObjectField]) and (AView.DomainObject is TEntity) then
+  begin
+    vEntity := AView.DomainObject as TEntity;
+    if (vCaption = '') and Assigned(vEntity) then
+      vCaption := SafeDisplayName(vEntity, 'NULL');
+    if vHint = '' then
+      vHint := vCaption;
+
+    Result := DoCreateItem(AParentObj, ANavItem, ALevel, vCaption, vCaption, GetImageID(vImageID));
+  end
+  else
+    Result := nil;
+end;
+
+destructor TNavigationArea.Destroy;
+begin
+  FInitialMenu := nil;
+  inherited Destroy;
+end;
+
+procedure TNavigationArea.DoAfterCreate(const AInteractor: TObject);
+begin
+end;
+
+procedure TNavigationArea.DoProcessChilds(const AParentArea: TUIArea; const AView: TView;
+  const ANavItem: TNavigationItem; const ALevel: Integer);
+var
+  i: Integer;
+  vNavItem: TNavigationItem;
+  vParentObj: TObject;
+  vViewPath: TStrings;
+
+  procedure CreateGroupNode(const ACurrentItem: TNavigationItem; const ACurrentView: TView);
+  var
+    vControl: TObject;
+    vGroupArea: TUIArea;
+    vDefinition: TDefinition;
+    vDefinitions: TList<TDefinition>;
+  begin
+    vControl := DoCreateItem(vParentObj, ACurrentItem, ALevel, ACurrentItem.Caption, ACurrentItem.Hint,
+      GetImageID(ACurrentItem.ImageID));
+    if not Assigned(vControl) then
+      Exit;
+
+    vGroupArea := TPresenter(Presenter).CreateFilledArea(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
+    AParentArea.AddArea(vGroupArea);
+
+    if ACurrentItem.Id = 'Libraries' then
+    begin
+      vDefinitions := TList<TDefinition>.Create;
+      try
+        TConfiguration(TInteractor(Interactor).Configuration).Definitions.DefinitionsByKind(vDefinitions, clkLibrary);
+        vDefinitions.Sort(TComparer<TDefinition>.Construct(function(const Left, Right: TDefinition): Integer
+          begin
+            Result := CompareText(Left._Caption, Right._Caption);
+          end));
+        for vDefinition in vDefinitions do
+          if not LessThanUIState(vDefinition, TInteractor(Interactor).Session, vsReadOnly)
+            and not vDefinition.HasFlag(ccNotSave) and not vDefinition.HasFlag(ccHideInMenu)
+          then begin
+            //#Check Возможно, лучше явно отстроить эти области без изменения vNavItem
+            ACurrentItem.Add(vDefinition.Name);
+          end;
+      finally
+        FreeAndNil(vDefinitions);
+      end;
+    end
+    else if (ACurrentItem.Id = 'Windows') and (TInteractor(Interactor).Layout = 'mdi') then
+    begin
+      ACurrentItem.Insert(0, 'ArrangeMozaic');
+      ACurrentItem.Insert(1, 'ArrangeCascade');
+      ACurrentItem.Insert(2, 'ArrangeHorz');
+      ACurrentItem.Insert(3, 'ArrangeVert');
+      if ACurrentItem.Items.Count > 4 then
+        ACurrentItem.Insert(4, '-');
+    end;
+
+    DoProcessChilds(vGroupArea, ACurrentView, ACurrentItem, ALevel + 1);
+  end;
+
+  procedure CreateNavigationNode(const ACurrentItem: TNavigationItem; const ACurrentView: TView);
+  var
+    vControl: TObject;
+    vNavArea: TUIArea;
+  begin
+    vControl := CreateItem(vParentObj, ACurrentItem, ACurrentView, ALevel);
+    if not Assigned(vControl) then
+      Exit;
+
+    vNavArea := TPresenter(Presenter).CreateFilledArea(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
+    AParentArea.AddArea(vNavArea);
+
+    DoProcessChilds(vNavArea, ACurrentView, ACurrentItem, ALevel + 1);
+  end;
+
+  procedure ProcessNavigationNode(const ACurrentItem: TNavigationItem; const ACurrentView: TView; const AViewPath: TStrings);
+  var
+    vViewName: string;
+    vNextView: TView;
+    vEntityList: TEntityList;
+    vEntity: TEntity;
+  begin
+    if AViewPath.Count = 0 then
+    begin
+      CreateNavigationNode(ACurrentItem, ACurrentView);
+      Exit;
+    end;
+
+    vViewName := Trim(AViewPath[0]);
+    AViewPath.Delete(0);
+    try
+      if vViewName = '' then
+        ProcessNavigationNode(ACurrentItem, ACurrentView, AViewPath)
+      else if vViewName = '-' then
+        CreateGroupNode(ACurrentItem, ACurrentView)
+      else if Pos('@', vViewName) = 1 then
+      begin
+        // Нужно итерироваться
+        if vViewName = '@' then
+        begin
+          if ACurrentView.DefinitionKind in [dkCollection, dkListField] then
+          begin
+            vEntityList := TEntityList(ACurrentView.DomainObject);
+            for vEntity in vEntityList do
+            begin
+              vNextView := TInteractor(ACurrentView.Interactor).GetViewOfEntity(vEntity);
+              ProcessNavigationNode(ACurrentItem, vNextView, AViewPath)
+            end;
+          end
+          else
+            Assert(False, 'Тип не поддерживается для итераций в меню');
+        end
+        else
+          CreateGroupNode(ACurrentItem, ACurrentView);
+      end
+      else begin
+        vNextView := ACurrentView.BuildView(vViewName);
+        ProcessNavigationNode(ACurrentItem, vNextView, AViewPath);
+      end;
+    finally
+      AViewPath.Insert(0, vViewName);
+    end;
+  end;
+begin
+  for i := 0 to ANavItem.Items.Count - 1 do
+  begin
+    vNavItem := TNavigationItem(ANavItem.Items[i]);
+
+    if AParentArea = Self then
+      vParentObj := nil
+    else
+      vParentObj := AParentArea.InnerControl;
+
+    vViewPath := CreateDelimitedList(vNavItem.ViewName, '/');
+    try
+      ProcessNavigationNode(vNavItem, AView, vViewPath);
+    finally
+      FreeAndNil(vViewPath);
+    end;
+  end;
+end;
+
+procedure TNavigationArea.ProcessChilds;
+begin
+  DoProcessChilds(Self, FView, FInitialMenu, 0);
+  DoAfterCreate(FView.Interactor);
+end;
+
+function TNavigationArea.TryCreatePopupArea(const ALayout: TLayout): TUIArea;
+begin
+  Result := nil;
+end;
+
 { TNativeControl }
 
 procedure TNativeControl.ApplyTabStops(const ALayout: TLayout);
@@ -2098,11 +2471,6 @@ begin
   Result := '';
 end;
 
-function TNativeControl.GetDefaultFocusedChild: TObject;
-begin
-  Result := FControl;
-end;
-
 function TNativeControl.GetFocused: Boolean;
 begin
   Result := False;
@@ -2175,11 +2543,6 @@ end;
 
 procedure TNativeControl.SetViewState(const AValue: TViewState);
 begin
-end;
-
-function TNativeControl.TagFromSender(const ASender: TObject): Integer;
-begin
-  Result := -1;
 end;
 
 procedure TNativeControl.UnbindContent;

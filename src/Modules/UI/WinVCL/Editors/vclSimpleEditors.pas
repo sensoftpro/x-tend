@@ -48,13 +48,13 @@ uses
   dxGaugeCustomScale, dxGaugeQuantitativeScale, dxGaugeCircularScale, dxGaugeControl;
 
 type
-  TTextInfo = class (TVCLFieldArea)
+  TTextInfo = class (TFieldArea)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
   end;
 
-  TDEEditor = class (TVCLFieldArea)
+  TDEEditor = class (TFieldArea)
   protected
     function GetDisabledBorderStyle: TcxEditBorderStyle;
     function GetBoxDisabledBorderStyle: TcxContainerBorderStyle;
@@ -333,13 +333,13 @@ type
     procedure FillEditor; override;
   end;
 
-  TImageByString = class (TVCLFieldArea)
+  TImageByString = class (TFieldArea)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
   end;
 
-  TBoolImages = class (TVCLFieldArea)
+  TBoolImages = class (TFieldArea)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -365,7 +365,7 @@ type
     //procedure FillEditor; override;
   end;
 
-  TColorEditor = class (TVCLFieldArea)
+  TColorEditor = class (TFieldArea)
   private
     FBasePanel: TPanel;
     FColorDialog: TColorDialog;
@@ -381,7 +381,7 @@ type
   end;
 
   // неопределённый по времени процесс
-  TSpinner = class (TVCLFieldArea)
+  TSpinner = class (TFieldArea)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -389,13 +389,13 @@ type
   end;
 
   // определённый по времени процесс
-  TProgress = class (TVCLFieldArea)
+  TProgress = class (TFieldArea)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
   end;
 
-  TGauge = class (TVCLFieldArea)
+  TGauge = class (TFieldArea)
   private
     FGaugeControl: TdxGaugeControl;
     FGaugeControl1CircularHalfScale: TdxGaugeCircularHalfScale;
@@ -405,7 +405,7 @@ type
     procedure FillEditor; override;
   end;
 
-  TEntityBreadcrumb = class (TVCLFieldArea)
+  TEntityBreadcrumb = class (TFieldArea)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -413,7 +413,7 @@ type
     procedure SetValidateDefinition(const ADefinition: TDefinition);
   end;
 
-  TLogEditor = class(TVCLFieldArea)
+  TLogEditor = class(TFieldArea)
   private
     FListView: TListView;
     FData: TStringList;
@@ -1736,7 +1736,7 @@ end;
 
 procedure TFilenameFieldEditor.FillEditor;
 begin
-  TPanel(FControl).Caption := ''; //reset caption after TVCLFieldArea.Create (FControl.Name := FFieldDef.Name;)
+  TPanel(FControl).Caption := ''; //reset caption after TFieldArea.Create (FControl.Name := FFieldDef.Name;)
 
   if VarIsNull(FView.FieldValue) then
   begin
@@ -1835,7 +1835,7 @@ end;
 
 procedure TSelectFolderFieldEditor.FillEditor;
 begin
-  TPanel(FControl).Caption := ''; //reset caption after TVCLFieldArea.Create (FControl.Name := FFieldDef.Name;)
+  TPanel(FControl).Caption := ''; //reset caption after TFieldArea.Create (FControl.Name := FFieldDef.Name;)
 
   if VarIsNull(FView.FieldValue) then
   begin
@@ -2488,7 +2488,7 @@ var
   vSourceTab: TTabSheet;
   vTabLayout: TLayout;
   vPage: TcxTabSheet;
-  vChildArea: TVCLArea;
+  vChildArea: TUIArea;
   i: Integer;
 begin
   FNeedCreateCaption := False;
@@ -2528,7 +2528,7 @@ begin
   end;
 
   // Нужно прописывать родителя, чтобы создавать вложенные сцены
-  vPC.Parent := TWinControl(TVCLArea(AParent).InnerControl);
+  vPC.Parent := TWinControl(AParent.InnerControl);
 
   for i := 0 to ALayout.Items.Count - 1 do
   begin
@@ -2539,7 +2539,7 @@ begin
     vPage.ImageIndex := vSourceTab.ImageIndex;
     vPage.Parent := vPC;
 
-    vChildArea := TVCLArea(TPresenter(Presenter).CreateFilledArea(Self, FView.Parent,
+    vChildArea := TUIArea(TPresenter(Presenter).CreateFilledArea(Self, FView.Parent,
       vSourceTab.Name, False, vPage, vTabLayout));
     AddArea(vChildArea);
 

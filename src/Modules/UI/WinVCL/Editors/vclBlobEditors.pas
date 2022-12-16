@@ -39,7 +39,7 @@ uses
   uUIBuilder, vclArea, uScene, uSimpleChart, uLayout;
 
 type
-  TFieldSceneArea = class(TVCLFieldArea)
+  TFieldSceneArea = class(TFieldArea)
   protected
     FScene: TScene;
     procedure DoActivate(const AAreaState: string = ''); override;
@@ -82,7 +82,7 @@ var
 begin
   vDomain := TDomain(FView.Domain);
   vSceneClass := TSceneClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ChartPainter', 'Painting', vModuleName));
-  FScene := vSceneClass.Create(TVCLArea(AParent).InnerControl);
+  FScene := vSceneClass.Create(AParent.InnerControl);
   Result := TWinScene(FScene).Panel;
 end;
 

@@ -294,9 +294,9 @@ begin
   vDefinition.AddSimpleFieldDef('Dir', 'dir', 'dir', 'x:\mydir', Null, 50, fkString, 'dir', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('File', 'file', 'file', 'x:\mydir\myfile.file', Null, 50, fkString, 'file', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('ImageByString', 'imagebystring', 'ImageByString', 'ok', Null, 50, fkString, 'ImageByString?ok=1&problems=2&fail=3', '', vsFullAccess, cRequired);
-  vDefinition.AddSimpleFieldDef('Selector', 'selector', 'selector', Null, Null, 50, fkString, 'selector', '', vsFullAccess, cRequired);
-  vDefinition.AddSimpleFieldDef('Comport', 'comport', 'comport', Null, Null, 50, fkString, 'comport', '', vsFullAccess, cRequired);
-  vDefinition.AddSimpleFieldDef('Fieldpath', 'fieldpath', 'fieldpath', Null, Null, 50, fkString, 'fieldpath', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Selector', 'selector', 'selector', Null, Null, 50, fkString, 'selector', '', vsFullAccess, 0);
+  vDefinition.AddSimpleFieldDef('Comport', 'comport', 'comport', Null, Null, 50, fkString, 'comport', '', vsFullAccess, 0);
+  vDefinition.AddSimpleFieldDef('Fieldpath', 'fieldpath', 'fieldpath', Null, Null, 50, fkString, 'fieldpath', '', vsFullAccess, 0);
   vDefinition.AddSimpleFieldDef('Integer', 'integer', 'Integer', 1234567890, -10, 1234567891, fkInteger, '', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('IntegerInfo', 'integerinfo', 'IntegerInfo', 1234567890, -10, 1234567891, fkInteger, 'info', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('IntegerSpinner', 'integerspinner', 'IntegerSpinner', 1, 0, 1, fkInteger, 'spinner', '', vsFullAccess, cRequired);

@@ -39,7 +39,6 @@ uses
   Classes, Generics.Collections, UITypes, uJSON, uConsts;
 
 type
-  //TLayoutKind = (lkPanel, lkPage, lkPages, lkFrame, lkMenu, lkMemo);
   TLayoutKind = (lkNone, lkPanel, lkPage, lkPages, lkFrame, lkMemo, lkLabel, lkImage, lkBevel, lkShape,
     lkSplitter, lkScrollBox, lkGroup, lkAction);
   TLayoutAlign = (lalNone, lalTop, lalBottom, lalLeft, lalRight, lalClient, lalCustom);
@@ -230,6 +229,7 @@ type
     destructor Destroy; override;
 
     function Add(const ACaption: string): TNavigationItem;
+    function Insert(const AIndex: Integer; const ACaption: string): TNavigationItem;
     function IsLine: Boolean;
     procedure SetUrl(const AUrl: string); override;
 
@@ -247,10 +247,7 @@ type
   end;
 
   TLayoutItem = class(TLayout)
-
   end;
-
-  //TVCLControl = type TObject;
 
   TLayoutX = class
   private
@@ -1207,6 +1204,12 @@ begin
   if not Assigned(FOwner) and Assigned(FParent) then
     FOwner := TNavigationItem(FParent).Owner;
   Result := FOwner;
+end;
+
+function TNavigationItem.Insert(const AIndex: Integer; const ACaption: string): TNavigationItem;
+begin
+  Result := TNavigationItem.Create(Self, ACaption);
+  FItems.Insert(AIndex, Result);
 end;
 
 procedure TNavigationItem.InternalLoad(const AJSON: TJSONObject);

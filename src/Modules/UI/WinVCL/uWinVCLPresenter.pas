@@ -104,7 +104,6 @@ type
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; override;
     procedure StoreUILayout(const AInteractor: TInteractor); override;
     procedure RestoreUILayout(const AInteractor: TInteractor); override;
-    function GetViewNameByLayoutType(const ALayout: TLayout): string; override;
     procedure DoEnumerateControls(const ALayout: TLayout); override;
     procedure DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string); override;
     function DoGetLayoutCaption(const ALayout: TLayout): string; override;
@@ -122,8 +121,6 @@ type
       const ACallback: TNotifyEvent = nil; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; override;
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
     procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); override;
-    function CreateFilledArea(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''): TUIArea; override;
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
@@ -241,7 +238,7 @@ begin
   if AInteractor.Layout <> 'mdi'  then
     Exit;
 
-  vForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).InnerControl);
+  vForm := TForm(AInteractor.UIBuilder.RootArea.InnerControl);
   case AArrangeKind of
     waCascade:
       vForm.Cascade;
@@ -269,17 +266,17 @@ var
 begin
   if Assigned(AOldArea) then
   begin
-    vForm := TForm(TVCLArea(AOldArea).InnerControl);
+    vForm := TForm(AOldArea.InnerControl);
     CloseAllPages(AInteractor);
     TUIAreaCrack(AOldArea).ClearContent;
 
-    SetAsMainForm(TForm(TVCLArea(ANewArea).InnerControl));
+    SetAsMainForm(TForm(ANewArea.InnerControl));
 
     vForm.Close;
     AOldArea.Free;
   end
   else
-    SetAsMainForm(TForm(TVCLArea(ANewArea).InnerControl));
+    SetAsMainForm(TForm(ANewArea.InnerControl));
 end;
 
 procedure TWinVCLPresenter.CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
@@ -299,7 +296,7 @@ var
   vView: TView;
   vAction: TActionDef;
   vReport: TRTFReport;
-  vChildArea: TVCLArea;
+  vChildArea: TUIArea;
 begin
   for i := 0 to ASrcItem.Items.Count - 1 do
   begin
@@ -341,7 +338,7 @@ begin
             if Assigned(vView.DomainObject) and TEntity(vView.DomainObject).FieldExists('IsChecked') then
               vDestItem.AutoCheck := True;
 
-            vChildArea := TVCLArea(CreateFilledArea(AParent, vView, vCaption, False, vDestItem, vSrcItem));
+            vChildArea := CreateFilledArea(AParent, vView, vCaption, False, vDestItem, vSrcItem);
             TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
 
@@ -377,7 +374,7 @@ begin
             vDestItem.ImageIndex := 31;
             vDestItem.OnClick := AParent.OnAreaClick;
 
-            vChildArea := TVCLArea(CreateFilledArea(AParent, vView, vCaption, False, vDestItem, vSrcItem));
+            vChildArea := CreateFilledArea(AParent, vView, vCaption, False, vDestItem, vSrcItem);
             TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
 
@@ -415,7 +412,7 @@ begin
       else
         vDestItem.Caption := vCaption;
 
-      vChildArea := TVCLArea(CreateFilledArea(AParent, AParent.View, vSrcItem.ViewName, False, vDestItem, vSrcItem));
+      vChildArea := CreateFilledArea(AParent, AParent.View, vSrcItem.ViewName, False, vDestItem, vSrcItem);
       AParent.AddArea(vChildArea);
 
       ADestMenu.Add(vDestItem);
@@ -460,7 +457,7 @@ begin
       if Assigned(vView.DomainObject) and TEntity(vView.DomainObject).FieldExists('IsChecked') then
         vDestItem.AutoCheck := True;
 
-      vChildArea := TVCLArea(CreateFilledArea(AParent, vView, vCaption, False, vDestItem, vSrcItem));
+      vChildArea := CreateFilledArea(AParent, vView, vCaption, False, vDestItem, vSrcItem);
       for j := 0 to vDestItem.Count - 1 do
         vDestItem[j].Tag := Integer(vChildArea);
 
@@ -529,7 +526,7 @@ var
   vShape: TShape;
   vListView: TListView;
   vImageList: TImageList;
-  vMenuArea: TVCLArea;
+  vMenuArea: TUIArea;
 begin
   Result := nil;
 
@@ -670,7 +667,7 @@ begin
       if AView.DefinitionKind in [dkCollection, dkAction, dkEntity] then
         TDragImageList(TInteractor(AView.Interactor).Images[16]).GetIcon(AParent.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
       Result := CreateFilledArea(AParent, AView, vSourceTabSheet.Name, False, vForm, ALayout);
-      TVCLArea(Result).OnClose := AOnClose;
+      Result.OnClose := AOnClose;
     end
     else begin
       vTab := TcxTabSheet.Create(TComponent(AParent.InnerControl));
@@ -715,7 +712,7 @@ begin
       vSplitter.AlignSplitter := salBottom;
     end;
     vSplitter.Cursor := vSourceSplitter.Cursor;
-    //vSplitter.Control := TVCLArea(TInteractor(Interactor).UIBuilder.RootArea).Control;
+    //vSplitter.Control := TInteractor(Interactor).UIBuilder.RootArea.Control;
     //vSplitter.AllowHotZoneDrag := False;
     vSplitter.HotZone := TcxSimpleStyle.Create(vSplitter);
     vSplitter.SetBounds(vSourceSplitter.Left, vSourceSplitter.Top, vSourceSplitter.Width, vSourceSplitter.Height);
@@ -852,12 +849,6 @@ begin
     Assert(False, 'Пустой класс для лэйаута');
 end;
 
-function TWinVCLPresenter.CreateFilledArea(const AParent: TUIArea; const AView: TView; const AId: string;
-  const AIsService: Boolean; const AControl: TObject; const ALayout: TLayout; const AParams: string): TUIArea;
-begin
-  Result := TVCLArea.Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
-end;
-
 function TWinVCLPresenter.CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout;
 var
   vParams: TStrings;
@@ -938,7 +929,7 @@ begin
     for i := 0 to AParent.Count - 1 do
     begin
       vArea := AParent.Areas[i];
-      if (vArea.View = AView) and (TVCLArea(vArea).InnerControl is TForm) then
+      if (vArea.View = AView) and (vArea.InnerControl is TForm) then
         Exit(vArea);
     end;
 
@@ -985,7 +976,7 @@ begin
   try
     Result := CreateFilledArea(AParent, AView, AAreaName, True, vForm, nil, '');
     if Assigned(AOnClose) then
-      TVCLArea(Result).OnClose := AOnClose;
+      Result.OnClose := AOnClose;
 
     if Assigned(ACallback) and Assigned(vTimer) then
       ACallback(vTimer);
@@ -1077,8 +1068,8 @@ begin
 
     if vCanBeClosed then
     begin
-      if Assigned(TVCLArea(vArea).OnClose) then
-        TVCLArea(vArea).OnClose();
+      if Assigned(vArea.OnClose) then
+        vArea.OnClose();
 
       // Возможно, нужно сбросить CurrentArea у UIBuilder-а в vArea.Parent
 
@@ -1273,7 +1264,7 @@ begin
 
     if vCanBeClosed then
     begin
-      vCloseProc := TVCLArea(vArea).OnClose;
+      vCloseProc := vArea.OnClose;
       vArea.SetControl(nil);
       vArea.UIBuilder.RootArea.RemoveArea(vArea); // the form will be destroyed here
     end
@@ -1558,7 +1549,6 @@ end;
 
 function TWinVCLPresenter.ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult;
 var
-  vArea: TVCLArea absolute AArea;
   vView: TView;
   vForm: TForm;
   vCaption: string;
@@ -1579,14 +1569,14 @@ begin
   Result := drNone;
   if (AAreaName = '') or (AAreaName = 'float') then
   begin
-    vForm := TForm(vArea.InnerControl);
+    vForm := TForm(AArea.InnerControl);
     vForm.Show;
   end
   else if (AAreaName = 'child') or (AAreaName = 'modal') then
   begin
-    vForm := TForm(vArea.InnerControl);
+    vForm := TForm(AArea.InnerControl);
     vForm.ShowHint := True;
-    vView := vArea.View;
+    vView := AArea.View;
 
     vCaption := GetUrlParam(AOptions, 'Caption', '');
 
@@ -1622,9 +1612,9 @@ begin
     try
       Result := ModalResultToDialogResult(vForm.ShowModal);
     finally
-      vArea.SetHolder(nil);
-      if Assigned(vArea.Parent) then
-        vArea.Parent.RemoveArea(AArea);
+      AArea.SetHolder(nil);
+      if Assigned(AArea.Parent) then
+        AArea.Parent.RemoveArea(AArea);
       vForm.Free;
     end;
   end;
@@ -1641,7 +1631,7 @@ var
     TDomain(AInteractor.Domain).UserSettings.SetValue(AName, 'Layout', vLayoutStr);
   end;
 begin
-  vMainForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).InnerControl);
+  vMainForm := TForm(AInteractor.UIBuilder.RootArea.InnerControl);
 
   if not Assigned(vMainForm) then Exit;
 
@@ -1749,7 +1739,7 @@ var
     end;
   end;
 begin
-  vMainForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).InnerControl);
+  vMainForm := TForm(AInteractor.UIBuilder.RootArea.InnerControl);
   if (not Assigned(vMainForm)) or (vMainForm.Position <> poDesigned) then Exit;
 
   LoadForm(vMainForm, 'MainForm');
@@ -1765,7 +1755,7 @@ var
   vView, vCloseView: TView;
   vHolder: TChangeHolder;
   vRes: TDialogResult;
-  vChildArea: TVCLArea;
+  vChildArea: TUIArea;
   i: Integer;
   vCanBeClosed: Boolean;
   vCloseProc: TProc;
@@ -1838,7 +1828,7 @@ begin
 
   for i := 0 to vArea.Count - 1 do
   begin
-    vChildArea := TVCLArea(vArea[i]);
+    vChildArea := vArea[i];
     if vChildArea.InnerControl is TForm then
     begin
       vInteractor.ShowMessage('Невозможно закрыть окно, так как есть другие программные окна, зависящие от него', msWarning);
@@ -1857,7 +1847,7 @@ begin
 
     if vCanBeClosed then
     begin
-      vCloseProc := TVCLArea(vArea).OnClose;
+      vCloseProc := vArea.OnClose;
       if vForm.ModalResult = mrOk then
         DoValidation
       else
@@ -1891,7 +1881,7 @@ end;
 procedure TWinVCLPresenter.DoChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 var
   vForm: TForm;
-  vFormArea: TVCLArea;
+  vFormArea: TUIArea;
   vView: TView;
 begin
   vForm := TForm(Sender);
@@ -1907,7 +1897,7 @@ begin
   end
   else if Key = VK_ESCAPE then
   begin
-    vFormArea := TVCLArea(vForm.Tag);
+    vFormArea := TUIArea(vForm.Tag);
     if Assigned(vFormArea) then
     begin
       vFormArea.UIBuilder.LastArea := nil;
@@ -1933,7 +1923,7 @@ var
 begin
   if AInteractor.Layout = 'mdi' then
   begin
-    vMainForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).InnerControl);
+    vMainForm := TForm(AInteractor.UIBuilder.RootArea.InnerControl);
     if Assigned(vMainForm) and (vMainForm.FormStyle = fsMDIForm) then
       for i := vMainForm.MDIChildCount - 1 downto 0 do
         vMainForm.MDIChildren[i].Close;
@@ -2232,14 +2222,6 @@ end;
 procedure TWinVCLPresenter.DoUnfreeze;
 begin
   Application.ProcessMessages;
-end;
-
-function TWinVCLPresenter.GetViewNameByLayoutType(const ALayout: TLayout): string;
-begin
-  if Assigned(ALayout) and (ALayout.Control is TPageControl) then
-    Result := 'pages'
-  else
-    Result := inherited;
 end;
 
 function TWinVCLPresenter.GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
