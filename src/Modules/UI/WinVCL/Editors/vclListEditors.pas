@@ -1289,7 +1289,7 @@ begin
   FGrid.LookAndFeel.NativeStyle := False;
   FGrid.LookAndFeel.Kind := lfFlat;
 
-  if ALayout.Control is TPanel then
+  if ALayout.Kind = lkPanel then
     FGrid.Align := TPanel(ALayout.Control).Align
   else
     FGrid.Align := alClient;
@@ -2677,7 +2677,7 @@ begin
   FMasterTableView.Styles.Selection := FSelectionStyle;
   FMasterTableView.Styles.Inactive := FSelectionStyle;
 
-  if Assigned(ALayout) and (ALayout.Control is TPanel) then
+  if Assigned(ALayout) and (ALayout.Kind = lkPanel) then
   begin
     FContentStyle.TextColor := TPanel(ALayout.Control).Font.Color;
     FSelectionStyle.TextColor := clHighlightText;
@@ -3200,7 +3200,7 @@ begin
   FPivot := TcxPivotGrid.Create(nil);
   FId := 'Pivot';
 
-  if ALayout.Control is TPanel then
+  if ALayout.Kind = lkPanel then
     FPivot.Align := TPanel(ALayout.Control).Align
   else
     FPivot.Align := alClient;
@@ -3540,7 +3540,7 @@ begin
   FTreeList.LookAndFeel.NativeStyle := False;
   FTreeList.LookAndFeel.Kind := lfFlat;
 
-  if ALayout.Control is TPanel then
+  if ALayout.Kind = lkPanel then
     FTreeList.Align := TPanel(ALayout.Control).Align
   else
     FTreeList.Align := alClient;

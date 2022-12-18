@@ -60,6 +60,7 @@ type
     procedure RestoreChildForms(const AInteractor: TInteractor);
     procedure StoreChildForms(const AInteractor: TInteractor; const AMainForm: TForm);
     function GetLayoutKind(const AControl: TObject): TLayoutKind;
+    procedure CopyControlPropertiesToLayout(const ALayout: TLayout; const AControl: TObject);
 
     procedure CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
       const ASrcItem: TNavigationItem; const ADestMenu: TMenuItem);
@@ -102,8 +103,10 @@ type
     procedure OnDomainError(const ACaption, AText: string); override;
 
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; override;
+
     procedure StoreUILayout(const AInteractor: TInteractor); override;
     procedure RestoreUILayout(const AInteractor: TInteractor); override;
+
     procedure DoEnumerateControls(const ALayout: TLayout); override;
     procedure DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string); override;
     function DoGetLayoutCaption(const ALayout: TLayout): string; override;
@@ -277,6 +280,154 @@ begin
   end
   else
     SetAsMainForm(TForm(ANewArea.InnerControl));
+end;
+
+procedure TWinVCLPresenter.CopyControlPropertiesToLayout(const ALayout: TLayout; const AControl: TObject);
+var
+  vSourceLabel: TLabel;
+  vSourceImage: TImage;
+  vSourcePC: TPageControl;
+  vSourceTabSheet: TTabSheet;
+  vSourcePanel: TPanel;
+  vSourceBox: TScrollBox;
+  vSourceBevel: TBevel;
+  vSourceSplitter: TSplitter;
+  vSourceShape: TShape;
+  vCaption: string;
+  vUIParams: string;
+  vPos: Integer;
+
+  procedure CopyMargins(const AControl: TControl);
+  begin
+    if AControl.AlignWithMargins then
+    begin
+      ALayout.Margins.Left := AControl.Margins.Left;
+      ALayout.Margins.Top := AControl.Margins.Top;
+      ALayout.Margins.Right := AControl.Margins.Right;
+      ALayout.Margins.Bottom := AControl.Margins.Bottom;
+    end;
+  end;
+
+  procedure CopyViewState(const AControl: TControl);
+  begin
+    if not AControl.Visible then
+      ALayout.State := vsHidden
+    else if not AControl.Enabled then
+      ALayout.State := vsDisabled
+    else
+      ALayout.State := vsFullAccess;
+  end;
+
+  procedure CopyPenSettings(const APen: TPen);
+  begin
+    ALayout.Pen.Color := ColorToAlphaColor(APen.Color);
+    ALayout.Pen.Width := APen.Width;
+  end;
+
+  procedure CopyBrushSettings(const ABrush: TBrush);
+  begin
+    ALayout.Brush.Color := ColorToAlphaColor(ABrush.Color);
+  end;
+
+  procedure CopyFontSettings(const AFont: TFont);
+  begin
+    ALayout.Font.Family := AFont.Name;
+    ALayout.Font.Color := ColorToAlphaColor(AFont.Color);
+    ALayout.Font.Size := AFont.Size;
+    ALayout.Font.Style := AFont.Style;
+  end;
+begin
+  if ALayout.Kind = lkPanel then
+  begin
+
+  end
+  else if ALayout.Kind = lkPage then
+  begin
+
+  end
+  else if ALayout.Kind = lkPages then
+  begin
+
+  end
+  else if ALayout.Kind = lkFrame then
+  begin
+
+  end
+  else if ALayout.Kind = lkMemo then
+  begin
+
+  end
+  else if ALayout.Kind = lkLabel then
+  begin
+    vSourceLabel := TLabel(AControl);
+    ALayout.Left := vSourceLabel.Left;
+    ALayout.Top := vSourceLabel.Top;
+    ALayout.Width := vSourceLabel.Width;
+    ALayout.Height := vSourceLabel.Height;
+  //  vLabel.Transparent := vSourceLabel.Transparent;
+  //  vLabel.AutoSize := vSourceLabel.AutoSize;
+  //  vLabel.Properties.WordWrap := vSourceLabel.WordWrap;
+    ALayout.Anchors := vSourceLabel.Anchors;
+
+    vCaption := vSourceLabel.Caption;
+    vUIParams := '';
+    vPos := Pos('@', vCaption);
+    if vPos > 1 then
+    begin
+      vUIParams := vCaption;
+      Delete(vUIParams, 1, vPos);
+      vCaption := Copy(vCaption, 1, vPos - 1);
+    end
+    else
+      vCaption := vSourceLabel.Caption;
+
+    ALayout.Caption := vCaption;
+    ALayout.UIParams := vUIParams;
+
+    CopyFontSettings(vSourceLabel.Font);
+  end
+  else if ALayout.Kind = lkImage then
+  begin
+
+  end
+  else if ALayout.Kind = lkBevel then
+  begin
+
+  end
+  else if ALayout.Kind = lkShape then
+  begin
+    vSourceShape := TShape(AControl);
+    ALayout.Left := vSourceShape.Left;
+    ALayout.Top := vSourceShape.Top;
+    ALayout.Width := vSourceShape.Width;
+    ALayout.Height := vSourceShape.Height;
+    ALayout.Anchors := vSourceShape.Anchors;
+    ALayout.Align := TLayoutAlign(vSourceShape.Align);
+    CopyMargins(vSourceShape);
+    ALayout.Hint := vSourceShape.Hint;
+    CopyViewState(vSourceShape);
+    CopyPenSettings(vSourceShape.Pen);
+    CopyBrushSettings(vSourceShape.Brush);
+    ALayout.Shape_Type := TLayoutShapeType(vSourceShape.Shape);
+  end
+  else if ALayout.Kind = lkSplitter then
+  begin
+
+  end
+  else if ALayout.Kind = lkScrollBox then
+  begin
+
+  end
+  else if ALayout.Kind = lkGroup then
+  begin
+
+  end
+  else if ALayout.Kind = lkAction then
+  begin
+
+  end
+  else
+    Assert(False, 'Тип контрола не поддерживается');
 end;
 
 procedure TWinVCLPresenter.CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
@@ -500,7 +651,6 @@ var
   vSourceBox: TScrollBox;
   vSourceBevel: TBevel;
   vSourceSplitter: TSplitter;
-  vSourceShape: TShape;
   vDomain: TDomain;
   vPos: Integer;
   vCaption: string;
@@ -527,6 +677,39 @@ var
   vListView: TListView;
   vImageList: TImageList;
   vMenuArea: TUIArea;
+
+  procedure CopyPenSettings(const APen: TPen);
+  begin
+    APen.Color := AlphaColorToColor(ALayout.Pen.Color);
+    APen.Width := ALayout.Pen.Width;
+  end;
+
+  procedure CopyBrushSettings(const ABrush: TBrush);
+  begin
+    ABrush.Color := AlphaColorToColor(ALayout.Brush.Color);
+  end;
+
+  procedure CopyFontSettings(const AFont: TFont);
+  begin
+    AFont.Name := ALayout.Font.Family;
+    AFont.Color := AlphaColorToColor(ALayout.Font.Color);
+    AFont.Size := ALayout.Font.Size;
+    AFont.Style := ALayout.Font.Style;
+  end;
+
+  procedure CopyMargins(const AControl: TControl);
+  begin
+    if not ALayout.Margins.IsEmpty then
+    begin
+      AControl.AlignWithMargins := True;
+      AControl.Margins.Left := ALayout.Margins.Left;
+      AControl.Margins.Top := ALayout.Margins.Top;
+      AControl.Margins.Right := ALayout.Margins.Right;
+      AControl.Margins.Bottom := ALayout.Margins.Bottom;
+    end
+    else
+      AControl.AlignWithMargins := False;
+  end;
 begin
   Result := nil;
 
@@ -535,26 +718,25 @@ begin
 
   vDomain := TDomain(TInteractor(AView.Interactor).Domain);
 
-  if ALayout.Control is TShape then
+  if ALayout.Kind = lkShape then
   begin
-    vSourceShape := TShape(ALayout.Control);
     vShape := TShape.Create(nil);
-    vShape.Left := vSourceShape.Left;
-    vShape.Top := vSourceShape.Top;
-    vShape.Width := vSourceShape.Width;
-    vShape.Height := vSourceShape.Height;
-    vShape.Anchors := vSourceShape.Anchors;
-    vShape.Align := vSourceShape.Align;
-    vShape.Hint := vSourceShape.Hint;
-    vShape.Visible := vSourceShape.Visible;
-    vShape.Pen.Color := vSourceShape.Pen.Color;
-    vShape.Brush.Color := vSourceShape.Brush.Color;
-    vShape.AlignWithMargins := vSourceShape.AlignWithMargins;
-    vShape.Margins := vSourceShape.Margins;
+    vShape.Left := ALayout.Left;
+    vShape.Top := ALayout.Top;
+    vShape.Width := ALayout.Width;
+    vShape.Height := ALayout.Height;
+    vShape.Anchors := ALayout.Anchors;
+    vShape.Align := TAlign(ALayout.Align);
+    vShape.Hint := ALayout.Hint;
+    vShape.Visible := ALayout.State > vsHidden;
+    CopyPenSettings(vShape.Pen);
+    CopyBrushSettings(vShape.Brush);
+    CopyMargins(vShape);
+    vShape.Shape := TShapeType(ALayout.Shape_Type);
 
     Result := CreateFilledArea(AParent, AView, '', False, vShape, ALayout);
   end
-  else if ALayout.Control is TLabel then
+  else if ALayout.Kind = lkLabel then
   begin
     vSourceLabel := TLabel(ALayout.Control);
     vLabel := TcxLabel.Create(nil);   // заменил с TLabel на TcxLabel, потому что TLabel мерцал при растягивании формы
@@ -593,7 +775,7 @@ begin
 
     Result := CreateFilledArea(AParent, AView, '', False, vLabel, ALayout);
   end
-  else if ALayout.Control is TImage then
+  else if ALayout.Kind = lkImage then
   begin
     vSourceImage := TImage(ALayout.Control);
     vImage := TcxImage.Create(nil);
@@ -620,7 +802,7 @@ begin
 
     Result := CreateFilledArea(AParent, AView, '', False, vImage, ALayout);
   end
-  else if ALayout.Control is TPageControl then
+  else if ALayout.Kind = lkPages then
   begin
     vSourcePC := TPagecontrol(ALayout.Control);
     vPC := TcxPageControl.Create(nil);
@@ -653,7 +835,7 @@ begin
 
     Result := CreateFilledArea(AParent, AView, '', False, vPC, ALayout);
   end
-  else if ALayout.Control is TTabSheet then
+  else if ALayout.Kind = lkPage then
   begin
     vSourceTabSheet := TTabSheet(ALayout.Control);
     if (TInteractor(AView.Interactor).Layout = 'mdi') and (vSourceTabSheet.Tag = 11) then
@@ -684,11 +866,7 @@ begin
 //        TcxPageControl(AParent.InnerControl).ActivePage := vTab;
     end;
   end
-  else if ALayout.Control is TPopupMenu then
-  begin
-    Result := nil;
-  end
-  else if ALayout.Control is TBevel then
+  else if ALayout.Kind = lkBevel then
   begin
     vSourceBevel := TBevel(ALayout.Control);
     vBevel := TBevel.Create(nil);
@@ -700,7 +878,7 @@ begin
     vBevel.Margins := vSourceBevel.Margins;
     Result := CreateFilledArea(AParent, AView, '-bevel-', False, vBevel, ALayout);
   end
-  else if ALayout.Control is TSplitter then
+  else if ALayout.Kind = lkSplitter then
   begin
     vSourceSplitter := TSplitter(ALayout.Control);
     vSplitter := TcxSplitter.Create(nil);
@@ -721,7 +899,7 @@ begin
     vSplitter.NativeBackground := False;
     Result := CreateFilledArea(AParent, AView, '-splitter-', False, vSplitter, ALayout);
   end
-  else if ALayout.Control is TPanel then
+  else if ALayout.Kind = lkPanel then
   begin
     vSourcePanel := TPanel(ALayout.Control);
 
@@ -799,7 +977,7 @@ begin
 
     Result.AddParams(vParams);
   end
-  else if ALayout.Control is TScrollBox then
+  else if ALayout.Kind = lkScrollBox then
   begin
     vSourceBox := TScrollBox(ALayout.Control);
     vBox := TcxScrollBox.Create(nil);
@@ -817,7 +995,7 @@ begin
     vBox.Anchors := vSourceBox.Anchors;
     Result := CreateFilledArea(AParent, AView, '', False, vBox, ALayout);
   end
-  else if ALayout.Control is TMemo then
+  else if ALayout.Kind = lkMemo then
   begin
     vSourcePanel := TPanel(ALayout.Control);
 
@@ -1041,6 +1219,7 @@ begin
   begin
     vControl := vParentControl.Controls[i];
     vLayout := TLayout.Create(GetLayoutKind(vControl), vControl);
+    CopyControlPropertiesToLayout(vLayout, vControl);
     ALayout.Add(vLayout);
     DoEnumerateControls(vLayout);
   end;
@@ -1099,15 +1278,15 @@ end;
 
 function TWinVCLPresenter.DoGetLayoutCaption(const ALayout: TLayout): string;
 begin
-  if ALayout.Control is TPageControl then
+  if ALayout.Kind = lkPages then
     Result := TPageControl(ALayout.Control).Hint
-  else if ALayout.Control is TMemo then
+  else if ALayout.Kind = lkMemo then
   begin
     TMemo(ALayout.Control).WordWrap := False;
     TMemo(ALayout.Control).WantReturns := False;
     Result := TMemo(ALayout.Control).Lines.Text;
   end
-  else if ALayout.Control is TPanel then
+  else if ALayout.Kind = lkPanel then
     Result := TPanel(ALayout.Control).Caption
   else
     Result := '';
@@ -1142,8 +1321,10 @@ begin
     Result := lkSplitter
   else if AControl is TShape then
     Result := lkShape
+  else if (AControl is TFrame) or (AControl is TForm) then
+    Result := lkFrame
   else
-    Result := lkFrame;
+    Result := lkNone;
 end;
 
 function TWinVCLPresenter.GetNativeControlClass: TNativeControlClass;
@@ -1829,7 +2010,7 @@ begin
   for i := 0 to vArea.Count - 1 do
   begin
     vChildArea := vArea[i];
-    if vChildArea.InnerControl is TForm then
+    if vChildArea.NativeControl.IsForm then
     begin
       vInteractor.ShowMessage('Невозможно закрыть окно, так как есть другие программные окна, зависящие от него', msWarning);
       Action := caNone;

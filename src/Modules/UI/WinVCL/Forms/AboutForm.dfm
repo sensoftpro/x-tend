@@ -303,6 +303,16 @@ object AboutFm: TAboutFm
     ParentFont = False
     Transparent = False
   end
+  object Shape1: TShape
+    Left = 44
+    Top = 180
+    Width = 65
+    Height = 85
+    Brush.Color = clSkyBlue
+    Pen.Color = clNavy
+    Pen.Width = 3
+    Shape = stRoundRect
+  end
   object btnOk: TButton
     Left = 305
     Top = 232

@@ -384,7 +384,7 @@ begin
   if ANavItem.Id = 'Windows' then
   begin
     //FMenuItem.Visible := TInteractor(FView.Interactor).Layout = 'mdi';
-    if (TInteractor(FView.Interactor).Layout = 'mdi') and (Parent.InnerControl is TForm) then
+    if (TInteractor(FView.Interactor).Layout = 'mdi') and (Parent.NativeControl.IsForm) then
     begin
       vForm := TForm(Parent.InnerControl);
       if vForm.FormStyle = fsMDIForm then
@@ -891,7 +891,7 @@ begin
   begin
     vForm := TForm(FControl);
 
-    if ALayout.Control is TFrame then
+    if ALayout.Kind = lkFrame then
     begin
       vFrame := TFrame(ALayout.Control);
       if (vFrame.Tag and cFormResizable) > 0 then
@@ -935,7 +935,7 @@ begin
         vForm.Caption := vFrame.Hint;
       vForm.Color := vFrame.Color;
     end
-    else if ALayout.Control is TPanel then
+    else if ALayout.Kind = lkPanel then
     begin
       vForm.BorderStyle := bsSizeable;
       vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
@@ -946,7 +946,7 @@ begin
       else
         vForm.ClientHeight := TPanel(ALayout.Control).Height + cServiceAreaHeight;
     end
-    else if ALayout.Control is TTabSheet then
+    else if ALayout.Kind = lkPage then
     begin
       vForm.BorderStyle := bsSizeable;
       vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
@@ -955,7 +955,7 @@ begin
     else
       Assert(False, 'Непонятно какой контрол в лэйауте');
   end
-  else if ALayout.Control is TFrame then
+  else if ALayout.Kind = lkFrame then
   begin
     vFrame := TFrame(ALayout.Control);
     //vFrame.SetBounds(Control.Left, Control.Top, Control.Width, Control.Height);
@@ -969,7 +969,7 @@ begin
       end;
     end;
   end
-  else if ((ALayout.Control is TPanel) or (ALayout.Control is TMemo)) and (FControl is TControl) then
+  else if (ALayout.Kind in [lkPanel, lkMemo]) and (FControl is TControl) then
   begin
     vPanel := TCrackedWinControl(ALayout.Control);
 
@@ -990,9 +990,9 @@ begin
 
     vAlignment := taLeftJustify;
 
-    if ALayout.Control is TPanel then
+    if ALayout.Kind = lkPanel then
       vAlignment := TPanel(ALayout.Control).Alignment
-    else if ALayout.Control is TMemo then
+    else if ALayout.Kind = lkMemo then
       vAlignment := TMemo(ALayout.Control).Alignment;
 
     if vAlignment = taRightJustify then

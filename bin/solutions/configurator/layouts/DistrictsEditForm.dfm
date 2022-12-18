@@ -23,7 +23,6 @@ object Form: TForm
     Margins.Bottom = 16
     Align = alClient
     TabOrder = 0
-    ExplicitHeight = 726
     object pnlTop: TPanel
       AlignWithMargins = True
       Left = 17
@@ -66,11 +65,8 @@ object Form: TForm
       ActivePage = tsDecor
       Align = alClient
       TabOrder = 1
-      ExplicitTop = 218
-      ExplicitHeight = 491
       object tsString: TTabSheet
         Caption = 'String'
-        ExplicitHeight = 460
         object Phone: TPanel
           Left = 20
           Top = 39
@@ -187,7 +183,6 @@ object Form: TForm
       object tsInteger: TTabSheet
         Caption = 'Integer'
         ImageIndex = 1
-        ExplicitHeight = 460
         object Bevel1: TBevel
           Left = 352
           Top = 13
@@ -272,8 +267,6 @@ object Form: TForm
           TabOrder = 8
           object TabSheet1: TTabSheet
             Caption = 'TabSheet1'
-            ExplicitWidth = 281
-            ExplicitHeight = 162
             object Label1: TLabel
               Left = 16
               Top = 16
@@ -291,8 +284,6 @@ object Form: TForm
           object TabSheet2: TTabSheet
             Caption = 'TabSheet2'
             ImageIndex = 1
-            ExplicitWidth = 281
-            ExplicitHeight = 162
             object Label2: TLabel
               Left = 24
               Top = 24
@@ -344,7 +335,6 @@ object Form: TForm
           object TabSheet5: TTabSheet
             Caption = 'TabSheet5'
             ImageIndex = 4
-            ExplicitLeft = 0
             object Label5: TLabel
               Left = 128
               Top = 24
@@ -389,7 +379,6 @@ object Form: TForm
       object tsFloat: TTabSheet
         Caption = 'Float'
         ImageIndex = 2
-        ExplicitHeight = 460
         object Float: TPanel
           Left = 34
           Top = 56
@@ -426,7 +415,6 @@ object Form: TForm
       object tsDate: TTabSheet
         Caption = 'Date'
         ImageIndex = 4
-        ExplicitHeight = 460
         object Date: TPanel
           Left = 67
           Top = 60
@@ -463,7 +451,6 @@ object Form: TForm
       object tsOthers: TTabSheet
         Caption = 'Others'
         ImageIndex = 3
-        ExplicitHeight = 460
         object Currency: TPanel
           Left = 39
           Top = 31
@@ -509,7 +496,7 @@ object Form: TForm
           Top = 286
           Width = 250
           Height = 24
-          Caption = 'Boolselectedcaption'
+          Caption = 'Boolselectedcaption?Caption='#1055#1088#1086#1073#1072' '#1087#1077#1088#1072
           TabOrder = 5
         end
         object Color: TPanel
@@ -532,7 +519,6 @@ object Form: TForm
       object tsDecor: TTabSheet
         Caption = 'Decorations'
         ImageIndex = 5
-        ExplicitHeight = 460
         object img1: TImage
           AlignWithMargins = True
           Left = 16
@@ -775,9 +761,6 @@ object Form: TForm
           Margins.Bottom = 16
           Align = alTop
           TabOrder = 0
-          ExplicitLeft = 0
-          ExplicitTop = 0
-          ExplicitWidth = 993
           object lbl1: TLabel
             Left = 32
             Top = 25
@@ -788,7 +771,7 @@ object Form: TForm
           object lbl2: TLabel
             Left = 400
             Top = 16
-            Width = 446
+            Width = 447
             Height = 25
             Caption = 'TLabel (Segoe UI,14,[B],RUSSIAN_CHARSET,clRed)'
             Font.Charset = RUSSIAN_CHARSET
@@ -806,8 +789,6 @@ object Form: TForm
           Height = 202
           Align = alClient
           TabOrder = 1
-          ExplicitTop = 81
-          ExplicitHeight = 250
           object shp1: TShape
             AlignWithMargins = True
             Left = 784
@@ -819,6 +800,10 @@ object Form: TForm
             Margins.Right = 16
             Margins.Bottom = 16
             Align = alRight
+            Brush.Color = clMoneyGreen
+            Pen.Color = clTeal
+            Pen.Width = 3
+            Shape = stRoundRect
             ExplicitLeft = 880
             ExplicitTop = 1
             ExplicitHeight = 462
@@ -865,9 +850,6 @@ object Form: TForm
             Align = alClient
             Caption = 'Panel2'
             TabOrder = 0
-            ExplicitLeft = 209
-            ExplicitWidth = 583
-            ExplicitHeight = 248
           end
         end
       end

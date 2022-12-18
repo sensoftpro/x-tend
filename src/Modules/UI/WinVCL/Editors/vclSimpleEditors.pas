@@ -1091,7 +1091,7 @@ begin
   TcxCheckBox(Result).Properties.FullFocusRect := True;
   TcxCheckBox(Result).Transparent := True;
 
-  if ALayout.Control is TPanel then
+  if ALayout.Kind = lkPanel then
   begin
     if TPanel(ALayout.Control).Alignment <> taCenter then
     begin
@@ -1887,7 +1887,7 @@ var
 begin
   inherited;
 
-  if (ALayout.Control is TPanel) or (ALayout.Control is TMemo) then
+  if ALayout.Kind in [lkPanel, lkMemo] then
   begin
     vPanel := TCrackedControl(ALayout.Control);
     if (FControl is TdxActivityIndicator) and not vPanel.ParentFont and (vPanel.Font.Color <> clWindowText) then
@@ -3181,7 +3181,7 @@ begin
   TLabel(Result).Transparent := False;
   TLabel(Result).Cursor := crHandPoint;
 
-  if ALayout.Control is TPanel then
+  if ALayout.Kind = lkPanel then
   begin
     FSelectBackColor := AlphaColorToColor($FF5132);
     if Assigned(FCreateParams) and (FCreateParams.IndexOfName('select_backcolor') > -1) then

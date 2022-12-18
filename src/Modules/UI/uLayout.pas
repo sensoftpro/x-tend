@@ -44,6 +44,7 @@ type
   TLayoutAlign = (lalNone, lalTop, lalBottom, lalLeft, lalRight, lalClient, lalCustom);
   TPageStyle = (psTabs, psButtons, psFlatButtons);
   TPagePosition = (ppTop, ppBottom, ppLeft, ppRight);
+  TLayoutShapeType = (lstRectangle, lstSquare, lstRoundRect, lstRoundSquare, lstEllipse, lstCircle);
   TLayoutBevelStyle = (lbsLowered, lbsRaised);
   TLayoutBevelShape = (lbsBox, lbsFrame, lbsTopLine, lbsBottomLine, lbsLeftLine, lbsRightLine, lbsSpacer);
   TLayoutBevelKind = (bkNone, bkLowered, bkRaised, bkSpace);
@@ -61,6 +62,7 @@ type
     constructor Create(const ALeft, ATop, ARight, ABottom: Integer); overload;
 
     procedure Save(const AParent: TJSONObject; const AName: string);
+    function IsEmpty: Boolean;
 
     property Left: Integer read FLeft write FLeft;
     property Top: Integer read FTop write FTop;
@@ -93,6 +95,38 @@ type
     property Style: TFontStyles read FStyle write FStyle;
   end;
 
+  TLayoutPen = class
+  private
+    FColor: TAlphaColor;
+    FWidth: Integer;
+    procedure InternalLoad(const AJSON: TJSONObject);
+    function InternalSave: TJSONObject;
+  public
+    constructor Create; overload;
+    constructor Create(const AJSON: TJSONObject); overload;
+    constructor Create(const AColor: TAlphaColor; const AWidth: Integer); overload;
+
+    procedure Save(const AParent: TJSONObject; const AName: string);
+
+    property Color: TAlphaColor read FColor write FColor;
+    property Width: Integer read FWidth write FWidth;
+  end;
+
+  TLayoutBrush = class
+  private
+    FColor: TAlphaColor;
+    procedure InternalLoad(const AJSON: TJSONObject);
+    function InternalSave: TJSONObject;
+  public
+    constructor Create; overload;
+    constructor Create(const AJSON: TJSONObject); overload;
+    constructor Create(const AColor: TAlphaColor); overload;
+
+    procedure Save(const AParent: TJSONObject; const AName: string);
+
+    property Color: TAlphaColor read FColor write FColor;
+  end;
+
   TLayoutConstraints = class
   private
     FMinWidth: Integer;
@@ -123,6 +157,7 @@ const
   cAlignmentNames: array[TAlignment] of string = ('left-justify', 'right-justify', 'center');
   cPageStyleNames: array[TPageStyle] of string = ('tabs', 'buttons', 'flat-buttons');
   cPagePositionNames: array[TPagePosition] of string = ('top', 'bottom', 'left', 'right');
+  cShapeTypeNames: array[TLayoutShapeType] of string = ('rectangle', 'square', 'round-rect', 'round-square', 'ellipse', 'circle');
   cBevelKindNames: array[TLayoutBevelKind] of string = ('', 'lowered', 'raised', 'space');
   cBevelStyleNames: array[TLayoutBevelStyle] of string = ('lowered', 'raised');
   cBevelShapeNames: array[TLayoutBevelShape] of string = ('box', 'frame', 'top-line', 'bottom-line', 'left-line',
@@ -136,6 +171,7 @@ function StrToAlign(const s: string): TLayoutAlign;
 function StrToAlignment(const s: string): TAlignment;
 function StrToPagePosition(const s: string): TPagePosition;
 function StrToPageStyle(const s: string): TPageStyle;
+function StrToShapeType(const s: string): TLayoutShapeType;
 function StrToBevelKind(const s: string): TLayoutBevelKind;
 function StrToBevelStyle(const s: string): TLayoutBevelStyle;
 function StrToBevelShape(const s: string): TLayoutBevelShape;
@@ -170,6 +206,35 @@ type
     FIsOwner: Boolean;
     FIndex: Integer;
     FPresenter: TObject;
+
+    // Размеры и расположение
+    FLeft: Integer;
+    FTop: Integer;
+    FWidth: Integer;
+    FHeight: Integer;
+    FAlign: TLayoutAlign;
+    FAnchors: TAnchors;
+    FAlignWithMargins: Boolean;
+    FMargins: TLayoutMargins;
+
+    // Надписи и внутреннее состояние
+    FName: string;
+    FHint: string;
+    FShowCaption: Boolean;
+    FCaption: string;
+    FUIParams: string;
+    FTag: NativeInt;
+    FImageIndex: Integer;
+    FState: TViewState;
+
+    // Графические объекты
+    FPen: TLayoutPen;
+    FBrush: TLayoutBrush;
+    FFont: TLayoutFont;
+
+    // Свойства конкретных типов
+    FShape_Type: TLayoutShapeType;
+
     procedure SetContentLayout(const Value: TLayout);
     function GetItems: TList<TLayout>;
     procedure SetMenu(const Value: TNavigationItem);
@@ -198,6 +263,30 @@ type
     property Control: TObject read FControl;
     property Parent: TLayout read FParent;
     property Items: TList<TLayout> read GetItems;
+
+    property Left: Integer read FLeft write FLeft;
+    property Top: Integer read FTop write FTop;
+    property Width: Integer read FWidth write FWidth;
+    property Height: Integer read FHeight write FHeight;
+    property Align: TLayoutAlign read FAlign write FAlign;
+    property Anchors: TAnchors read FAnchors write FAnchors;
+    property AlignWithMargins: Boolean read FAlignWithMargins write FAlignWithMargins;
+    property Margins: TLayoutMargins read FMargins;
+
+    property Name: string read FName write FName;
+    property Tag: NativeInt read FTag write FTag;
+    property Caption: string read FCaption write FCaption;
+    property ShowCaption: Boolean read FShowCaption write FShowCaption;
+    property Hint: string read FHint write FHint;
+    property UIParams: string read FUIParams write FUIParams;
+    property ImageIndex: Integer read FImageIndex write FImageIndex;
+    property State: TViewState read FState write FState;
+
+    property Pen: TLayoutPen read FPen;
+    property Brush: TLayoutBrush read FBrush;
+    property Font: TLayoutFont read FFont;
+
+    property Shape_Type: TLayoutShapeType read FShape_Type write FShape_Type;
 
     property ContentLayout: TLayout read FContentLayout write SetContentLayout;
     property Menu: TNavigationItem read FMenu write SetMenu;
@@ -330,24 +419,10 @@ type
     function AddChild: TLayoutX;
     procedure Add(const AChild: TLayoutX);
 
-    property Caption: string read FCaption write FCaption;
-    property ShowCaption: Boolean read FShowCaption write FShowCaption;
 
     property UIParams: string read FUIParams write FUIParams;
 
-    property Hint: string read FHint write FHint;
-    property Name: string read FName write FName;
-    property ImageIndex: Integer read FImageIndex write FImageIndex;
-    property Tag: NativeInt read FTag write FTag;
 
-    property Left: Integer read FLeft write FLeft;
-    property Top: Integer read FTop write FTop;
-    property Width: Integer read FWidth write FWidth;
-    property Height: Integer read FHeight write FHeight;
-    property Align: TLayoutAlign read FAlign write FAlign;
-    property Anchors: TAnchors read FAnchors write FAnchors;
-    property AlignWithMargins: Boolean read FAlignWithMargins write FAlignWithMargins;
-    property Margins: TLayoutMargins read FMargins;
     property Padding: TLayoutPadding read FPadding;
     property Constraints: TLayoutConstraints read FConstraints;
     property Color: TAlphaColor read FColor write FColor;
@@ -508,6 +583,16 @@ begin
     if SameText(cPageStyleNames[vPageStyle], s) then
       Exit(vPageStyle);
   Result := psTabs;
+end;
+
+function StrToShapeType(const s: string): TLayoutShapeType;
+var
+  vShapeType: TLayoutShapeType;
+begin
+  for vShapeType := Low(TLayoutShapeType) to High(TLayoutShapeType) do
+    if SameText(cShapeTypeNames[vShapeType], s) then
+      Exit(vShapeType);
+  Result := lstRectangle;
 end;
 
 function StrToBevelKind(const s: string): TLayoutBevelKind;
@@ -1006,7 +1091,7 @@ end;
 
 constructor TLayoutEdges.Create;
 begin
-  inherited Create;
+  Create(0, 0, 0, 0);
 end;
 
 constructor TLayoutEdges.Create(const ALeft, ATop, ARight, ABottom: Integer);
@@ -1039,6 +1124,11 @@ begin
   Result.StoreInteger('top', FTop);
   Result.StoreInteger('right', FRight);
   Result.StoreInteger('bottom', FBottom);
+end;
+
+function TLayoutEdges.IsEmpty: Boolean;
+begin
+  Result := (FLeft = 0) and (FTop = 0) and (FRight = 0) and (FBottom = 0);
 end;
 
 procedure TLayoutEdges.Save(const AParent: TJSONObject; const AName: string);
@@ -1374,6 +1464,29 @@ begin
   FIsOwner := AIsOwner;
   FControl := AControl;
   FKind := AKind;
+  Assert(FKind > lkNone);
+
+  FLeft := 0;
+  FTop := 0;
+  FWidth := 0;
+  FHeight := 0;
+  FAlign := lalNone;
+  FAnchors := [];
+  FAlignWithMargins := False;
+  FMargins := TLayoutMargins.Create;
+
+  FName := '';
+  FHint := '';
+  FShowCaption := False;
+  FCaption := '';
+  FUIParams := '';
+  FTag := 0;
+  FImageIndex := -1;
+
+  FPen := TLayoutPen.Create;
+  FBrush := TLayoutBrush.Create;
+  FFont := TLayoutFont.Create;
+
   Inc(_Count);
   FIndex := _Count;
 end;
@@ -1381,6 +1494,12 @@ end;
 destructor TLayout.Destroy;
 begin
   FParent := nil;
+
+  FreeAndNil(FMargins);
+  FreeAndNil(FFont);
+  FreeAndNil(FPen);
+  FreeAndNil(FBrush);
+
   FreeAndNil(FContentLayout);
   FreeAndNil(FItems);
   FreeAndNil(FUrlParser);
@@ -1710,6 +1829,79 @@ begin
   finally
     vFile.Free;
   end;
+end;
+
+{ TLayoutPen }
+
+constructor TLayoutPen.Create;
+begin
+  Create(TAlphaColorRec.Blueviolet, 1);
+end;
+
+constructor TLayoutPen.Create(const AJSON: TJSONObject);
+begin
+  inherited Create;
+  InternalLoad(AJSON);
+end;
+
+constructor TLayoutPen.Create(const AColor: TAlphaColor; const AWidth: Integer);
+begin
+  inherited Create;
+  FColor := AColor;
+  FWidth := AWidth;
+end;
+
+procedure TLayoutPen.InternalLoad(const AJSON: TJSONObject);
+begin
+  FColor := AJSON.ExtractColor('color');
+  FWidth := AJSON.ExtractInteger('width');
+end;
+
+function TLayoutPen.InternalSave: TJSONObject;
+begin
+  Result := TJSONObject.Create;
+  Result.StoreColor('color', FColor);
+  Result.StoreInteger('width', FWidth);
+end;
+
+procedure TLayoutPen.Save(const AParent: TJSONObject; const AName: string);
+begin
+  AParent.AddPair(AName, InternalSave);
+end;
+
+{ TLayoutBrush }
+
+constructor TLayoutBrush.Create;
+begin
+  Create(TAlphaColorRec.Skyblue);
+end;
+
+constructor TLayoutBrush.Create(const AJSON: TJSONObject);
+begin
+  inherited Create;
+  InternalLoad(AJSON);
+end;
+
+constructor TLayoutBrush.Create(const AColor: TAlphaColor);
+begin
+  inherited Create;
+  FColor := AColor;
+end;
+
+procedure TLayoutBrush.InternalLoad(const AJSON: TJSONObject);
+begin
+  FColor := AJSON.ExtractColor('color');
+end;
+
+function TLayoutBrush.InternalSave: TJSONObject;
+begin
+  Result := TJSONObject.Create;
+  Result.StoreColor('color', FColor);
+end;
+
+procedure TLayoutBrush.Save(const AParent: TJSONObject; const AName: string);
+begin
+  AParent.AddPair(AName, InternalSave);
 end;
 
 initialization

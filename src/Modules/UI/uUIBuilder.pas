@@ -245,7 +245,7 @@ type
     procedure SetBounds(const ALeft, ATop, AWidth, AHeight: Integer);
     procedure SetControl(const AControl: TObject);
 
-    //property NativeControl: TNativeControl read FNativeControl;
+    property NativeControl: TNativeControl read FNativeControl;
     property InnerControl: TObject read GetInnerControl;
     property Count: Integer read GetCount;
     property Areas[const AIndex: Integer]: TUIArea read GetArea; default;

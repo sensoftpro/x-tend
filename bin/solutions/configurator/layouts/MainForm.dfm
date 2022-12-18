@@ -66,6 +66,7 @@ object EditForm: TEditForm
     ParentFont = False
     PopupMenu = MainMenu
     TabOrder = 4
+    ExplicitTop = 63
   end
   object MainMenu: TPopupMenu
     Left = 340
