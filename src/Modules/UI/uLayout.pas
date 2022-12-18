@@ -212,10 +212,12 @@ type
     FTop: Integer;
     FWidth: Integer;
     FHeight: Integer;
-    FAlign: TLayoutAlign;
     FAnchors: TAnchors;
     FAlignWithMargins: Boolean;
+    FAlign: TLayoutAlign;
     FMargins: TLayoutMargins;
+    FPadding: TLayoutPadding;
+    FConstraints: TLayoutConstraints;
 
     // Надписи и внутреннее состояние
     FName: string;
@@ -226,6 +228,11 @@ type
     FTag: NativeInt;
     FImageIndex: Integer;
     FState: TViewState;
+    FColor: TAlphaColor;
+    FTransparent: Boolean;
+    FAlignment: TAlignment;
+    FAutoSize: Boolean;
+    FWordWrap: Boolean;
 
     // Графические объекты
     FPen: TLayoutPen;
@@ -234,10 +241,19 @@ type
 
     // Свойства конкретных типов
     FShape_Type: TLayoutShapeType;
+    FImage_Picture: TStream;
+    FImage_Stretch: Boolean;
+    FImage_Proportional: Boolean;
+    FImage_Center: Boolean;
+    FPage_Style: TPageStyle;
+    FPage_Position: TPagePosition;
+    FPage_Height: Integer;
+    FPage_Width: Integer;
 
     procedure SetContentLayout(const Value: TLayout);
     function GetItems: TList<TLayout>;
     procedure SetMenu(const Value: TNavigationItem);
+    procedure SetPictureStream(const Value: TStream);
   protected
     [Weak] FParent: TLayout;
     FItems: TList<TLayout>;
@@ -268,10 +284,15 @@ type
     property Top: Integer read FTop write FTop;
     property Width: Integer read FWidth write FWidth;
     property Height: Integer read FHeight write FHeight;
-    property Align: TLayoutAlign read FAlign write FAlign;
     property Anchors: TAnchors read FAnchors write FAnchors;
     property AlignWithMargins: Boolean read FAlignWithMargins write FAlignWithMargins;
+    property Align: TLayoutAlign read FAlign write FAlign;
     property Margins: TLayoutMargins read FMargins;
+    property Padding: TLayoutPadding read FPadding;
+    property Constraints: TLayoutConstraints read FConstraints;
+    property Alignment: TAlignment read FAlignment write FAlignment;
+    property Color: TAlphaColor read FColor write FColor;
+    property Transparent: Boolean read FTransparent write FTransparent;
 
     property Name: string read FName write FName;
     property Tag: NativeInt read FTag write FTag;
@@ -287,6 +308,16 @@ type
     property Font: TLayoutFont read FFont;
 
     property Shape_Type: TLayoutShapeType read FShape_Type write FShape_Type;
+    property AutoSize: Boolean read FAutoSize write FAutoSize;
+    property WordWrap: Boolean read FWordWrap write FWordWrap;
+    property Image_Picture: TStream read FImage_Picture write SetPictureStream;
+    property Image_Stretch: Boolean read FImage_Stretch write FImage_Stretch;
+    property Image_Proportional: Boolean read FImage_Proportional write FImage_Proportional;
+    property Image_Center: Boolean read FImage_Center write FImage_Center;
+    property Page_Style: TPageStyle read FPage_Style write FPage_Style;
+    property Page_Position: TPagePosition read FPage_Position write FPage_Position;
+    property Page_Height: Integer read FPage_Height write FPage_Height;
+    property Page_Width: Integer read FPage_Width write FPage_Width;
 
     property ContentLayout: TLayout read FContentLayout write SetContentLayout;
     property Menu: TNavigationItem read FMenu write SetMenu;
@@ -1156,7 +1187,7 @@ end;
 
 constructor TLayoutFont.Create;
 begin
-  inherited Create;
+  Create(TAlphaColorRec.Maroon, 'Tahoma', 8, []);
 end;
 
 procedure TLayoutFont.InternalLoad(const AJSON: TJSONObject);
@@ -1227,7 +1258,7 @@ end;
 
 constructor TLayoutConstraints.Create;
 begin
-  inherited Create;
+  Create(0, 0, 0, 0);
 end;
 
 procedure TLayoutConstraints.InternalLoad(const AJSON: TJSONObject);
@@ -1470,10 +1501,17 @@ begin
   FTop := 0;
   FWidth := 0;
   FHeight := 0;
-  FAlign := lalNone;
   FAnchors := [];
   FAlignWithMargins := False;
+  FAlign := lalNone;
   FMargins := TLayoutMargins.Create;
+  FPadding := TLayoutPadding.Create;
+  FConstraints := TLayoutConstraints.Create;
+  FAlignment := taLeftJustify;
+  FAutoSize := False;
+  FWordWrap := False;
+  FColor := TAlphaColorRec.MoneyGreen;
+  FTransparent := False;
 
   FName := '';
   FHint := '';
@@ -1487,6 +1525,16 @@ begin
   FBrush := TLayoutBrush.Create;
   FFont := TLayoutFont.Create;
 
+  FShape_Type := lstRectangle;
+  FImage_Picture := nil;
+  FImage_Stretch := False;
+  FImage_Proportional := False;
+  FImage_Center := False;
+  FPage_Style := psTabs;
+  FPage_Position := ppTop;
+  FPage_Height := 0;
+  FPage_Width := 0;
+
   Inc(_Count);
   FIndex := _Count;
 end;
@@ -1495,10 +1543,13 @@ destructor TLayout.Destroy;
 begin
   FParent := nil;
 
+  FreeAndNil(FConstraints);
+  FreeAndNil(FPadding);
   FreeAndNil(FMargins);
   FreeAndNil(FFont);
   FreeAndNil(FPen);
   FreeAndNil(FBrush);
+  FreeAndNil(FImage_Picture);
 
   FreeAndNil(FContentLayout);
   FreeAndNil(FItems);
@@ -1576,6 +1627,13 @@ procedure TLayout.SetMenu(const Value: TNavigationItem);
 begin
   FMenu := Value;
   FMenu.FOwner := Self;
+end;
+
+procedure TLayout.SetPictureStream(const Value: TStream);
+begin
+  if Assigned(FImage_Picture) then
+    FreeAndNil(FImage_Picture);
+  FImage_Picture := Value;
 end;
 
 procedure TLayout.SetUrl(const AUrl: string);

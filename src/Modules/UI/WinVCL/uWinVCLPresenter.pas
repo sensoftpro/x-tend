@@ -296,6 +296,7 @@ var
   vCaption: string;
   vUIParams: string;
   vPos: Integer;
+  vImageStream: TStream;
 
   procedure CopyMargins(const AControl: TControl);
   begin
@@ -306,6 +307,14 @@ var
       ALayout.Margins.Right := AControl.Margins.Right;
       ALayout.Margins.Bottom := AControl.Margins.Bottom;
     end;
+  end;
+
+  procedure CopyConstraints(const AControl: TControl);
+  begin
+    ALayout.Constraints.MinWidth := AControl.Constraints.MinWidth;
+    ALayout.Constraints.MinHeight := AControl.Constraints.MinHeight;
+    ALayout.Constraints.MaxWidth := AControl.Constraints.MaxWidth;
+    ALayout.Constraints.MaxHeight := AControl.Constraints.MaxHeight;
   end;
 
   procedure CopyViewState(const AControl: TControl);
@@ -347,7 +356,22 @@ begin
   end
   else if ALayout.Kind = lkPages then
   begin
-
+    vSourcePC := TPageControl(AControl);
+    ALayout.Width := vSourcePC.Width;
+    ALayout.Height := vSourcePC.Height;
+    ALayout.Left := vSourcePC.Left;
+    ALayout.Top := vSourcePC.Top;
+    ALayout.Anchors := vSourcePC.Anchors;
+    CopyMargins(vSourcePC);
+    ALayout.Align := TLayoutAlign(vSourcePC.Align);
+    CopyConstraints(vSourcePC);
+    CopyFontSettings(vSourcePC.Font);
+    CopyViewState(vSourcePC);
+    ALayout.Tag := vSourcePC.Tag;
+    ALayout.Page_Style := TPageStyle(vSourcePC.Style);
+    ALayout.Page_Position := TPagePosition(vSourcePC.TabPosition);
+    ALayout.Page_Height := vSourcePC.TabHeight;
+    ALayout.Page_Width := vSourcePC.TabWidth;
   end
   else if ALayout.Kind = lkFrame then
   begin
@@ -364,10 +388,11 @@ begin
     ALayout.Top := vSourceLabel.Top;
     ALayout.Width := vSourceLabel.Width;
     ALayout.Height := vSourceLabel.Height;
-  //  vLabel.Transparent := vSourceLabel.Transparent;
-  //  vLabel.AutoSize := vSourceLabel.AutoSize;
-  //  vLabel.Properties.WordWrap := vSourceLabel.WordWrap;
     ALayout.Anchors := vSourceLabel.Anchors;
+    ALayout.Alignment := vSourceLabel.Alignment;
+    ALayout.Transparent := vSourceLabel.Transparent;
+    ALayout.AutoSize := vSourceLabel.AutoSize;
+    ALayout.WordWrap := vSourceLabel.WordWrap;
 
     vCaption := vSourceLabel.Caption;
     vUIParams := '';
@@ -388,7 +413,23 @@ begin
   end
   else if ALayout.Kind = lkImage then
   begin
-
+    vSourceImage := TImage(ALayout.Control);
+    ALayout.Width := vSourceImage.Width;
+    ALayout.Height := vSourceImage.Height;
+    ALayout.Left := vSourceImage.Left;
+    ALayout.Top := vSourceImage.Top;
+    ALayout.Anchors := vSourceImage.Anchors;
+    CopyMargins(vSourceImage);
+    ALayout.Align := TLayoutAlign(vSourceImage.Align);
+    ALayout.Hint := vSourceImage.Hint;
+    ALayout.Transparent := vSourceImage.Transparent;
+    ALayout.AutoSize := vSourceImage.AutoSize;
+    vImageStream := TMemoryStream.Create;
+    vSourceImage.Picture.Graphic.SaveToStream(vImageStream);
+    ALayout.Image_Picture := vImageStream;
+    ALayout.Image_Stretch := vSourceImage.Stretch;
+    ALayout.Image_Proportional := vSourceImage.Proportional;
+    ALayout.Image_Center := vSourceImage.Center;
   end
   else if ALayout.Kind = lkBevel then
   begin
@@ -652,7 +693,6 @@ var
   vSourceBevel: TBevel;
   vSourceSplitter: TSplitter;
   vDomain: TDomain;
-  vPos: Integer;
   vCaption: string;
   vUIParams: string;
   vStartPageName: string;
@@ -710,6 +750,21 @@ var
     else
       AControl.AlignWithMargins := False;
   end;
+
+  procedure CopyConstraints(const AControl: TControl);
+  begin
+    AControl.Constraints.MinWidth := ALayout.Constraints.MinWidth;
+    AControl.Constraints.MinHeight := ALayout.Constraints.MinHeight;
+    AControl.Constraints.MaxWidth := ALayout.Constraints.MaxWidth;
+    AControl.Constraints.MaxHeight := ALayout.Constraints.MaxHeight;
+  end;
+
+  procedure SetPictureFromStream(const APicture: TPicture);
+  begin
+    if not Assigned(ALayout.Image_Picture) then
+      Exit;
+    //?? TODO
+  end;
 begin
   Result := nil;
 
@@ -732,95 +787,70 @@ begin
     CopyPenSettings(vShape.Pen);
     CopyBrushSettings(vShape.Brush);
     CopyMargins(vShape);
+    CopyConstraints(vShape);
     vShape.Shape := TShapeType(ALayout.Shape_Type);
 
     Result := CreateFilledArea(AParent, AView, '', False, vShape, ALayout);
   end
   else if ALayout.Kind = lkLabel then
   begin
-    vSourceLabel := TLabel(ALayout.Control);
-    vLabel := TcxLabel.Create(nil);   // заменил с TLabel на TcxLabel, потому что TLabel мерцал при растягивании формы
-    vLabel.Left := vSourceLabel.Left;
-    vLabel.Top := vSourceLabel.Top;
-    vLabel.Width := vSourceLabel.Width;
-    vLabel.Height := vSourceLabel.Height;
-    vLabel.Transparent := vSourceLabel.Transparent;
-    vLabel.AutoSize := vSourceLabel.AutoSize;
-    vLabel.Properties.WordWrap := vSourceLabel.WordWrap;
-    vLabel.Style.Font.Size := vSourceLabel.Font.Size;
-    vLabel.Style.Font.Color := vSourceLabel.Font.Color;
-    vLabel.Style.Font.Style := vSourceLabel.Font.Style;
-    vLabel.Anchors := vSourceLabel.Anchors;
+    vLabel := TcxLabel.Create(nil);
+    vLabel.Left := ALayout.Left;
+    vLabel.Top := ALayout.Top;
+    vLabel.Width := ALayout.Width;
+    vLabel.Height := ALayout.Height;
+    vLabel.Transparent := ALayout.Transparent;
+    vLabel.AutoSize := ALayout.AutoSize;
+    vLabel.Properties.WordWrap := ALayout.WordWrap;
+    CopyFontSettings(vLabel.Style.Font);
+    vLabel.Anchors := ALayout.Anchors;
 
-    vCaption := vSourceLabel.Caption;
-    vUIParams := '';
-    vPos := Pos('@', vCaption);
-    if vPos > 1 then
+    if (ALayout.Caption  = '$') and (ALayout.UIParams = 'Caption') then
     begin
-      vUIParams := vCaption;
-      Delete(vUIParams, 1, vPos);
-      vCaption := Copy(vCaption, 1, vPos - 1);
-
-      // Обработка служебных надписей
-      if (vCaption = '$') and (AView.DefinitionKind = dkCollection) and (vUIParams = 'Caption') then
-        vCaption := AParent.GetTranslation(TDefinition(AView.Definition))
+      if AView.DefinitionKind = dkCollection then
+        vLabel.Caption := AParent.GetTranslation(TDefinition(AView.Definition))
+      //else if AView.DefinitionKind in [dkListField..dkComplexField] then
+      //  vLabel.Caption := AParent.GetTranslation(TFieldDef(AView.Definition))
       else
-        // Обработать другие ситуации
+        vLabel.Caption := ALayout.Caption;
     end
     else
-      vCaption := vSourceLabel.Caption; //FView.Interactor.Translate('@' + {FFullAreaName или FLayoutName +} '.' +
-        //vSourceLabel.Name + '@Caption', vSourceLabel.Caption);
-
-    vLabel.Caption := vCaption;
+      vLabel.Caption := ALayout.Caption;
 
     Result := CreateFilledArea(AParent, AView, '', False, vLabel, ALayout);
   end
   else if ALayout.Kind = lkImage then
   begin
-    vSourceImage := TImage(ALayout.Control);
     vImage := TcxImage.Create(nil);
     vImage.Style.BorderStyle := ebsNone;
     vImage.ControlStyle := vImage.ControlStyle + [csOpaque];
-    vImage.Width := vSourceImage.Width;
-    vImage.Height := vSourceImage.Height;
-    vImage.Left := vSourceImage.Left;
-    vImage.Top := vSourceImage.Top;
-    vImage.Picture.Assign(vSourceImage.Picture);
-    vImage.Anchors := vSourceImage.Anchors;
-    vImage.Align := vSourceImage.Align;
-    vImage.Transparent := vSourceImage.Transparent;
     vImage.Properties.ShowFocusRect := False;
     vImage.Properties.PopupMenuLayout.MenuItems := [];
     vImage.Properties.FitMode := ifmNormal;
     vImage.DoubleBuffered := True;
-    vImage.Properties.Stretch := vSourceImage.Stretch;
-    vImage.Properties.Proportional := vSourceImage.Proportional;
-    vImage.Hint := vSourceImage.Hint;
-    vImage.AlignWithMargins := vSourceImage.AlignWithMargins;
-    vImage.Margins := vSourceImage.Margins;
-    vImage.Properties.Center := vSourceImage.Center;
+    vImage.Width := ALayout.Width;
+    vImage.Height := ALayout.Height;
+    vImage.Left := ALayout.Left;
+    vImage.Top := ALayout.Top;
+    vImage.Anchors := ALayout.Anchors;
+    vImage.Align := TAlign(ALayout.Align);
+    vImage.Hint := ALayout.Hint;
+    CopyMargins(vImage);
+    vImage.Transparent := ALayout.Transparent;
+    vImage.AutoSize := ALayout.AutoSize;
+
+    SetPictureFromStream(vImage.Picture);
+    vImage.Properties.Stretch := ALayout.Image_Stretch;
+    vImage.Properties.Proportional := ALayout.Image_Proportional;
+    vImage.Properties.Center := ALayout.Image_Center;
 
     Result := CreateFilledArea(AParent, AView, '', False, vImage, ALayout);
   end
   else if ALayout.Kind = lkPages then
   begin
-    vSourcePC := TPagecontrol(ALayout.Control);
     vPC := TcxPageControl.Create(nil);
     vPC.DoubleBuffered := True;
-    vPC.Width := vSourcePC.Width;
-    vPC.Height := vSourcePC.Height;
-    vPC.Left := vSourcePC.Left;
-    vPC.Top := vSourcePC.Top;
-    vPC.Properties.TabPosition := TcxTabPosition(vSourcePC.TabPosition);
-    vPC.Properties.TabHeight := vSourcePC.TabHeight;
-    vPC.Properties.TabWidth := vSourcePC.TabWidth;
-    vPC.Font.Assign(vSourcePC.Font);
-    vPC.Align := vSourcePC.Align;
-    vPC.AlignWithMargins := vSourcePC.AlignWithMargins;
-    vPC.Margins := vSourcePC.Margins;
-    vPC.Anchors := vSourcePC.Anchors;
-    vPC.Visible := vSourcePC.Visible;
-    if (vSourcePC.Tag and cPCNavigatorFlag) > 0 then
+    if (ALayout.Tag and cPCNavigatorFlag) > 0 then
     begin
       vPC.Properties.Rotate := True;
       vPC.Properties.Images := TDragImageList(TInteractor(AView.Interactor).Images[32]);
@@ -832,6 +862,20 @@ begin
       vPC.LookAndFeel.NativeStyle := False;
       vPC.LookAndFeel.Kind := lfUltraFlat;
     end;
+
+    vPC.Width := ALayout.Width;
+    vPC.Height := ALayout.Height;
+    vPC.Left := ALayout.Left;
+    vPC.Top := ALayout.Top;
+    vPC.Properties.TabPosition := TcxTabPosition(ALayout.Page_Position);
+    vPC.Properties.TabHeight := ALayout.Page_Height;
+    vPC.Properties.TabWidth := ALayout.Page_Width;
+    vPC.Anchors := ALayout.Anchors;
+    CopyFontSettings(vPC.Font);
+    vPC.Align := TAlign(ALayout.Align);
+    CopyMargins(vPC);
+    vPC.Visible := ALayout.State > vsHidden;
+    vPC.Enabled := ALayout.State > vsDisabled;
 
     Result := CreateFilledArea(AParent, AView, '', False, vPC, ALayout);
   end
