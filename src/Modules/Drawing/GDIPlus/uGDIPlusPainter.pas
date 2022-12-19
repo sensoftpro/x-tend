@@ -36,7 +36,7 @@ unit uGDIPlusPainter;
 interface
 
 uses
-  Windows, Types, Classes, Graphics, GDIPOBJ, uDrawStyles, uScene, uWinScene, uConsts, Vcl.Controls;
+  Windows, Types, Classes, Graphics, GDIPOBJ, uDrawStyles, uScene, uWinScene, uConsts;
 
 type
   TGDIPlusDrawContext = class(TDrawContext)
@@ -53,9 +53,16 @@ type
 
     procedure SaveToFile(const AFileName: string); override;
 
-    property GPCanvas: TGPGraphics read FGPCanvas;
+    property GPCanvas: TGPGraphics read FGPCanvas write FGPCanvas;
     property Bitmap: TGPBitmap read FGPBitmap;
     property Handle: THandle read GetHandle;
+  end;
+
+  TGDIPlusNinePatchImage = class(TNinePatchImage)
+  protected
+    function GetWidth: Integer; override;
+    function GetHeight: Integer; override;
+    function CutImage(const ALeft, ATop, AWidth, AHeight: Integer): TObject; override;
   end;
 
   TGPStyleFont = class
@@ -72,6 +79,8 @@ type
 
   TGDIPlusPainter = class(TPainter)
   private
+    FDC: HDC;
+
     function ThisGPCanvas: TGPGraphics;
   protected
     procedure DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF); override;
@@ -105,35 +114,15 @@ type
     function CreateDrawContext(const AWidth, AHeight: Single): TDrawContext; override;
   end;
 
-//  TGDIPlusScene = class(TScene)
-//  private
-//    FStaticContext: TDrawContext;
-//    FPanel: TMyPanel;
-//  protected
-//    procedure DoActivate; override;
-//    procedure SetEnabled(const AValue: Boolean); override;
-//    function DoCreateScene(const APlaceholder: TObject): TPainter; override;
-//    procedure DoDestroyScene; override;
-//    function GetSceneRect: TRectF; override;
-//    function GetClientPos: TPointF; override;
-//
-//    function CreatePainter(const AContainer: TObject): TPainter; override;
-//    procedure UpdateContexts(const AWidth, AHeight: Single); override;
-//  public
-//    procedure DoRender(const ANeedFullRepaint: Boolean); override;
-//  end;
-
    TGDIPlusScene = class(TWinCanvasScene)
    protected
      function CreatePainter(const AContainer: TObject): TPainter; override;
-
    end;
-
 
 implementation
 
 uses
-  SysUtils, PngImage, IOUtils, Math, GDIPAPI, uModule;
+  SysUtils, IOUtils, Math, GDIPAPI, uModule;
 
 { TGDIPlusPainter }
 
@@ -173,6 +162,8 @@ var
 begin
   inherited Create(AContainer);
   FContext := TGDIPlusDrawContext.Create(Self, vContainer, vContainer.Width, vContainer.Height);
+  FDC := TGDIPlusDrawContext(FContext).GPCanvas.GetHDC;
+  TGDIPlusDrawContext(FContext).GPCanvas.ReleaseHDC(FDC);
 end;
 
 procedure TGDIPlusPainter.CreateBrush(const AFill: TStyleBrush);
@@ -201,14 +192,14 @@ begin
   end
   else begin
     case AFill.Style of
-      bsHorizontal: vHatchStyle := THatchStyle.HatchStyleHorizontal;
-      bsVertical: vHatchStyle := THatchStyle.HatchStyleVertical;
-      bsFDiagonal: vHatchStyle := THatchStyle.HatchStyleForwardDiagonal;
-      bsBDiagonal: vHatchStyle := THatchStyle.HatchStyleBackwardDiagonal;
+      bsHorizontal: vHatchStyle := HatchStyleHorizontal;
+      bsVertical: vHatchStyle := HatchStyleVertical;
+      bsFDiagonal: vHatchStyle := HatchStyleForwardDiagonal;
+      bsBDiagonal: vHatchStyle := HatchStyleBackwardDiagonal;
       bsCross: vHatchStyle := HatchStyleCross;
-      bsDiagCross: vHatchStyle := THatchStyle.HatchStyleDiagonalCross;
+      bsDiagCross: vHatchStyle := HatchStyleDiagonalCross;
     else
-      vHatchStyle := THatchStyle.HatchStyleDiagonalCross
+      vHatchStyle := HatchStyleDiagonalCross
     end;
     vBrush := TGPHatchBrush.Create(vHatchStyle, AFill.Color, AFill.BackColor);
   end;
@@ -229,26 +220,18 @@ end;
 
 procedure TGDIPlusPainter.CreateImage(const AImage: TStyleImage);
 var
-  vImage: TGraphic;
+  vImage: TGPBitmap;
 begin
+  vImage := nil;
   if TFile.Exists(AImage.FileName) then
   begin
-    if TPath.GetExtension(AImage.FileName) = '.png' then
-    begin
-      vImage := TPngImage.Create;
-      vImage.LoadFromFile(AImage.FileName);
-    end
-    else begin
-      vImage := TBitmap.Create;
-      vImage.LoadFromFile(AImage.FileName);
-      vImage.Transparent := AImage.Transparent;
-    end;
+      vImage := TGPBitmap.Create(AImage.FileName);
   end
   else
     Exit;
 
   if AImage.IsNinePatch then
-    AImage.NativeObject := TWinNinePatchImage.Create(Self, vImage, AImage.CutRect.Left, AImage.CutRect.Right,
+    AImage.NativeObject := TGDIPlusNinePatchImage.Create(Self, vImage, AImage.CutRect.Left, AImage.CutRect.Right,
       AImage.CutRect.Top, AImage.CutRect.Bottom)
   else
     AImage.NativeObject := vImage;
@@ -295,13 +278,6 @@ begin
   Result.cy := vResult.Height;
 end;
 
-//function TGDIPlusPainter.SetContext(const AContext: TDrawContext): TDrawContext;
-//begin
-//  inherited;
-//  Result := FContext;
-//  FContext := AContext;
-//end;
-
 procedure TGDIPlusPainter.DoDrawBezier(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer);
 var
   vPoints: TArray<TPointF> absolute APoints;
@@ -322,8 +298,13 @@ begin
 end;
 
 procedure TGDIPlusPainter.DoDrawContext(const AContext: TDrawContext);
+var
+  vWidth, vHeight: Cardinal;
 begin
-  ThisGPCanvas.DrawImage(TGDIPlusDrawContext(AContext).Bitmap, 0,0);
+  vWidth := TGDIPlusDrawContext(AContext).Bitmap.GetWidth;
+  vHeight := TGDIPlusDrawContext(AContext).Bitmap.GetHeight;
+  FContext.SetSize(vWidth, vHeight);
+  ThisGPCanvas.DrawImage(TGDIPlusDrawContext(AContext).Bitmap, 0,0, vWidth, vHeight);
 end;
 
 
@@ -342,31 +323,18 @@ end;
 
 procedure TGDIPlusPainter.DoDrawImage(const AImage: TObject; const ARect: TRectF; const AOpacity: Single);
 var
-  vBitmap: TBitmap absolute AImage;
-  vBlendFunction: TBlendFunction;
-  vRect: TRect;
-begin
-  vRect := ARect.Round;
-  if Assigned(AImage) and not vRect.IsEmpty then
-  begin
-    if (AImage is TBitmap) and (vRect.Width = vBitmap.Width) and (vRect.Height = vBitmap.Height) then
-    begin
-      if SameValue(AOpacity, 1) then
-        BitBlt(TGDIPlusDrawContext(FContext).Handle, vRect.Left, vRect.Top, vRect.Width,
-          vRect.Height, vBitmap.Canvas.Handle, 0, 0, SRCCOPY)
-      else begin
-        vBlendFunction.BlendOp := AC_SRC_OVER;
-        vBlendFunction.BlendFlags := 0;
-        vBlendFunction.SourceConstantAlpha := Round(AOpacity * 255);
-        vBlendFunction.AlphaFormat := 0;
+  vGPRect: TGPRect;
+  vBrush: TGPTextureBrush;
 
-        AlphaBlend(TGDIPlusDrawContext(FContext).Handle, vRect.Left, vRect.Top, vRect.Width,
-          vRect.Height, vBitmap.Canvas.Handle, 0, 0, vBitmap.Width, vBitmap.Height, vBlendFunction);
-      end;
-    end
-    else
-//      TGDIPlusDrawContext(FContext).Canvas.StretchDraw(ARect.Round, TGraphic(AImage));
-  end;
+begin
+  vGPRect.X := ARect.Round.Left;
+  vGPRect.Y := Arect.Round.Top;
+  vGPRect.Width  := Round(ARect.Width);
+  vGPRect.Height := Round(ARect.Height);
+  vBrush := TGPTextureBrush.Create(TGPBitmap(AImage), WrapModeTile);
+  vBrush.TranslateTransform(ARect.Round.Left + 1,ARect.Round.Top + 1);
+
+  ThisGPCanvas.FillRectangle(vBrush, vGPRect);
 end;
 
 procedure TGDIPlusPainter.DoDrawLine(const AStroke: TStylePen; const APoint1, APoint2: TPointF);
@@ -493,11 +461,20 @@ end;
 procedure TGDIPlusPainter.DoInvertRect(const ARect: TRectF);
 var
   vRect: TRect;
+  vGPBitmap: TGPBitmap;
+  vImageAttributes: TGPImageAttributes;
+  vColorMatrix: TColorMatrix;
+  vGPRect: TGPRect;
+  vBrush: TGPSolidBrush;
+  i,j: Integer;
+  vPixel: TGPColor;
+  vDC: HDC;
+  vP: PAINTSTRUCT;
 begin
   vRect := ARect.Round;
 
-  BitBlt(TGDIPlusDrawContext(FContext).Handle, vRect.Left, vRect.Top, vRect.Width, vRect.Height,
-    TGDIPlusDrawContext(FContext).Handle, 0, 0, DSTINVERT);
+  Windows.InvertRect(FDC ,vRect);
+
 end;
 
 //******************************************************************************
@@ -583,17 +560,16 @@ begin
   begin
     FGPBitmap := TGPBitmap.Create(Round(AWidth), Round(AHeight), PixelFormat32bppARGB);
     FGPCanvas := TGPGraphics.Create(FGPBitmap);
-    FGPCanvas.SetPageUnit(UnitPixel);
-    FGPCanvas.SetSmoothingMode(SmoothingModeAntiAlias);
   end
   else begin
     FGPBitmap := nil;
-    FHandle := GetDC(AContainer.HWND);
-    FGPCanvas := TGPGraphics.Create(FHandle);
-    FGPCanvas.SetPageUnit(UnitPixel);
-    FGPCanvas.SetSmoothingMode(SmoothingModeAntiAlias);
+    FGPCanvas := FGPCanvas.FromHWND(AContainer.HWND);
+    FHandle := AContainer.DC;
   end;
-
+  FGPCanvas.SetPageUnit(UnitPixel);
+  FGPCanvas.SetCompositingMode(CompositingModeSourceOver);
+  FGPCanvas.SetSmoothingMode(SmoothingModeAntiAlias);
+  FGPCanvas.SetInterpolationMode(InterpolationModeHighQualityBicubic);
 
 end;
 
@@ -604,23 +580,35 @@ begin
 end;
 
 procedure TGDIPlusDrawContext.DoSetSize(const AWidth, AHeight: Single);
+var
+  vDC: HDC;
 begin
   if Assigned(FGPBitmap) then
   begin
     FGPBitmap := TGPBitmap.Create(Round(AWidth), Round(AHeight), PixelFormat32bppARGB);
-//
-    if Assigned(FGPCanvas) then
-      FGPCanvas.Free;
-//
+
     FGPCanvas := TGPGraphics.Create(FGPBitmap);
-    FGPCanvas.SetPageUnit(UnitPixel);
-    FGPCanvas.SetSmoothingMode(SmoothingModeAntiAlias);
+  end else
+  begin
+    FGPBitmap := nil;
+    vDC := FGPCanvas.GetHDC;
+    FGPCanvas := TGPGraphics.Create(vDC);
+    FGPCanvas.ReleaseHDC(vDC);
+
+
   end;
+
+  FGPCanvas.SetPageUnit(UnitPixel);
+  FGPCanvas.SetCompositingMode(CompositingModeSourceOver);
+  FGPCanvas.SetSmoothingMode(SmoothingModeAntiAlias);
+  FGPCanvas.SetInterpolationMode(InterpolationModeHighQualityBicubic);
+
 end;
 
 function TGDIPlusDrawContext.GetHandle: THandle;
 begin
   Result := FGPCanvas.GetHDC;
+  FGPcanvas.ReleaseHDC(Result);
 end;
 
 procedure TGDIPlusDrawContext.SaveToFile(const AFileName: string);
@@ -642,127 +630,28 @@ begin
   FDrawContext := TGDIPlusDrawContext(Result.CreateDrawContext(vContainer.Width, vContainer.Height));
 end;
 
-//function TGDIPlusScene.GetClientPos: TPointF;
-//var
-//  vClientPos: TPoint;
-//begin
-//  GetCursorPos(vClientPos);
-//  Result := FPanel.ScreenToClient(vClientPos);
-//end;
-//
-//function TGDIPlusScene.GetSceneRect: TRectF;
-//begin
-//  Result := FPanel.ClientRect;
-//end;
-//
-//procedure TGDIPlusScene.SetEnabled(const AValue: Boolean);
-//begin
-//  inherited SetEnabled(AValue);
-//
-//  if AValue then
-//  begin
-//    FPanel.OnResize := OnResize;
-//    FPanel.OnPaint := OnPaint;
-//  end
-//  else begin
-//    FPanel.OnResize := nil;
-//    FPanel.OnPaint := nil;
-//  end;
-//end;
-//
-//procedure TGDIPlusScene.DoActivate;
-//function AllParentsVisible(const AControl: TControl): Boolean;
-//  var
-//    vParent: TControl;
-//  begin
-//    Result := True;
-//    vParent := AControl.Parent;
-//    while Assigned(vParent) do
-//    begin
-//      if not vParent.Visible then
-//      begin
-//        Result := False;
-//        Break;
-//      end;
-//      vParent := vParent.Parent;
-//    end;
-//  end;
-//begin
-//  if (not FPanel.Focused) and FPanel.CanFocus and AllParentsVisible(FPanel) then
-//    FPanel.SetFocus;
-//end;
-//
-//function TGDIPlusScene.DoCreateScene(const APlaceholder: TObject): TPainter;
-//var
-//  vControl: TWinControl absolute APlaceholder;
-//  vContainer: TDrawContainer;
-//begin
-//  FPanel := TMyPanel.Create(vControl);
-//  FPanel.BevelOuter := bvNone;
-//  FPanel.Align := alClient;
-//  FPanel.Constraints.MinWidth := 200;
-//  FPanel.Constraints.MinHeight := 100;
-//  FPanel.Parent := vControl;
-//
-//  FPanel.ControlStyle := FPanel.ControlStyle + [csOpaque];
-//  FPanel.OnMouseWheel := OnMouseWheel;
-//  FPanel.OnKeyDown := OnKeyDown;
-//  FPanel.OnKeyUp := OnKeyUp;
-//
-//  FPanel.OnMouseDown := OnMouseDown;
-//  FPanel.OnMouseUp := OnMouseUp;
-//  FPanel.OnDblClick := OnDblClick;
-//  FPanel.OnMouseMove := OnMouseMove;
-//  FPanel.OnMouseLeave := OnMouseLeave;
-//
-//  FPanel.DoubleBuffered := True;
-//  FPanel.TabStop := True;
-//
-//  vContainer := TDrawContainer.Create(FPanel.Handle, FPanel.Canvas, FPanel.ClientWidth, FPanel.ClientHeight);
-//  try
-//    Result := CreatePainter(vContainer);
-//  finally
-//    FreeAndNil(vContainer);
-//  end;
-//end;
-//
-//procedure TGDIPlusScene.DoDestroyScene;
-//begin
-//  FPanel.OnResize := nil;
-//  FPanel.OnMouseWheel := nil;
-//  FPanel.OnKeyUp := nil;
-//  FPanel.OnKeyDown := nil;
-//  FPanel.OnPaint := nil;
-//  FPanel.OnMouseDown := nil;
-//  FPanel.OnMouseUp := nil;
-//  FPanel.OnDblClick := nil;
-//  FPanel.OnMouseMove := nil;
-//  FPanel.OnMouseLeave := nil;
-//  FPanel := nil;
-//end;
-//
-//procedure TGDIPlusScene.DoRender(const ANeedFullRepaint: Boolean);
-//var
-//  vOldContext: TDrawContext;
-//begin
-//  vOldContext := FPainter.SetContext(FStaticContext);
-//  FPainter.BeginPaint;
-//  if ANeedFullRepaint then
-//    FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
-//
-//  FPainter.SetContext(vOldContext);
-//  FPainter.DrawContext(FStaticContext);
-//  FRoot.RenderDynamic(FPainter, GetSceneRect);
-//
-//  FPainter.EndPaint;
-//end;
-//
-//
-//procedure TGDIPlusScene.UpdateContexts(const AWidth, AHeight: Single);
-//begin
-//  inherited;
-//
-//end;
+{ TGDIPlusNinePatchImage }
+
+function TGDIPlusNinePatchImage.CutImage(const ALeft, ATop, AWidth, AHeight: Integer): TObject;
+var
+  vRect: TGPRectF;
+begin
+  vRect.X := ALeft;
+  vRect.Y := ATop;
+  vRect.Width := AWidth;
+  vRect.Height := AHeight;
+  Result := TGPBitmap(FImage).Clone(vRect, TGPBitmap(FImage).GetPixelFormat);
+end;
+
+function TGDIPlusNinePatchImage.GetHeight: Integer;
+begin
+  Result := TGPBitmap(FImage).GetHeight;
+end;
+
+function TGDIPlusNinePatchImage.GetWidth: Integer;
+begin
+  Result := TGPBitmap(FImage).GetWidth;
+end;
 
 initialization
 
