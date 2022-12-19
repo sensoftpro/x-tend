@@ -278,6 +278,7 @@ type
       const AView: TView; const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
     procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
     procedure EnumerateControls(const ALayout: TLayout);
+
     procedure SetLayoutCaption(const ALayout: TLayout; const ACaption: string);
     function GetLayoutCaption(const ALayout: TLayout): string;
     procedure SetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer);
@@ -616,17 +617,20 @@ end;
 
 function TPresenter.GetLayoutBounds(const ALayout: TLayout): TRect;
 begin
-  Result := DoGetLayoutBounds(ALayout);
+  //Result := DoGetLayoutBounds(ALayout);
+  Result := Rect(ALayout.Left, ALayout.Top, ALayout.Left + ALayout.Width, ALayout.Top + ALayout.Height);
 end;
 
 function TPresenter.GetLayoutCaption(const ALayout: TLayout): string;
 begin
-  Result := DoGetLayoutCaption(ALayout)
+  //Result := DoGetLayoutCaption(ALayout)
+  Result := ALayout.Caption;
 end;
 
 function TPresenter.GetLayoutFontHeight(const ALayout: TLayout): Integer;
 begin
-  Result := DoGetLayoutFontHeight(ALayout);
+  //Result := DoGetLayoutFontHeight(ALayout);
+  Result := ALayout.Font.Size;
 end;
 
 function TPresenter.GetLayoutServiceAreaHeight(const ALayout: TLayout): Integer;
@@ -767,7 +771,11 @@ end;
 
 procedure TPresenter.SetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer);
 begin
-  DoSetLayoutBounds(ALayout, AX, AY, AWidth, AHeight);
+  //DoSetLayoutBounds(ALayout, AX, AY, AWidth, AHeight);
+  ALayout.Left := AX;
+  ALayout.Top := AY;
+  ALayout.Width := AWidth;
+  ALayout.Height := AHeight;
 end;
 
 function TPresenter.SetCursor(const ACursorType: TCursorType): TCursorType;
@@ -781,12 +789,15 @@ end;
 
 procedure TPresenter.SetLayoutCaption(const ALayout: TLayout; const ACaption: string);
 begin
-  DoSetLayoutCaption(ALayout, ACaption);
+  //DoSetLayoutCaption(ALayout, ACaption);
+  ALayout.Caption := ACaption;
 end;
 
 procedure TPresenter.SetLayoutXY(const ALayout: TLayout; const AX, AY: Integer);
 begin
-  DoSetLayoutXY(ALayout, AX, AY);
+  //DoSetLayoutXY(ALayout, AX, AY);
+  ALayout.Left := AX;
+  ALayout.Top := AY;
 end;
 
 function TPresenter.ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;

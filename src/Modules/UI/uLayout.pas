@@ -47,7 +47,7 @@ type
   TLayoutShapeType = (lstRectangle, lstSquare, lstRoundRect, lstRoundSquare, lstEllipse, lstCircle);
   TLayoutBevelStyle = (lbsLowered, lbsRaised);
   TLayoutBevelShape = (lbsBox, lbsFrame, lbsTopLine, lbsBottomLine, lbsLeftLine, lbsRightLine, lbsSpacer);
-  TLayoutBevelKind = (bkNone, bkLowered, bkRaised, bkSpace);
+  TLayoutBevelKind = (lbkNone, lbkLowered, lbkRaised, lbkSpace);
   TLayoutViewType = (lvtPanel, lvtPages, lvtAction);
   TLayoutBorderStyle = (lbsNone, lbsSingle, lbsSizeable, lbsDialog, lbsToolWindow, lbsSizeToolWin);
 
@@ -226,13 +226,17 @@ type
     FCaption: string;
     FUIParams: string;
     FTag: NativeInt;
-    FImageIndex: Integer;
+    FImageID: Integer;
     FState: TViewState;
     FColor: TAlphaColor;
+    FCursor: Integer;
     FTransparent: Boolean;
     FAlignment: TAlignment;
     FAutoSize: Boolean;
     FWordWrap: Boolean;
+    FBevelInner: TLayoutBevelKind;
+    FBevelOuter: TLayoutBevelKind;
+    FBorderStyle: TLayoutBorderStyle;
 
     // Графические объекты
     FPen: TLayoutPen;
@@ -249,6 +253,13 @@ type
     FPage_Position: TPagePosition;
     FPage_Height: Integer;
     FPage_Width: Integer;
+    FBevel_Style: TLayoutBevelStyle;
+    FBevel_Shape: TLayoutBevelShape;
+
+
+
+
+
 
     procedure SetContentLayout(const Value: TLayout);
     function GetItems: TList<TLayout>;
@@ -292,7 +303,11 @@ type
     property Constraints: TLayoutConstraints read FConstraints;
     property Alignment: TAlignment read FAlignment write FAlignment;
     property Color: TAlphaColor read FColor write FColor;
+    property Cursor: Integer read FCursor write FCursor;
     property Transparent: Boolean read FTransparent write FTransparent;
+    property BevelInner: TLayoutBevelKind read FBevelInner write FBevelInner;
+    property BevelOuter: TLayoutBevelKind read FBevelOuter write FBevelOuter;
+    property BorderStyle: TLayoutBorderStyle read FBorderStyle write FBorderStyle;
 
     property Name: string read FName write FName;
     property Tag: NativeInt read FTag write FTag;
@@ -300,7 +315,7 @@ type
     property ShowCaption: Boolean read FShowCaption write FShowCaption;
     property Hint: string read FHint write FHint;
     property UIParams: string read FUIParams write FUIParams;
-    property ImageIndex: Integer read FImageIndex write FImageIndex;
+    property ImageID: Integer read FImageID write FImageID;
     property State: TViewState read FState write FState;
 
     property Pen: TLayoutPen read FPen;
@@ -318,6 +333,8 @@ type
     property Page_Position: TPagePosition read FPage_Position write FPage_Position;
     property Page_Height: Integer read FPage_Height write FPage_Height;
     property Page_Width: Integer read FPage_Width write FPage_Width;
+    property Bevel_Style: TLayoutBevelStyle read FBevel_Style write FBevel_Style;
+    property Bevel_Shape: TLayoutBevelShape read FBevel_Shape write FBevel_Shape;
 
     property ContentLayout: TLayout read FContentLayout write SetContentLayout;
     property Menu: TNavigationItem read FMenu write SetMenu;
@@ -633,7 +650,7 @@ begin
   for vBevelKind := Low(TLayoutBevelKind) to High(TLayoutBevelKind) do
     if SameText(cBevelKindNames[vBevelKind], s) then
       Exit(vBevelKind);
-  Result := bkNone;
+  Result := lbkNone;
 end;
 
 function StrToBevelStyle(const s: string): TLayoutBevelStyle;
@@ -779,8 +796,8 @@ begin
   FPageWidth := 0;
   FHidePages := False;
 
-  FBevelInner := bkNone;
-  FBevelOuter := bkNone;
+  FBevelInner := lbkNone;
+  FBevelOuter := lbkNone;
   FBorderStyle := lbsNone;
   FParentBackground := False;
 
@@ -831,8 +848,8 @@ begin
   try
     case ALayoutKind of
       lkPanel: begin
-          FBevelInner := bkNone;
-          FBevelOuter := bkNone;
+          FBevelInner := lbkNone;
+          FBevelOuter := lbkNone;
         end;
       lkPage: begin
           FCaption := vParams.Values['Caption'];
@@ -1510,7 +1527,11 @@ begin
   FAlignment := taLeftJustify;
   FAutoSize := False;
   FWordWrap := False;
+  FBevelInner := lbkNone;
+  FBevelOuter := lbkRaised;
+  FBorderStyle := lbsNone;
   FColor := TAlphaColorRec.MoneyGreen;
+  FCursor := crDefault;
   FTransparent := False;
 
   FName := '';
@@ -1519,7 +1540,7 @@ begin
   FCaption := '';
   FUIParams := '';
   FTag := 0;
-  FImageIndex := -1;
+  FImageID := -1;
 
   FPen := TLayoutPen.Create;
   FBrush := TLayoutBrush.Create;
@@ -1534,6 +1555,8 @@ begin
   FPage_Position := ppTop;
   FPage_Height := 0;
   FPage_Width := 0;
+  FBevel_Style := lbsLowered;
+  FBevel_Shape := lbsBox;
 
   Inc(_Count);
   FIndex := _Count;

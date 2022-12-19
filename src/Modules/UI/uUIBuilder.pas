@@ -412,14 +412,16 @@ begin
 
   vFileName := TConfiguration(TInteractor(FInteractor).Configuration).FindLayoutFile(ALayoutName, LAYOUT_DFM_EXT, vPostfix);
   if FileExists(vFileName) then
-    vLayout := MakeLayoutFromFile(vFileName, vParams)
+  begin
+    vLayout := MakeLayoutFromFile(vFileName, vParams);
+    TPresenter(FPresenter).EnumerateControls(vLayout);
+    AArea.AssignFromLayout(vLayout, AParams);
+  end
   else
     vLayout := MakeDefaultLayout(AView, ALayoutName);
 
   AArea.BeginUpdate;
   try
-    TPresenter(FPresenter).EnumerateControls(vLayout);
-    AArea.AssignFromLayout(vLayout, AParams);
     AArea.SetView(AView);
     CreateChildAreas(AArea, vLayout, AParams);
     AArea.SetBounds(

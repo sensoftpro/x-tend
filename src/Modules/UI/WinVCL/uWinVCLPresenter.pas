@@ -141,10 +141,15 @@ type
     property RowStyle: TObject read FRowStyle;
   end;
 
+procedure CopyFontSettings(const AFont: TFont; const ALayout: TLayout);
+procedure CopyMargins(const AControl: TControl; const ALayout: TLayout);
+procedure CopyPadding(const AControl: TWinControl; const ALayout: TLayout);
+procedure CopyConstraints(const AControl: TControl; const ALayout: TLayout);
+
 implementation
 
 uses
-  Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX,
+  Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX, JPEG, PngImage,
   cxGraphics, dxGDIPlusClasses, cxImage, cxEdit, cxPC, cxLookAndFeels, cxLookAndFeelPainters, cxStyles, cxMemo,
   cxLabel, cxTextEdit, cxButtons, cxScrollBox, cxControls, cxSplitter,
 
@@ -163,6 +168,44 @@ type
   TCrackedWinControl = class(TWinControl) end;
   TCrackedControl = class(TControl) end;
   TCrackedArea = class(TUIArea) end;
+
+procedure CopyFontSettings(const AFont: TFont; const ALayout: TLayout);
+begin
+  AFont.Name := ALayout.Font.Family;
+  AFont.Color := AlphaColorToColor(ALayout.Font.Color);
+  AFont.Size := ALayout.Font.Size;
+  AFont.Style := ALayout.Font.Style;
+end;
+
+procedure CopyMargins(const AControl: TControl; const ALayout: TLayout);
+begin
+  if not ALayout.Margins.IsEmpty then
+  begin
+    AControl.AlignWithMargins := True;
+    AControl.Margins.Left := ALayout.Margins.Left;
+    AControl.Margins.Top := ALayout.Margins.Top;
+    AControl.Margins.Right := ALayout.Margins.Right;
+    AControl.Margins.Bottom := ALayout.Margins.Bottom;
+  end
+  else
+    AControl.AlignWithMargins := False;
+end;
+
+procedure CopyPadding(const AControl: TWinControl; const ALayout: TLayout);
+begin
+  AControl.Padding.Left := ALayout.Padding.Left;
+  AControl.Padding.Top := ALayout.Padding.Top;
+  AControl.Padding.Right := ALayout.Padding.Right;
+  AControl.Padding.Bottom := ALayout.Padding.Bottom;
+end;
+
+procedure CopyConstraints(const AControl: TControl; const ALayout: TLayout);
+begin
+  AControl.Constraints.MinWidth := ALayout.Constraints.MinWidth;
+  AControl.Constraints.MinHeight := ALayout.Constraints.MinHeight;
+  AControl.Constraints.MaxWidth := ALayout.Constraints.MaxWidth;
+  AControl.Constraints.MaxHeight := ALayout.Constraints.MaxHeight;
+end;
 
 { TWinVCLPresenter }
 
@@ -293,6 +336,7 @@ var
   vSourceBevel: TBevel;
   vSourceSplitter: TSplitter;
   vSourceShape: TShape;
+  vSourceMemo: TMemo;
   vCaption: string;
   vUIParams: string;
   vPos: Integer;
@@ -307,6 +351,14 @@ var
       ALayout.Margins.Right := AControl.Margins.Right;
       ALayout.Margins.Bottom := AControl.Margins.Bottom;
     end;
+  end;
+
+  procedure CopyPadding(const AControl: TWinControl);
+  begin
+    ALayout.Padding.Left := AControl.Padding.Left;
+    ALayout.Padding.Top := AControl.Padding.Top;
+    ALayout.Padding.Right := AControl.Padding.Right;
+    ALayout.Padding.Bottom := AControl.Padding.Bottom;
   end;
 
   procedure CopyConstraints(const AControl: TControl);
@@ -345,22 +397,44 @@ var
     ALayout.Font.Size := AFont.Size;
     ALayout.Font.Style := AFont.Style;
   end;
+
 begin
   if ALayout.Kind = lkPanel then
   begin
-
+    vSourcePanel := TPanel(AControl);
+    ALayout.Left := vSourcePanel.Left;
+    ALayout.Top := vSourcePanel.Top;
+    ALayout.Width := vSourcePanel.Width;
+    ALayout.Height := vSourcePanel.Height;
+    ALayout.Anchors := vSourcePanel.Anchors;
+    ALayout.Caption := vSourcePanel.Caption;
+    ALayout.ShowCaption := vSourcePanel.ShowCaption;
+    CopyMargins(vSourcePanel);
+    ALayout.Align := TLayoutAlign(vSourcePanel.Align);
+    ALayout.Alignment := vSourcePanel.Alignment;
+    CopyConstraints(vSourcePanel);
+    CopyFontSettings(vSourcePanel.Font);
+    CopyPadding(vSourcePanel);
+    ALayout.BevelInner := TLayoutBevelKind(vSourcePanel.BevelInner);
+    ALayout.BevelOuter := TLayoutBevelKind(vSourcePanel.BevelOuter);
+    ALayout.Color := ColorToAlphaColor(vSourcePanel.Color);
   end
   else if ALayout.Kind = lkPage then
   begin
-
+    vSourceTabSheet := TTabSheet(AControl);
+    ALayout.Name := vSourceTabSheet.Name;
+    ALayout.Tag := vSourceTabSheet.Tag;
+    ALayout.Caption := vSourceTabSheet.Caption;
+    ALayout.ImageID := vSourceTabSheet.ImageIndex;
+    ALayout.ShowCaption := vSourceTabSheet.TabVisible;
   end
   else if ALayout.Kind = lkPages then
   begin
     vSourcePC := TPageControl(AControl);
-    ALayout.Width := vSourcePC.Width;
-    ALayout.Height := vSourcePC.Height;
     ALayout.Left := vSourcePC.Left;
     ALayout.Top := vSourcePC.Top;
+    ALayout.Width := vSourcePC.Width;
+    ALayout.Height := vSourcePC.Height;
     ALayout.Anchors := vSourcePC.Anchors;
     CopyMargins(vSourcePC);
     ALayout.Align := TLayoutAlign(vSourcePC.Align);
@@ -368,18 +442,33 @@ begin
     CopyFontSettings(vSourcePC.Font);
     CopyViewState(vSourcePC);
     ALayout.Tag := vSourcePC.Tag;
+    ALayout.Caption := vSourcePC.Hint;
     ALayout.Page_Style := TPageStyle(vSourcePC.Style);
     ALayout.Page_Position := TPagePosition(vSourcePC.TabPosition);
     ALayout.Page_Height := vSourcePC.TabHeight;
     ALayout.Page_Width := vSourcePC.TabWidth;
   end
-  else if ALayout.Kind = lkFrame then
-  begin
-
-  end
   else if ALayout.Kind = lkMemo then
   begin
+    vSourceMemo := TMemo(AControl);
 
+    ALayout.Width := vSourceMemo.Width;
+    ALayout.Height := vSourceMemo.Height;
+    ALayout.Left := vSourceMemo.Left;
+    ALayout.Top := vSourceMemo.Top;
+    ALayout.Anchors := vSourceMemo.Anchors;
+    vSourceMemo.WordWrap := False;
+    vSourceMemo.WantReturns := False;
+    ALayout.Caption := vSourceMemo.Lines.Text;
+    CopyMargins(vSourceMemo);
+    ALayout.Align := TLayoutAlign(vSourceMemo.Align);
+    ALayout.Alignment := vSourceMemo.Alignment;
+    CopyConstraints(vSourceMemo);
+    CopyFontSettings(vSourceMemo.Font);
+    CopyPadding(vSourceMemo);
+    ALayout.BevelInner := TLayoutBevelKind(vSourceMemo.BevelInner);
+    ALayout.BevelOuter := TLayoutBevelKind(vSourceMemo.BevelOuter);
+    ALayout.Color := ColorToAlphaColor(vSourceMemo.Color);
   end
   else if ALayout.Kind = lkLabel then
   begin
@@ -414,10 +503,10 @@ begin
   else if ALayout.Kind = lkImage then
   begin
     vSourceImage := TImage(ALayout.Control);
-    ALayout.Width := vSourceImage.Width;
-    ALayout.Height := vSourceImage.Height;
     ALayout.Left := vSourceImage.Left;
     ALayout.Top := vSourceImage.Top;
+    ALayout.Width := vSourceImage.Width;
+    ALayout.Height := vSourceImage.Height;
     ALayout.Anchors := vSourceImage.Anchors;
     CopyMargins(vSourceImage);
     ALayout.Align := TLayoutAlign(vSourceImage.Align);
@@ -433,7 +522,17 @@ begin
   end
   else if ALayout.Kind = lkBevel then
   begin
-
+    vSourceBevel := TBevel(AControl);
+    ALayout.Left := vSourceBevel.Left;
+    ALayout.Top := vSourceBevel.Top;
+    ALayout.Width := vSourceBevel.Width;
+    ALayout.Height := vSourceBevel.Height;
+    ALayout.Anchors := vSourceBevel.Anchors;
+    CopyMargins(vSourceBevel);
+    CopyConstraints(vSourceBevel);
+    ALayout.Align := TLayoutAlign(vSourceBevel.Align);
+    ALayout.Bevel_Shape := TLayoutBevelShape(vSourceBevel.Shape);
+    ALayout.Bevel_Style := TLayoutBevelStyle(vSourceBevel.Style);
   end
   else if ALayout.Kind = lkShape then
   begin
@@ -453,9 +552,29 @@ begin
   end
   else if ALayout.Kind = lkSplitter then
   begin
-
+    vSourceSplitter := TSplitter(AControl);
+    ALayout.Left := vSourceSplitter.Left;
+    ALayout.Top := vSourceSplitter.Top;
+    ALayout.Width := vSourceSplitter.Width;
+    ALayout.Height := vSourceSplitter.Height;
+    ALayout.Align := TLayoutAlign(vSourceSplitter.Align);
+    ALayout.Cursor := vSourceSplitter.Cursor;
+    ALayout.Color := ColorToAlphaColor(vSourceSplitter.Color);
   end
   else if ALayout.Kind = lkScrollBox then
+  begin
+    vSourceBox := TScrollBox(AControl);
+    ALayout.Left := vSourceBox.Left;
+    ALayout.Top := vSourceBox.Top;
+    ALayout.Width := vSourceBox.Width;
+    ALayout.Height := vSourceBox.Height;
+    ALayout.Anchors := vSourceBox.Anchors;
+    ALayout.Align := TLayoutAlign(vSourceBox.Align);
+    CopyMargins(vSourceBox);
+    CopyPadding(vSourceBox);
+    ALayout.BorderStyle := TLayoutBorderStyle(vSourceBox.BorderStyle);
+  end
+  else if ALayout.Kind = lkFrame then
   begin
 
   end
@@ -681,42 +800,31 @@ begin
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
 end;
 
+type
+  TImageHeaderGetter = packed record
+    case Byte of
+      0: (Bytes: array[0..3] of Byte);
+      1: (Words: array[0..1] of Word);
+      2: (Value: Cardinal);
+  end;
+
 function TWinVCLPresenter.CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
   const AParams: string; const AOnClose: TProc): TUIArea;
 var
-  vSourceLabel: TLabel;
-  vSourceImage: TImage;
-  vSourcePC: TPageControl;
-  vSourceTabSheet: TTabSheet;
-  vSourcePanel: TPanel;
-  vSourceBox: TScrollBox;
-  vSourceBevel: TBevel;
-  vSourceSplitter: TSplitter;
   vDomain: TDomain;
-  vCaption: string;
-  vUIParams: string;
   vStartPageName: string;
   vStartPageStr: string;
+  vForm: TForm;
+  vShape: TShape;
   vLabel: TcxLabel; //TStaticText;
   vImage: TcxImage;
   vPC: TcxPageControl;
-  vToolBar: TToolBar;
   vTab: TcxTabSheet;
   vPanel: TPanel;
   vParams: TStrings;
   vBox: TcxScrollBox;
   vBevel: TBevel;
   vSplitter: TcxSplitter;
-  vResolution: Integer;
-  vNavItems: TList<TDefinition>;
-  vNavDefinition: TDefinition;
-  vChildArea: TUIArea;
-  vMenu: TMenu;
-  vForm: TForm;
-  vShape: TShape;
-  vListView: TListView;
-  vImageList: TImageList;
-  vMenuArea: TUIArea;
 
   procedure CopyPenSettings(const APen: TPen);
   begin
@@ -729,41 +837,34 @@ var
     ABrush.Color := AlphaColorToColor(ALayout.Brush.Color);
   end;
 
-  procedure CopyFontSettings(const AFont: TFont);
-  begin
-    AFont.Name := ALayout.Font.Family;
-    AFont.Color := AlphaColorToColor(ALayout.Font.Color);
-    AFont.Size := ALayout.Font.Size;
-    AFont.Style := ALayout.Font.Style;
-  end;
-
-  procedure CopyMargins(const AControl: TControl);
-  begin
-    if not ALayout.Margins.IsEmpty then
-    begin
-      AControl.AlignWithMargins := True;
-      AControl.Margins.Left := ALayout.Margins.Left;
-      AControl.Margins.Top := ALayout.Margins.Top;
-      AControl.Margins.Right := ALayout.Margins.Right;
-      AControl.Margins.Bottom := ALayout.Margins.Bottom;
-    end
-    else
-      AControl.AlignWithMargins := False;
-  end;
-
-  procedure CopyConstraints(const AControl: TControl);
-  begin
-    AControl.Constraints.MinWidth := ALayout.Constraints.MinWidth;
-    AControl.Constraints.MinHeight := ALayout.Constraints.MinHeight;
-    AControl.Constraints.MaxWidth := ALayout.Constraints.MaxWidth;
-    AControl.Constraints.MaxHeight := ALayout.Constraints.MaxHeight;
-  end;
-
   procedure SetPictureFromStream(const APicture: TPicture);
+  var
+    vRecognizer: TImageHeaderGetter;
+    vGraphic: TGraphic;
   begin
     if not Assigned(ALayout.Image_Picture) then
       Exit;
-    //?? TODO
+
+    ALayout.Image_Picture.Position := 0;
+    ALayout.Image_Picture.Read(vRecognizer, SizeOf(TImageHeaderGetter));
+    if (vRecognizer.Bytes[0] = $42) and (vRecognizer.Bytes[1] = $4D) then
+      vGraphic := TBitmap.Create
+    else if (vRecognizer.Bytes[0] = $FF) and (vRecognizer.Bytes[1] = $D8) and (vRecognizer.Bytes[2] = $FF) and (vRecognizer.Bytes[3] = $E0) then
+      vGraphic := TJPEGImage.Create
+    else if (vRecognizer.Bytes[1] = $50) and (vRecognizer.Bytes[2] = $4E) and (vRecognizer.Bytes[3] = $47) then
+      vGraphic := TPngImage.Create
+    else
+      vGraphic := nil;
+    if not Assigned(vGraphic) then
+      Assert(False, 'Формат графического файла не поддерживается');
+
+    try
+      ALayout.Image_Picture.Position := 0;
+      vGraphic.LoadFromStream(ALayout.Image_Picture);
+      APicture.Assign(vGraphic);
+    finally
+      FreeAndNil(vGraphic);
+    end;
   end;
 begin
   Result := nil;
@@ -776,18 +877,15 @@ begin
   if ALayout.Kind = lkShape then
   begin
     vShape := TShape.Create(nil);
-    vShape.Left := ALayout.Left;
-    vShape.Top := ALayout.Top;
-    vShape.Width := ALayout.Width;
-    vShape.Height := ALayout.Height;
+    vShape.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vShape.Anchors := ALayout.Anchors;
     vShape.Align := TAlign(ALayout.Align);
     vShape.Hint := ALayout.Hint;
     vShape.Visible := ALayout.State > vsHidden;
     CopyPenSettings(vShape.Pen);
     CopyBrushSettings(vShape.Brush);
-    CopyMargins(vShape);
-    CopyConstraints(vShape);
+    CopyMargins(vShape, ALayout);
+    CopyConstraints(vShape, ALayout);
     vShape.Shape := TShapeType(ALayout.Shape_Type);
 
     Result := CreateFilledArea(AParent, AView, '', False, vShape, ALayout);
@@ -795,14 +893,11 @@ begin
   else if ALayout.Kind = lkLabel then
   begin
     vLabel := TcxLabel.Create(nil);
-    vLabel.Left := ALayout.Left;
-    vLabel.Top := ALayout.Top;
-    vLabel.Width := ALayout.Width;
-    vLabel.Height := ALayout.Height;
+    vLabel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vLabel.Transparent := ALayout.Transparent;
     vLabel.AutoSize := ALayout.AutoSize;
     vLabel.Properties.WordWrap := ALayout.WordWrap;
-    CopyFontSettings(vLabel.Style.Font);
+    CopyFontSettings(vLabel.Style.Font, ALayout);
     vLabel.Anchors := ALayout.Anchors;
 
     if (ALayout.Caption  = '$') and (ALayout.UIParams = 'Caption') then
@@ -828,14 +923,11 @@ begin
     vImage.Properties.PopupMenuLayout.MenuItems := [];
     vImage.Properties.FitMode := ifmNormal;
     vImage.DoubleBuffered := True;
-    vImage.Width := ALayout.Width;
-    vImage.Height := ALayout.Height;
-    vImage.Left := ALayout.Left;
-    vImage.Top := ALayout.Top;
+    vImage.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vImage.Anchors := ALayout.Anchors;
     vImage.Align := TAlign(ALayout.Align);
     vImage.Hint := ALayout.Hint;
-    CopyMargins(vImage);
+    CopyMargins(vImage, ALayout);
     vImage.Transparent := ALayout.Transparent;
     vImage.AutoSize := ALayout.AutoSize;
 
@@ -863,17 +955,14 @@ begin
       vPC.LookAndFeel.Kind := lfUltraFlat;
     end;
 
-    vPC.Width := ALayout.Width;
-    vPC.Height := ALayout.Height;
-    vPC.Left := ALayout.Left;
-    vPC.Top := ALayout.Top;
+    vPC.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vPC.Properties.TabPosition := TcxTabPosition(ALayout.Page_Position);
     vPC.Properties.TabHeight := ALayout.Page_Height;
     vPC.Properties.TabWidth := ALayout.Page_Width;
     vPC.Anchors := ALayout.Anchors;
-    CopyFontSettings(vPC.Font);
+    CopyFontSettings(vPC.Font, ALayout);
     vPC.Align := TAlign(ALayout.Align);
-    CopyMargins(vPC);
+    CopyMargins(vPC, ALayout);
     vPC.Visible := ALayout.State > vsHidden;
     vPC.Enabled := ALayout.State > vsDisabled;
 
@@ -881,72 +970,64 @@ begin
   end
   else if ALayout.Kind = lkPage then
   begin
-    vSourceTabSheet := TTabSheet(ALayout.Control);
-    if (TInteractor(AView.Interactor).Layout = 'mdi') and (vSourceTabSheet.Tag = 11) then
+    if (TInteractor(AView.Interactor).Layout = 'mdi') and (ALayout.Tag = 11) then
     begin
       vForm := TForm.Create(nil);
-      vForm.Caption := vSourceTabSheet.Caption;
+      vForm.Caption := ALayout.Caption;
       vForm.Position := poDefault;
       vForm.FormStyle := fsMDIChild;
       vForm.OnClose := OnCloseMDIForm;
       vForm.ShowHint := True;
       if AView.DefinitionKind in [dkCollection, dkAction, dkEntity] then
         TDragImageList(TInteractor(AView.Interactor).Images[16]).GetIcon(AParent.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
-      Result := CreateFilledArea(AParent, AView, vSourceTabSheet.Name, False, vForm, ALayout);
+
+      Result := CreateFilledArea(AParent, AView, ALayout.Name, False, vForm, ALayout);
       Result.OnClose := AOnClose;
     end
     else begin
       vTab := TcxTabSheet.Create(TComponent(AParent.InnerControl));
-      vTab.Caption := vSourceTabSheet.Caption;
-      vTab.ImageIndex := AParent.GetImageID(vSourceTabSheet.ImageIndex);
+      vTab.Caption := ALayout.Caption;
+      vTab.ImageIndex := AParent.GetImageID(ALayout.ImageID);
 
       vStartPageName := TDomain(AParent.View.Domain).Settings.GetValue('Core', 'StartPage', '');
-      vTab.AllowCloseButton := not SameText(vSourceTabSheet.Name, vStartPageName);
-      vTab.TabVisible := vSourceTabSheet.TabVisible;
+      vTab.AllowCloseButton := not SameText(ALayout.Name, vStartPageName);
+      vTab.TabVisible := ALayout.ShowCaption;
 
-      Result := CreateFilledArea(AParent, AView, vSourceTabSheet.Name, False, vTab, ALayout);
-
-//      if vSourceTabSheet.Visible then // это нужно? иначе лишние перерисовки контролов идут
-//        TcxPageControl(AParent.InnerControl).ActivePage := vTab;
+      Result := CreateFilledArea(AParent, AView, ALayout.Name, False, vTab, ALayout);
     end;
   end
   else if ALayout.Kind = lkBevel then
   begin
-    vSourceBevel := TBevel(ALayout.Control);
     vBevel := TBevel.Create(nil);
-    vBevel.SetBounds(vSourceBevel.Left, vSourceBevel.Top, vSourceBevel.Width, vSourceBevel.Height);
-    vBevel.Align := vSourceBevel.Align;
-    vBevel.Shape := vSourceBevel.Shape;
-    vBevel.Style := vSourceBevel.Style;
-    vBevel.AlignWithMargins := vSourceBevel.AlignWithMargins;
-    vBevel.Margins := vSourceBevel.Margins;
+    vBevel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+    vBevel.Align := TAlign(ALayout.Align);
+    CopyMargins(vBevel, ALayout);
+    vBevel.Shape := TBevelShape(ALayout.Bevel_Shape);
+    vBevel.Style := TBevelStyle(ALayout.Bevel_Style);
+
     Result := CreateFilledArea(AParent, AView, '-bevel-', False, vBevel, ALayout);
   end
   else if ALayout.Kind = lkSplitter then
   begin
-    vSourceSplitter := TSplitter(ALayout.Control);
     vSplitter := TcxSplitter.Create(nil);
-    case vSourceSplitter.Align of
-      alTop: vSplitter.AlignSplitter := salTop;
-      alLeft: vSplitter.AlignSplitter := salLeft;
-      alRight: vSplitter.AlignSplitter := salRight;
+    case ALayout.Align of
+      lalTop: vSplitter.AlignSplitter := salTop;
+      lalLeft: vSplitter.AlignSplitter := salLeft;
+      lalRight: vSplitter.AlignSplitter := salRight;
     else
       vSplitter.AlignSplitter := salBottom;
     end;
-    vSplitter.Cursor := vSourceSplitter.Cursor;
-    //vSplitter.Control := TInteractor(Interactor).UIBuilder.RootArea.Control;
-    //vSplitter.AllowHotZoneDrag := False;
+    vSplitter.Cursor := ALayout.Cursor;
     vSplitter.HotZone := TcxSimpleStyle.Create(vSplitter);
-    vSplitter.SetBounds(vSourceSplitter.Left, vSourceSplitter.Top, vSourceSplitter.Width, vSourceSplitter.Height);
-    vSplitter.Color := vSourceSplitter.Color;
+    vSplitter.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+    vSplitter.Color := AlphaColorToColor(ALayout.Color);
     vSplitter.ParentColor := False;
     vSplitter.NativeBackground := False;
+
     Result := CreateFilledArea(AParent, AView, '-splitter-', False, vSplitter, ALayout);
   end
   else if ALayout.Kind = lkPanel then
   begin
-    vSourcePanel := TPanel(ALayout.Control);
-
     if AParams <> '' then
       vParams := CreateDelimitedList(AParams, '&')
     else
@@ -963,20 +1044,17 @@ begin
 
       vPC := TcxPageControl.Create(nil);
       vPC.DoubleBuffered := True;
-      vPC.Width := vSourcePanel.Width;
-      vPC.Height := vSourcePanel.Height;
-      vPC.Left := vSourcePanel.Left;
-      vPC.Top := vSourcePanel.Top;
+      vPC.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
       vPC.Properties.Images := TDragImageList(TInteractor(AView.Interactor).Images[16]);
       vPC.Properties.TabPosition := tpBottom;
       if vParams.Values['PageLayout'] = 'Top' then
         vPC.Properties.TabPosition := tpTop;
       vPC.Properties.CloseButtonMode := cbmActiveTab;
       vPC.OnCanClose := OnPCCanClose;
-      vPC.Align := vSourcePanel.Align;
-      vPC.Anchors := vSourcePanel.Anchors;
-      vPC.Font.Assign(vSourcePanel.Font);
-      Result := CreateFilledArea(AParent, AView, Trim(vSourcePanel.Caption), False, vPC, ALayout);
+      vPC.Align := TAlign(ALayout.Align);
+      vPC.Anchors := ALayout.Anchors;
+      CopyFontSettings(vPC.Font, ALayout);
+      Result := CreateFilledArea(AParent, AView, Trim(ALayout.Caption), False, vPC, ALayout);
 
       // Здесь можно подкорректировать параметры
       if StrToBoolDef(vDomain.UserSettings.GetValue('Core', 'ShowStartPage'), True) then
@@ -997,75 +1075,69 @@ begin
     else
     begin
       vPanel := TPanel.Create(nil);
-      vPanel.Width := vSourcePanel.Width;
-      vPanel.Height := vSourcePanel.Height;
-      vPanel.Left := vSourcePanel.Left;
-      vPanel.Top := vSourcePanel.Top;
-      vPanel.Align := vSourcePanel.Align;
-      vPanel.AlignWithMargins := vSourcePanel.AlignWithMargins;
-      vPanel.Margins := vSourcePanel.Margins;
-      vPanel.Padding := vSourcePanel.Padding;
+      vPanel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+      vPanel.Anchors := ALayout.Anchors;
+      vPanel.Align := TAlign(ALayout.Align);
+      CopyMargins(vPanel, ALayout);
+      CopyFontSettings(vPanel.Font, ALayout);
+      CopyPadding(vPanel, ALayout);
       if AView.DefinitionKind <> dkListField then
-        vPanel.BevelOuter := vSourcePanel.BevelOuter
-      else
-        vPanel.BevelOuter := bvNone;
-      vPanel.Anchors := vSourcePanel.Anchors;
-      if not vSourcePanel.ParentBackground then
       begin
-        vPanel.Color := vSourcePanel.Color;
-        vPanel.ParentColor := False;
-        vPanel.ParentBackground := False;
+        vPanel.BevelInner := TBevelCut(ALayout.BevelInner);
+        vPanel.BevelOuter := TBevelCut(ALayout.BevelOuter);
+      end
+      else begin
+        vPanel.BevelInner := bvNone;
+        vPanel.BevelOuter := bvNone;
       end;
-      Result := CreateFilledArea(AParent, AView, Trim(vSourcePanel.Caption), False, vPanel, ALayout, AParams);
+      vPanel.Color := AlphaColorToColor(ALayout.Color);
+      vPanel.ParentColor := False;
+      vPanel.ParentBackground := False;
+
+      Result := CreateFilledArea(AParent, AView, Trim(ALayout.Caption), False, vPanel, ALayout, AParams);
     end;
 
     Result.AddParams(vParams);
   end
   else if ALayout.Kind = lkScrollBox then
   begin
-    vSourceBox := TScrollBox(ALayout.Control);
     vBox := TcxScrollBox.Create(nil);
-    vBox.Width := vSourceBox.Width;
-    vBox.Height := vSourceBox.Height;
-    vBox.Left := vSourceBox.Left;
-    vBox.Top := vSourceBox.Top;
-    vBox.Align := vSourceBox.Align;
-    vBox.AlignWithMargins := vSourceBox.AlignWithMargins;
-    vBox.Margins := vSourceBox.Margins;
-    vBox.Padding := vSourceBox.Padding;
+    vBox.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+    vBox.Anchors := ALayout.Anchors;
+    vBox.Align := TAlign(ALayout.Align);
+    CopyMargins(vBox, ALayout);
+    CopyPadding(vBox, ALayout);
     vBox.LookAndFeel.ScrollbarMode := sbmClassic;
-    if vSourceBox.BorderStyle = bsNone then
+    if ALayout.BorderStyle = lbsNone then
       vBox.BorderStyle := cxcbsNone;
-    vBox.Anchors := vSourceBox.Anchors;
+
     Result := CreateFilledArea(AParent, AView, '', False, vBox, ALayout);
   end
   else if ALayout.Kind = lkMemo then
   begin
-    vSourcePanel := TPanel(ALayout.Control);
-
     vPanel := TPanel.Create(nil);
-    vPanel.Width := vSourcePanel.Width;
-    vPanel.Height := vSourcePanel.Height;
-    vPanel.Left := vSourcePanel.Left;
-    vPanel.Top := vSourcePanel.Top;
-    vPanel.Align := vSourcePanel.Align;
-    vPanel.AlignWithMargins := vSourcePanel.AlignWithMargins;
-    vPanel.Margins := vSourcePanel.Margins;
-    vPanel.Padding := vSourcePanel.Padding;
+    vPanel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+    vPanel.Anchors := ALayout.Anchors;
+    vPanel.Align := TAlign(ALayout.Align);
+    CopyMargins(vPanel, ALayout);
+    CopyPadding(vPanel, ALayout);
+    CopyFontSettings(vPanel.Font, ALayout);
     if AView.DefinitionKind <> dkListField then
-      vPanel.BevelOuter := vSourcePanel.BevelOuter
-    else
-      vPanel.BevelOuter := bvNone;
-    vPanel.Anchors := vSourcePanel.Anchors;
-    if not vSourcePanel.ParentBackground then
     begin
-      vPanel.Color := vSourcePanel.Color;
-      vPanel.ParentColor := False;
-      vPanel.ParentBackground := False;
+      vPanel.BevelInner := TBevelCut(ALayout.BevelInner);
+      vPanel.BevelOuter := TBevelCut(ALayout.BevelOuter);
+    end
+    else begin
+      vPanel.BevelInner := bvNone;
+      vPanel.BevelOuter := bvNone;
     end;
-    Result := CreateFilledArea(AParent, AView, Trim(vSourcePanel.Caption), False, vPanel, ALayout);
+    vPanel.Color := AlphaColorToColor(ALayout.Color);
+    vPanel.ParentColor := False;
+    vPanel.ParentBackground := False;
+
+    Result := CreateFilledArea(AParent, AView, Trim(ALayout.Caption), False, vPanel, ALayout);
   end
-  else if Assigned(ALayout.Control) then
+  else if ALayout.Kind <> lkNone then
     Assert(False, 'Класс [' + ALayout.Control.ClassName + '] не поддерживается для создания лэйаутов')
   else
     Assert(False, 'Пустой класс для лэйаута');
@@ -1098,6 +1170,7 @@ begin
   if Assigned(vControl) then
   begin
     Result := TLayout.Create(ALayoutKind, vControl, True);
+    CopyControlPropertiesToLayout(Result, vControl);
     Result.Presenter := Self;
   end
   else

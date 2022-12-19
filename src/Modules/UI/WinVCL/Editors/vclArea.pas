@@ -106,7 +106,7 @@ uses
   dxNavBarCollns, dxNavBarBase, dxNavBarExplorerViews,
   cxLookAndFeels, cxButtons, cxScrollBox, cxControls, cxSplitter,
 
-  uDomain, uPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
+  uDomain, uPresenter, uWinVCLPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
   vclSimpleEditors, uEntityList, uDomainUtils, uChangeManager;
 
 type
@@ -882,7 +882,7 @@ end;
 procedure TVCLControl.AssignFromLayout(const ALayout: TLayout; const AParams: string);
 var
   vFrame: TFrame;
-  vPanel: TCrackedWinControl;
+  //vPanel: TCrackedWinControl;
   vForm: TForm;
   vAlignment: TAlignment;
   vWS: Integer;
@@ -971,30 +971,21 @@ begin
   end
   else if (ALayout.Kind in [lkPanel, lkMemo]) and (FControl is TControl) then
   begin
-    vPanel := TCrackedWinControl(ALayout.Control);
-
-    PlaceIntoBounds(vPanel.Left, vPanel.Top, vPanel.Width, vPanel.Height);
+    PlaceIntoBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     SetCaptionProperty(ALayout);
 
     if FControl is TcxCustomEdit then
-      TcxCustomEdit(FControl).Style.Font.Assign(vPanel.Font)
+      CopyFontSettings(TcxCustomEdit(FControl).Style.Font, ALayout)
     else
-      TCrackedWinControl(FControl).Font.Assign(vPanel.Font);
+      CopyFontSettings(TCrackedWinControl(FControl).Font, ALayout);
 
-    TControl(FControl).Anchors := vPanel.Anchors;
-    TControl(FControl).Align := vPanel.Align;
-    TControl(FControl).AlignWithMargins := vPanel.AlignWithMargins;
-    TControl(FControl).Margins := vPanel.Margins;
+    TControl(FControl).Anchors := ALayout.Anchors;
+    TControl(FControl).Align := TAlign(ALayout.Align);
+    CopyMargins(TControl(FControl), ALayout);
     if FControl is TWinControl then
-      TWinControl(FControl).Padding := vPanel.Padding;
+      CopyPadding(TWinControl(FControl), ALayout);
 
-    vAlignment := taLeftJustify;
-
-    if ALayout.Kind = lkPanel then
-      vAlignment := TPanel(ALayout.Control).Alignment
-    else if ALayout.Kind = lkMemo then
-      vAlignment := TMemo(ALayout.Control).Alignment;
-
+    vAlignment := ALayout.Alignment;
     if vAlignment = taRightJustify then
     begin
       if FControl.InheritsFrom(TLabel) then
@@ -1005,8 +996,8 @@ begin
       begin
         TStaticText(FControl).Alignment := taRightJustify;
         TStaticText(FControl).AutoSize := False;
-        TStaticText(FControl).Height := vPanel.Height;
-        TStaticText(FControl).Width := vPanel.Width;
+        TStaticText(FControl).Height := ALayout.Height;
+        TStaticText(FControl).Width := ALayout.Width;
       end
       else if FControl.InheritsFrom(TCheckBox) then
         TCheckBox(FControl).Alignment := taRightJustify
@@ -1020,12 +1011,9 @@ begin
         TFilenameFieldEditor(FOwner).TextEdit.Properties.Alignment.Horz := taRightJustify
     end;
 
-    if not vPanel.ParentBackground then
-    begin
-      TCrackedWinControl(FControl).Color := vPanel.Color;
-      TCrackedWinControl(FControl).ParentColor := False;
-      TCrackedWinControl(FControl).ParentBackground := False;
-    end;
+    TCrackedWinControl(FControl).Color := AlphaColorToColor(ALayout.Color);
+    TCrackedWinControl(FControl).ParentColor := False;
+    TCrackedWinControl(FControl).ParentBackground := False;
   end;
 end;
 
