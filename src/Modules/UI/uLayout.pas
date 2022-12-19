@@ -225,6 +225,7 @@ type
     FShowCaption: Boolean;
     FCaption: string;
     FUIParams: string;
+    FParams: string;
     FTag: NativeInt;
     FImageID: Integer;
     FState: TViewState;
@@ -237,6 +238,8 @@ type
     FBevelInner: TLayoutBevelKind;
     FBevelOuter: TLayoutBevelKind;
     FBorderStyle: TLayoutBorderStyle;
+    FTabStop: Boolean;
+    FTabOrder: Integer;
 
     // Графические объекты
     FPen: TLayoutPen;
@@ -244,6 +247,8 @@ type
     FFont: TLayoutFont;
 
     // Свойства конкретных типов
+    FCaption_AtLeft: Boolean;
+    FButton_ShowCaption: Boolean;
     FShape_Type: TLayoutShapeType;
     FImage_Picture: TStream;
     FImage_Stretch: Boolean;
@@ -255,11 +260,6 @@ type
     FPage_Width: Integer;
     FBevel_Style: TLayoutBevelStyle;
     FBevel_Shape: TLayoutBevelShape;
-
-
-
-
-
 
     procedure SetContentLayout(const Value: TLayout);
     function GetItems: TList<TLayout>;
@@ -308,6 +308,8 @@ type
     property BevelInner: TLayoutBevelKind read FBevelInner write FBevelInner;
     property BevelOuter: TLayoutBevelKind read FBevelOuter write FBevelOuter;
     property BorderStyle: TLayoutBorderStyle read FBorderStyle write FBorderStyle;
+    property TabStop: Boolean read FTabStop write FTabStop;
+    property TabOrder: Integer read FTabOrder write FTabOrder;
 
     property Name: string read FName write FName;
     property Tag: NativeInt read FTag write FTag;
@@ -315,6 +317,7 @@ type
     property ShowCaption: Boolean read FShowCaption write FShowCaption;
     property Hint: string read FHint write FHint;
     property UIParams: string read FUIParams write FUIParams;
+    property Params: string read FParams write FParams;
     property ImageID: Integer read FImageID write FImageID;
     property State: TViewState read FState write FState;
 
@@ -323,6 +326,8 @@ type
     property Font: TLayoutFont read FFont;
 
     property Shape_Type: TLayoutShapeType read FShape_Type write FShape_Type;
+    property Button_ShowCaption: Boolean read FButton_ShowCaption write FButton_ShowCaption;
+    property Caption_AtLeft: Boolean read FCaption_AtLeft write FCaption_AtLeft;
     property AutoSize: Boolean read FAutoSize write FAutoSize;
     property WordWrap: Boolean read FWordWrap write FWordWrap;
     property Image_Picture: TStream read FImage_Picture write SetPictureStream;
@@ -1539,13 +1544,18 @@ begin
   FShowCaption := False;
   FCaption := '';
   FUIParams := '';
+  FParams := '';
   FTag := 0;
   FImageID := -1;
+  FTabStop := True;
+  FTabOrder := -1;
 
   FPen := TLayoutPen.Create;
   FBrush := TLayoutBrush.Create;
   FFont := TLayoutFont.Create;
 
+  FCaption_AtLeft := False;
+  FButton_ShowCaption := False;
   FShape_Type := lstRectangle;
   FImage_Picture := nil;
   FImage_Stretch := False;

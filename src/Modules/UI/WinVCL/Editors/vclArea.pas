@@ -208,30 +208,24 @@ end;
 
 function TNavBarArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
-  ASource: TPanel;
-  AParams: string;
+  vColor: TColor;
 begin
-  ASource := TPanel(ALayout.Control);
-  AParams := FCreateParams.DelimitedText;
-
   FNavBar := TdxNavBar.Create(nil);
   FNavBar.DoubleBuffered := True;
-  FNavBar.Width := ASource.Width;
-  FNavBar.Height := ASource.Height;
-  FNavBar.Left := ASource.Left;
-  FNavBar.Top := ASource.Top;
+  FNavBar.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
   FNavBar.SmallImages := TDragImageList(TInteractor(FView.Interactor).Images[16]);
   FNavBar.LargeImages := TDragImageList(TInteractor(FView.Interactor).Images[32]);
-  FNavBar.View := StrToIntDef(GetUrlParam(AParams, 'NavBarKind'), 4);
-  FNavBar.OptionsStyle.DefaultStyles.GroupHeader.Font.Assign(ASource.Font);
+  FNavBar.View := StrToIntDef(GetUrlParam(ALayout.Params, 'NavBarKind'), 4);
+  CopyFontSettings(FNavBar.OptionsStyle.DefaultStyles.GroupHeader.Font, ALayout);
   FNavBar.OptionsStyle.DefaultStyles.GroupHeader.Font.Size := 12;
-  FNavBar.OptionsStyle.DefaultStyles.Item.Font.Assign(ASource.Font);
-  FNavBar.OptionsStyle.DefaultStyles.Background.BackColor := ASource.Color;
-  FNavBar.OptionsStyle.DefaultStyles.Background.BackColor2 := DimColor(ASource.Color, 0.2);
-  FNavBar.OptionsStyle.DefaultStyles.GroupBackground.BackColor := ASource.Color;
-  FNavBar.OptionsStyle.DefaultStyles.GroupBackground.BackColor2 := DimColor(ASource.Color, 0.2);
-  FNavBar.OptionsStyle.DefaultStyles.GroupHeader.BackColor := ASource.Color;
-  FNavBar.OptionsStyle.DefaultStyles.GroupHeader.BackColor2 := DimColor(ASource.Color, 0.2);
+  CopyFontSettings(FNavBar.OptionsStyle.DefaultStyles.Item.Font, ALayout);
+  vColor := AlphaColorToColor(ALayout.Color);
+  FNavBar.OptionsStyle.DefaultStyles.Background.BackColor := vColor;
+  FNavBar.OptionsStyle.DefaultStyles.Background.BackColor2 := DimColor(vColor, 0.2);
+  FNavBar.OptionsStyle.DefaultStyles.GroupBackground.BackColor := vColor;
+  FNavBar.OptionsStyle.DefaultStyles.GroupBackground.BackColor2 := DimColor(vColor, 0.2);
+  FNavBar.OptionsStyle.DefaultStyles.GroupHeader.BackColor := vColor;
+  FNavBar.OptionsStyle.DefaultStyles.GroupHeader.BackColor2 := DimColor(vColor, 0.2);
   FNavBar.DragDropFlags := [];
 
   FNavBarGroup := nil;
@@ -274,20 +268,14 @@ end;
 
 function TOneButtonArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
-  ASource: TPanel;
   vImageSize: Integer;
   vActionName: string;
   vAction: TActionDef;
 begin
-  ASource := TPanel(ALayout.Control);
-
   FButton := TButton.Create(nil);
   FButton.Style := bsSplitButton;
-  FButton.Width := ASource.Width;
-  FButton.Height := ASource.Height;
-  FButton.Left := ASource.Left;
-  FButton.Top := ASource.Top;
-  FButton.Font.Assign(ASource.Font);
+  FButton.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+  CopyFontSettings(FButton.Font, ALayout);
 
   vImageSize := StrToIntDef(GetUrlParam(FParams, 'ImageSize'), 16);
   FButton.Images := TDragImageList(TInteractor(FView.Interactor).Images[vImageSize]);
@@ -690,9 +678,8 @@ begin
   vButton.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[vImageSize]);
   vImageID := GetImageID(vImageID);
 
-  if (TPanel(ALayout.Control).BevelOuter = bvNone) and (TPanel(ALayout.Control).BevelInner = bvNone)
-    and (TPanel(ALayout.Control).BevelKind = TBevelKind.bkNone)
-  then begin
+  if (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone) then
+  begin
     vButton.SpeedButtonOptions.Flat := True;
     vButton.SpeedButtonOptions.CanBeFocused := False;
   end;
@@ -708,7 +695,7 @@ begin
   begin
     if vComposition = '' then
     begin
-      if TPanel(ALayout.Control).ShowHint then
+      if ALayout.Button_ShowCaption then
         vButton.PaintStyle := bpsDefault
       else
         vButton.PaintStyle := bpsGlyph;
@@ -764,7 +751,7 @@ begin
     end
     else begin
       vButton.OnClick := OnAreaClick;
-      TWinControl(ALayout.Control).Width := TWinControl(ALayout.Control).Height;
+      ALayout.Width := ALayout.Height;
     end;
   end
   else
@@ -829,7 +816,7 @@ begin
   vLabel.Cursor := crHandPoint;
   vLabel.Transparent := True;
   vLabel.Properties.Alignment.Vert := TcxEditVertAlignment.taVCenter;
-  vLabel.Style.TextColor := TPanel(ALayout.Control).Font.Color;
+  vLabel.Style.TextColor := AlphaColorToColor(ALayout.Font.Color);
   //vLabel.Style.TextStyle := [fsUnderline];
   vLabel.Style.HotTrack := True;
   //vLabel.StyleHot.TextColor := clBlue;
@@ -863,10 +850,10 @@ end;
 
 procedure TVCLControl.ApplyTabStops(const ALayout: TLayout);
 begin
-  if (ALayout.Control is TWinControl) and (FControl is TWinControl) then
+  if FControl is TWinControl then
   begin
-    FTabStop := TWinControl(ALayout.Control).TabStop;
-    FTabOrder := TWinControl(ALayout.Control).TabOrder;
+    FTabStop := ALayout.TabStop;
+    FTabOrder := ALayout.TabOrder;
     TWinControl(FControl).TabStop := FTabStop;
   end;
 end;
@@ -881,7 +868,7 @@ end;
 
 procedure TVCLControl.AssignFromLayout(const ALayout: TLayout; const AParams: string);
 var
-  vFrame: TFrame;
+  //vFrame: TFrame;
   //vPanel: TCrackedWinControl;
   vForm: TForm;
   vAlignment: TAlignment;
@@ -893,23 +880,22 @@ begin
 
     if ALayout.Kind = lkFrame then
     begin
-      vFrame := TFrame(ALayout.Control);
-      if (vFrame.Tag and cFormResizable) > 0 then
+      if (ALayout.Tag and cFormResizable) > 0 then
       begin
         vForm.BorderStyle := bsSizeable;
         vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
       end;
 
-      if (vFrame.Tag and cFormDisableMinimizeButton) > 0 then
+      if (ALayout.Tag and cFormDisableMinimizeButton) > 0 then
         vForm.BorderIcons := vForm.BorderIcons - [biMinimize];
 
-      if (vFrame.Tag and cFormDisableMaximizeButton) > 0 then
+      if (ALayout.Tag and cFormDisableMaximizeButton) > 0 then
         vForm.BorderIcons := vForm.BorderIcons - [biMaximize];
 
-      if (vFrame.Tag and cFormPositionDesign) > 0 then
+      if (ALayout.Tag and cFormPositionDesign) > 0 then
         vForm.Position := poDesigned;
 
-      if (vFrame.Tag and cFormNotResizable) > 0 then
+      if (ALayout.Tag and cFormNotResizable) > 0 then
         vForm.BorderStyle := bsSingle;
 
       vWS := StrToIntDef(GetUrlParam(AParams, 'WindowState', ''), -1);
@@ -918,54 +904,52 @@ begin
 
       if (vForm.WindowState = wsNormal) then
       begin
-        if (vForm.FormStyle <> fsMDIChild) or ((vFrame.Tag and cFormUseDesignSizes) > 0) then
+        if (vForm.FormStyle <> fsMDIChild) or ((ALayout.Tag and cFormUseDesignSizes) > 0) then
         begin
-          vForm.ClientWidth := vFrame.ClientWidth;
+          vForm.ClientWidth := ALayout.Width;
           if FOwner.View.DefinitionKind = dkDomain then
-            vForm.ClientHeight := vFrame.ClientHeight
+            vForm.ClientHeight := ALayout.Height
           else
-            vForm.ClientHeight := vFrame.ClientHeight + cServiceAreaHeight;
+            vForm.ClientHeight := ALayout.Height + cServiceAreaHeight;
         end;
       end;
 
-      vForm.Constraints.MinHeight := vFrame.Constraints.MinHeight;
-      vForm.Constraints.MinWidth := vFrame.Constraints.MinWidth;
+      CopyConstraints(vForm, ALayout);
 
-      if vFrame.Hint <> '' then
-        vForm.Caption := vFrame.Hint;
-      vForm.Color := vFrame.Color;
+      if ALayout.Caption <> '' then
+        vForm.Caption := ALayout.Caption;
+      vForm.Color := AlphaColorToColor(ALayout.Color);
     end
     else if ALayout.Kind = lkPanel then
     begin
       vForm.BorderStyle := bsSizeable;
       vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
-      vForm.Caption := TPanel(ALayout.Control).Caption;
-      vForm.ClientWidth := TPanel(ALayout.Control).Width;
+      vForm.Caption := ALayout.Caption;
+      vForm.ClientWidth := ALayout.Width;
       if FOwner.View.DefinitionKind = dkDomain then
-        vForm.ClientHeight := TPanel(ALayout.Control).Height
+        vForm.ClientHeight := ALayout.Height
       else
-        vForm.ClientHeight := TPanel(ALayout.Control).Height + cServiceAreaHeight;
+        vForm.ClientHeight := ALayout.Height + cServiceAreaHeight;
     end
     else if ALayout.Kind = lkPage then
     begin
       vForm.BorderStyle := bsSizeable;
       vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
-      vForm.Caption := TTabSheet(ALayout.Control).Caption;
+      vForm.Caption := ALayout.Caption;
     end
     else
       Assert(False, 'Непонятно какой контрол в лэйауте');
   end
   else if ALayout.Kind = lkFrame then
   begin
-    vFrame := TFrame(ALayout.Control);
     //vFrame.SetBounds(Control.Left, Control.Top, Control.Width, Control.Height);
-    if (vFrame.Hint <> '') and (FControl is TcxTabSheet) then
+    if (ALayout.Caption <> '') and (FControl is TcxTabSheet) then
     begin
-      TcxTabSheet(FControl).Caption := vFrame.Hint;
-      if Pos('=', vFrame.Hint) > 0 then // Hint содержит url-строку с параметрами
+      TcxTabSheet(FControl).Caption := ALayout.Caption;
+      if Pos('=', ALayout.Caption) > 0 then // Hint содержит url-строку с параметрами
       begin
-        TcxTabSheet(FControl).Caption := GetUrlParam(vFrame.Hint, 'Caption', '');
-        TcxTabSheet(FControl).ImageIndex := FOwner.GetImageId(StrToIntDef(GetUrlParam(vFrame.Hint, 'ImageIndex', ''), -1));
+        TcxTabSheet(FControl).Caption := GetUrlParam(ALayout.Caption, 'Caption', '');
+        TcxTabSheet(FControl).ImageIndex := FOwner.GetImageId(StrToIntDef(GetUrlParam(ALayout.Caption, 'ImageIndex', ''), -1));
       end;
     end;
   end
@@ -1011,9 +995,10 @@ begin
         TFilenameFieldEditor(FOwner).TextEdit.Properties.Alignment.Horz := taRightJustify
     end;
 
-    TCrackedWinControl(FControl).Color := AlphaColorToColor(ALayout.Color);
-    TCrackedWinControl(FControl).ParentColor := False;
-    TCrackedWinControl(FControl).ParentBackground := False;
+    TCrackedControl(FControl).Color := AlphaColorToColor(ALayout.Color);
+    TCrackedControl(FControl).ParentColor := False;
+    if FControl is TWinControl then
+      TCrackedWinControl(FControl).ParentBackground := False;
   end;
 end;
 
@@ -1306,23 +1291,20 @@ begin
 end;
 
 procedure TVCLControl.SetCaptionProperty(const ALayout: TLayout);
-var
-  vPanel: TPanel;
 begin
   if not Assigned(FCaption) or not Assigned(ALayout) then
     Exit;
 
-  vPanel := TPanel(ALayout.Control);
-  if Assigned(vPanel) then
+  if ALayout.Kind in [lkMemo, lkPanel] then
   begin
-    FShowCaption := vPanel.ShowCaption;
+    FShowCaption := ALayout.ShowCaption;
     TLabel(FCaption).Visible := FShowCaption and (FOwner.View.State > vsHidden);
-    if akTop in vPanel.Anchors then
+    if akTop in ALayout.Anchors then
       TLabel(FCaption).Anchors := [akLeft, akTop]
     else
       TLabel(FCaption).Anchors := [akLeft, akBottom];
 
-    if vPanel.DoubleBuffered then
+    if ALayout.Caption_AtLeft then
       SetLabelPosition(lpLeft);
   end;
 end;

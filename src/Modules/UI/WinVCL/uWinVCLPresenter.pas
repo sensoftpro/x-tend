@@ -337,6 +337,7 @@ var
   vSourceSplitter: TSplitter;
   vSourceShape: TShape;
   vSourceMemo: TMemo;
+  vSourceFrame: TFrame;
   vCaption: string;
   vUIParams: string;
   vPos: Integer;
@@ -409,6 +410,8 @@ begin
     ALayout.Anchors := vSourcePanel.Anchors;
     ALayout.Caption := vSourcePanel.Caption;
     ALayout.ShowCaption := vSourcePanel.ShowCaption;
+    ALayout.Caption_AtLeft := vSourcePanel.DoubleBuffered;
+    ALayout.Button_ShowCaption := vSourcePanel.ShowHint;
     CopyMargins(vSourcePanel);
     ALayout.Align := TLayoutAlign(vSourcePanel.Align);
     ALayout.Alignment := vSourcePanel.Alignment;
@@ -442,6 +445,7 @@ begin
     CopyFontSettings(vSourcePC.Font);
     CopyViewState(vSourcePC);
     ALayout.Tag := vSourcePC.Tag;
+    ALayout.ShowCaption := vSourcePC.ShowHint;
     ALayout.Caption := vSourcePC.Hint;
     ALayout.Page_Style := TPageStyle(vSourcePC.Style);
     ALayout.Page_Position := TPagePosition(vSourcePC.TabPosition);
@@ -459,7 +463,9 @@ begin
     ALayout.Anchors := vSourceMemo.Anchors;
     vSourceMemo.WordWrap := False;
     vSourceMemo.WantReturns := False;
+    ALayout.ShowCaption := vSourceMemo.ShowHint;
     ALayout.Caption := vSourceMemo.Lines.Text;
+    ALayout.Caption_AtLeft := vSourceMemo.DoubleBuffered;
     CopyMargins(vSourceMemo);
     ALayout.Align := TLayoutAlign(vSourceMemo.Align);
     ALayout.Alignment := vSourceMemo.Alignment;
@@ -502,7 +508,7 @@ begin
   end
   else if ALayout.Kind = lkImage then
   begin
-    vSourceImage := TImage(ALayout.Control);
+    vSourceImage := TImage(AControl);
     ALayout.Left := vSourceImage.Left;
     ALayout.Top := vSourceImage.Top;
     ALayout.Width := vSourceImage.Width;
@@ -576,6 +582,23 @@ begin
   end
   else if ALayout.Kind = lkFrame then
   begin
+    vSourceFrame := TFrame(AControl);
+    ALayout.Width := vSourceFrame.ClientWidth;
+    ALayout.Height := vSourceFrame.ClientHeight;
+    ALayout.Tag := vSourceFrame.Tag;
+    ALayout.Caption := vSourceFrame.Hint;
+    ALayout.Color := ColorToAlphaColor(vSourceFrame.Color);
+    //ALayout.ShowCaption := vSourceFrame.ShowCaption;
+    //ALayout.Caption_AtLeft := vSourceFrame.DoubleBuffered;
+    //ALayout.Button_ShowCaption := vSourceFrame.ShowHint;
+    //CopyMargins(vSourceFrame);
+    //ALayout.Align := TLayoutAlign(vSourceFrame.Align);
+    //ALayout.Alignment := vSourceFrame.Alignment;
+    //CopyConstraints(vSourceFrame);
+    //CopyFontSettings(vSourceFrame.Font);
+    //CopyPadding(vSourceFrame);
+    //ALayout.BevelInner := TLayoutBevelKind(vSourceFrame.BevelInner);
+    //ALayout.BevelOuter := TLayoutBevelKind(vSourceFrame.BevelOuter);
 
   end
   else if ALayout.Kind = lkGroup then
@@ -1138,7 +1161,7 @@ begin
     Result := CreateFilledArea(AParent, AView, Trim(ALayout.Caption), False, vPanel, ALayout);
   end
   else if ALayout.Kind <> lkNone then
-    Assert(False, 'Класс [' + ALayout.Control.ClassName + '] не поддерживается для создания лэйаутов')
+    Assert(False, 'Класс не поддерживается для создания лэйаутов')
   else
     Assert(False, 'Пустой класс для лэйаута');
 end;
@@ -1324,6 +1347,9 @@ var
 begin
   if not (ALayout.Control is TWinControl) then
     Exit;
+
+  if ALayout.Kind = lkFrame then
+    CopyControlPropertiesToLayout(ALayout, ALayout.Control);
 
   vParentControl := TWinControl(ALayout.Control);
   if Assigned(TCrackedControl(vParentControl).PopupMenu) then

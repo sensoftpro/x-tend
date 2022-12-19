@@ -1290,7 +1290,7 @@ begin
   FGrid.LookAndFeel.Kind := lfFlat;
 
   if ALayout.Kind = lkPanel then
-    FGrid.Align := TPanel(ALayout.Control).Align
+    FGrid.Align := TAlign(ALayout.Align)
   else
     FGrid.Align := alClient;
   FGrid.Levels.Add.GridView := FMasterTableView;
@@ -2679,7 +2679,7 @@ begin
 
   if Assigned(ALayout) and (ALayout.Kind = lkPanel) then
   begin
-    FContentStyle.TextColor := TPanel(ALayout.Control).Font.Color;
+    FContentStyle.TextColor := ALayout.Font.Color;
     FSelectionStyle.TextColor := clHighlightText;
     FSelectionStyle.Color := clHighlight;
   end;
@@ -3201,7 +3201,7 @@ begin
   FId := 'Pivot';
 
   if ALayout.Kind = lkPanel then
-    FPivot.Align := TPanel(ALayout.Control).Align
+    FPivot.Align := TAlign(ALayout.Align)
   else
     FPivot.Align := alClient;
 
@@ -3541,7 +3541,7 @@ begin
   FTreeList.LookAndFeel.Kind := lfFlat;
 
   if ALayout.Kind = lkPanel then
-    FTreeList.Align := TPanel(ALayout.Control).Align
+    FTreeList.Align := TAlign(ALayout.Align)
   else
     FTreeList.Align := alClient;
 
@@ -3673,7 +3673,6 @@ end;
 
 procedure TTreeCollectionEditor.CreateLevels(const ALayout: TLayout);
 var
-  vPanel: TPanel;
   vTreeLevels: string;
   vList: TStrings;
   i: Integer;
@@ -3690,8 +3689,7 @@ begin
   FLevels := TObjectList<TTreeLevel>.Create;
   //  Assert(Length(vTreeLevels) > 0, 'Parameter "TreeLevels" not defined in layout: ' + vLayout.Caption + '. Specify "TreeLevels=<ListField>[|<ChildListField>]');
 
-  vPanel := TPanel(ALayout.Control);
-  vTreeLevels := GetUrlParam(vPanel.Caption, 'TreeLevels');
+  vTreeLevels := GetUrlParam(ALayout.Caption, 'TreeLevels');
 
   if Length(vTreeLevels) > 0 then
   begin
@@ -4237,7 +4235,6 @@ var
   i: Integer;
   vSelectedList: TEntityList;
   vLayout: TLayout;
-  vTab: TComponent;
   vTabArea, vArea: TUIArea;
   vView: TView;
   vTabParams: string;
@@ -4265,9 +4262,8 @@ begin
         vTabParams := 'caption=' + vSelectedList[i][FCreateParams.Values['DisplayName']];
 
       vLayout := TPresenter(Presenter).CreateLayoutArea(lkPage, vTabParams);
-      vTab := TComponent(vLayout.Control);
       try
-        vTab.Tag := 0;
+        vLayout.Tag := 0;
         vView := FView.BuildView(IntToStr(i));
         vView.AddListener(Self);
         FCreatedViews.Add(vView);

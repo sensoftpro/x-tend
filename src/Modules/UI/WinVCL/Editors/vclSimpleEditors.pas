@@ -433,7 +433,8 @@ uses
   dxActivityIndicator, cxLookAndFeels, cxProgressBar, dxBreadcrumbEdit, cxCustomListBox, cxCheckListBox,
   dxColorEdit, dxColorGallery, dxCoreGraphics, {CPort,}
 
-  uConfiguration, uDomain, uInteractor, uPresenter, uCollection, uEntity, uConsts, uUtils, UITypes;
+  uConfiguration, uDomain, uInteractor, uPresenter, uWinVCLPresenter, uCollection, uEntity, uConsts,
+  uUtils, UITypes;
 
 { TTextInfo }
 
@@ -1093,13 +1094,13 @@ begin
 
   if ALayout.Kind = lkPanel then
   begin
-    if TPanel(ALayout.Control).Alignment <> taCenter then
+    if ALayout.Alignment <> taCenter then
     begin
       TcxCheckBox(Result).AutoSize := False;
-      if TPanel(ALayout.Control).Alignment = taLeftJustify then
+      if ALayout.Alignment = taLeftJustify then
         TcxCheckBox(Result).Properties.Alignment := taCenter
       else
-        TcxCheckBox(Result).Properties.Alignment := TPanel(ALayout.Control).Alignment;
+        TcxCheckBox(Result).Properties.Alignment := ALayout.Alignment;
     end;
   end;
 
@@ -1880,21 +1881,15 @@ type
 
 procedure TSpinner.AssignFromLayout(const ALayout: TLayout; const AParams: string);
 var
-  vPanel: TCrackedControl;
   vColor: Cardinal;
-  vR, vG, vB: Byte;
-  vRGBColor: Integer;
 begin
   inherited;
 
   if ALayout.Kind in [lkPanel, lkMemo] then
   begin
-    vPanel := TCrackedControl(ALayout.Control);
-    if (FControl is TdxActivityIndicator) and not vPanel.ParentFont and (vPanel.Font.Color <> clWindowText) then
+    if (FControl is TdxActivityIndicator) and (AlphaColorToColor(ALayout.Font.Color) <> clWindowText) then
     begin
-      vRGBColor := TColorRec.ColorToRGB(vPanel.Font.Color);
-      vR := GetRValue(vRGBColor); vG := GetGValue(vRGBColor); vB := GetBValue(vRGBColor);
-      vColor := TAlphaColorRec.Alpha or TAlphaColor(RGB(vB, vG, vR));
+      vColor := ALayout.Font.Color;
       if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorHorizontalDotsProperties then
         TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(FControl).Properties).DotColor := vColor
       else if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorGravityDotsProperties then
@@ -2483,9 +2478,7 @@ end;
 
 function TDEPagesFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
-  vSourcePC: TPageControl;
   vPC: TcxPageControl;
-  vSourceTab: TTabSheet;
   vTabLayout: TLayout;
   vPage: TcxTabSheet;
   vChildArea: TUIArea;
@@ -2495,36 +2488,33 @@ begin
 
   inherited;
 
-  vSourcePC := TPageControl(ALayout.Control);
-
   vPC := TcxPageControl.Create(nil);
   Result := vPC;
   vPC.DoubleBuffered := True;
-  vPC.Width := vSourcePC.Width;
-  vPC.Height := vSourcePC.Height;
+  vPC.Width := ALayout.Width;
+  vPC.Height := ALayout.Height;
 
-  vPC.Font.Assign(vSourcePC.Font);
-  vPC.Align := vSourcePC.Align;
-  vPC.AlignWithMargins := vSourcePC.AlignWithMargins;
-  vPC.Margins := vSourcePC.Margins;
-  vPC.Anchors := vSourcePC.Anchors;
-  vPC.Style := Integer(vSourcePC.Style);
-  if (vSourcePC.Style <> TTabStyle.tsTabs) and (vSourcePC.PageCount > 0) then
+  CopyFontSettings(vPC.Font, ALayout);
+  vPC.Align := TAlign(ALayout.Align);
+  CopyMargins(vPC, ALayout);
+  vPC.Anchors := ALayout.Anchors;
+  vPC.Style := Integer(ALayout.Page_Style);
+  if (ALayout.Page_Style <> psTabs) and (ALayout.Items.Count > 0) then
   begin
-    vPC.Left := vSourcePC.Left + vSourcePC.Pages[0].Left;
-    vPC.Top := vSourcePC.Top + vSourcePC.Pages[0].Top;
+    vPC.Left := ALayout.Left + ALayout.Items[0].Left;
+    vPC.Top := ALayout.Top + ALayout.Items[0].Top;
   end
   else begin
-    vPC.Left := vSourcePC.Left;
-    vPC.Top := vSourcePC.Top;
+    vPC.Left := ALayout.Left;
+    vPC.Top := ALayout.Top;
   end;
 
-  vPC.HideTabs := not vSourcePC.ShowHint or ((vSourcePC.PageCount > 0) and not vSourcePC.Pages[0].TabVisible);
+  vPC.HideTabs := not ALayout.ShowCaption or ((ALayout.Items.Count > 0) and not ALayout.Items[0].ShowCaption);
   if not vPC.HideTabs then
   begin
     vPC.Properties.Options := vPC.Properties.Options + [pcoTopToBottomText];
-    vPC.Properties.TabPosition := TcxTabPosition(vSourcePC.TabPosition);
-    vPC.Properties.TabHeight := vSourcePC.TabHeight;
+    vPC.Properties.TabPosition := TcxTabPosition(ALayout.Page_Position);
+    vPC.Properties.TabHeight := ALayout.Page_Height;
   end;
 
   // Нужно прописывать родителя, чтобы создавать вложенные сцены
@@ -2533,14 +2523,13 @@ begin
   for i := 0 to ALayout.Items.Count - 1 do
   begin
     vTabLayout := ALayout.Items[i];
-    vSourceTab := TTabSheet(vTabLayout.Control);
     vPage := TcxTabSheet.Create(vPC);
-    vPage.Caption := vSourceTab.Caption;
-    vPage.ImageIndex := vSourceTab.ImageIndex;
+    vPage.Caption := vTabLayout.Caption;
+    vPage.ImageIndex := GetImageID(vTabLayout.ImageID);
     vPage.Parent := vPC;
 
     vChildArea := TUIArea(TPresenter(Presenter).CreateFilledArea(Self, FView.Parent,
-      vSourceTab.Name, False, vPage, vTabLayout));
+      vTabLayout.Name, False, vPage, vTabLayout));
     AddArea(vChildArea);
 
     TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vTabLayout, '');
@@ -2607,9 +2596,9 @@ end;
 function TProgress.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   Result := TcxProgressBar.Create(nil);
-  TcxProgressBar(Result).AutoSize := TPanel(ALayout.Control).ShowCaption;
+  TcxProgressBar(Result).AutoSize := ALayout.ShowCaption;
   TcxProgressBar(Result).Properties.SolidTextColor := True;
-  TcxProgressBar(Result).Properties.ShowText := TPanel(ALayout.Control).ShowCaption;
+  TcxProgressBar(Result).Properties.ShowText := ALayout.ShowCaption;
   FNeedCreateCaption := False;
   if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
     TcxProgressBar(Result).Properties.Max := TSimpleFieldDef(FFieldDef).MaxValue;
@@ -3187,8 +3176,8 @@ begin
     if Assigned(FCreateParams) and (FCreateParams.IndexOfName('select_backcolor') > -1) then
       FSelectBackColor := AlphaColorToColor(StrToIntDef('$' + FCreateParams.Values['select_backcolor'], 0));
 
-    FDefaultTextColor := TPanel(ALayout.Control).Font.Color;
-    TLabel(Result).Alignment := TPanel(ALayout.Control).Alignment;
+    FDefaultTextColor := AlphaColorToColor(ALayout.Font.Color);
+    TLabel(Result).Alignment := ALayout.Alignment;
   end;
 end;
 

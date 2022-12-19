@@ -608,6 +608,7 @@ var
 begin
   Result := TPresenter(FPresenter).CreateLayoutArea(lkFrame);
   vFrame := TComponent(Result.Control);
+
   vFileStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyNone);
   vMemStream := TMemoryStream.Create;
   try
@@ -1119,6 +1120,9 @@ begin
   FView := AView;
   if not FIsService then
     TrySubscribeView;
+
+  if Assigned(ALayout) then
+    ALayout.Params := AParams;
 
   FParent := AParent;
   if not Assigned(AControl) then
