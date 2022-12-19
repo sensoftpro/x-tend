@@ -36,7 +36,7 @@ unit uGDIPlusPainter;
 interface
 
 uses
-  Windows, Types, Classes, Graphics, GDIPOBJ, uDrawStyles, uScene, uWinScene, uConsts;
+  Windows, Types, Classes, GDIPOBJ, uDrawStyles, uScene, uWinScene, uConsts;
 
 type
   TGDIPlusDrawContext = class(TDrawContext)
@@ -130,7 +130,6 @@ destructor TGDIPlusPainter.Destroy;
 begin
   inherited;
   FreeAndNil(FContext);
-
 end;
 
 procedure TGDIPlusPainter.DoClipRect(const ARect: TRectF);
@@ -222,7 +221,6 @@ procedure TGDIPlusPainter.CreateImage(const AImage: TStyleImage);
 var
   vImage: TGPBitmap;
 begin
-  vImage := nil;
   if TFile.Exists(AImage.FileName) then
   begin
       vImage := TGPBitmap.Create(AImage.FileName);
@@ -461,20 +459,9 @@ end;
 procedure TGDIPlusPainter.DoInvertRect(const ARect: TRectF);
 var
   vRect: TRect;
-  vGPBitmap: TGPBitmap;
-  vImageAttributes: TGPImageAttributes;
-  vColorMatrix: TColorMatrix;
-  vGPRect: TGPRect;
-  vBrush: TGPSolidBrush;
-  i,j: Integer;
-  vPixel: TGPColor;
-  vDC: HDC;
-  vP: PAINTSTRUCT;
 begin
   vRect := ARect.Round;
-
   Windows.InvertRect(FDC ,vRect);
-
 end;
 
 //******************************************************************************
@@ -570,7 +557,6 @@ begin
   FGPCanvas.SetCompositingMode(CompositingModeSourceOver);
   FGPCanvas.SetSmoothingMode(SmoothingModeAntiAlias);
   FGPCanvas.SetInterpolationMode(InterpolationModeHighQualityBicubic);
-
 end;
 
 destructor TGDIPlusDrawContext.Destroy;
@@ -599,10 +585,9 @@ begin
   end;
 
   FGPCanvas.SetPageUnit(UnitPixel);
-  FGPCanvas.SetCompositingMode(CompositingModeSourceOver);
+//  FGPCanvas.SetCompositingMode(CompositingModeSourceOver);
   FGPCanvas.SetSmoothingMode(SmoothingModeAntiAlias);
   FGPCanvas.SetInterpolationMode(InterpolationModeHighQualityBicubic);
-
 end;
 
 function TGDIPlusDrawContext.GetHandle: THandle;
