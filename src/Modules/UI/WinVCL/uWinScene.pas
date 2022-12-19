@@ -358,7 +358,7 @@ begin
       vContext := FPainter.SetContext(FCachedDrawContext);
       try
         FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
-        FCachedDrawContext.SaveToFile('static.bmp');
+        //FCachedDrawContext.SaveToFile('static.bmp');
       finally
         FPainter.SetContext(vContext);
       end;
@@ -368,13 +368,14 @@ begin
     try
       FPainter.DrawContext(FCachedDrawContext);
       FRoot.RenderDynamic(FPainter, GetSceneRect);
-      FDrawContext.SaveToFile('dynamic.bmp');
+      //FDrawContext.SaveToFile('dynamic.bmp');
     finally
       FPainter.SetContext(vContext);
     end;
   finally
     FPainter.EndPaint;
   end;
+
   FPainter.DrawContext(FDrawContext);
 end;
 
