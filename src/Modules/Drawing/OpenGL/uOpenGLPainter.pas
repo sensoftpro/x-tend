@@ -389,8 +389,8 @@ procedure TOpenGLPainter.DoDrawEllipse(const AFill: TStyleBrush; const AStroke: 
     vAngleIncrement := 2 * Pi / 360;
     glPushMatrix();
     glTranslatef(vCentre.X, vCentre.Y, 0);
-    glColor4f(AColor.Red, AColor.Green, AColor.Blue, AColor.Alpha);
     glBegin(AMode);
+    glColor4f(AColor.Red, AColor.Green, AColor.Blue, AColor.Alpha);
     if AMode = GL_TRIANGLE_FAN then
       glVertex2f(0, 0);
     vTheta := 0.0;
