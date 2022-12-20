@@ -200,7 +200,6 @@ type
   private
     FContentLayout: TLayout;
     FMenu: TNavigationItem;
-    FControl: TObject;
     FUrlParser: TUrlParser;
     FKind: TLayoutKind;
     FIsOwner: Boolean;
@@ -213,7 +212,6 @@ type
     FWidth: Integer;
     FHeight: Integer;
     FAnchors: TAnchors;
-    FAlignWithMargins: Boolean;
     FAlign: TLayoutAlign;
     FMargins: TLayoutMargins;
     FPadding: TLayoutPadding;
@@ -265,6 +263,7 @@ type
     function GetItems: TList<TLayout>;
     procedure SetMenu(const Value: TNavigationItem);
     procedure SetPictureStream(const Value: TStream);
+    procedure SetParams(const Value: string);
   protected
     [Weak] FParent: TLayout;
     FItems: TList<TLayout>;
@@ -277,10 +276,12 @@ type
     constructor Create(const AKind: TLayoutKind; const AIsOwner: Boolean = False);
     destructor Destroy; override;
 
-    procedure Add(const AChild: TLayout);
-    procedure Save(const AParent: TJSONObject; const AName: string);
-    procedure ArrangeChildAreas;
+    procedure Load(const AFileName: string);
+    procedure Save(const AFileName: string);
     procedure SaveToDFM(const AFileName: string);
+
+    procedure Add(const AChild: TLayout);
+    procedure ArrangeChildAreas;
 
     procedure SetUrl(const AUrl: string); virtual;
     function ExtractInteger(const AParamName: string; const ADefault: Integer = -1): Integer;
@@ -295,7 +296,6 @@ type
     property Width: Integer read FWidth write FWidth;
     property Height: Integer read FHeight write FHeight;
     property Anchors: TAnchors read FAnchors write FAnchors;
-    property AlignWithMargins: Boolean read FAlignWithMargins write FAlignWithMargins;
     property Align: TLayoutAlign read FAlign write FAlign;
     property Margins: TLayoutMargins read FMargins;
     property Padding: TLayoutPadding read FPadding;
@@ -316,7 +316,7 @@ type
     property ShowCaption: Boolean read FShowCaption write FShowCaption;
     property Hint: string read FHint write FHint;
     property UIParams: string read FUIParams write FUIParams;
-    property Params: string read FParams write FParams;
+    property Params: string read FParams write SetParams;
     property ImageID: Integer read FImageID write FImageID;
     property State: TViewState read FState write FState;
 
@@ -388,133 +388,6 @@ type
   end;
 
   TLayoutItem = class(TLayout)
-  end;
-
-  TLayoutX = class
-  private
-    [Weak] FParent: TLayoutX;
-    FItems: TObjectList<TLayoutX>;
-    FMenu: TNavigationItem;
-
-    FLayoutKind: TLayoutKind;
-    FViewType: TLayoutViewType;
-    FName: string;
-    FCaption: string;
-    FUIParams: string;
-    FHint: string;
-    FShowCaption: Boolean;
-    FShowHint: Boolean;
-    FImageIndex: Integer;
-    FTag: NativeInt;
-
-    // Размеры и расположение
-    FLeft: Integer;
-    FTop: Integer;
-    FWidth: Integer;
-    FHeight: Integer;
-    FAlign: TLayoutAlign;
-    FAnchors: TAnchors;
-    FAlignWithMargins: Boolean;
-    FMargins: TLayoutMargins;
-
-    FPadding: TLayoutPadding;
-    FConstraints: TLayoutConstraints;
-    FState: TViewState;
-    FDoubleBuffered: Boolean;
-    FTabStop: Boolean;
-    FTabOrder: Integer;
-
-    FColor: TAlphaColor;
-    FFont: TLayoutFont;
-    FAlignment: TAlignment;
-
-    FPageStyle: TPageStyle;
-    FPagePosition: TPagePosition;
-    FPageHeight: Integer;
-    FPageWidth: Integer;
-    FHidePages: Boolean;
-
-    FBevelInner: TLayoutBevelKind;
-    FBevelOuter: TLayoutBevelKind;
-    FBorderStyle: TLayoutBorderStyle;
-    FParentBackground: Boolean;
-
-    FAutoSize: Boolean;
-    FTransparent: Boolean;
-    FWordWrap: Boolean;
-
-    FPicture: TStream;
-    FStretch: Boolean;
-    FProportional: Boolean;
-
-    FBevelStyle: TLayoutBevelStyle;
-    FBevelShape: TLayoutBevelShape;
-    FCursor: Integer;
-    FParams: string;
-
-    FStyleName: string;
-    FChildLayoutName: string;
-    FTargetWorkAreaName: string;
-    FTargetLayoutName: string;
-    FTargetViewName: string;
-
-    procedure InternalLoad(const AJSON: TJSONObject);
-    function InternalSave: TJSONObject;
-    procedure SetPictureStream(const Value: TStream);
-  public
-    constructor Create(const AParent: TLayoutX; const ALayoutKind: TLayoutKind = lkNone;
-      const AParams: string = '');
-    destructor Destroy; override;
-
-    procedure Load(const AFileName: string);
-    procedure Save(const AFileName: string);
-    function AddChild: TLayoutX;
-    procedure Add(const AChild: TLayoutX);
-
-
-    property UIParams: string read FUIParams write FUIParams;
-
-
-    property Padding: TLayoutPadding read FPadding;
-    property Constraints: TLayoutConstraints read FConstraints;
-    property Color: TAlphaColor read FColor write FColor;
-    property Font: TLayoutFont read FFont;
-    property State: TViewState read FState write FState;
-    property TabStop: Boolean read FTabStop write FTabStop;
-    property TabOrder: Integer read FTabOrder write FTabOrder;
-
-    property Alignment: TAlignment read FAlignment write FAlignment;
-    property PageStyle: TPageStyle read FPageStyle write FPageStyle;
-    property PagePosition: TPagePosition read FPagePosition write FPagePosition;
-    property PageHeight: Integer read FPageHeight write FPageHeight;
-    property PageWidth: Integer read FPageWidth write FPageWidth;
-    property HidePages: Boolean read FHidePages write FHidePages;
-    property BevelInner: TLayoutBevelKind read FBevelInner write FBevelInner;
-    property BevelOuter: TLayoutBevelKind read FBevelOuter write FBevelOuter;
-    property BorderStyle: TLayoutBorderStyle read FBorderStyle write FBorderStyle;
-    property ParentBackground: Boolean read FParentBackground write FParentBackground;
-    property AutoSize: Boolean read FAutoSize write FAutoSize;
-    property Transparent: Boolean read FTransparent write FTransparent;
-    property WordWrap: Boolean read FWordWrap write FWordWrap;
-    property Picture: TStream read FPicture write SetPictureStream;
-    property Stretch: Boolean read FStretch write FStretch;
-    property Proportional: Boolean read FProportional write FProportional;
-    property BevelStyle: TLayoutBevelStyle read FBevelStyle write FBevelStyle;
-    property BevelShape: TLayoutBevelShape read FBevelShape write FBevelShape;
-    property Cursor: Integer read FCursor write FCursor;
-
-    property Kind: TLayoutKind read FLayoutKind;
-    property ViewType: TLayoutViewType read FViewType write FViewType;
-    property StyleName: string read FStyleName write FStyleName;
-    property Params: string read FParams write FParams;
-
-    property ChildLayoutName: string read FChildLayoutName write FChildLayoutName;
-    property TargetWorkAreaName: string read FTargetWorkAreaName write FTargetWorkAreaName;
-    property TargetLayoutName: string read FTargetLayoutName write FTargetLayoutName;
-    property TargetViewName: string read FTargetViewName write FTargetViewName;
-
-    property Items: TObjectList<TLayoutX> read FItems;
-    property Menu: TNavigationItem read FMenu write FMenu;
   end;
 
 const
@@ -704,407 +577,6 @@ begin
   finally
     vStrStream.Free;
   end;
-end;
-
-{ TLayoutX }
-
-procedure TLayoutX.Add(const AChild: TLayoutX);
-begin
-  AChild.FParent := Self;
-  FItems.Add(AChild);
-end;
-
-function TLayoutX.AddChild: TLayoutX;
-begin
-  Result := TLayoutX.Create(Self);
-  FItems.Add(Result);
-end;
-
-constructor TLayoutX.Create(const AParent: TLayoutX; const ALayoutKind: TLayoutKind = lkNone; const AParams: string = '');
-var
-  vParams: TStrings;
-begin
-  inherited Create;
-
-  FParent := AParent;
-  FLayoutKind := ALayoutKind;
-  FItems := TObjectList<TLayoutX>.Create;
-
-  FMargins := TLayoutMargins.Create;
-  FPadding := TLayoutPadding.Create;
-  FFont := TLayoutFont.Create;
-  FConstraints := TLayoutConstraints.Create;
-
-  FViewType := lvtPanel;
-  FName := '';
-  FCaption := '';
-  FUIParams := '';
-  FHint := '';
-  FShowCaption := False;
-  FShowHint := False;
-  FImageIndex := -1;
-  FTag := 0;
-
-  // Размеры и расположение
-  FLeft := 0;
-  FTop := 0;
-  FWidth := 0;
-  FHeight := 0;
-  FAlign := lalNone;
-  FAnchors := [TAnchorKind.akLeft, TAnchorKind.akTop];
-  FAlignWithMargins := False;
-
-  FState := vsFullAccess;
-  FDoubleBuffered := False;
-  FTabStop := True;
-  FTabOrder := 0;
-
-  FColor := 0;
-  FAlignment := TAlignment.taLeftJustify;
-
-  FPageStyle := psTabs;
-  FPagePosition := ppTop;
-  FPageHeight := 0;
-  FPageWidth := 0;
-  FHidePages := False;
-
-  FBevelInner := lbkNone;
-  FBevelOuter := lbkNone;
-  FBorderStyle := lbsNone;
-  FParentBackground := False;
-
-  FAutoSize := False;
-  FTransparent := False;
-  FWordWrap := False;
-
-  FPicture := nil;
-  FStretch := False;
-  FProportional := False;
-
-  FBevelStyle := lbsLowered;
-  FBevelShape := lbsBox;
-  FCursor := crDefault;
-  FParams := AParams;
-
-  FStyleName := '';
-  FChildLayoutName := '';
-  FTargetWorkAreaName := '';
-  FTargetLayoutName := '';
-  FTargetViewName := '';
-
-  {case ALayoutKind of
-    lkPage: begin
-      FClass := 'TTabSheet';
-      FTag := 11;
-      FAlign := 5;
-      Include(FAnchors, TAnchorKind.akRight);
-      Include(FAnchors, TAnchorKind.akBottom);
-      FVisible := False;
-      FColor := $FF000005;
-      StoreBoolean('ShowHint', True);
-    end;
-    lkPanel: begin
-      FClass := 'TPanel';
-      FWidth := 185;
-      FHeight := 41;
-      StoreInteger('BevelOuter', 0);
-      StoreInteger('BevelInner', 0);
-      StoreInteger('BevelKind', 0);
-      StoreBoolean('ParentBackground', True);
-      StoreInteger('Alignment', 2);
-      StoreBoolean('ShowCaption', True);
-      StoreBoolean('ShowHint', False);
-    end; }
-
-  vParams := CreateDelimitedList(AParams);
-  try
-    case ALayoutKind of
-      lkPanel: begin
-          FBevelInner := lbkNone;
-          FBevelOuter := lbkNone;
-        end;
-      lkPage: begin
-          FCaption := vParams.Values['Caption'];
-          FImageIndex := StrToIntDef(vParams.Values['ImageIndex'], -1);
-          FName := vParams.Values['Name'];
-          FTag := 11;
-        end;
-    end;
-  finally
-    FreeAndNil(vParams);
-  end;
-
-
-end;
-
-destructor TLayoutX.Destroy;
-begin
-  FreeAndNil(FFont);
-  FreeAndNil(FMargins);
-  FreeAndNil(FPadding);
-  FreeAndNil(FConstraints);
-  FreeAndNil(FItems);
-  FreeAndNil(FMenu);
-  FreeAndNil(FPicture);
-
-  inherited Destroy;
-end;
-
-procedure TLayoutX.InternalLoad(const AJSON: TJSONObject);
-var
-  vAnchors: TStrings;
-  vAnchorKind: TAnchorKind;
-  jChildren: TJSONArray;
-  vChild: TLayoutX;
-  i: Integer;
-begin
-  FLayoutKind := StrToLayoutKind(AJSON.ExtractString('kind'));
-  FViewType := StrToViewType(AJSON.ExtractString('view_type'));
-
-  FName := AJSON.ExtractString('name');
-  FTag := AJSON.ExtractInteger('tag');
-  FCaption := AJSON.ExtractString('caption');
-  FShowCaption := AJSON.ExtractBoolean('show_caption');
-  FHint := AJSON.ExtractString('hint');
-  FShowHint := AJSON.ExtractBoolean('show_hint');
-  FImageIndex := AJSON.ExtractInteger('image_index', -1);
-
-  FUIParams := AJSON.ExtractString('ui_params');
-
-  FLeft := AJSON.ExtractInteger('left');
-  FTop := AJSON.ExtractInteger('top');
-  FWidth := AJSON.ExtractInteger('width');
-  FHeight := AJSON.ExtractInteger('height');
-  FAlign := StrToAlign(AJSON.ExtractString('align'));
-  if AJSON.Contains('margins') then
-    FMargins := TLayoutMargins.Create(AJSON.ExtractObject('margins'))
-  else
-    FMargins := TLayoutMargins.Create(0, 0, 0, 0);
-  FAlignWithMargins := AJSON.ExtractBoolean('align_with_margins');
-  if AJSON.Contains('padding') then
-    FPadding := TLayoutPadding.Create(AJSON.ExtractObject('padding'))
-  else
-    FPadding := TLayoutPadding.Create(0, 0, 0, 0);
-  if AJSON.Contains('constraints') then
-    FConstraints := TLayoutConstraints.Create(AJSON.ExtractObject('constraints'))
-  else
-    FConstraints := TLayoutConstraints.Create(-1, -1, -1, -1);
-  FState := StrToViewState(AJSON.ExtractString('view_state'));
-  FDoubleBuffered := AJSON.ExtractBoolean('double_buffered');
-  FTabOrder := AJSON.ExtractInteger('tab_order');
-  FTabStop := AJSON.ExtractBoolean('tab_stop');
-  FColor := AJSON.ExtractColor('color');
-  if AJSON.Contains('font') then
-    FFont := TLayoutFont.Create(AJSON.ExtractObject('font'))
-  else
-    FFont := TLayoutFont.Create(TColorRec.Black, '', 0, []);
-
-  FAnchors := [];
-  vAnchors := AJSON.ExtractStrings('anchors');
-  if Assigned(vAnchors) then
-  try
-    for vAnchorKind := Low(TAnchorKind) to High(TAnchorKind) do
-      if StrInList(cAnchorKindNames[vAnchorKind], vAnchors) then
-        Include(FAnchors, vAnchorKind);
-  finally
-    FreeAndNil(vAnchors);
-  end;
-
-  FCursor := AJSON.ExtractInteger('cursor');
-  FParams := AJSON.ExtractString('params');
-
-  FStyleName := AJSON.ExtractString('style_name');
-  FChildLayoutName := AJSON.ExtractString('child_layout_name');
-  FTargetWorkAreaName := AJSON.ExtractString('target_workarea_name');
-  FTargetLayoutName := AJSON.ExtractString('target_layout_name');
-  FTargetViewName := AJSON.ExtractString('target_view_name');
-
-  FBorderStyle := StrToBorderStyle(AJSON.ExtractString('border_style'));
-
-  if FLayoutKind = lkPanel then
-  begin
-    FBevelInner := StrToBevelKind(AJSON.ExtractString('bevel_inner'));
-    FBevelOuter := StrToBevelKind(AJSON.ExtractString('bevel_outer'));
-    FParentBackground := AJSON.ExtractBoolean('parent_background');
-  end
-  else if FLayoutKind = lkPages then
-  begin
-    FPageStyle := StrToPageStyle(AJSON.ExtractString('page_style'));
-    FPagePosition := StrToPagePosition(AJSON.ExtractString('page_position'));
-    FPageHeight := AJSON.ExtractInteger('page_height');
-    FPageWidth := AJSON.ExtractInteger('page_width');
-    FHidePages := AJSON.ExtractBoolean('hide_pages');
-  end
-  else if FLayoutKind = lkImage then
-  begin
-    FStretch := AJSON.ExtractBoolean('stretch');
-    FProportional := AJSON.ExtractBoolean('proportional');
-    if AJSON.Contains('picture') then
-      FPicture := TextToBinary(AJSON.ExtractString('picture'))
-    else
-      FPicture := nil;
-  end
-  else if FLayoutKind = lkBevel then
-  begin
-    FBevelStyle := StrToBevelStyle(AJSON.ExtractString('bevel_style'));
-    FBevelShape := StrToBevelShape(AJSON.ExtractString('bevel_shape'));
-  end
-  else if FLayoutKind = lkLabel then
-  begin
-    FAutoSize := AJSON.ExtractBoolean('auto_size');
-    FTransparent := AJSON.ExtractBoolean('transparent');
-    FWordWrap := AJSON.ExtractBoolean('word_wrap');
-  end;
-
-  if AJSON.Contains('menu') then
-    FMenu := TNavigationItem.Create(nil, AJSON.ExtractObject('menu'))
-  else
-    FMenu := nil;
-
-  jChildren := AJSON.ExtractArray('items');
-  if not Assigned(jChildren) or (jChildren.Size = 0) then
-    Exit;
-
-  for i := 0 to jChildren.Size - 1 do
-  begin
-    vChild := AddChild;
-    vChild.InternalLoad(TJSONObject(jChildren.Get(i)));
-  end;
-end;
-
-function TLayoutX.InternalSave: TJSONObject;
-var
-  vAnchors: TStrings;
-  vAnchorKind: TAnchorKind;
-  jChildren: TJSONArray;
-  i: Integer;
-begin
-  Result := TJSONObject.Create;
-
-  Result.StoreString('kind', cLayoutKindNames[FLayoutKind]);
-  Result.StoreString('view_type', cViewTypeNames[FViewType]);
-
-  Result.StoreString('name', FName);
-  Result.StoreInteger('tag', FTag);
-  Result.StoreString('caption', FCaption);
-  Result.StoreBoolean('show_caption', FShowCaption);
-  Result.StoreString('hint', FHint);
-  Result.StoreBoolean('show_hint', FShowHint);
-  Result.StoreInteger('image_index', FImageIndex);
-
-  Result.StoreString('ui_params', FUIParams);
-
-  Result.StoreInteger('left', FLeft);
-  Result.StoreInteger('top', FTop);
-  Result.StoreInteger('width', FWidth);
-  Result.StoreInteger('height', FHeight);
-  Result.StoreString('align', cAlignNames[FAlign]);
-  Result.AddPair('margins', FMargins.InternalSave);
-  Result.StoreBoolean('align_with_margins', FAlignWithMargins);
-  Result.AddPair('padding', FPadding.InternalSave);
-  Result.AddPair('constraints', FConstraints.InternalSave);
-  Result.StoreString('view_state', ViewStateToStr(FState));
-  Result.StoreBoolean('double_buffered', FDoubleBuffered);
-  Result.StoreInteger('tab_order', FTabOrder);
-  Result.StoreBoolean('tab_stop', FTabStop);
-  Result.StoreColor('color', FColor);
-  Result.AddPair('font', FFont.InternalSave);
-
-  vAnchors := TStringList.Create;
-  try
-    for vAnchorKind := Low(TAnchorKind) to High(TAnchorKind) do
-      if vAnchorKind in FAnchors then
-        vAnchors.Add(cAnchorKindNames[vAnchorKind]);
-    Result.StoreStrings('anchors', vAnchors);
-  finally
-    FreeAndNil(vAnchors);
-  end;
-
-  Result.StoreInteger('cursor', FCursor);
-  Result.StoreString('params', FParams);
-  Result.StoreString('border_style', cBorderStyleNames[FBorderStyle]);
-
-  Result.StoreString('style_name', FStyleName);
-  Result.StoreString('child_layout_name', FChildLayoutName);
-  Result.StoreString('target_workarea_name', FTargetWorkAreaName);
-  Result.StoreString('target_layout_name', FTargetLayoutName);
-  Result.StoreString('target_view_name', FTargetViewName);
-
-  if FLayoutKind = lkPanel then
-  begin
-    Result.StoreString('bevel_inner', cBevelKindNames[FBevelInner]);
-    Result.StoreString('bevel_outer', cBevelKindNames[FBevelOuter]);
-    Result.StoreBoolean('parent_background', FParentBackground);
-  end
-  else if FLayoutKind = lkPages then
-  begin
-    Result.StoreString('page_style', cPageStyleNames[FPageStyle]);
-    Result.StoreString('page_position', cPagePositionNames[FPagePosition]);
-    Result.StoreInteger('page_height', FPageHeight);
-    Result.StoreInteger('page_width', FPageWidth);
-    Result.StoreBoolean('hide_pages', FHidePages);
-  end
-  else if FLayoutKind = lkImage then
-  begin
-    Result.StoreBoolean('stretch', FStretch);
-    Result.StoreBoolean('proportional', FProportional);
-    if Assigned(FPicture) then
-      Result.StoreString('picture', BinaryToText(FPicture));
-  end
-  else if FLayoutKind = lkBevel then
-  begin
-    Result.StoreString('bevel_style', cBevelStyleNames[FBevelStyle]);
-    Result.StoreString('bevel_shape', cBevelShapeNames[FBevelShape]);
-  end
-  else if FLayoutKind = lkLabel then
-  begin
-    Result.StoreBoolean('auto_size', FAutoSize);
-    Result.StoreBoolean('transparent', FTransparent);
-    Result.StoreBoolean('word_wrap', FWordWrap);
-  end;
-
-  if Assigned(FMenu) then
-    Result.AddPair('menu', FMenu.InternalSave);
-
-  if FItems.Count = 0 then
-    Exit;
-
-  jChildren := TJSONArray.Create;
-  for i := 0 to FItems.Count - 1 do
-    jChildren.Add(FItems[i].InternalSave);
-
-  Result.AddPair('items', jChildren);
-end;
-
-procedure TLayoutX.Load(const AFileName: string);
-var
-  jLayout: TJSONObject;
-begin
-  jLayout := TJSONObject.LoadFromFile(AFileName);
-  try
-    InternalLoad(jLayout);
-  finally
-    FreeAndNil(jLayout);
-  end;
-end;
-
-procedure TLayoutX.Save(const AFileName: string);
-var
-  jLayout: TJSONObject;
-begin
-  jLayout := InternalSave;
-  try
-    jLayout.SaveToFile(AFileName);
-  finally
-    FreeAndNil(jLayout);
-  end;
-end;
-
-procedure TLayoutX.SetPictureStream(const Value: TStream);
-begin
-  if Assigned(FPicture) then
-    FreeAndNil(FPicture);
-  FPicture := Value;
 end;
 
 { TLayoutEdges }
@@ -1473,6 +945,11 @@ begin
   FTop := 0;
   FWidth := (vRealColumnCount * (cDefaultColumnWidth + cBetweenColumns) - cBetweenColumns) + cBorder*2;
   FHeight := vRealMaxHeightInColumn + cBorder * 2 + 8;
+
+  FConstraints.MinWidth := FWidth;
+  FConstraints.MaxWidth := FWidth;
+  FConstraints.MinHeight := FHeight;
+  FConstraints.MaxHeight := FHeight;
 end;
 
 constructor TLayout.Create(const AKind: TLayoutKind; const AIsOwner: Boolean = False);
@@ -1491,8 +968,7 @@ begin
   FTop := 0;
   FWidth := 0;
   FHeight := 0;
-  FAnchors := [];
-  FAlignWithMargins := False;
+  FAnchors := [TAnchorKind.akLeft, TAnchorKind.akTop];
   FAlign := lalNone;
   FMargins := TLayoutMargins.Create;
   FPadding := TLayoutPadding.Create;
@@ -1555,10 +1031,6 @@ begin
   FreeAndNil(FContentLayout);
   FreeAndNil(FItems);
   FreeAndNil(FUrlParser);
-  if FIsOwner then
-    FreeAndNil(FControl)
-  else
-    FControl := nil;
   FreeAndNil(FMenu);
   inherited Destroy;
 end;
@@ -1657,17 +1129,246 @@ begin
 end;
 
 procedure TLayout.InternalLoad(const AJSON: TJSONObject);
+var
+  vAnchors: TStrings;
+  vAnchorKind: TAnchorKind;
+  jChildren: TJSONArray;
+  vChild: TLayout;
+  i: Integer;
 begin
+  FKind := StrToLayoutKind(AJSON.ExtractString('kind'));
+  //FViewType := StrToViewType(AJSON.ExtractString('view_type'));
+
+  FName := AJSON.ExtractString('name');
+  FTag := AJSON.ExtractInteger('tag');
+  FCaption := AJSON.ExtractString('caption');
+  FShowCaption := AJSON.ExtractBoolean('show_caption');
+  FHint := AJSON.ExtractString('hint');
+  FImageID := AJSON.ExtractInteger('image_index', -1);
+
+  FUIParams := AJSON.ExtractString('ui_params');
+
+  FLeft := AJSON.ExtractInteger('left');
+  FTop := AJSON.ExtractInteger('top');
+  FWidth := AJSON.ExtractInteger('width');
+  FHeight := AJSON.ExtractInteger('height');
+  FAlign := StrToAlign(AJSON.ExtractString('align'));
+  if AJSON.Contains('margins') then
+    FMargins := TLayoutMargins.Create(AJSON.ExtractObject('margins'))
+  else
+    FMargins := TLayoutMargins.Create(0, 0, 0, 0);
+  if AJSON.Contains('padding') then
+    FPadding := TLayoutPadding.Create(AJSON.ExtractObject('padding'))
+  else
+    FPadding := TLayoutPadding.Create(0, 0, 0, 0);
+  if AJSON.Contains('constraints') then
+    FConstraints := TLayoutConstraints.Create(AJSON.ExtractObject('constraints'))
+  else
+    FConstraints := TLayoutConstraints.Create(-1, -1, -1, -1);
+  FState := StrToViewState(AJSON.ExtractString('view_state'));
+  FTabOrder := AJSON.ExtractInteger('tab_order');
+  FTabStop := AJSON.ExtractBoolean('tab_stop');
+  FColor := AJSON.ExtractColor('color');
+  if AJSON.Contains('font') then
+    FFont := TLayoutFont.Create(AJSON.ExtractObject('font'))
+  else
+    FFont := TLayoutFont.Create(TColorRec.Black, '', 0, []);
+
+  FAnchors := [];
+  vAnchors := AJSON.ExtractStrings('anchors');
+  if Assigned(vAnchors) then
+  try
+    for vAnchorKind := Low(TAnchorKind) to High(TAnchorKind) do
+      if StrInList(cAnchorKindNames[vAnchorKind], vAnchors) then
+        Include(FAnchors, vAnchorKind);
+  finally
+    FreeAndNil(vAnchors);
+  end;
+
+  FCursor := AJSON.ExtractInteger('cursor');
+  FParams := AJSON.ExtractString('params');
+
+  //FStyleName := AJSON.ExtractString('style_name');
+  //FChildLayoutName := AJSON.ExtractString('child_layout_name');
+  //FTargetWorkAreaName := AJSON.ExtractString('target_workarea_name');
+  //FTargetLayoutName := AJSON.ExtractString('target_layout_name');
+  //FTargetViewName := AJSON.ExtractString('target_view_name');
+
+  FBorderStyle := StrToBorderStyle(AJSON.ExtractString('border_style'));
+
+  if FKind = lkPanel then
+  begin
+    FBevelInner := StrToBevelKind(AJSON.ExtractString('bevel_inner'));
+    FBevelOuter := StrToBevelKind(AJSON.ExtractString('bevel_outer'));
+  end
+  else if FKind = lkPages then
+  begin
+    FPage_Style := StrToPageStyle(AJSON.ExtractString('page_style'));
+    FPage_Position := StrToPagePosition(AJSON.ExtractString('page_position'));
+    FPage_Height := AJSON.ExtractInteger('page_height');
+    FPage_Width := AJSON.ExtractInteger('page_width');
+  end
+  else if FKind = lkImage then
+  begin
+    FImage_Stretch := AJSON.ExtractBoolean('stretch');
+    FImage_Proportional := AJSON.ExtractBoolean('proportional');
+    if AJSON.Contains('picture') then
+      FImage_Picture := TextToBinary(AJSON.ExtractString('picture'))
+    else
+      FImage_Picture := nil;
+  end
+  else if FKind = lkBevel then
+  begin
+    FBevel_Style := StrToBevelStyle(AJSON.ExtractString('bevel_style'));
+    FBevel_Shape := StrToBevelShape(AJSON.ExtractString('bevel_shape'));
+  end
+  else if FKind = lkLabel then
+  begin
+    FAutoSize := AJSON.ExtractBoolean('auto_size');
+    FTransparent := AJSON.ExtractBoolean('transparent');
+    FWordWrap := AJSON.ExtractBoolean('word_wrap');
+  end;
+
+  if AJSON.Contains('menu') then
+    FMenu := TNavigationItem.Create(nil, AJSON.ExtractObject('menu'))
+  else
+    FMenu := nil;
+
+  jChildren := AJSON.ExtractArray('items');
+  if not Assigned(jChildren) or (jChildren.Size = 0) then
+    Exit;
+
+  for i := 0 to jChildren.Size - 1 do
+  begin
+    vChild := TLayout.Create(lkNone);
+    Add(vChild);
+    vChild.InternalLoad(TJSONObject(jChildren.Get(i)));
+  end;
 end;
 
 function TLayout.InternalSave: TJSONObject;
+var
+  vAnchors: TStrings;
+  vAnchorKind: TAnchorKind;
+  jChildren: TJSONArray;
+  i: Integer;
 begin
   Result := TJSONObject.Create;
+
+  Result.StoreString('kind', cLayoutKindNames[FKind]);
+  //Result.StoreString('view_type', cViewTypeNames[FViewType]);
+
+  Result.StoreString('name', FName);
+  Result.StoreInteger('tag', FTag);
+  Result.StoreString('caption', FCaption);
+  Result.StoreBoolean('show_caption', FShowCaption);
+  Result.StoreString('hint', FHint);
+  //Result.StoreBoolean('show_hint', FShowHint);
+  Result.StoreInteger('image_index', FImageID);
+
+  Result.StoreString('ui_params', FUIParams);
+
+  Result.StoreInteger('left', FLeft);
+  Result.StoreInteger('top', FTop);
+  Result.StoreInteger('width', FWidth);
+  Result.StoreInteger('height', FHeight);
+  Result.StoreString('align', cAlignNames[FAlign]);
+  Result.AddPair('margins', FMargins.InternalSave);
+  Result.AddPair('padding', FPadding.InternalSave);
+  Result.AddPair('constraints', FConstraints.InternalSave);
+  Result.StoreString('view_state', ViewStateToStr(FState));
+  //Result.StoreBoolean('double_buffered', FDoubleBuffered);
+  Result.StoreInteger('tab_order', FTabOrder);
+  Result.StoreBoolean('tab_stop', FTabStop);
+  Result.StoreColor('color', FColor);
+  Result.AddPair('font', FFont.InternalSave);
+
+  vAnchors := TStringList.Create;
+  try
+    for vAnchorKind := Low(TAnchorKind) to High(TAnchorKind) do
+      if vAnchorKind in FAnchors then
+        vAnchors.Add(cAnchorKindNames[vAnchorKind]);
+    Result.StoreStrings('anchors', vAnchors);
+  finally
+    FreeAndNil(vAnchors);
+  end;
+
+  Result.StoreInteger('cursor', FCursor);
+  Result.StoreString('params', FParams);
+  Result.StoreString('border_style', cBorderStyleNames[FBorderStyle]);
+
+  //Result.StoreString('style_name', FStyleName);
+  //Result.StoreString('child_layout_name', FChildLayoutName);
+  //Result.StoreString('target_workarea_name', FTargetWorkAreaName);
+  //Result.StoreString('target_layout_name', FTargetLayoutName);
+  //Result.StoreString('target_view_name', FTargetViewName);
+
+  if FKind = lkPanel then
+  begin
+    Result.StoreString('bevel_inner', cBevelKindNames[FBevelInner]);
+    Result.StoreString('bevel_outer', cBevelKindNames[FBevelOuter]);
+  end
+  else if FKind = lkPages then
+  begin
+    Result.StoreString('page_style', cPageStyleNames[FPage_Style]);
+    Result.StoreString('page_position', cPagePositionNames[FPage_Position]);
+    Result.StoreInteger('page_height', FPage_Height);
+    Result.StoreInteger('page_width', FPage_Width);
+  end
+  else if FKind = lkImage then
+  begin
+    Result.StoreBoolean('stretch', FImage_Stretch);
+    Result.StoreBoolean('proportional', FImage_Proportional);
+    if Assigned(FImage_Picture) then
+      Result.StoreString('picture', BinaryToText(FImage_Picture));
+  end
+  else if FKind = lkBevel then
+  begin
+    Result.StoreString('bevel_style', cBevelStyleNames[FBevel_Style]);
+    Result.StoreString('bevel_shape', cBevelShapeNames[FBevel_Shape]);
+  end
+  else if FKind = lkLabel then
+  begin
+    Result.StoreBoolean('auto_size', FAutoSize);
+    Result.StoreBoolean('transparent', FTransparent);
+    Result.StoreBoolean('word_wrap', FWordWrap);
+  end;
+
+  if Assigned(FMenu) then
+    Result.AddPair('menu', FMenu.InternalSave);
+
+  if FItems.Count = 0 then
+    Exit;
+
+  jChildren := TJSONArray.Create;
+  for i := 0 to FItems.Count - 1 do
+    jChildren.Add(FItems[i].InternalSave);
+
+  Result.AddPair('items', jChildren);
 end;
 
-procedure TLayout.Save(const AParent: TJSONObject; const AName: string);
+procedure TLayout.Load(const AFileName: string);
+var
+  jLayout: TJSONObject;
 begin
-  AParent.AddPair(AName, InternalSave);
+  jLayout := TJSONObject.LoadFromFile(AFileName);
+  try
+    InternalLoad(jLayout);
+  finally
+    FreeAndNil(jLayout);
+  end;
+end;
+
+procedure TLayout.Save(const AFileName: string);
+var
+  jLayout: TJSONObject;
+begin
+  jLayout := InternalSave;
+  try
+    jLayout.SaveToFile(AFileName);
+  finally
+    FreeAndNil(jLayout);
+  end;
 end;
 
 procedure TLayout.SetContentLayout(const Value: TLayout);
@@ -1684,6 +1385,14 @@ procedure TLayout.SetMenu(const Value: TNavigationItem);
 begin
   FMenu := Value;
   FMenu.FOwner := Self;
+end;
+
+procedure TLayout.SetParams(const Value: string);
+begin
+  if (FParams <> '') and (FParams <> Value) then
+    Assert(False, 'Не пустые параметры: ' + FParams)
+  else
+    FParams := Value;
 end;
 
 procedure TLayout.SetPictureStream(const Value: TStream);

@@ -232,8 +232,8 @@ type
     procedure DoExecuteUIAction(const AView: TView); override;
     procedure SetPopupArea(const APopupArea: TUIArea); override;
   public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+    constructor Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
+      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -328,8 +328,8 @@ type
     procedure DoExecuteUIAction(const AView: TView); override;
     procedure SetPopupArea(const APopupArea: TUIArea); override;
   public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+    constructor Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
+      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -389,8 +389,8 @@ type
     procedure DoExecuteUIAction(const AView: TView); override;
     procedure SetPopupArea(const APopupArea: TUIArea); override;
   public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+    constructor Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
+      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -1235,8 +1235,8 @@ begin
   vMenuItem.Caption := TInteractor(Interactor).Translate('txtRecordCount', 'Записей') + ': ' + IntToStr(FAllData.Count);
 end;
 
-constructor TCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
+constructor TCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+  const AId: string; const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = '');
 var
   vDefinition: TDefinition;
   vView: TView;
@@ -1297,7 +1297,7 @@ begin
 //  FGrid.Levels.Add.GridView := FChartView;
   FGrid.Font.Size := 12;
 
-  inherited Create(AParent, AView, AId, AIsService, FGrid, ALayout, AParams);
+  inherited Create(AParent, AView, ALayout, AId, AIsService, FGrid, AParams);
 
   // after inherited Create, Interactor must be initialized
   cxSetResourceString(@scxGridGroupByBoxCaption, TInteractor(Interactor).Translate('txtMoveColumnForGrouping',
@@ -3194,8 +3194,8 @@ begin
   vMenuItem.Caption := TInteractor(Interactor).Translate('txtRecordCount', 'Записей') + ': ' + IntToStr(FAllData.Count);
 end;
 
-constructor TPivotGrid.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
+constructor TPivotGrid.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+  const AId: string; const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = '');
 begin
   FPivot := TcxPivotGrid.Create(nil);
   FId := 'Pivot';
@@ -3267,7 +3267,7 @@ begin
   cxSetResourceString(@scxPrefilterIsEmpty, '<Фильтр не задан>');
   cxSetResourceString(@scxPrefilterCustomizeButtonCaption, 'Фильтрация...');
 
-  inherited Create(AParent, AView, AId, AIsService, FPivot, ALayout, AParams);
+  inherited Create(AParent, AView, ALayout, AId, AIsService, FPivot, AParams);
 
   FAllData := TEntityList(AView.DomainObject);
   FMasterDS := TPivotDataSource.Create;
@@ -3499,8 +3499,8 @@ begin
   end;
 end;
 
-constructor TTreeCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
+constructor TTreeCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+  const AId: string; const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = '');
 var
   vFields: string;
 begin
@@ -3547,7 +3547,7 @@ begin
 
   FTreeList.Font.Size := 12;
 
-  inherited Create(AParent, AView, AId, AIsService, FTreeList, ALayout, AParams);
+  inherited Create(AParent, AView, ALayout, AId, AIsService, FTreeList, AParams);
 
   FAllData := TEntityList(FView.DomainObject);
 
@@ -4237,7 +4237,6 @@ var
   vLayout: TLayout;
   vTabArea, vArea: TUIArea;
   vView: TView;
-  vTabParams: string;
 begin
   if FInUpdate then Exit;
 
@@ -4256,22 +4255,17 @@ begin
 
     for i := 0 to vSelectedList.Count - 1 do
     begin
+      vLayout := FUIBuilder.CreateSimpleLayout(lkPage);
       if FCreateParams.Values['DisplayName'] = '' then
-        vTabParams := 'caption=' + vSelectedList[i].DisplayName
+        vLayout.Caption := vSelectedList[i].DisplayName
       else
-        vTabParams := 'caption=' + vSelectedList[i][FCreateParams.Values['DisplayName']];
-
-      vLayout := FUIBuilder.CreateSimpleLayout(lkPage, vTabParams);
-      try
-        vLayout.Tag := 0;
-        vView := FView.BuildView(IntToStr(i));
-        vView.AddListener(Self);
-        FCreatedViews.Add(vView);
-        vTabArea := CreateChildArea(vView, vLayout, '');
-        TInteractor(Interactor).UIBuilder.ApplyLayout(vTabArea, vView, FCreateParams.Values['layout'], '');
-      finally
-        //vTab.Free;
-      end;
+        vLayout.Caption := vSelectedList[i][FCreateParams.Values['DisplayName']];
+      vLayout.Tag := 0;
+      vView := FView.BuildView(IntToStr(i));
+      vView.AddListener(Self);
+      FCreatedViews.Add(vView);
+      vTabArea := CreateChildArea(vView, vLayout, '');
+      TInteractor(Interactor).UIBuilder.ApplyLayout(vTabArea, vView, FCreateParams.Values['layout'], '');
     end;
 //    FPages.Properties.HideTabs := FPages.PageCount < 2;
   finally

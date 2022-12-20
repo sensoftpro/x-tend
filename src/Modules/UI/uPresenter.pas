@@ -252,9 +252,8 @@ type
     procedure Logout(const AInteractor: TInteractor);
 
     function CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView; const AAreaName: string;
-      const ACallback: TNotifyEvent = nil; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; virtual;
+      const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; virtual;
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; virtual;
-    procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); virtual;
     function CreateFilledArea(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
       const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''): TUIArea; virtual;
 
@@ -279,7 +278,6 @@ type
     function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
     function CreateTempControl: TObject; virtual; abstract;
-    function AppendServiceArea(const AParent: TUIArea): TUIArea; virtual; abstract;
     function CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea; virtual; abstract;
 
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
@@ -341,10 +339,6 @@ begin
   end;
 end;
 
-procedure TPresenter.CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea);
-begin
-end;
-
 constructor TPresenter.Create(const AName: string; const ASettings: TSettings);
 var
   vStyleName: string;
@@ -368,7 +362,7 @@ var
 begin
   vActionAreaClass := TUIAreaClass(GetUIClass(FName, uiAction, AStyleName));
 
-  Result := vActionAreaClass.Create(AParentArea, AView, 'Action', False, nil, ALayout, AParams);
+  Result := vActionAreaClass.Create(AParentArea, AView, ALayout, 'Action', False, nil, AParams);
 end;
 
 function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TLayout; const AView: TView; const AStyleName,
@@ -382,7 +376,7 @@ begin
 
   vCollectionAreaClass := TUIAreaClass(GetUIClass(FName, uiCollection, AStyleName));
 
-  Result := vCollectionAreaClass.Create(AParentArea, AView, 'List', False, nil, ALayout, AParams);
+  Result := vCollectionAreaClass.Create(AParentArea, AView, ALayout, 'List', False, nil, AParams);
 end;
 
 function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TLayout;
@@ -409,13 +403,13 @@ begin
   else
     vParams := vParams + '&' + AParams;
 
-  Result := vFieldAreaClass.Create(AParentArea, AView, '', False, nil, ALayout, vParams);
+  Result := vFieldAreaClass.Create(AParentArea, AView, ALayout, '', False, nil, vParams);
 end;
 
 function TPresenter.CreateFilledArea(const AParent: TUIArea; const AView: TView; const AId: string;
   const AIsService: Boolean; const AControl: TObject; const ALayout: TLayout; const AParams: string): TUIArea;
 begin
-  Result := TUIArea.Create(AParent, AView, AId, AIsService, nil, ALayout, AParams);
+  Result := TUIArea.Create(AParent, AView, ALayout, AId, AIsService, nil, AParams);
   Result.SetControl(AControl);
 end;
 
@@ -458,7 +452,7 @@ var
 begin
   vNavigationAreaClass := TUIAreaClass(GetUIClass(FName, uiNavigation, AStyleName));
   if Assigned(vNavigationAreaClass) then
-    Result := vNavigationAreaClass.Create(AParentArea, AView, 'Navigation', False, nil, ALayout, AParams)
+    Result := vNavigationAreaClass.Create(AParentArea, AView, ALayout, 'Navigation', False, nil, AParams)
   else
     Result := nil;
 
@@ -466,7 +460,7 @@ begin
 end;
 
 function TPresenter.CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
-  const AAreaName: string; const ACallback: TNotifyEvent = nil; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea;
+  const AAreaName: string; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea;
 begin
   Result := nil;
 end;

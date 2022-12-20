@@ -1361,7 +1361,7 @@ const
       Exit;
 
     AInteractor.UIBuilder.Navigate(AInteractor.GetViewOfEntity(AEntity),
-      'WorkArea', '', '', AParentHolder, nil, AEntity.DisplayName);
+      'WorkArea', '', '', AParentHolder, AEntity.DisplayName);
   end;
 
   procedure InternalAdd(const AEntityList: TEntityList);

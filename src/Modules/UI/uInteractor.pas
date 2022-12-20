@@ -281,7 +281,7 @@ begin
     Exit;
   end;
 
-  Result := FUIBuilder.Navigate(AView, 'child', ALayoutName, 'operation=edit', AHolder, nil, ACaption) = drOk;
+  Result := FUIBuilder.Navigate(AView, 'child', ALayoutName, 'operation=edit', AHolder, ACaption) = drOk;
 end;
 
 procedure TInteractor.ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);

@@ -153,8 +153,6 @@ type
     function _CreateNativeControl(const ALayout: TLayout; const AView: TView; const AControlType: TUIItemType;
       const AParams: string = ''): TNativeControl;
 
-    function AppendServiceArea: TUIArea;
-
     function GetAreaByView(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
     procedure Clear;
     procedure ClearContent;
@@ -211,8 +209,8 @@ type
 
     function NativeControlClass: TNativeControlClass;
   public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); virtual;
+    constructor Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
+      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''); virtual;
     destructor Destroy; override;
 
     // Полная очистка и удаление
@@ -288,18 +286,8 @@ type
 
     function GetFormat: string;
   public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
-  end;
-
-  TActionArea = class(TUIArea)
-  protected
-    FParams: string;
-  public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
-
-    property ActionParams: string read FParams write FParams;
+    constructor Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
+      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''); override;
   end;
 
   TNavigationArea = class(TUIArea)
@@ -316,8 +304,8 @@ type
       const ALevel: Integer); virtual;
     function TryCreatePopupArea(const ALayout: TLayout): TUIArea; override;
   public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''); override;
+    constructor Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
+      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''); override;
     destructor Destroy; override;
 
     procedure ProcessChilds;
@@ -350,11 +338,11 @@ type
     procedure ApplyLayout(const AArea: TUIArea; const AView: TView; const ALayoutName: string; const AParams: string);
 
     function Navigate(const AView: TView; const AAreaName, ALayoutName: string;
-      const AOptions: string = ''; const AChangeHolder: TObject = nil; const ACallback: TNotifyEvent = nil;
-      const ACaption: string = ''; const AOnClose: TProc = nil): TDialogResult;
+      const AOptions: string = ''; const AChangeHolder: TObject = nil; const ACaption: string = '';
+      const AOnClose: TProc = nil): TDialogResult;
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
 
-    function CreateSimpleLayout(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout;
+    function CreateSimpleLayout(const ALayoutKind: TLayoutKind): TLayout;
     procedure CreateChildAreas(const AArea: TUIArea; const ALayout: TLayout; const AParams: string);
     procedure CloseCurrentArea(const AModalResult: Integer);
     procedure PrintHierarchy;
@@ -380,6 +368,9 @@ uses
   StrUtils, IOUtils, UIConsts, Windows, Messages, Variants,
   uPlatform, uPresenter, uInteractor, uConfiguration, uChangeManager,
   uUtils, uDomain, uObjectField, uEntityList;
+
+const
+  cServiceAreaHeight = 44;
 
 { TUIBuilder }
 
@@ -462,9 +453,7 @@ begin
   AArea.AfterChildAreasCreated;
 end;
 
-function TUIBuilder.CreateSimpleLayout(const ALayoutKind: TLayoutKind; const AParams: string): TLayout;
-var
-  vParams: TStrings;
+function TUIBuilder.CreateSimpleLayout(const ALayoutKind: TLayoutKind): TLayout;
 begin
   if not (ALayoutKind in [lkFrame, lkPanel, lkPage]) then
     Exit(nil);
@@ -482,17 +471,9 @@ begin
   end
   else if ALayoutKind = lkPage then
   begin
-    vParams := CreateDelimitedList(AParams);
-    try
-      Result.Caption := vParams.Values['Caption'];
-      Result.ImageID := StrToIntDef(vParams.Values['ImageIndex'], -1);
-      Result.Name := vParams.Values['Name'];
-      Result.State := vsFullAccess;
-      Result.ShowCaption := True;
-      Result.Tag := 11;
-    finally
-      FreeAndNil(vParams);
-    end;
+    Result.State := vsFullAccess;
+    Result.ShowCaption := True;
+    Result.Tag := 11;
   end;
 end;
 
@@ -731,7 +712,7 @@ begin
 end;
 
 function TUIBuilder.Navigate(const AView: TView; const AAreaName, ALayoutName: string;
-  const AOptions: string = ''; const AChangeHolder: TObject = nil; const ACallback: TNotifyEvent = nil;
+  const AOptions: string = ''; const AChangeHolder: TObject = nil;
   const ACaption: string = ''; const AOnClose: TProc = nil): TDialogResult;
 var
   vLayoutName: string;
@@ -740,10 +721,10 @@ var
   vLastCurrentArea: TUIArea;
   vUIArea: TUIArea;
   vTabArea: TUIArea;
+  vServiceLayout: TLayout;
   vServiceArea: TUIArea;
   vView: TView;
   vLayout: TLayout;
-  vTabParams: string;
   vPageID: string;
   vImageID: Integer;
   vDefaultCaption: string;
@@ -787,7 +768,7 @@ begin
   else
     vAreaName := AAreaName;
 
-  vUIArea := TPresenter(FPresenter).CreateUIArea(TInteractor(FInteractor), FCurrentArea, vView, vAreaName, ACallback, ACaption, AOnClose);
+  vUIArea := TPresenter(FPresenter).CreateUIArea(TInteractor(FInteractor), FCurrentArea, vView, vAreaName, ACaption, AOnClose);
   // Главная форма и форма редактирования
   if Assigned(vUIArea) then
   begin
@@ -796,8 +777,6 @@ begin
     try
       if vAreaName = '' then
       begin
-        TPresenter(FPresenter).CloseUIArea(TInteractor(FInteractor), FRootArea, vUIArea);
-
         FRootArea := vUIArea;
         ApplyLayout(vUIArea, vView, vLayoutName, AOptions);
         vIsMainForm := True;
@@ -813,9 +792,12 @@ begin
 
         FCurrentArea.AddArea(vUIArea);
         ApplyLayout(vUIArea, vView, vLayoutName, AOptions);
-        if not Assigned(ACallback) and (vAreaName = 'child') then
+        if vAreaName = 'child' then
         begin
-          vServiceArea := vUIArea.AppendServiceArea;
+          vServiceLayout := CreateSimpleLayout(lkPanel);
+          vServiceLayout.Height := cServiceAreaHeight;
+          vServiceLayout.Align := lalBottom;
+          vServiceArea := vUIArea.DoCreateChildArea(vServiceLayout, FRootView);
           vUIArea.AddArea(vServiceArea);
           if vView.State >= vsSelectOnly {and Assigned(AChangeHolder) - у параметров нет холдера} then
             ApplyLayout(vServiceArea, vUIArea.View, 'OkCancel', '')
@@ -842,16 +824,10 @@ begin
 
     if (vUIArea.QueryParameter('ViewType') = 'Paged') or (vUIArea = FRootArea) then
     begin
+      vImageID := StrToIntDef(GetUrlParam(AOptions, 'ImageID'), -1);
       if Assigned(AView) then
       begin
-        vParams := CreateDelimitedList(AOptions, '&');
-        try
-          vPageID := ExtractValueFromStrings(vParams, 'Cube', '');
-          vImageID := StrToIntDef(ExtractValueFromStrings(vParams, 'ImageID', ''), -1);
-        finally
-          FreeAndNil(vParams);
-        end;
-
+        vPageID := GetUrlParam(AOptions, 'Cube');
         if vPageID <> '' then
           vPageID := ReplaceText(AView.FullName, '/', '_') + '_' + vPageID
         else
@@ -859,53 +835,42 @@ begin
         vPageID := ReplaceText(vPageID, '~', '_');
       end
       else
-      begin
         vPageID := vLayoutName;
-        vImageID := StrToIntDef(GetUrlParam(AOptions, 'ImageID', '-1'), -1);
-      end;
 
       vTabArea := vUIArea.AreaById(vPageID, False);
       if not Assigned(vTabArea) then
       begin
+        vLayout := CreateSimpleLayout(lkPage);
+        vLayout.Name := vPageID;
+        vLayout.ImageID := GetImageID(vImageID);
+
         if vView.DefinitionKind in [dkAction, dkCollection] then
         begin
           if ACaption <> '' then
-            vTabParams := 'Caption=' + ACaption
+            vLayout.Caption := ACaption
           else begin
             vDefaultCaption := GetTranslation(TDefinition(vView.Definition));
             if Assigned(FLastArea) and (FLastArea.View = vView) then
-              vTabParams := 'Caption=' + FLastArea.QueryParameter('Caption', vDefaultCaption)
+              vLayout.Caption := FLastArea.QueryParameter('Caption', vDefaultCaption)
             else
-              vTabParams := 'Caption=' + vDefaultCaption;
+              vLayout.Caption := vDefaultCaption;
           end;
 
-          if vImageID < 0 then
-            vImageID := GetImageID(TDefinition(vView.Definition)._ImageID)
-          else
-            vImageID := GetImageID(vImageID);
-          vTabParams := vTabParams + ';ImageIndex=' + IntToStr(vImageID);
-          vTabParams := vTabParams + ';Name=' + vPageID;
+          if vImageID <= 0 then
+            vLayout.ImageID := GetImageID(TDefinition(vView.Definition)._ImageID);
         end
         else if ACaption <> '' then
-          vTabParams := 'Caption=' + ACaption + ';ImageIndex=' + IntToStr(GetImageID(StrToIntDef(GetUrlParam(AOptions, 'ImageID', '-1'), 0))) + ';Name=' + vPageID
+          vLayout.Caption := ACaption
         else
-          vTabParams := 'Caption=Стартовая страница;ImageIndex=' + IntToStr(GetImageID(StrToIntDef(GetUrlParam(AOptions, 'ImageID', '-1'), 0))) + ';Name=' + vPageID;
+          vLayout.Caption := 'Стартовая страница';
 
-        vLayout := CreateSimpleLayout(lkPage, vTabParams);
-        //vUIArea.Layout := vLayout;
+        vTabArea := vUIArea.CreateChildArea(vView, vLayout, AOptions, AOnClose);
+        vTabArea.BeginUpdate;
         try
-          vTabArea := vUIArea.CreateChildArea(vView, vLayout, AOptions, AOnClose);
-          vTabArea.BeginUpdate;
-          try
-            vTabArea.SetHolder(AChangeHolder);
-            if AOptions <> '' then
-              vTabArea.AddParams(CreateDelimitedList(AOptions, '&'));
-            ApplyLayout(vTabArea, vView, vLayoutName, AOptions);
-          finally
-            vTabArea.EndUpdate;
-          end;
+          vTabArea.SetHolder(AChangeHolder);
+          ApplyLayout(vTabArea, vView, vLayoutName, AOptions);
         finally
-          //vTab.Free;
+          vTabArea.EndUpdate;
         end;
       end;
 
@@ -947,8 +912,7 @@ begin
       vViewName := ExtractValueFromStrings(vParams, 'View');
       vLayoutName := ExtractValueFromStrings(vParams, 'Layout');
       if (vViewName <> '') or (vLayoutName <> '') then
-        Navigate(FRootView.BuildView(vViewName), 'WorkArea',
-          vLayoutName, '', nil, nil, ExtractValueFromStrings(vParams, 'Caption'));
+        Navigate(FRootView.BuildView(vViewName), 'WorkArea', vLayoutName, '', nil, ExtractValueFromStrings(vParams, 'Caption'));
     finally
       FreeAndNil(vParams);
       FDefaultParams := '';
@@ -1019,16 +983,15 @@ begin
     FreeAndNil(FParams);
 
   FParams := AParams;
+  if Assigned(AParams) then
+    FLayout.Params := AParams.DelimitedText
+  else
+    FLayout.Params := '';
 end;
 
 procedure TUIArea.AfterChildAreasCreated;
 begin
   DoAfterChildAreasCreated;
-end;
-
-function TUIArea.AppendServiceArea: TUIArea;
-begin
-  Result := TPresenter(FUIBuilder.Presenter).AppendServiceArea(Self);
 end;
 
 function TUIArea.AreaById(const AId: string; const ARecoursive: Boolean = True): TUIArea;
@@ -1136,8 +1099,8 @@ begin
   FNativeControl.DoClose(AModalResult);
 end;
 
-constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
+constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
+  const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = '');
 var
   vControl: TObject;
 begin
@@ -1184,7 +1147,7 @@ var
   vPos: Integer;
   vQuery: string;
   vCaption: string;
-  vLayout: string;
+  vLayoutName: string;
   vAlreadyAssigned: Boolean;
 begin
   vAlreadyAssigned := False;
@@ -1277,9 +1240,9 @@ begin
     AddArea(Result);
     if not vAlreadyAssigned then
       Result.AssignFromLayout(ALayout, AParams);
-    vLayout := Result.QueryParameter('layout');
+    vLayoutName := Result.QueryParameter('layout');
     vDefaultViewName := Result.QueryParameter('view');
-    if (vLayout <> '') or (vDefaultViewName <> '') then
+    if (vLayoutName <> '') or (vDefaultViewName <> '') then
     begin
       if Pos('WorkArea', Result.UId) = 1 then
       begin
@@ -1288,10 +1251,10 @@ begin
         else
           vDefaultView := nil;
 
-        FUIBuilder.Navigate(vDefaultView, Result.UId, vLayout, Result.QueryParameter('Options'), nil, nil, Result.QueryParameter('Caption'));
+        FUIBuilder.Navigate(vDefaultView, Result.UId, vLayoutName, Result.QueryParameter('Options'), nil, Result.QueryParameter('Caption'));
       end
       else
-        FUIBuilder.ApplyLayout(Result, FView, vLayout, vQuery)
+        FUIBuilder.ApplyLayout(Result, FView, vLayoutName, vQuery)
     end
     else if not vAlreadyAssigned then //#Check!
       FUIBuilder.CreateChildAreas(Result, ALayout, vQuery);
@@ -1933,7 +1896,7 @@ begin
       vLayoutName := 'Collection';
 
     FUIBuilder.Navigate(vView, vWorkArea, vLayoutName, 'operation=opencollection',
-      nil, nil, vNavItem.ContentCaption);
+      nil, vNavItem.ContentCaption);
   end
   else if vView.DefinitionKind in [dkEntity, dkObjectField] then
   begin
@@ -1943,7 +1906,7 @@ begin
 
     vHolder := TUserSession(FView.Session).Edit(nil);
     FUIBuilder.Navigate(vView, vWorkArea, vNavItem.ContentLayout, 'operation=slap',
-      vHolder, nil, vNavItem.ContentCaption);
+      vHolder, vNavItem.ContentCaption);
   end;
 end;
 
@@ -2148,8 +2111,8 @@ begin
   Result := TCanChangeFieldFunc(TDomain(FView.Domain).Configuration.CanChangeFieldFunc)(FView, vEntity, FDefinitionName, GetNewValue);
 end;
 
-constructor TFieldArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-  const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = '');
+constructor TFieldArea.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
+  const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = '');
 begin
   if AView.DefinitionKind in [dkListField, dkObjectField, dkSimpleField, dkComplexField] then
   begin
@@ -2164,7 +2127,7 @@ begin
   FId := FDefinitionName;
   FUId := FDefinitionName;
 
-  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
+  inherited Create(AParent, AView, ALayout, AId, AIsService, AControl, AParams);
 
   Assert(Assigned(FControl), 'Не создан контрол для ' + FDefinitionName);
 
@@ -2233,21 +2196,12 @@ begin
   FView.SetFieldValue(Holder, AValue);
 end;
 
-{ TActionArea }
-
-constructor TActionArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean;
-  const AControl: TObject; const ALayout: TLayout; const AParams: string);
-begin
-  FParams := AParams;
-  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
-end;
-
 { TNavigationArea }
 
-constructor TNavigationArea.Create(const AParent: TUIArea; const AView: TView; const AId: string;
-  const AIsService: Boolean; const AControl: TObject; const ALayout: TLayout; const AParams: string);
+constructor TNavigationArea.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
+  const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = '');
 begin
-  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
+  inherited Create(AParent, AView, ALayout, AId, AIsService, AControl, AParams);
   FParams := AParams;
   Assert(Assigned(ALayout) and Assigned(ALayout.Menu), 'Для навигационной области не задано меню');
   FInitialMenu := ALayout.Menu;

@@ -76,10 +76,7 @@ type
     procedure UpdateCaptionVisibility; override;
   end;
 
-  TVCLArea = class(TUIArea)
-  end;
-
-  TButtonArea = class(TActionArea)
+  TButtonArea = class(TUIArea)
   private
     FTypeSelectionMenu: TPopupMenu;
   protected
@@ -89,7 +86,7 @@ type
     destructor Destroy; override;
   end;
 
-  TLinkArea = class(TActionArea)
+  TLinkArea = class(TUIArea)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure RefillArea(const AKind: Word); override;
@@ -663,16 +660,19 @@ var
   vViewStyle: string;
   vOverriddenCaption, vOverriddenHint: string;
 begin
-  vParams := CreateDelimitedList(FParams, '&');
-
   vActionDef := TDefinition(FView.Definition);
 
-  vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
-  vImageID := StrToIntDef(vParams.Values['ImageID'], vActionDef._ImageID);
-  vComposition := Trim(vParams.Values['Composition']);
-  vViewStyle := Trim(vParams.Values['ViewStyle']);
-  vOverriddenCaption := Trim(vParams.Values['Caption']);
-  vOverriddenHint := Trim(vParams.Values['Hint']);
+  vParams := CreateDelimitedList(FInternalParams, '&');
+  try
+    vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
+    vImageID := StrToIntDef(vParams.Values['ImageID'], vActionDef._ImageID);
+    vComposition := Trim(vParams.Values['Composition']);
+    vViewStyle := Trim(vParams.Values['ViewStyle']);
+    vOverriddenCaption := Trim(vParams.Values['Caption']);
+    vOverriddenHint := Trim(vParams.Values['Hint']);
+  finally
+    FreeAndNil(vParams);
+  end;
 
   vButton := TcxButton.Create(nil);
   vButton.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[vImageSize]);
@@ -757,8 +757,6 @@ begin
   else
     vButton.OnClick := OnAreaClick;
 
-  AddParams(vParams);
-
   Result := vButton;
 end;
 
@@ -797,14 +795,17 @@ var
   vViewStyle: string;
   vOverriddenCaption, vOverriddenHint: string;
 begin
-  vParams := CreateDelimitedList(FParams, '&');
+  vParams := CreateDelimitedList(FInternalParams, '&');
+  try
+    vComposition := Trim(vParams.Values['Composition']);
+    vViewStyle := Trim(vParams.Values['ViewStyle']);
+    vOverriddenCaption := Trim(vParams.Values['Caption']);
+    vOverriddenHint := Trim(vParams.Values['Hint']);
+  finally
+    FreeAndNil(vParams);
+  end;
 
   vActionDef := TDefinition(FView.Definition);
-
-  vComposition := Trim(vParams.Values['Composition']);
-  vViewStyle := Trim(vParams.Values['ViewStyle']);
-  vOverriddenCaption := Trim(vParams.Values['Caption']);
-  vOverriddenHint := Trim(vParams.Values['Hint']);
 
   vLabel := TcxLabel.Create(nil);
   vLabel.Caption := GetTranslation(vActionDef);
@@ -822,8 +823,6 @@ begin
   //vLabel.StyleHot.TextColor := clBlue;
   vLabel.StyleHot.TextStyle := [fsUnderline];
   vLabel.OnClick := OnAreaClick;
-
-  AddParams(vParams);
 
   Result := vLabel;
 end;
@@ -1282,8 +1281,6 @@ begin
     vLabel.Left := TControl(FControl).Left - vSpace;
     vLabel.Top := TControl(FControl).Top + 3;
     vLabel.AutoSize := False;
-    //vLabel.Layout := tlCenter;
-    //vLabel.Height := Control.Height;
   end;
   vLabel.Parent := TControl(FControl).Parent;
 end;
@@ -1297,10 +1294,10 @@ begin
   begin
     FShowCaption := ALayout.ShowCaption;
     TLabel(FCaption).Visible := FShowCaption and (FOwner.View.State > vsHidden);
-    if akTop in ALayout.Anchors then
-      TLabel(FCaption).Anchors := [akLeft, akTop]
+    if akBottom in ALayout.Anchors then
+      TLabel(FCaption).Anchors := [akLeft, akBottom]
     else
-      TLabel(FCaption).Anchors := [akLeft, akBottom];
+      TLabel(FCaption).Anchors := [akLeft, akTop];
 
     if ALayout.Caption_AtLeft then
       SetLabelPosition(lpLeft);
@@ -1424,9 +1421,7 @@ end;
 
 initialization
 
-RegisterClasses([TLabel, TPanel, TSplitter, TImage, TBevel, TPageControl, TMemo,
-  TTabSheet, TToolBar, TToolButton, TBitBtn, TScrollBox, TMainMenu, TPopupMenu,
-  TShape, TListView, TImageList]);
+RegisterClasses([TLabel, TPanel, TSplitter, TImage, TBevel, TPageControl, TMemo, TTabSheet, TScrollBox, TShape, TPopupMenu]);
 
 TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, '', TTreeViewArea);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'TreeView', TTreeViewArea);

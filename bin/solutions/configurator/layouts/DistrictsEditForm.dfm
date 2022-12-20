@@ -36,8 +36,8 @@ object Form: TForm
       Align = alTop
       TabOrder = 0
       object Name: TPanel
-        Left = 20
-        Top = 32
+        Left = 21
+        Top = 28
         Width = 250
         Height = 24
         Caption = 'Name'
@@ -50,6 +50,22 @@ object Form: TForm
         Height = 97
         Caption = 'Streets'
         TabOrder = 1
+      end
+      object Panel5: TPanel
+        Left = 21
+        Top = 76
+        Width = 100
+        Height = 24
+        Caption = 'ShowAbout'
+        TabOrder = 2
+      end
+      object Panel6: TPanel
+        Left = 160
+        Top = 76
+        Width = 111
+        Height = 24
+        Caption = 'ShowAbout?ViewStyle=link'
+        TabOrder = 3
       end
     end
     object pgc1: TPageControl

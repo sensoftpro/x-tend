@@ -57,11 +57,13 @@ type
     FRowStyle: TObject;
     FNeedShowSplash: Boolean;
     procedure ArrangeMozaic(const AMDIForm: TForm);
+    procedure SetAsMainForm(const AForm: TForm);
+
     procedure RestoreChildForms(const AInteractor: TInteractor);
     procedure StoreChildForms(const AInteractor: TInteractor; const AMainForm: TForm);
+
     function GetLayoutKind(const AControl: TObject): TLayoutKind;
     procedure CopyControlPropertiesToLayout(const ALayout: TLayout; const AControl: TObject);
-
     procedure CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
       const ASrcItem: TNavigationItem; const ADestMenu: TMenuItem);
 
@@ -112,12 +114,9 @@ type
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
 
-    procedure SetAsMainForm(const AForm: TForm);
-
     function CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView; const AAreaName: string;
-      const ACallback: TNotifyEvent = nil; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; override;
+      const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; override;
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
-    procedure CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea); override;
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
@@ -125,7 +124,6 @@ type
     function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
     function CreateTempControl: TObject; override;
-    function AppendServiceArea(const AParent: TUIArea): TUIArea; override;
     function CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea; override;
 
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
@@ -202,17 +200,6 @@ begin
 end;
 
 { TWinVCLPresenter }
-
-function TWinVCLPresenter.AppendServiceArea(const AParent: TUIArea): TUIArea;
-var
-  vPanel: TPanel;
-begin
-  vPanel := TPanel.Create(nil);
-  vPanel.BevelOuter := bvNone;
-  vPanel.Height := cServiceAreaHeight;
-  vPanel.Align := alBottom;
-  Result := CreateFilledArea(AParent, AParent.View, '', True, vPanel);
-end;
 
 procedure TWinVCLPresenter.ArrangeMozaic(const AMDIForm: TForm);
 var
@@ -295,28 +282,6 @@ begin
     waMozaic:
       ArrangeMozaic(vForm);
   end;
-end;
-
-type
-  TUIAreaCrack = class(TUIArea) end;
-
-procedure TWinVCLPresenter.CloseUIArea(const AInteractor: TInteractor; const AOldArea, ANewArea: TUIArea);
-var
-  vForm: TForm;
-begin
-  if Assigned(AOldArea) then
-  begin
-    vForm := TForm(AOldArea.InnerControl);
-    CloseAllPages(AInteractor);
-    TUIAreaCrack(AOldArea).ClearContent;
-
-    SetAsMainForm(TForm(ANewArea.InnerControl));
-
-    vForm.Close;
-    AOldArea.Free;
-  end
-  else
-    SetAsMainForm(TForm(ANewArea.InnerControl));
 end;
 
 procedure TWinVCLPresenter.CopyControlPropertiesToLayout(const ALayout: TLayout; const AControl: TObject);
@@ -582,18 +547,6 @@ begin
     ALayout.Tag := vSourceFrame.Tag;
     ALayout.Caption := vSourceFrame.Hint;
     ALayout.Color := ColorToAlphaColor(vSourceFrame.Color);
-    //ALayout.ShowCaption := vSourceFrame.ShowCaption;
-    //ALayout.Caption_AtLeft := vSourceFrame.DoubleBuffered;
-    //ALayout.Button_ShowCaption := vSourceFrame.ShowHint;
-    //CopyMargins(vSourceFrame);
-    //ALayout.Align := TLayoutAlign(vSourceFrame.Align);
-    //ALayout.Alignment := vSourceFrame.Alignment;
-    //CopyConstraints(vSourceFrame);
-    //CopyFontSettings(vSourceFrame.Font);
-    //CopyPadding(vSourceFrame);
-    //ALayout.BevelInner := TLayoutBevelKind(vSourceFrame.BevelInner);
-    //ALayout.BevelOuter := TLayoutBevelKind(vSourceFrame.BevelOuter);
-
   end
   else if ALayout.Kind = lkGroup then
   begin
@@ -1083,7 +1036,6 @@ begin
         begin
           vParams.Values['Layout'] := vStartPageName;
           vParams.Values['View'] := '';
-          vParams.Values['Options'] := DecodeUrl(GetUrlParam(vStartPageStr, 'Options', ''));
         end;
       end;
 
@@ -1183,14 +1135,14 @@ begin
 end;
 
 function TWinVCLPresenter.CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
-  const AAreaName: string; const ACallback: TNotifyEvent = nil; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea;
+  const AAreaName: string; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea;
 var
   vForm: TForm;
-  vTimer: TTimer;
   i: Integer;
   vArea: TUIArea;
 begin
-  Result := nil; vTimer := nil; vForm := nil;
+  Result := nil;
+  vForm := nil;
 
   if AAreaName = '' then
   begin
@@ -1202,6 +1154,8 @@ begin
     vForm.OnClose := DoMainFormClose;
     vForm.Position := poScreenCenter;
     vForm.Caption := TDomain(AInteractor.Domain).AppTitle + ' (' + TUserSession(AInteractor.Session).CurrentUserName + ')';
+
+    SetAsMainForm(vForm);
   end
   // второстепенная автономная форма
   else if AAreaName = 'float' then
@@ -1228,27 +1182,17 @@ begin
   else if (AAreaName = 'child') or (AAreaName = 'modal') then
   begin
     vForm := TForm.Create(nil);
-
-    if Assigned(ACallback) then
-    begin
-      vForm.BorderIcons := [];
-      vTimer := TTimer.Create(vForm);
-      vTimer.Enabled := False;
-      vTimer.OnTimer := ACallback;
-    end
-    else
-    begin
-      vForm.OnClose := DoChildFormClose;
-      vForm.OnKeyDown := DoChildFormKeyDown;
-      vForm.KeyPreview := True;
-      vForm.BorderIcons := [biSystemMenu];
-    end;
+    vForm.OnClose := DoChildFormClose;
+    vForm.OnKeyDown := DoChildFormKeyDown;
+    vForm.KeyPreview := True;
+    vForm.BorderIcons := [biSystemMenu];
     vForm.Position := poMainFormCenter;
     vForm.Font.Size := 12;
     vForm.BorderStyle := bsSingle;  // for layouted form this property will be changed when assigned cEditFormResizable flag in Tag
   end;
 
-  if vForm = nil then Exit;
+  if vForm = nil then
+    Exit;
 
   vForm.ShowHint := True;
   vForm.DisableAlign;
@@ -1258,9 +1202,6 @@ begin
     Result := CreateFilledArea(AParent, AView, AAreaName, True, vForm, nil, '');
     if Assigned(AOnClose) then
       Result.OnClose := AOnClose;
-
-    if Assigned(ACallback) and Assigned(vTimer) then
-      ACallback(vTimer);
   finally
     vForm.EnableAlign;
   end;
@@ -1959,8 +1900,7 @@ begin
           '&Top=' + IntToStr(vEntity['Top']) +
           '&Width=' + IntToStr(vEntity['Width']) +
           '&Height=' + IntToStr(vEntity['Height']) +
-          '&WindowState=' + IntToStr(vEntity['WindowState'])
-          ,nil, nil, vEntity['Name']);
+          '&WindowState=' + IntToStr(vEntity['WindowState']), nil, vEntity['Name']);
       end;
     end;
   end;

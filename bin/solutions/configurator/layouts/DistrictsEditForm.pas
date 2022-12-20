@@ -71,6 +71,8 @@ type
     TabSheet6: TTabSheet;
     Label5: TLabel;
     Label6: TLabel;
+    Panel5: TPanel;
+    Panel6: TPanel;
   end;
 
 implementation
