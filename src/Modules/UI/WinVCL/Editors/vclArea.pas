@@ -868,8 +868,6 @@ end;
 
 procedure TVCLControl.AssignFromLayout(const ALayout: TLayout; const AParams: string);
 var
-  //vFrame: TFrame;
-  //vPanel: TCrackedWinControl;
   vForm: TForm;
   vAlignment: TAlignment;
   vWS: Integer;

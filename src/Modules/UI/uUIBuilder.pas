@@ -354,6 +354,7 @@ type
       const ACaption: string = ''; const AOnClose: TProc = nil): TDialogResult;
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
 
+    function CreateSimpleLayout(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout;
     procedure CreateChildAreas(const AArea: TUIArea; const ALayout: TLayout; const AParams: string);
     procedure CloseCurrentArea(const AModalResult: Integer);
     procedure PrintHierarchy;
@@ -376,7 +377,7 @@ implementation
 
 uses
   {DO NOT ADD VCL UNITS HERE (Controls, Forms...)}
-  StrUtils, IOUtils, Windows, Messages, Variants,
+  StrUtils, IOUtils, UIConsts, Windows, Messages, Variants,
   uPlatform, uPresenter, uInteractor, uConfiguration, uChangeManager,
   uUtils, uDomain, uObjectField, uEntityList;
 
@@ -412,16 +413,13 @@ begin
 
   vFileName := TConfiguration(TInteractor(FInteractor).Configuration).FindLayoutFile(ALayoutName, LAYOUT_DFM_EXT, vPostfix);
   if FileExists(vFileName) then
-  begin
-    vLayout := MakeLayoutFromFile(vFileName, vParams);
-    TPresenter(FPresenter).EnumerateControls(vLayout);
-    AArea.AssignFromLayout(vLayout, AParams);
-  end
+    vLayout := MakeLayoutFromFile(vFileName, vParams)
   else
     vLayout := MakeDefaultLayout(AView, ALayoutName);
 
   AArea.BeginUpdate;
   try
+    AArea.AssignFromLayout(vLayout, AParams);
     AArea.SetView(AView);
     CreateChildAreas(AArea, vLayout, AParams);
     AArea.SetBounds(
@@ -462,6 +460,40 @@ begin
   for i := 0 to ALayout.Items.Count - 1 do
     AArea.CreateChildArea(AArea.View, ALayout.Items[i], AParams);
   AArea.AfterChildAreasCreated;
+end;
+
+function TUIBuilder.CreateSimpleLayout(const ALayoutKind: TLayoutKind; const AParams: string): TLayout;
+var
+  vParams: TStrings;
+begin
+  if not (ALayoutKind in [lkFrame, lkPanel, lkPage]) then
+    Exit(nil);
+
+  Result := TLayout.Create(ALayoutKind, True);
+  Result.Presenter := FPresenter;
+  if ALayoutKind = lkPanel then
+  begin
+    Result.Font.Size := 10;
+    Result.Font.Color := ColorToAlphaColor(TColorRec.SysWindowText);
+    Result.Font.Family := 'Tahoma';
+    Result.Color := ColorToAlphaColor(TColorRec.SysBtnFace);
+    Result.ShowCaption := True;
+    Result.BevelOuter := lbkNone;
+  end
+  else if ALayoutKind = lkPage then
+  begin
+    vParams := CreateDelimitedList(AParams);
+    try
+      Result.Caption := vParams.Values['Caption'];
+      Result.ImageID := StrToIntDef(vParams.Values['ImageIndex'], -1);
+      Result.Name := vParams.Values['Name'];
+      Result.State := vsFullAccess;
+      Result.ShowCaption := True;
+      Result.Tag := 11;
+    finally
+      FreeAndNil(vParams);
+    end;
+  end;
 end;
 
 destructor TUIBuilder.Destroy;
@@ -556,9 +588,9 @@ begin
   if not Assigned(vDefinition) then
     Exit;
 
-  Result := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
+  Result := CreateSimpleLayout(lkPanel);
 
-  vOneRowHeight := TPresenter(Presenter).GetLayoutFontHeight(Result) + 8;
+  vOneRowHeight := Result.Font.Size * 96 div 72 + 8;
 
   for vAction in vDefinition.Actions.Objects do
   begin
@@ -567,9 +599,12 @@ begin
     begin
       if vView.State > vsHidden then
       begin
-        vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
-        TPresenter(FPresenter).SetLayoutCaption(vLayout, vAction.Name);
-        TPresenter(FPresenter).SetLayoutBounds(vLayout, 0, 0, cDefaultColumnWidth, vOneRowHeight);
+        vLayout := CreateSimpleLayout(lkPanel);
+        vLayout.Caption := vAction.Name;
+        vLayout.Left := 0;
+        vLayout.Top := 0;
+        vLayout.Width := cDefaultColumnWidth;
+        vLayout.Height := vOneRowHeight;
         Result.Add(vLayout);
       end
       else
@@ -584,9 +619,12 @@ begin
     begin
       if not TInteractor(FInteractor).NeedSkipField(nil, vFieldDef) and (vFieldDef.Kind <> fkComplex) then
       begin
-        vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPanel);
-        TPresenter(FPresenter).SetLayoutCaption(vLayout, vFieldDef.Name);
-        TPresenter(FPresenter).SetLayoutBounds(vLayout, 0, 0, cDefaultColumnWidth, CalcLayoutPositionCount(vFieldDef.Kind, vFieldDef.StyleName) * (vOneRowHeight + cBetweenRows) - cBetweenRows);
+        vLayout := CreateSimpleLayout(lkPanel);
+        vLayout.Caption := vFieldDef.Name;
+        vLayout.Left := 0;
+        vLayout.Top := 0;
+        vLayout.Width := cDefaultColumnWidth;
+        vLayout.Height := CalcLayoutPositionCount(vFieldDef.Kind, vFieldDef.StyleName) * (vOneRowHeight + cBetweenRows) - cBetweenRows;
         Result.Add(vLayout);
       end
       else
@@ -606,19 +644,24 @@ var
   vMemStream: TStream;
   vFrame: TComponent;
 begin
-  Result := TPresenter(FPresenter).CreateLayoutArea(lkFrame);
-  vFrame := TComponent(Result.Control);
-
-  vFileStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyNone);
-  vMemStream := TMemoryStream.Create;
+  Result := CreateSimpleLayout(lkFrame);
+  vFrame := TComponent(TPresenter(FPresenter).CreateTempControl);
   try
-    ObjectTextToBinary(vFileStream, vMemStream);
+    vFileStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyNone);
+    vMemStream := TMemoryStream.Create;
+    try
+      ObjectTextToBinary(vFileStream, vMemStream);
 
-    vMemStream.Position := 0;
-    vMemStream.ReadComponent(vFrame);
+      vMemStream.Position := 0;
+      vMemStream.ReadComponent(vFrame);
+    finally
+      FreeAndNil(vFileStream);
+      FreeAndNil(vMemStream);
+    end;
+
+    TPresenter(FPresenter).EnumerateControls(Result, vFrame);
   finally
-    FreeAndNil(vFileStream);
-    FreeAndNil(vMemStream);
+    FreeAndNil(vFrame);
   end;
 end;
 
@@ -848,7 +891,7 @@ begin
         else
           vTabParams := 'Caption=Стартовая страница;ImageIndex=' + IntToStr(GetImageID(StrToIntDef(GetUrlParam(AOptions, 'ImageID', '-1'), 0))) + ';Name=' + vPageID;
 
-        vLayout := TPresenter(FPresenter).CreateLayoutArea(lkPage, vTabParams);
+        vLayout := CreateSimpleLayout(lkPage, vTabParams);
         //vUIArea.Layout := vLayout;
         try
           vTabArea := vUIArea.CreateChildArea(vView, vLayout, AOptions, AOnClose);
@@ -1135,7 +1178,6 @@ end;
 
 function TUIArea.CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TProc = nil): TUIArea;
 var
-  vPresenter: TPresenter;
   vView: TView;
   vDefaultViewName: string;
   vDefaultView: TView;
@@ -1146,14 +1188,13 @@ var
   vAlreadyAssigned: Boolean;
 begin
   vAlreadyAssigned := False;
-  vPresenter := TPresenter(GetPresenter);
   Assert(ALayout.Kind <> lkNone, 'Не задан тип лэйаута');
   if not (ALayout.Kind in [lkPanel, lkPages, lkMemo]) then
   begin
     Result := DoCreateChildArea(ALayout, AChildView, '', AOnClose)
   end
   else begin
-    vCaption := Trim(vPresenter.GetLayoutCaption(ALayout));
+    vCaption := Trim(ALayout.Caption);
     ALayout.SetUrl(vCaption);
 
     vQuery := '';
@@ -1178,7 +1219,7 @@ begin
         Result := DoCreateChildNavigation(ALayout, FView, vQuery);
       end
       else begin
-        vPresenter.SetLayoutCaption(ALayout, vCaption);
+        ALayout.Caption := vCaption;
         Result := DoCreateChildArea(ALayout, FView, vQuery);
       end;
     end

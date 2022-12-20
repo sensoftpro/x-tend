@@ -4261,7 +4261,7 @@ begin
       else
         vTabParams := 'caption=' + vSelectedList[i][FCreateParams.Values['DisplayName']];
 
-      vLayout := TPresenter(Presenter).CreateLayoutArea(lkPage, vTabParams);
+      vLayout := FUIBuilder.CreateSimpleLayout(lkPage, vTabParams);
       try
         vLayout.Tag := 0;
         vView := FView.BuildView(IntToStr(i));

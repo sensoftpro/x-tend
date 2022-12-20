@@ -274,7 +274,7 @@ type
   public
     class var _Count: Integer;
 
-    constructor Create(const AKind: TLayoutKind; const AControl: TObject; const AIsOwner: Boolean = False);
+    constructor Create(const AKind: TLayoutKind; const AIsOwner: Boolean = False);
     destructor Destroy; override;
 
     procedure Add(const AChild: TLayout);
@@ -287,7 +287,6 @@ type
     function ExtractString(const AParamName: string; const ADefault: string = ''): string;
 
     property Kind: TLayoutKind read FKind;
-    property Control: TObject read FControl;
     property Parent: TLayout read FParent;
     property Items: TList<TLayout> read GetItems;
 
@@ -526,38 +525,6 @@ implementation
 
 uses
   IOUtils, TypInfo, SysUtils, Math, uDefinition, uUtils, uPresenter, StrUtils, uDomainUtils, Types;
-
-type
-  TLayoutParam = class
-    Name: string;
-    Value: Variant;
-    constructor Create(const AName: string);
-  end;
-
-  TUILayout = class
-  private
-    FParams: TList;
-    FParent: TUILayout;
-    FChildLayouts: TList;
-    FName: string;
-    FType: string;
-    FLevel: Integer;
-    procedure Clear;
-    procedure FillLayoutParams(const AComponent: TComponent; const ALayout: TLayout);
-    procedure GenerateDFMText(const AText: TStrings; const ALevel: Integer);
-    procedure GeneratePASText(const AText: TStrings);
-    function FindChild(const AName: string): TUILayout;
-    function ParamByName(const AName: string): TLayoutParam;
-    function CreateChild: TUILayout;
-    function GenerateUniqueName(const AComponent: TComponent): string;
-  public
-    constructor Create;
-    destructor Destroy; override;
-
-    procedure Build(const ALayout: TLayout);
-    procedure SaveToDFM(const AFileName: string);
-  end;
-
 
 function StrToLayoutKind(const s: string): TLayoutKind;
 var
@@ -1315,7 +1282,7 @@ end;
 
 constructor TNavigationItem.Create(const AParent: TNavigationItem; const AUrl: string);
 begin
-  inherited Create(lkAction, nil, True);
+  inherited Create(lkAction, True);
   FParent := AParent;
   FOwner := nil;
 
@@ -1326,7 +1293,7 @@ end;
 
 constructor TNavigationItem.Create(const AParent: TNavigationItem; const AJSON: TJSONObject);
 begin
-  inherited Create(lkAction, nil, True);
+  inherited Create(lkAction, True);
   FOwner := nil;
   FParent := AParent;
   InternalLoad(AJSON);
@@ -1449,7 +1416,7 @@ begin
   for i := 0 to vItems.Count - 1 do
   begin
     vLayout := vItems[i];
-    vTotalHeight := vTotalHeight + TPresenter(vLayout.Presenter).GetLayoutBounds(vLayout).Height + cBetweenRows;
+    vTotalHeight := vTotalHeight + vLayout.Height + cBetweenRows;
   end;
   vBestRate := -1000;
   vBestColumnCount := -1;
@@ -1462,7 +1429,7 @@ begin
     for i := 0 to vItems.Count - 1 do
     begin
       vLayout := vItems[i];
-      vCurColumnHeight := vCurColumnHeight + TPresenter(vLayout.Presenter).GetLayoutBounds(vLayout).Height + cBetweenRows;
+      vCurColumnHeight := vCurColumnHeight + vLayout.Height + cBetweenRows;
       if vCurColumnHeight >= vHeightInColumn then
       begin
         if vCurColumnHeight > vRealMaxHeightInColumn then
@@ -1488,10 +1455,10 @@ begin
   for i := 0 to vItems.Count - 1 do
   begin
     vLayout := vItems[i];
+    vLayout.Left := cBorder + (vRealColumnCount - 1) * (cDefaultColumnWidth + cBetweenColumns);
+    vLayout.Top := cBorder + cBetweenRows + vCurColumnHeight;
 
-    TPresenter(Presenter).SetLayoutXY(vLayout, cBorder + (vRealColumnCount - 1) * (cDefaultColumnWidth + cBetweenColumns), cBorder + cBetweenRows + vCurColumnHeight);
-
-    vCurColumnHeight := vCurColumnHeight + TPresenter(vLayout.Presenter).GetLayoutBounds(vLayout).Height + cBetweenRows;
+    vCurColumnHeight := vCurColumnHeight + vLayout.Height + cBetweenRows;
     if vCurColumnHeight >= vHeightInColumn then
     begin
       if vCurColumnHeight > vRealMaxHeightInColumn then
@@ -1501,12 +1468,14 @@ begin
         vRealColumnCount := vRealColumnCount + 1;
     end;
   end;
-  TPresenter(Presenter).SetLayoutBounds(Self, 0, 0,
-    (vRealColumnCount * (cDefaultColumnWidth + cBetweenColumns) - cBetweenColumns) + cBorder*2,
-    vRealMaxHeightInColumn + cBorder * 2 + 8);
+
+  FLeft := 0;
+  FTop := 0;
+  FWidth := (vRealColumnCount * (cDefaultColumnWidth + cBetweenColumns) - cBetweenColumns) + cBorder*2;
+  FHeight := vRealMaxHeightInColumn + cBorder * 2 + 8;
 end;
 
-constructor TLayout.Create(const AKind: TLayoutKind; const AControl: TObject; const AIsOwner: Boolean = False);
+constructor TLayout.Create(const AKind: TLayoutKind; const AIsOwner: Boolean = False);
 begin
   inherited Create;
   FParent := nil;
@@ -1515,7 +1484,6 @@ begin
   FMenu := nil;
   FUrlParser := nil;
   FIsOwner := AIsOwner;
-  FControl := AControl;
   FKind := AKind;
   Assert(FKind > lkNone);
 
@@ -1597,14 +1565,70 @@ end;
 
 procedure TLayout.SaveToDFM(const AFileName: string);
 var
-  vLayout: TUILayout;
+  vFileName: string;
+  vFile: TStringList;
+  vName: string;
+  vIndex: Integer;
+
+  function GeneratePASText: string;
+  begin
+    Result :=
+      'unit ' + vName + ';' + #13#10#13#10 +
+      'interface' + #13#10#13#10 +
+      'uses' + #13#10 +
+      '  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms;'#13#10#13#10 +
+      'type'#13#10 +
+      '  T' + vName + ' = class(TFrame)'#13#10 +
+      '  end;'#13#10#13#10 +
+      'implementation'#13#10#13#10 +
+      '{$R *.dfm}'#13#10#13#10 +
+      'end.';
+  end;
+
+  procedure GenerateDFMText(const AText: TStrings; const ALayout: TLayout; const ALevel: Integer);
+  var
+    i: Integer;
+    vSelfIndent, vChildIndent: string;
+  begin
+    vSelfIndent := DupeString('  ', ALevel);
+    vChildIndent := DupeString('  ', ALevel + 1);
+    if ALevel = 0 then
+      AText.Append('object ' + vName + ': T' + vName)
+    else begin
+      Inc(vIndex);
+      AText.Append(vSelfIndent + 'object Panel' + IntToStr(vIndex) + ': TPanel');
+    end;
+
+    AText.Append(vChildIndent + 'Width = ' + IntToStr(ALayout.Width));
+    AText.Append(vChildIndent + 'Height = ' + IntToStr(ALayout.Height));
+    AText.Append(vChildIndent + 'Left = ' + IntToStr(ALayout.Left));
+    AText.Append(vChildIndent + 'Top = ' + IntToStr(ALayout.Top));
+    if ALevel > 0 then
+      AText.Append(vChildIndent + 'Caption = ' + QuotedStr(ALayout.Caption));
+
+    for i := 0 to ALayout.Items.Count - 1 do
+      GenerateDFMText(AText, ALayout.Items[i], ALevel + 1);
+    AText.Append(vSelfIndent + 'end');
+  end;
 begin
-  vLayout := TUILayout.Create;
+  vName := 'AutoForm';
+  vFileName := AFileName + '.dfm';
+  vIndex := 0;
+  vFile := TStringList.Create;
   try
-    vLayout.Build(Self);
-    vLayout.SaveToDFM(AFileName);
+    GenerateDFMText(vFile, Self, 0);
+    vFile.SaveToFile(vFileName);
   finally
-    vLayout.Free;
+    vFile.Free;
+  end;
+
+  vFileName := AFileName + '.pas';
+  vFile := TStringList.Create;
+  try
+    vFile.Append(GeneratePASText);
+    vFile.SaveToFile(vFileName);
+  finally
+    vFile.Free;
   end;
 end;
 
@@ -1724,202 +1748,6 @@ begin
   Result := FParams.Values[AParamName];
   if Result = '' then
     Result := ADefault;
-end;
-
-{ TLayoutParam }
-
-constructor TLayoutParam.Create(const AName: string);
-begin
-  Name := AName;
-end;
-
-{ TUILayout }
-
-function TUILayout.CreateChild: TUILayout;
-begin
-  Result := TUILayout.Create;
-  Result.FParent := Self;
-  Result.FLevel := FLevel + 1;
-  FChildLayouts.Add(Result);
-end;
-
-procedure TUILayout.Build(const ALayout: TLayout);
-  procedure Process(const AUILayout: TUILayout; const ALayout: TLayout);
-  var
-    i: Integer;
-  begin
-    if Assigned(ALayout.Control) then
-      AUILayout.FillLayoutParams(TComponent(ALayout.Control), ALayout);
-    for i := 0 to ALayout.Items.Count - 1 do
-      Process(AUILayout.CreateChild, ALayout.Items[i]);
-  end;
-begin
-  Clear;
-  Process(Self, ALayout);
-end;
-
-procedure TUILayout.Clear;
-var
-  i: Integer;
-begin
-  for i := 0 to FChildLayouts.Count - 1 do
-    TUILayout(FChildLayouts[i]).Free;
-  FChildLayouts.Clear;
-
-  for i := 0 to FParams.Count - 1 do
-    TLayoutParam(FParams[i]).Free;
-  FParams.Clear;
-end;
-
-constructor TUILayout.Create;
-begin
-  FName := 'emptyname';
-  FType := 'emptytype';
-  FChildLayouts := TList.Create;
-  FParams := TList.Create;
-end;
-
-function TUILayout.FindChild(const AName: string): TUILayout;
-var
-  i: Integer;
-begin
-  Result := nil;
-  for i := 0 to FChildLayouts.Count - 1 do
-    if TUILayout(FChildLayouts[i]).FName = AName then
-    begin
-      Result := TUILayout(FChildLayouts[i]);
-      Break;
-    end;
-end;
-
-destructor TUILayout.Destroy;
-begin
-  Clear;
-  FreeAndNil(FParams);
-  FreeAndNil(FChildLayouts);
-  inherited;
-end;
-
-procedure TUILayout.GenerateDFMText(const AText: TStrings; const ALevel: Integer);
-var
-  i: Integer;
-  vSelfIndent, vChildIndent: string;
-  vParam: TLayoutParam;
-begin
-  vSelfIndent := DupeString('  ', ALevel);
-  vChildIndent := DupeString('  ', ALevel + 1);
-  AText.Append(vSelfIndent + 'object ' + FName + ': ' + FType);
-  for i := 0 to FParams.Count - 1 do
-  begin
-    vParam := TLayoutParam(FParams[i]);
-    AText.Append(vChildIndent +  vParam.Name + ' = ' + VarToString(vParam.Value, ''));
-  end;
-  for i := 0 to FChildLayouts.Count - 1 do
-    TUILayout(FChildLayouts[i]).GenerateDFMText(AText, ALevel + 1);
-  AText.Append(vSelfIndent + 'end');
-end;
-
-procedure TUILayout.GeneratePASText(const AText: TStrings);
-var
-  vStr: string;
-begin
-  vStr :=
-    'unit ' + FName + ';' + #13#10#13#10 +
-    'interface' + #13#10#13#10 +
-    'uses' + #13#10 +
-    '  Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms;'#13#10#13#10 +
-    'type'#13#10 +
-    '  ' + FType + ' = class(TFrame)'#13#10 +
-    '  end;'#13#10#13#10 +
-    'implementation'#13#10#13#10 +
-    '{$R *.dfm}'#13#10#13#10 +
-    'end.';
-  AText.Append(vStr);
-end;
-
-function TUILayout.GenerateUniqueName(const AComponent: TComponent): string;
-begin
-  Result := Copy(AComponent.ClassName, 2, Length(AComponent.ClassName)) + IntToStr(FLevel);
-  if Assigned(FParent) then
-    while FParent.FindChild(Result) <> nil do
-      Result := Result + 'a';
-end;
-
-procedure TUILayout.FillLayoutParams(const AComponent: TComponent; const ALayout: TLayout);
-var
-  vName, vCaption: string;
-  vRect: TRect;
-begin
-  vName := AComponent.Name;
-  if Length(vName) = 0 then
-    vName := GenerateUniqueName(AComponent);
-
-  FName := vName;
-  FType := 'TPanel';
-
-  vRect := TPresenter(ALayout.Presenter).GetLayoutBounds(ALayout);
-  vCaption := TPresenter(ALayout.Presenter).GetLayoutCaption(ALayout);
-
-  ParamByName('Width').Value := vRect.Width;
-  ParamByName('Height').Value := vRect.Height;
-  ParamByName('Left').Value := vRect.Left;
-  ParamByName('Top').Value := vRect.Top;
-  if vCaption.Length > 0 then
-    ParamByName('Caption').Value := QuotedStr(vCaption);
-
-//  if AComponent is TPageControl then
-//    ALayout.ParamByName('PagePosition').Value := TPageControl(AComponent).TabPosition;
-
-//  if AComponent is TImage then
-//    ALayout.ParamByName('Stretch').Value := TImage(AComponent).Stretch;
-
-{  if AComponent is TPanel then
-  begin
-    if (not TPanel(AComponent).ParentColor) then
-      ALayout.ParamByName('Color').Value := TPanel(AComponent).Color;
-  end;}
-end;
-
-function TUILayout.ParamByName(const AName: string): TLayoutParam;
-var
-  i: Integer;
-begin
-  Result := nil;
-  for i := 0 to FParams.Count - 1 do
-    if TLayoutParam(FParams[i]).Name = AName then
-    begin
-      Result := TLayoutParam(FParams[i]);
-      Break;
-    end;
-  if Result = nil then
-  begin
-    Result := TLayoutParam.Create(AName);
-    FParams.Add(Result);
-  end;
-end;
-
-procedure TUILayout.SaveToDFM(const AFileName: string);
-var
-  vFileName: string;
-  vFile: TStringList;
-begin
-  vFileName := AFileName + '.dfm';
-  vFile := TStringList.Create;
-  try
-    GenerateDFMText(vFile, 0);
-    vFile.SaveToFile(vFileName);
-  finally
-    vFile.Free;
-  end;
-
-  vFileName := AFileName + '.pas';
-  vFile := TStringList.Create;
-  try
-    GeneratePASText(vFile);
-    vFile.SaveToFile(vFileName);
-  finally
-    vFile.Free;
-  end;
 end;
 
 { TLayoutPen }

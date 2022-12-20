@@ -107,13 +107,7 @@ type
     procedure StoreUILayout(const AInteractor: TInteractor); override;
     procedure RestoreUILayout(const AInteractor: TInteractor); override;
 
-    procedure DoEnumerateControls(const ALayout: TLayout); override;
-    procedure DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string); override;
-    function DoGetLayoutCaption(const ALayout: TLayout): string; override;
-    procedure DoSetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer); override;
-    procedure DoSetLayoutXY(const ALayout: TLayout; const AX, AY: Integer); override;
-    function DoGetLayoutBounds(const ALayout: TLayout): TRect; override;
-    function DoGetLayoutFontHeight(const ALayout: TLayout): Integer; override;
+    procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); override;
   public
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
@@ -130,7 +124,7 @@ type
 
     function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
-    function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout; override;
+    function CreateTempControl: TObject; override;
     function AppendServiceArea(const AParent: TUIArea): TUIArea; override;
     function CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea; override;
 
@@ -395,7 +389,7 @@ var
   begin
     ALayout.Font.Family := AFont.Name;
     ALayout.Font.Color := ColorToAlphaColor(AFont.Color);
-    ALayout.Font.Size := AFont.Size;
+    ALayout.Font.Size := Round(AFont.Size * AFont.PixelsPerInch / 96);
     ALayout.Font.Style := AFont.Style;
   end;
 
@@ -1166,42 +1160,6 @@ begin
     Assert(False, 'Пустой класс для лэйаута');
 end;
 
-function TWinVCLPresenter.CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout;
-var
-  vParams: TStrings;
-  vControl: TObject;
-begin
-  vParams := CreateDelimitedList(AParams);
-  case ALayoutKind of
-    lkPanel: begin
-        vControl := TPanel.Create(nil);
-        TPanel(vControl).Font.Size := 10;
-        TPanel(vControl).BevelOuter := bvNone;
-      end;
-    lkPage: begin
-        vControl := TTabSheet.Create(nil);
-        TTabSheet(vControl).Caption := vParams.Values['Caption'];
-        TTabSheet(vControl).ImageIndex := StrToIntDef(vParams.Values['ImageIndex'], -1);
-        TTabSheet(vControl).Name := vParams.Values['Name'];
-        TTabSheet(vControl).Tag := 11;
-      end;
-    lkFrame: vControl := TFrame.Create(nil);
-  else
-    vControl := nil;
-  end;
-
-  if Assigned(vControl) then
-  begin
-    Result := TLayout.Create(ALayoutKind, vControl, True);
-    CopyControlPropertiesToLayout(Result, vControl);
-    Result.Presenter := Self;
-  end
-  else
-    Result := nil;
-
-  FreeAndNil(vParams);
-end;
-
 function TWinVCLPresenter.CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea;
 var
   vMenu: TPopupMenu;
@@ -1217,6 +1175,11 @@ begin
   end
   else
     Result := nil;
+end;
+
+function TWinVCLPresenter.CreateTempControl: TObject;
+begin
+  Result := TFrame.Create(nil);
 end;
 
 function TWinVCLPresenter.CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
@@ -1324,7 +1287,7 @@ begin
   FDebugForm := nil;
 end;
 
-procedure TWinVCLPresenter.DoEnumerateControls(const ALayout: TLayout);
+procedure TWinVCLPresenter.DoEnumerateControls(const ALayout: TLayout; const AControl: TObject);
 var
   vParentControl: TWinControl;
   vControl: TControl;
@@ -1345,13 +1308,13 @@ var
     end;
   end;
 begin
-  if not (ALayout.Control is TWinControl) then
+  if not (AControl is TWinControl) then
     Exit;
 
   if ALayout.Kind = lkFrame then
-    CopyControlPropertiesToLayout(ALayout, ALayout.Control);
+    CopyControlPropertiesToLayout(ALayout, AControl);
 
-  vParentControl := TWinControl(ALayout.Control);
+  vParentControl := TWinControl(AControl);
   if Assigned(TCrackedControl(vParentControl).PopupMenu) then
   begin
     ALayout.Menu := TNavigationItem.Create(nil, '');
@@ -1361,10 +1324,10 @@ begin
   for i := 0 to vParentControl.ControlCount - 1 do
   begin
     vControl := vParentControl.Controls[i];
-    vLayout := TLayout.Create(GetLayoutKind(vControl), vControl);
+    vLayout := TLayout.Create(GetLayoutKind(vControl));
     CopyControlPropertiesToLayout(vLayout, vControl);
     ALayout.Add(vLayout);
-    DoEnumerateControls(vLayout);
+    DoEnumerateControls(vLayout, vControl);
   end;
 end;
 
@@ -1407,39 +1370,6 @@ begin
   finally
     vCloseView.RemoveListener(vArea);
   end;
-end;
-
-function TWinVCLPresenter.DoGetLayoutBounds(const ALayout: TLayout): TRect;
-begin
-  if Assigned(TControl(ALayout.Control).Parent) then
-    Result := TControl(ALayout.Control).ClientRect
-  else
-    Result := Rect(TControl(ALayout.Control).Left, TControl(ALayout.Control).Top,
-      TControl(ALayout.Control).Left + TControl(ALayout.Control).Width,
-      TControl(ALayout.Control).Top + TControl(ALayout.Control).Height);
-end;
-
-function TWinVCLPresenter.DoGetLayoutCaption(const ALayout: TLayout): string;
-begin
-  if ALayout.Kind = lkPages then
-    Result := TPageControl(ALayout.Control).Hint
-  else if ALayout.Kind = lkMemo then
-  begin
-    TMemo(ALayout.Control).WordWrap := False;
-    TMemo(ALayout.Control).WantReturns := False;
-    Result := TMemo(ALayout.Control).Lines.Text;
-  end
-  else if ALayout.Kind = lkPanel then
-    Result := TPanel(ALayout.Control).Caption
-  else
-    Result := '';
-end;
-
-function TWinVCLPresenter.DoGetLayoutFontHeight(const ALayout: TLayout): Integer;
-begin
-  Result := TCrackedControl(ALayout.Control).Font.Height;
-  if Result < 0 then
-    Result := TCrackedControl(ALayout.Control).Font.Size * TCrackedControl(ALayout.Control).Font.PixelsPerInch div 72;
 end;
 
 function TWinVCLPresenter.GetLayoutKind(const AControl: TObject): TLayoutKind;
@@ -2392,22 +2322,6 @@ end;
 procedure TWinVCLPresenter.DoSetCursor(const ACursorType: TCursorType);
 begin
   Screen.Cursor := cCursors[ACursorType];
-end;
-
-procedure TWinVCLPresenter.DoSetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer);
-begin
-  TControl(ALayout.Control).SetBounds(AX, AY, AWidth, AHeight);
-end;
-
-procedure TWinVCLPresenter.DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string);
-begin
-  TPanel(ALayout.Control).Caption := ACaption;
-end;
-
-procedure TWinVCLPresenter.DoSetLayoutXY(const ALayout: TLayout; const AX, AY: Integer);
-begin
-  TControl(ALayout.Control).Left := AX;
-  TControl(ALayout.Control).Top := AY;
 end;
 
 function TWinVCLPresenter.DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;

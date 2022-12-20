@@ -238,14 +238,7 @@ type
     procedure StoreUILayout(const AInteractor: TInteractor); virtual;
     procedure RestoreUILayout(const AInteractor: TInteractor); virtual;
 
-    procedure DoEnumerateControls(const ALayout: TLayout); virtual;
-    procedure DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string); virtual;
-    function DoGetLayoutCaption(const ALayout: TLayout): string; virtual;
-    procedure DoSetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer); virtual;
-    procedure DoSetLayoutXY(const ALayout: TLayout; const AX, AY: Integer); virtual;
-    function DoGetLayoutBounds(const ALayout: TLayout): TRect; virtual;
-    function DoGetLayoutFontHeight(const ALayout: TLayout): Integer; virtual;
-    function DoGetLayoutServiceAreaHeight(const ALayout: TLayout): Integer; virtual;
+    procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); virtual;
 
     function ActiveInteractor: TInteractor;
   public
@@ -277,15 +270,7 @@ type
     function CreateNativeControl(const AArea: TUIArea; const ALayout: TLayout;
       const AView: TView; const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
     procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
-    procedure EnumerateControls(const ALayout: TLayout);
-
-    procedure SetLayoutCaption(const ALayout: TLayout; const ACaption: string);
-    function GetLayoutCaption(const ALayout: TLayout): string;
-    procedure SetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer);
-    procedure SetLayoutXY(const ALayout: TLayout; const AX, AY: Integer);
-    function GetLayoutBounds(const ALayout: TLayout): TRect;
-    function GetLayoutFontHeight(const ALayout: TLayout): Integer;
-    function GetLayoutServiceAreaHeight(const ALayout: TLayout): Integer;
+    procedure EnumerateControls(const ALayout: TLayout; const AControl: TObject);
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; virtual;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
@@ -293,7 +278,7 @@ type
 
     function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
-    function CreateLayoutArea(const ALayoutKind: TLayoutKind; const AParams: string = ''): TLayout; virtual; abstract;
+    function CreateTempControl: TObject; virtual; abstract;
     function AppendServiceArea(const AParent: TUIArea): TUIArea; virtual; abstract;
     function CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea; virtual; abstract;
 
@@ -494,28 +479,8 @@ begin
   inherited Destroy;
 end;
 
-procedure TPresenter.DoEnumerateControls(const ALayout: TLayout);
+procedure TPresenter.DoEnumerateControls(const ALayout: TLayout; const AControl: TObject);
 begin
-end;
-
-function TPresenter.DoGetLayoutBounds(const ALayout: TLayout): TRect;
-begin
-  Result := Rect(0, 0, 0, 0);
-end;
-
-function TPresenter.DoGetLayoutCaption(const ALayout: TLayout): string;
-begin
-  Result := '';
-end;
-
-function TPresenter.DoGetLayoutFontHeight(const ALayout: TLayout): Integer;
-begin
-  Result := 16;
-end;
-
-function TPresenter.DoGetLayoutServiceAreaHeight(const ALayout: TLayout): Integer;
-begin
-  Result := 44;
 end;
 
 function TPresenter.DoLogin(const ADomain: TObject): TInteractor;
@@ -550,19 +515,7 @@ begin
   Result := False;
 end;
 
-procedure TPresenter.DoSetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer);
-begin
-end;
-
 procedure TPresenter.DoSetCursor(const ACursorType: TCursorType);
-begin
-end;
-
-procedure TPresenter.DoSetLayoutCaption(const ALayout: TLayout; const ACaption: string);
-begin
-end;
-
-procedure TPresenter.DoSetLayoutXY(const ALayout: TLayout; const AX, AY: Integer);
 begin
 end;
 
@@ -585,9 +538,9 @@ procedure TPresenter.DoUnfreeze;
 begin
 end;
 
-procedure TPresenter.EnumerateControls(const ALayout: TLayout);
+procedure TPresenter.EnumerateControls(const ALayout: TLayout; const AControl: TObject);
 begin
-  DoEnumerateControls(ALayout);
+  DoEnumerateControls(ALayout, AControl);
 end;
 
 class function TPresenter.GetControlClass(const APresenterName: string; const AControlType: TUIItemType;
@@ -613,29 +566,6 @@ begin
   else
     Assert(False, 'Control class not found for type: "' + vTypeName +
       '", style Name: "' + vStyleName + '" in UI: ' + ClassName);
-end;
-
-function TPresenter.GetLayoutBounds(const ALayout: TLayout): TRect;
-begin
-  //Result := DoGetLayoutBounds(ALayout);
-  Result := Rect(ALayout.Left, ALayout.Top, ALayout.Left + ALayout.Width, ALayout.Top + ALayout.Height);
-end;
-
-function TPresenter.GetLayoutCaption(const ALayout: TLayout): string;
-begin
-  //Result := DoGetLayoutCaption(ALayout)
-  Result := ALayout.Caption;
-end;
-
-function TPresenter.GetLayoutFontHeight(const ALayout: TLayout): Integer;
-begin
-  //Result := DoGetLayoutFontHeight(ALayout);
-  Result := ALayout.Font.Size;
-end;
-
-function TPresenter.GetLayoutServiceAreaHeight(const ALayout: TLayout): Integer;
-begin
-  Result := DoGetLayoutServiceAreaHeight(ALayout);
 end;
 
 class function TPresenter.GetPageClass(const APresenterName, APageName: string): TClass;
@@ -769,15 +699,6 @@ begin
   DoRun(AParameter);
 end;
 
-procedure TPresenter.SetLayoutBounds(const ALayout: TLayout; const AX, AY, AWidth, AHeight: Integer);
-begin
-  //DoSetLayoutBounds(ALayout, AX, AY, AWidth, AHeight);
-  ALayout.Left := AX;
-  ALayout.Top := AY;
-  ALayout.Width := AWidth;
-  ALayout.Height := AHeight;
-end;
-
 function TPresenter.SetCursor(const ACursorType: TCursorType): TCursorType;
 begin
   Result := FCursorType;
@@ -785,19 +706,6 @@ begin
     Exit;
   FCursorType := ACursorType;
   DoSetCursor(FCursorType);
-end;
-
-procedure TPresenter.SetLayoutCaption(const ALayout: TLayout; const ACaption: string);
-begin
-  //DoSetLayoutCaption(ALayout, ACaption);
-  ALayout.Caption := ACaption;
-end;
-
-procedure TPresenter.SetLayoutXY(const ALayout: TLayout; const AX, AY: Integer);
-begin
-  //DoSetLayoutXY(ALayout, AX, AY);
-  ALayout.Left := AX;
-  ALayout.Top := AY;
 end;
 
 function TPresenter.ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
