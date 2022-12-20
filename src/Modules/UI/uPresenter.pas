@@ -254,8 +254,8 @@ type
     function CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView; const AAreaName: string;
       const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; virtual;
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; virtual;
-    function CreateFilledArea(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TLayout = nil; const AParams: string = ''): TUIArea; virtual;
+    function CreateFilledArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
+      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''): TUIArea; virtual;
 
     // Layouts operations
     function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TLayout;
@@ -406,8 +406,8 @@ begin
   Result := vFieldAreaClass.Create(AParentArea, AView, ALayout, '', False, nil, vParams);
 end;
 
-function TPresenter.CreateFilledArea(const AParent: TUIArea; const AView: TView; const AId: string;
-  const AIsService: Boolean; const AControl: TObject; const ALayout: TLayout; const AParams: string): TUIArea;
+function TPresenter.CreateFilledArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
+  const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''): TUIArea;
 begin
   Result := TUIArea.Create(AParent, AView, ALayout, AId, AIsService, nil, AParams);
   Result.SetControl(AControl);

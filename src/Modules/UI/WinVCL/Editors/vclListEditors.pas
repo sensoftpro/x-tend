@@ -47,7 +47,7 @@ uses
   cxExportPivotGridLink, cxTLData, cxButtonEdit, cxEditRepositoryItems, cxPC;
 
 type
-  TEntityListSelector = class (TFieldArea)
+  TEntityListSelector = class(TFieldArea)
   private
     FListBox: TCheckListBox;
     FEntityList: TEntityList;
@@ -2679,7 +2679,7 @@ begin
 
   if Assigned(ALayout) and (ALayout.Kind = lkPanel) then
   begin
-    FContentStyle.TextColor := ALayout.Font.Color;
+    FContentStyle.TextColor := AlphaColorToColor(ALayout.Font.Color);
     FSelectionStyle.TextColor := clHighlightText;
     FSelectionStyle.Color := clHighlight;
   end;

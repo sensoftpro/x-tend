@@ -39,6 +39,18 @@ uses
   Windows, Classes, Forms, Messages, Generics.Collections, Controls, StdCtrls, ExtCtrls, Menus, UITypes, SysUtils,
   uConsts, uUIBuilder, uDefinition, uEntity, uView, uLayout;
 
+///  1. Привязка сплиттера к контролу
+///  2. Привязка меню к контролу
+///  3. Обработка TabOrder
+///  4. Сохранение и восстановление размеров форм в презентере
+///  5. Name и Description
+///  6. Перенести AssignFromLayout в общий код создания
+///  7. Сделать TCollectionArea, перенести код в DoCreateControl
+///  8. Разбраться с надписью для полей
+///  9. Внутри у TNativeControl может не быть нативного контрола, а, например, html-текст
+///  10. Работа с FParams
+///  11. Перенести общее поведение и обработчики в TPresenter
+
 type
   TVCLControl = class(TNativeControl)
   private
@@ -46,34 +58,37 @@ type
   protected
     function IndexOfControl(const AControl: TObject): Integer; override;
     function AreaFromSender(const ASender: TObject): TUIArea; override;
-    procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); override;
-    procedure DoClose(const AModalResult: Integer); override;
-    function GetName: string; override;
-    procedure DoActivate(const AUrlParams: string); override;
 
-    function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; override;
-    procedure SetParent(const AParent: TUIArea); override;
-    procedure SetControl(const AControl: TObject); override;
-    function DoGetDescription: string; override;
-    procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); override;
-    procedure SetPopupArea(const APopupArea: TUIArea); override;
+    procedure DoActivate(const AUrlParams: string); override;
+    procedure DoClose(const AModalResult: Integer); override;
     procedure DoBeginUpdate; override;
     procedure DoEndUpdate; override;
-    function GetFocused: Boolean; override;
-    procedure SetFocused(const Value: Boolean); override;
 
-    procedure ApplyTabStops(const ALayout: TLayout); override;
+    function GetName: string; override;
+    function DoGetDescription: string; override;
+
+    function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; override;
+    procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); override;
+    procedure SetPopupArea(const APopupArea: TUIArea); override;
     procedure DoAfterChildAreasCreated; override;
 
+    procedure SetControl(const AControl: TObject); override;
+    procedure SetParent(const AParent: TUIArea); override;
+    function GetFocused: Boolean; override;
+    procedure SetFocused(const Value: Boolean); override;
+    function GetBounds: TRect; override;
+    procedure SetBounds(const Value: TRect); override;
+    function GetViewState: TViewState; override;
+    procedure SetViewState(const AViewState: TViewState); override;
+
+    procedure ApplyTabStops(const ALayout: TLayout); override;
+
     procedure PlaceLabel; override;
-    procedure SetLabelPosition(const Value: TLabelPosition);
     procedure SetCaptionProperty(const ALayout: TLayout); virtual;
+    procedure UpdateCaptionVisibility; override;
   public
     constructor Create(const AOwner: TUIArea; const AControl: TObject); override;
     destructor Destroy; override;
-
-    procedure SetViewState(const AValue: TViewState); override;
-    procedure UpdateCaptionVisibility; override;
   end;
 
   TButtonArea = class(TUIArea)
@@ -952,7 +967,8 @@ begin
   end
   else if (ALayout.Kind in [lkPanel, lkMemo]) and (FControl is TControl) then
   begin
-    PlaceIntoBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+    SetBounds(Rect(ALayout.Left, ALayout.Top,
+      ALayout.Left + ALayout.Width, ALayout.Top + ALayout.Height));
     SetCaptionProperty(ALayout);
 
     if FControl is TcxCustomEdit then
@@ -1217,6 +1233,11 @@ begin
   end;
 end;
 
+function TVCLControl.GetBounds: TRect;
+begin
+  Result := TControl(FControl).BoundsRect;
+end;
+
 function TVCLControl.GetFocused: Boolean;
 begin
   if FControl is TWinControl then
@@ -1237,26 +1258,23 @@ begin
     Result := FControl.ClassName + ': ' + FOwner.Id;
 end;
 
+function TVCLControl.GetViewState: TViewState;
+begin
+  if not (FControl is TControl) or FIsForm then
+    Result := vsFullAccess
+  else if not TControl(FControl).Visible then
+    Result := vsHidden
+  else if not TControl(FControl).Enabled then
+    Result := vsDisabled
+  else if (FControl is TcxTabSheet) and not TcxTabSheet(FControl).AllowCloseButton then
+    Result := vsDisabled
+  else
+    Result := vsFullAccess;
+end;
+
 function TVCLControl.IndexOfControl(const AControl: TObject): Integer;
 begin
   Result := TMenuItem(AControl).MenuIndex;
-end;
-
-procedure TVCLControl.PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer);
-var
-  vLeft, vTop, vWidth, vHeight: Integer;
-begin
-  if FControl is TControl then
-  begin
-    vLeft := IfThen(ALeft < 0, TControl(FControl).Left, ALeft);
-    vTop := IfThen(ATop < 0, TControl(FControl).Top, ATop);
-    vWidth := IfThen(AWidth < 0, TControl(FControl).Width, AWidth);
-    vHeight := IfThen(AHeight < 0, TControl(FControl).Height, AHeight);
-
-    TControl(FControl).SetBounds(vLeft, vTop, vWidth, vHeight);
-  end;
-
-  PlaceLabel;
 end;
 
 procedure TVCLControl.PlaceLabel;
@@ -1285,6 +1303,14 @@ begin
   vLabel.Parent := TControl(FControl).Parent;
 end;
 
+procedure TVCLControl.SetBounds(const Value: TRect);
+begin
+  if FControl is TControl then
+    TControl(FControl).SetBounds(Value.Left, Value.Top, Value.Width, Value.Height);
+
+  PlaceLabel;
+end;
+
 procedure TVCLControl.SetCaptionProperty(const ALayout: TLayout);
 begin
   if not Assigned(FCaption) or not Assigned(ALayout) then
@@ -1300,7 +1326,10 @@ begin
       TLabel(FCaption).Anchors := [akLeft, akTop];
 
     if ALayout.Caption_AtLeft then
-      SetLabelPosition(lpLeft);
+    begin
+      FLabelPosition := lpLeft;
+      PlaceLabel;
+    end;
   end;
 end;
 
@@ -1359,12 +1388,6 @@ begin
     TWinControl(FControl).SetFocus;
 end;
 
-procedure TVCLControl.SetLabelPosition(const Value: TLabelPosition);
-begin
-  FLabelPosition := Value;
-  PlaceLabel;
-end;
-
 procedure TVCLControl.SetParent(const AParent: TUIArea);
 begin
   inherited SetParent(AParent);
@@ -1389,27 +1412,15 @@ begin
   TCrackedControl(FControl).PopupMenu := vPopupMenu;
 end;
 
-procedure TVCLControl.SetViewState(const AValue: TViewState);
-var
-  vBoolValue: Boolean;
+procedure TVCLControl.SetViewState(const AViewState: TViewState);
 begin
-  if FControl is TMenuItem then
+  if (FControl is TControl) and not FIsForm then
   begin
-    TMenuItem(FControl).Visible := AValue > vsHidden;
-    TMenuItem(FControl).Enabled := AValue > vsDisabled;
-  end
-  else if (FControl is TControl) and (not FIsForm) then
-  begin
-    vBoolValue := AValue > vsHidden;
-
-    if TControl(FControl).Visible <> vBoolValue then
-      TControl(FControl).Visible := vBoolValue;
-
-    vBoolValue := AValue > vsDisabled;
+    TControl(FControl).Visible := AViewState > vsHidden;
     if FControl is TcxTabSheet then
-      TcxTabSheet(FControl).AllowCloseButton := vBoolValue
-    else if TControl(FControl).Enabled <> vBoolValue then
-      TControl(FControl).Enabled := vBoolValue;
+      TcxTabSheet(FControl).AllowCloseButton := AViewState > vsDisabled
+    else
+      TControl(FControl).Enabled := AViewState > vsDisabled;
   end;
 end;
 

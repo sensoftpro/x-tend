@@ -36,7 +36,8 @@ unit uUIBuilder;
 interface
 
 uses
-  Classes, Generics.Collections, Generics.Defaults, UITypes, SysUtils, uConsts, uView, uDefinition, uEntity, uSession, uLayout;
+  Classes, Types, Generics.Collections, Generics.Defaults, UITypes, SysUtils,
+  uConsts, uView, uDefinition, uEntity, uSession, uLayout;
 
 type
   TLabelPosition = (lpTop, lpLeft);
@@ -46,6 +47,7 @@ type
   TUIAreaClass = class of TUIArea;
 
   TNativeControl = class
+  private
   protected
     [Weak] FOwner: TUIArea;
     [Weak] FParent: TUIArea;
@@ -65,24 +67,33 @@ type
 
     function IndexOfControl(const AControl: TObject): Integer; virtual;
     function AreaFromSender(const ASender: TObject): TUIArea; virtual;
-    procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); virtual;
-    procedure DoClose(const AModalResult: Integer); virtual;
-    function GetName: string; virtual;
+
     procedure DoActivate(const AUrlParams: string); virtual;
+    procedure DoClose(const AModalResult: Integer); virtual;
+    procedure DoBeginUpdate; virtual;
+    procedure DoEndUpdate; virtual;
+
+    function GetName: string; virtual;
+    function DoGetDescription: string; virtual;
+
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
     function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; virtual;
-    procedure SetParent(const AParent: TUIArea); virtual;
-    procedure SetControl(const AControl: TObject); virtual;
-    function DoGetDescription: string; virtual;
+    procedure DoAfterChildAreasCreated; virtual;
+
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); virtual;
     procedure SetPopupArea(const APopupArea: TUIArea); virtual;
 
-    procedure DoBeginUpdate; virtual;
-    procedure DoEndUpdate; virtual;
-    procedure DoAfterChildAreasCreated; virtual;
+    procedure SetControl(const AControl: TObject); virtual;
+    procedure SetParent(const AParent: TUIArea); virtual;
     function GetFocused: Boolean; virtual;
     procedure SetFocused(const Value: Boolean); virtual;
+    function GetBounds: TRect; virtual;
+    procedure SetBounds(const Value: TRect); virtual;
+    function GetViewState: TViewState; virtual;
+    procedure SetViewState(const AViewState: TViewState); virtual;
+
     procedure PlaceLabel; virtual;
+    procedure UpdateCaptionVisibility; virtual;
 
     procedure RefillArea(const AKind: Word); virtual;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); virtual;
@@ -94,13 +105,15 @@ type
     constructor Create(const AOwner: TUIArea; const AControl: TObject); virtual;
     destructor Destroy; override;
 
-    procedure SetViewState(const AValue: TViewState); virtual;
     procedure CreateCaption(const AFieldDef: TFieldDef);
-    procedure UpdateCaptionVisibility; virtual;
 
     property Owner: TUIArea read FOwner;
     property Parent: TUIArea read FParent write SetParent;
     property Control: TObject read FControl write SetControl;
+
+    property Focused: Boolean read GetFocused write SetFocused;
+    property Bounds: TRect read GetBounds write SetBounds;
+    property ViewState: TViewState read GetViewState write SetViewState;
     property IsForm: Boolean read FIsForm;
     property ShowCaption: Boolean read FShowCaption;
     property TabOrder: Integer read FTabOrder;
@@ -365,7 +378,7 @@ implementation
 
 uses
   {DO NOT ADD VCL UNITS HERE (Controls, Forms...)}
-  StrUtils, IOUtils, UIConsts, Windows, Messages, Variants,
+  StrUtils, IOUtils, UIConsts, Windows, Messages, Variants, Math,
   uPlatform, uPresenter, uInteractor, uConfiguration, uChangeManager,
   uUtils, uDomain, uObjectField, uEntityList;
 
@@ -1948,8 +1961,17 @@ begin
 end;
 
 procedure TUIArea.SetBounds(const ALeft, ATop, AWidth, AHeight: Integer);
+var
+  vBounds: TRect;
+  vLeft, vTop, vWidth, vHeight: Integer;
 begin
-  FNativeControl.PlaceIntoBounds(ALeft, ATop, AWidth, AHeight);
+  vBounds := FNativeControl.Bounds;
+  vLeft := IfThen(ALeft < 0, vBounds.Left, ALeft);
+  vTop := IfThen(ATop < 0, vBounds.Top, ATop);
+  vWidth := IfThen(AWidth < 0, vBounds.Width, AWidth);
+  vHeight := IfThen(AHeight < 0, vBounds.Height, AHeight);
+
+  FNativeControl.Bounds := Rect(vLeft, vTop, vLeft + vWidth, vTop + vHeight);
 end;
 
 procedure TUIArea.SetControl(const AControl: TObject);
@@ -2275,7 +2297,7 @@ var
     if not Assigned(vControl) then
       Exit;
 
-    vGroupArea := TPresenter(Presenter).CreateFilledArea(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
+    vGroupArea := TPresenter(Presenter).CreateFilledArea(AParentArea, ACurrentView, ACurrentItem, '', False, vControl, '');
     AParentArea.AddArea(vGroupArea);
 
     if ACurrentItem.Id = 'Libraries' then
@@ -2320,7 +2342,7 @@ var
     if not Assigned(vControl) then
       Exit;
 
-    vNavArea := TPresenter(Presenter).CreateFilledArea(AParentArea, ACurrentView, '', False, vControl, ACurrentItem, '');
+    vNavArea := TPresenter(Presenter).CreateFilledArea(AParentArea, ACurrentView, ACurrentItem, '', False, vControl, '');
     AParentArea.AddArea(vNavArea);
 
     DoProcessChilds(vNavArea, ACurrentView, ACurrentItem, ALevel + 1);
@@ -2528,6 +2550,11 @@ begin
   Result := '';
 end;
 
+function TNativeControl.GetBounds: TRect;
+begin
+  Result := TRect.Empty;
+end;
+
 function TNativeControl.GetFocused: Boolean;
 begin
   Result := False;
@@ -2538,13 +2565,14 @@ begin
   Result := '[area]';
 end;
 
+function TNativeControl.GetViewState: TViewState;
+begin
+  Result := vsUndefined;
+end;
+
 function TNativeControl.IndexOfControl(const AControl: TObject): Integer;
 begin
   Result := -1;
-end;
-
-procedure TNativeControl.PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer);
-begin
 end;
 
 procedure TNativeControl.PlaceLabel;
@@ -2581,6 +2609,10 @@ begin
   UpdateCaptionVisibility;
 end;
 
+procedure TNativeControl.SetBounds(const Value: TRect);
+begin
+end;
+
 procedure TNativeControl.SetControl(const AControl: TObject);
 begin
   FControl := AControl;
@@ -2599,7 +2631,7 @@ procedure TNativeControl.SetPopupArea(const APopupArea: TUIArea);
 begin
 end;
 
-procedure TNativeControl.SetViewState(const AValue: TViewState);
+procedure TNativeControl.SetViewState(const AViewState: TViewState);
 begin
 end;
 

@@ -619,7 +619,7 @@ begin
             if Assigned(vView.DomainObject) and TEntity(vView.DomainObject).FieldExists('IsChecked') then
               vDestItem.AutoCheck := True;
 
-            vChildArea := CreateFilledArea(AParent, vView, vCaption, False, vDestItem, vSrcItem);
+            vChildArea := CreateFilledArea(AParent, vView, vSrcItem, vCaption, False, vDestItem);
             TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
 
@@ -655,7 +655,7 @@ begin
             vDestItem.ImageIndex := 31;
             vDestItem.OnClick := AParent.OnAreaClick;
 
-            vChildArea := CreateFilledArea(AParent, vView, vCaption, False, vDestItem, vSrcItem);
+            vChildArea := CreateFilledArea(AParent, vView, vSrcItem, vCaption, False, vDestItem);
             TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
 
@@ -693,7 +693,7 @@ begin
       else
         vDestItem.Caption := vCaption;
 
-      vChildArea := CreateFilledArea(AParent, AParent.View, vSrcItem.ViewName, False, vDestItem, vSrcItem);
+      vChildArea := CreateFilledArea(AParent, AParent.View, vSrcItem, vSrcItem.ViewName, False, vDestItem);
       AParent.AddArea(vChildArea);
 
       ADestMenu.Add(vDestItem);
@@ -738,7 +738,7 @@ begin
       if Assigned(vView.DomainObject) and TEntity(vView.DomainObject).FieldExists('IsChecked') then
         vDestItem.AutoCheck := True;
 
-      vChildArea := CreateFilledArea(AParent, vView, vCaption, False, vDestItem, vSrcItem);
+      vChildArea := CreateFilledArea(AParent, vView, vSrcItem, vCaption, False, vDestItem);
       for j := 0 to vDestItem.Count - 1 do
         vDestItem[j].Tag := Integer(vChildArea);
 
@@ -858,7 +858,7 @@ begin
     CopyConstraints(vShape, ALayout);
     vShape.Shape := TShapeType(ALayout.Shape_Type);
 
-    Result := CreateFilledArea(AParent, AView, '', False, vShape, ALayout);
+    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vShape);
   end
   else if ALayout.Kind = lkLabel then
   begin
@@ -882,7 +882,7 @@ begin
     else
       vLabel.Caption := ALayout.Caption;
 
-    Result := CreateFilledArea(AParent, AView, '', False, vLabel, ALayout);
+    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vLabel);
   end
   else if ALayout.Kind = lkImage then
   begin
@@ -906,7 +906,7 @@ begin
     vImage.Properties.Proportional := ALayout.Image_Proportional;
     vImage.Properties.Center := ALayout.Image_Center;
 
-    Result := CreateFilledArea(AParent, AView, '', False, vImage, ALayout);
+    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vImage);
   end
   else if ALayout.Kind = lkPages then
   begin
@@ -936,7 +936,7 @@ begin
     vPC.Visible := ALayout.State > vsHidden;
     vPC.Enabled := ALayout.State > vsDisabled;
 
-    Result := CreateFilledArea(AParent, AView, '', False, vPC, ALayout);
+    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vPC);
   end
   else if ALayout.Kind = lkPage then
   begin
@@ -951,7 +951,7 @@ begin
       if AView.DefinitionKind in [dkCollection, dkAction, dkEntity] then
         TDragImageList(TInteractor(AView.Interactor).Images[16]).GetIcon(AParent.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
 
-      Result := CreateFilledArea(AParent, AView, ALayout.Name, False, vForm, ALayout);
+      Result := CreateFilledArea(AParent, AView, ALayout, ALayout.Name, False, vForm);
       Result.OnClose := AOnClose;
     end
     else begin
@@ -963,7 +963,7 @@ begin
       vTab.AllowCloseButton := not SameText(ALayout.Name, vStartPageName);
       vTab.TabVisible := ALayout.ShowCaption;
 
-      Result := CreateFilledArea(AParent, AView, ALayout.Name, False, vTab, ALayout);
+      Result := CreateFilledArea(AParent, AView, ALayout, ALayout.Name, False, vTab);
     end;
   end
   else if ALayout.Kind = lkBevel then
@@ -975,7 +975,7 @@ begin
     vBevel.Shape := TBevelShape(ALayout.Bevel_Shape);
     vBevel.Style := TBevelStyle(ALayout.Bevel_Style);
 
-    Result := CreateFilledArea(AParent, AView, '-bevel-', False, vBevel, ALayout);
+    Result := CreateFilledArea(AParent, AView, ALayout, '-bevel-', False, vBevel);
   end
   else if ALayout.Kind = lkSplitter then
   begin
@@ -994,7 +994,7 @@ begin
     vSplitter.ParentColor := False;
     vSplitter.NativeBackground := False;
 
-    Result := CreateFilledArea(AParent, AView, '-splitter-', False, vSplitter, ALayout);
+    Result := CreateFilledArea(AParent, AView, ALayout, '-splitter-', False, vSplitter);
   end
   else if ALayout.Kind = lkPanel then
   begin
@@ -1024,7 +1024,7 @@ begin
       vPC.Align := TAlign(ALayout.Align);
       vPC.Anchors := ALayout.Anchors;
       CopyFontSettings(vPC.Font, ALayout);
-      Result := CreateFilledArea(AParent, AView, Trim(ALayout.Caption), False, vPC, ALayout);
+      Result := CreateFilledArea(AParent, AView, ALayout, Trim(ALayout.Caption), False, vPC);
 
       // Здесь можно подкорректировать параметры
       if StrToBoolDef(vDomain.UserSettings.GetValue('Core', 'ShowStartPage'), True) then
@@ -1063,7 +1063,7 @@ begin
       vPanel.ParentColor := False;
       vPanel.ParentBackground := False;
 
-      Result := CreateFilledArea(AParent, AView, Trim(ALayout.Caption), False, vPanel, ALayout, AParams);
+      Result := CreateFilledArea(AParent, AView, ALayout, Trim(ALayout.Caption), False, vPanel, AParams);
     end;
 
     Result.AddParams(vParams);
@@ -1080,7 +1080,7 @@ begin
     if ALayout.BorderStyle = lbsNone then
       vBox.BorderStyle := cxcbsNone;
 
-    Result := CreateFilledArea(AParent, AView, '', False, vBox, ALayout);
+    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vBox);
   end
   else if ALayout.Kind = lkMemo then
   begin
@@ -1104,7 +1104,7 @@ begin
     vPanel.ParentColor := False;
     vPanel.ParentBackground := False;
 
-    Result := CreateFilledArea(AParent, AView, Trim(ALayout.Caption), False, vPanel, ALayout);
+    Result := CreateFilledArea(AParent, AView, ALayout, Trim(ALayout.Caption), False, vPanel);
   end
   else if ALayout.Kind <> lkNone then
     Assert(False, 'Класс не поддерживается для создания лэйаутов')
@@ -1122,7 +1122,7 @@ begin
     vMenu := TPopupMenu.Create(TComponent(AParent.InnerControl));
     vMenu.Images := TDragImageList(TInteractor(AParent.Interactor).Images[16]);
     vView := AParent.UIBuilder.RootView;
-    Result := CreateFilledArea(AParent, vView, '-popup-', False, vMenu);
+    Result := CreateFilledArea(AParent, vView, nil, '-popup-', False, vMenu);
     CopyPopupMenuItems(AParent, AParent.View, ALayout.Menu, vMenu.Items);
   end
   else
@@ -1199,7 +1199,7 @@ begin
   Assert(not Assigned(vForm.OnShow), 'vForm.OnShow already assigned');
   vForm.OnShow := DoOnFormShow;
   try
-    Result := CreateFilledArea(AParent, AView, AAreaName, True, vForm, nil, '');
+    Result := CreateFilledArea(AParent, AView, nil, AAreaName, True, vForm);
     if Assigned(AOnClose) then
       Result.OnClose := AOnClose;
   finally
