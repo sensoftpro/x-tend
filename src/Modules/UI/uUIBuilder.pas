@@ -2136,7 +2136,10 @@ end;
 
 function TUIArea.TryCreatePopupArea(const ALayout: TLayout): TUIArea;
 begin
-  Result := TPresenter(Presenter).CreatePopupArea(Self, ALayout);
+  if Assigned(ALayout) and Assigned(ALayout.Menu) then
+    Result := TPresenter(Presenter).CreatePopupArea(Self, ALayout)
+  else
+    Result := nil;
 end;
 
 procedure TUIArea.TrySubscribeView;

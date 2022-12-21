@@ -219,6 +219,7 @@ type
     FProgressInfo: TProgressInfo;
     FInteractors: TObjectList<TInteractor>;
     FCommonIcons: TIcons;
+    FNeedShowSplash: Boolean;
 
     procedure DoOnAppStarted;
 
@@ -243,8 +244,9 @@ type
 
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; virtual; abstract;
 
-    procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string); virtual;
-    procedure OnDomainError(const ACaption, AText: string); virtual;
+    procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
+    procedure OnDomainError(const ACaption, AText: string);
+
     procedure StoreUILayout(const AInteractor: TInteractor); virtual;
     procedure RestoreUILayout(const AInteractor: TInteractor); virtual;
 
@@ -374,6 +376,11 @@ begin
   FCommonIcons.Load(TPath.Combine(GetPlatformDir, 'res' + PathDelim + 'Styles' + PathDelim + vStyleName));
   FInteractors := TObjectList<TInteractor>.Create;
   FProgressInfo := TProgressInfo.Create;
+
+  if ASettings.KeyExists(AName, 'ShowSplash') then
+    FNeedShowSplash := StrToBoolDef(ASettings.GetValue(AName, 'ShowSplash'), False)
+  else
+    FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
 end;
 
 function TPresenter.CreateActionArea(const AParentArea: TUIArea; const ALayout: TLayout; const AView: TView;
@@ -956,10 +963,16 @@ end;
 
 procedure TPresenter.OnDomainError(const ACaption, AText: string);
 begin
+  ShowMessage(ACaption, AText, msError);
 end;
 
 procedure TPresenter.OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
 begin
+  if FNeedShowSplash then
+  begin
+    FProgressInfo.SetProgress(AProgress, AInfo);
+    ShowPage(nil, 'splash', FProgressInfo);
+  end;
 end;
 
 procedure TPresenter.OnPCCanClose(Sender: TObject; var ACanClose: Boolean);

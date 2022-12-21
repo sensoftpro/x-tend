@@ -53,11 +53,12 @@ type
     procedure LoadImages(const AInteractor: TInteractor; const AImageList: TDragImageList; const AResolution: Integer);
     procedure DoToggleUI(const AVisible: Boolean); // Rethink
     procedure DoTrayIconClick(Sender: TObject);
+    procedure DoDebugFormClose(Sender: TObject; var Action: TCloseAction);
   private
     FRowStyle: TObject;
-    FNeedShowSplash: Boolean;
     procedure ArrangeMozaic(const AMDIForm: TForm);
     procedure SetAsMainForm(const AForm: TForm);
+    function MessageTypeToMBFlags(const AMessageType: TMessageType): Integer;
 
     procedure RestoreChildForms(const AInteractor: TInteractor);
     procedure StoreChildForms(const AInteractor: TInteractor; const AMainForm: TForm);
@@ -65,18 +66,16 @@ type
     // Creation of Layout from DFM
     function GetLayoutKind(const AControl: TObject): TLayoutKind;
     procedure CopyControlPropertiesToLayout(const ALayout: TLayout; const AControl: TObject);
+
     procedure CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
      const ASrcItem: TNavigationItem; const ADestMenu: TMenuItem);
   protected
-    //FOnRFIDRead: TRFIDReadEvent;
     FTrayIcon: TTrayIcon;
     FStartForm: TStartFm;
     [Weak] FDebugForm: TDebugFm;
     [Weak] FSplashForm: TSplashFm;
     procedure DoChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-    procedure DoDebugFormClose(Sender: TObject; var Action: TCloseAction);
     procedure OnShortCut(var Msg: TWMKey; var Handled: Boolean);
-    function MessageTypeToMBFlags(const AMessageType: TMessageType): Integer;
   protected
     procedure DoRun(const AParameter: string); override;
     procedure DoUnfreeze; override;
@@ -96,9 +95,6 @@ type
     procedure DoSetCursor(const ACursorType: TCursorType); override;
     procedure DoCloseAllPages(const AInteractor: TInteractor); override;
 
-    procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string); override;
-    procedure OnDomainError(const ACaption, AText: string); override;
-
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; override;
 
     procedure StoreUILayout(const AInteractor: TInteractor); override;
@@ -113,15 +109,15 @@ type
       const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; override;
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
 
-    function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
-    procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
+      function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
+      procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
 
-    function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
-      const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
-    function CreateTempControl: TObject; override;
-    function CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea; override;
+      function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
+        const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
+      function CreateTempControl: TObject; override; // DFM
+      function CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea; override;
 
-    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
+      procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
 
     property RowStyle: TObject read FRowStyle;
   end;
@@ -766,11 +762,6 @@ begin
   inherited Create(AName, ASettings);
 
   FRowStyle := TcxStyle.Create(nil);
-
-  if ASettings.KeyExists(AName, 'ShowSplash') then
-    FNeedShowSplash := StrToBoolDef(ASettings.GetValue(AName, 'ShowSplash'), False)
-  else
-    FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
 end;
 
 type
@@ -1120,16 +1111,11 @@ var
   vMenu: TPopupMenu;
   vView: TView;
 begin
-  if Assigned(ALayout) and Assigned(ALayout.Menu) then
-  begin
-    vMenu := TPopupMenu.Create(TComponent(AParent.InnerControl));
-    vMenu.Images := TDragImageList(TInteractor(AParent.Interactor).Images[16]);
-    vView := AParent.UIBuilder.RootView;
-    Result := CreateFilledArea(AParent, vView, nil, '-popup-', False, vMenu);
-    CopyPopupMenuItems(AParent, AParent.View, ALayout.Menu, vMenu.Items);
-  end
-  else
-    Result := nil;
+  vMenu := TPopupMenu.Create(TComponent(AParent.InnerControl));
+  vMenu.Images := TDragImageList(TInteractor(AParent.Interactor).Images[16]);
+  vView := AParent.UIBuilder.RootView;
+  Result := CreateFilledArea(AParent, vView, nil, '-popup-', False, vMenu);
+  CopyPopupMenuItems(AParent, AParent.View, ALayout.Menu, vMenu.Items);
 end;
 
 function TWinVCLPresenter.CreateTempControl: TObject;
@@ -1390,20 +1376,6 @@ begin
     msQuestion: Result := MB_ICONQUESTION;
     msWarning: Result := MB_ICONWARNING;
     msError: Result := MB_ICONERROR;
-  end;
-end;
-
-procedure TWinVCLPresenter.OnDomainError(const ACaption, AText: string);
-begin
-  ShowMessage(ACaption, AText, msError);
-end;
-
-procedure TWinVCLPresenter.OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
-begin
-  if FNeedShowSplash then
-  begin
-    FProgressInfo.SetProgress(AProgress, AInfo);
-    ShowPage(nil, 'splash', FProgressInfo);
   end;
 end;
 
