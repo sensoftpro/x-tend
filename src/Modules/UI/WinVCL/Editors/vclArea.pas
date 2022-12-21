@@ -39,11 +39,11 @@ uses
   Windows, Classes, Forms, Messages, Generics.Collections, Controls, StdCtrls, ExtCtrls, Menus, UITypes, SysUtils,
   uConsts, uUIBuilder, uDefinition, uEntity, uView, uLayout;
 
-///  1. Привязка сплиттера к контролу
-///  2. Привязка меню к контролу
-///  3. Обработка TabOrder
+//////  1. Привязка сплиттера к контролу
+//////  2. Привязка меню к контролу
+//////  3. Обработка TabOrder
 ///  4. Сохранение и восстановление размеров форм в презентере
-///  5. Name и Description
+//////  5. Name и Description
 ///  6. Перенести AssignFromLayout в общий код создания
 ///  7. Сделать TCollectionArea, перенести код в DoCreateControl
 ///  8. Разбраться с надписью для полей
@@ -64,14 +64,11 @@ type
     procedure DoBeginUpdate; override;
     procedure DoEndUpdate; override;
 
-    function GetName: string; override;
-    function DoGetDescription: string; override;
-
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); override;
-    procedure SetPopupArea(const APopupArea: TUIArea); override;
 
     procedure SetControl(const AControl: TObject); override;
-    procedure SetLinkedControl(const ALinkedControl: TNativeControl); override;
+    function GetControlInfo: string; override;
+    procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
     procedure SetParent(const AParent: TUIArea); override;
     function GetFocused: Boolean; override;
     procedure SetFocused(const Value: Boolean); override;
@@ -1165,21 +1162,17 @@ begin
   end;
 end;
 
-function TVCLControl.DoGetDescription: string;
-begin
-  Result := inherited DoGetDescription;
-  if Assigned(FControl) and (FControl is TControl) then
-  begin
-    if not TControl(FControl).Visible then
-      Result := Result + ' HID';
-    if not TControl(FControl).Enabled then
-      Result := Result + ' DIS';
-  end;
-end;
-
 function TVCLControl.GetBounds: TRect;
 begin
   Result := TControl(FControl).BoundsRect;
+end;
+
+function TVCLControl.GetControlInfo: string;
+begin
+  if not Assigned(FControl) then
+    Result := 'NULL'
+  else
+    Result := FControl.ClassName;
 end;
 
 function TVCLControl.GetFocused: Boolean;
@@ -1188,18 +1181,6 @@ begin
     Result := TWinControl(FControl).Focused
   else
     Result := False;
-end;
-
-function TVCLControl.GetName: string;
-begin
-  if not Assigned(FControl) then
-    Result := 'NULL'
-  else if not (FControl is TControl) then
-    Result := FControl.ClassName + ': ' + FOwner.Id
-  else if TCrackedWinControl(FControl).Caption <> '' then
-    Result := FControl.ClassName + ': ' + FOwner.Id + ' (' + TCrackedWinControl(FControl).Caption + ')'
-  else
-    Result := FControl.ClassName + ': ' + FOwner.Id;
 end;
 
 function TVCLControl.GetTabOrder: Integer;
@@ -1340,10 +1321,25 @@ begin
     TWinControl(FControl).SetFocus;
 end;
 
-procedure TVCLControl.SetLinkedControl(const ALinkedControl: TNativeControl);
+procedure TVCLControl.SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl);
+var
+  vPopupMenu: TPopupMenu;
 begin
-  if FControl is TcxSplitter then
-    TcxSplitter(FControl).Control := TControl(TVCLControl(ALinkedControl).Control);
+  if not Assigned(FControl) then
+    Exit;
+
+  if SameText(ATargetName, 'splitter') then
+  begin
+    if FControl is TcxSplitter then
+      TcxSplitter(FControl).Control := TControl(TVCLControl(ALinkedControl).Control);
+  end
+  else if SameText(ATargetName, 'popup') then
+  begin
+    vPopupMenu := TPopupMenu(ALinkedControl.Control);
+    if not Assigned(vPopupMenu.OnPopup) then
+      vPopupMenu.OnPopup := BeforeContextMenuShow;
+    TCrackedControl(FControl).PopupMenu := vPopupMenu;
+  end;
 end;
 
 procedure TVCLControl.SetParent(const AParent: TUIArea);
@@ -1358,16 +1354,6 @@ begin
     TControl(FControl).Parent := nil
   else if not Assigned(TControl(FControl).Parent) then
     TControl(FControl).Parent := TWinControl(AParent.InnerControl);
-end;
-
-procedure TVCLControl.SetPopupArea(const APopupArea: TUIArea);
-var
-  vPopupMenu: TPopupMenu;
-begin
-  vPopupMenu := TPopupMenu(APopupArea.InnerControl);
-  if not Assigned(vPopupMenu.OnPopup) then
-    vPopupMenu.OnPopup := BeforeContextMenuShow;
-  TCrackedControl(FControl).PopupMenu := vPopupMenu;
 end;
 
 procedure TVCLControl.SetTabOrder(const ATabOrder: Integer);

@@ -48,6 +48,7 @@ type
 
   TNativeControl = class
   private
+    function GetDescription: string;
   protected
     [Weak] FOwner: TUIArea;
     [Weak] FParent: TUIArea;
@@ -73,16 +74,14 @@ type
     procedure DoBeginUpdate; virtual;
     procedure DoEndUpdate; virtual;
 
-    function GetName: string; virtual;
-    function DoGetDescription: string; virtual;
-
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
     function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; virtual;
 
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); virtual;
-    procedure SetPopupArea(const APopupArea: TUIArea); virtual;
 
     procedure SetControl(const AControl: TObject); virtual;
+    function GetControlInfo: string; virtual;
+    procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); virtual;
     procedure SetParent(const AParent: TUIArea); virtual;
     function GetFocused: Boolean; virtual;
     procedure SetFocused(const Value: Boolean); virtual;
@@ -92,7 +91,6 @@ type
     procedure SetViewState(const AViewState: TViewState); virtual;
     function GetTabOrder: Integer; virtual;
     procedure SetTabOrder(const ATabOrder: Integer); virtual;
-    procedure SetLinkedControl(const ALinkedControl: TNativeControl); virtual;
 
     procedure PlaceLabel; virtual;
     procedure UpdateCaptionVisibility; virtual;
@@ -114,6 +112,7 @@ type
     property Bounds: TRect read GetBounds write SetBounds;
     property ViewState: TViewState read GetViewState write SetViewState;
     property TabOrder: Integer read GetTabOrder write SetTabOrder;
+    property Description: string read GetDescription;
 
     property IsForm: Boolean read FIsForm;
     property ShowCaption: Boolean read FShowCaption;
@@ -1025,7 +1024,7 @@ begin
       for j := 0 to FAreas.Count - 1 do
         if (FAreas[j] <> FAreas[i]) and (FAreas[j].Layout.Align = FAreas[i].Layout.Align) then
         begin
-          FAreas[i].NativeControl.SetLinkedControl(FAreas[j].NativeControl);
+          FAreas[i].NativeControl.SetLinkedControl('splitter', FAreas[j].NativeControl);
           Break;
         end;
     end;
@@ -1819,7 +1818,7 @@ end;
 
 function TUIArea.GetName: string;
 begin
-  Result := FNativeControl.GetName;
+  Result := FNativeControl.Description;
 end;
 
 function TUIArea.GetPresenter: TObject;
@@ -2069,7 +2068,7 @@ end;
 
 procedure TUIArea.SetPopupArea(const APopupArea: TUIArea);
 begin
-  FNativeControl.SetPopupArea(APopupArea);
+  FNativeControl.SetLinkedControl('popup', APopupArea.NativeControl);
 end;
 
 procedure TUIArea.SetView(const Value: TView);
@@ -2092,12 +2091,11 @@ var
   vViewName: string;
   vModifier: string;
   vIndex: string;
-  vClassName: string;
 begin
   if FView.FullName = '' then
     vViewName := ''
   else
-    vViewName := ', view: ' + FView.FullName;
+    vViewName := ', view: "' + FView.FullName + '"';
 
   vModifier := '';
   if Assigned(FHolder) then
@@ -2117,13 +2115,7 @@ begin
   else
     vIndex := '// ';
 
-  if Assigned(FNativeControl.Control) then
-    vClassName := FNativeControl.Control.ClassName
-  else
-    vClassName := '???';
-
-  Result := AIndent + vModifier + vIndex + GetName + ':' + Self.ClassName + ':' + vClassName + vViewName +
-    FNativeControl.DoGetDescription + #13#10;
+  Result := AIndent + vModifier + vIndex + GetName + vViewName + #13#10;
   for i := 0 to FAreas.Count - 1 do
     Result := Result + GetArea(i).TextHierarchy(AIndent + '    ');
 end;
@@ -2214,7 +2206,7 @@ end;
 
 function TFieldArea.GetName: string;
 begin
-  Result := FDefinitionName;
+  Result := inherited GetName + ', Def: ' + FDefinitionName;
 end;
 
 function TFieldArea.GetNewValue: Variant;
@@ -2580,14 +2572,14 @@ procedure TNativeControl.DoEndUpdate;
 begin
 end;
 
-function TNativeControl.DoGetDescription: string;
-begin
-  Result := '';
-end;
-
 function TNativeControl.GetBounds: TRect;
 begin
   Result := TRect.Empty;
+end;
+
+function TNativeControl.GetControlInfo: string;
+begin
+  Result := '[???]';
 end;
 
 function TNativeControl.GetFocused: Boolean;
@@ -2595,9 +2587,21 @@ begin
   Result := False;
 end;
 
-function TNativeControl.GetName: string;
+function TNativeControl.GetDescription: string;
+var
+  vViewState: TViewState;
 begin
-  Result := '[area]';
+  vViewState := GetViewState;
+  if vViewState = vsUndefined then
+    Result := '???'
+  else
+    Result := cViewStateNames[vViewState];
+
+  Result := Result + ' ' + GetControlInfo;
+  if FOwner.Id <> '' then
+    Result := Result + ', Id= "' + FOwner.Id + '"';
+  if Assigned(FLayout) and (FLayout.Caption <> '') then
+    Result := Result + ', Caption= "' + FLayout.Caption + '"';
 end;
 
 function TNativeControl.GetTabOrder: Integer;
@@ -2661,17 +2665,13 @@ procedure TNativeControl.SetFocused(const Value: Boolean);
 begin
 end;
 
-procedure TNativeControl.SetLinkedControl(const ALinkedControl: TNativeControl);
+procedure TNativeControl.SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl);
 begin
 end;
 
 procedure TNativeControl.SetParent(const AParent: TUIArea);
 begin
   FParent := AParent;
-end;
-
-procedure TNativeControl.SetPopupArea(const APopupArea: TUIArea);
-begin
 end;
 
 procedure TNativeControl.SetTabOrder(const ATabOrder: Integer);
