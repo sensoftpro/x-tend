@@ -55,7 +55,7 @@ object Form: TForm
         Left = 21
         Top = 76
         Width = 100
-        Height = 24
+        Height = 37
         Caption = 'ShowAbout'
         TabOrder = 2
       end

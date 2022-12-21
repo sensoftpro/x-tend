@@ -202,7 +202,6 @@ type
     FMenu: TNavigationItem;
     FUrlParser: TUrlParser;
     FKind: TLayoutKind;
-    FIsOwner: Boolean;
     FIndex: Integer;
     FPresenter: TObject;
 
@@ -236,7 +235,6 @@ type
     FBevelInner: TLayoutBevelKind;
     FBevelOuter: TLayoutBevelKind;
     FBorderStyle: TLayoutBorderStyle;
-    FTabStop: Boolean;
     FTabOrder: Integer;
 
     // Графические объекты
@@ -273,7 +271,7 @@ type
   public
     class var _Count: Integer;
 
-    constructor Create(const AKind: TLayoutKind; const AIsOwner: Boolean = False);
+    constructor Create(const AKind: TLayoutKind);
     destructor Destroy; override;
 
     procedure Load(const AFileName: string);
@@ -307,7 +305,6 @@ type
     property BevelInner: TLayoutBevelKind read FBevelInner write FBevelInner;
     property BevelOuter: TLayoutBevelKind read FBevelOuter write FBevelOuter;
     property BorderStyle: TLayoutBorderStyle read FBorderStyle write FBorderStyle;
-    property TabStop: Boolean read FTabStop write FTabStop;
     property TabOrder: Integer read FTabOrder write FTabOrder;
 
     property Name: string read FName write FName;
@@ -342,7 +339,6 @@ type
 
     property ContentLayout: TLayout read FContentLayout write SetContentLayout;
     property Menu: TNavigationItem read FMenu write SetMenu;
-    property IsOwner: Boolean read FIsOwner;
     property _Index: Integer read FIndex;
     property Presenter: TObject read FPresenter write FPresenter;
   end;
@@ -754,7 +750,7 @@ end;
 
 constructor TNavigationItem.Create(const AParent: TNavigationItem; const AUrl: string);
 begin
-  inherited Create(lkAction, True);
+  inherited Create(lkAction);
   FParent := AParent;
   FOwner := nil;
 
@@ -765,7 +761,7 @@ end;
 
 constructor TNavigationItem.Create(const AParent: TNavigationItem; const AJSON: TJSONObject);
 begin
-  inherited Create(lkAction, True);
+  inherited Create(lkAction);
   FOwner := nil;
   FParent := AParent;
   InternalLoad(AJSON);
@@ -952,7 +948,7 @@ begin
   FConstraints.MaxHeight := FHeight;
 end;
 
-constructor TLayout.Create(const AKind: TLayoutKind; const AIsOwner: Boolean = False);
+constructor TLayout.Create(const AKind: TLayoutKind);
 begin
   inherited Create;
   FParent := nil;
@@ -960,7 +956,6 @@ begin
   FContentLayout := nil;
   FMenu := nil;
   FUrlParser := nil;
-  FIsOwner := AIsOwner;
   FKind := AKind;
   Assert(FKind > lkNone);
 
@@ -991,7 +986,6 @@ begin
   FParams := '';
   FTag := 0;
   FImageID := -1;
-  FTabStop := True;
   FTabOrder := -1;
 
   FPen := TLayoutPen.Create;
@@ -1167,7 +1161,6 @@ begin
     FConstraints := TLayoutConstraints.Create(-1, -1, -1, -1);
   FState := StrToViewState(AJSON.ExtractString('view_state'));
   FTabOrder := AJSON.ExtractInteger('tab_order');
-  FTabStop := AJSON.ExtractBoolean('tab_stop');
   FColor := AJSON.ExtractColor('color');
   if AJSON.Contains('font') then
     FFont := TLayoutFont.Create(AJSON.ExtractObject('font'))
@@ -1279,7 +1272,6 @@ begin
   Result.StoreString('view_state', ViewStateToStr(FState));
   //Result.StoreBoolean('double_buffered', FDoubleBuffered);
   Result.StoreInteger('tab_order', FTabOrder);
-  Result.StoreBoolean('tab_stop', FTabStop);
   Result.StoreColor('color', FColor);
   Result.AddPair('font', FFont.InternalSave);
 

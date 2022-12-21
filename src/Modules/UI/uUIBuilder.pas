@@ -78,7 +78,6 @@ type
 
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
     function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; virtual;
-    procedure DoAfterChildAreasCreated; virtual;
 
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); virtual;
     procedure SetPopupArea(const APopupArea: TUIArea); virtual;
@@ -91,6 +90,9 @@ type
     procedure SetBounds(const Value: TRect); virtual;
     function GetViewState: TViewState; virtual;
     procedure SetViewState(const AViewState: TViewState); virtual;
+    function GetTabOrder: Integer; virtual;
+    procedure SetTabOrder(const ATabOrder: Integer); virtual;
+    procedure SetLinkedControl(const ALinkedControl: TNativeControl); virtual;
 
     procedure PlaceLabel; virtual;
     procedure UpdateCaptionVisibility; virtual;
@@ -99,8 +101,6 @@ type
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); virtual;
 
     procedure UnbindContent;
-
-    procedure ApplyTabStops(const ALayout: TLayout); virtual;
   public
     constructor Create(const AOwner: TUIArea; const AControl: TObject); virtual;
     destructor Destroy; override;
@@ -110,14 +110,13 @@ type
     property Owner: TUIArea read FOwner;
     property Parent: TUIArea read FParent write SetParent;
     property Control: TObject read FControl write SetControl;
-
     property Focused: Boolean read GetFocused write SetFocused;
     property Bounds: TRect read GetBounds write SetBounds;
     property ViewState: TViewState read GetViewState write SetViewState;
+    property TabOrder: Integer read GetTabOrder write SetTabOrder;
+
     property IsForm: Boolean read FIsForm;
     property ShowCaption: Boolean read FShowCaption;
-    property TabOrder: Integer read FTabOrder;
-    property TabStop: Boolean read FTabStop;
   end;
 
   TNativeControlClass = class of TNativeControl;
@@ -186,7 +185,6 @@ type
     FNeedCreateCaption: Boolean;
 
     function GetName: string; virtual;
-    procedure DoAfterChildAreasCreated; virtual;
     procedure DoOnExit(Sender: TObject); virtual;
     procedure DoActivate(const AUrlParams: string); virtual;
     // Отвязать все обработчики
@@ -279,6 +277,11 @@ type
     property TabStop: Boolean read GetTabStop;
     property OnClose: TProc read FOnClose write FOnClose;
     property Focused: Boolean read GetFocused write SetFocused;
+  end;
+
+  TUIAreaComparer = class(TComparer<TUIArea>)
+  public
+    function Compare(const ALeft, ARight: TUIArea): Integer; override;
   end;
 
   TFieldArea = class(TUIArea)
@@ -471,7 +474,7 @@ begin
   if not (ALayoutKind in [lkFrame, lkPanel, lkPage]) then
     Exit(nil);
 
-  Result := TLayout.Create(ALayoutKind, True);
+  Result := TLayout.Create(ALayoutKind);
   Result.Presenter := FPresenter;
   if ALayoutKind = lkPanel then
   begin
@@ -973,6 +976,13 @@ begin
   FPagedArea := Value;
 end;
 
+{ TUIAreaComparer }
+
+function TUIAreaComparer.Compare(const ALeft, ARight: TUIArea): Integer;
+begin
+  Result := ARight.TabOrder - ALeft.TabOrder;
+end;
+
 { TUIArea }
 
 procedure TUIArea.Activate(const AUrlParams: string);
@@ -1003,8 +1013,40 @@ begin
 end;
 
 procedure TUIArea.AfterChildAreasCreated;
+var
+  i, j: Integer;
+  vList: TList<TUIArea>;
 begin
-  DoAfterChildAreasCreated;
+  // Прицепляем сплиттер к своему контролу, чтобы не отлипал в некоторых случаях,
+  // обрабатываем только простой случай: сплиттер с таким размещением один в текущей области
+  for i := 0 to FAreas.Count - 1 do
+    if Assigned(FAreas[i].Layout) and (FAreas[i].Layout.Kind = lkSplitter) then
+    begin
+      for j := 0 to FAreas.Count - 1 do
+        if (FAreas[j] <> FAreas[i]) and (FAreas[j].Layout.Align = FAreas[i].Layout.Align) then
+        begin
+          FAreas[i].NativeControl.SetLinkedControl(FAreas[j].NativeControl);
+          Break;
+        end;
+    end;
+
+  if FAreas.Count <= 1 then
+    Exit;
+
+  // Apply TabOrder to all created areas
+  vList := TList<TUIArea>.Create(TUIAreaComparer.Create);
+  try
+    for i := 0 to FAreas.Count - 1 do
+      if FAreas[i].TabStop then
+        vList.Add(TUIArea(FAreas[i]));
+
+    vList.Sort;
+
+    for i := 0 to vList.Count - 1 do
+      vList[i].NativeControl.TabOrder := vList[i].TabOrder;
+  finally
+    FreeAndNil(vList);
+  end;
 end;
 
 function TUIArea.AreaById(const AId: string; const ARecoursive: Boolean = True): TUIArea;
@@ -1397,11 +1439,6 @@ begin
   FNativeControl.DoActivate(AUrlParams);
 end;
 
-procedure TUIArea.DoAfterChildAreasCreated;
-begin
-  FNativeControl.DoAfterChildAreasCreated;
-end;
-
 procedure TUIArea.DoBeforeFreeControl;
 begin
 end;
@@ -1661,12 +1698,18 @@ end;
 
 function TUIArea.GetTabOrder: Integer;
 begin
-  Result := FNativeControl.TabOrder;
+  if Assigned(FLayout) then
+    Result := FLayout.TabOrder
+  else
+    Result := -1;
 end;
 
 function TUIArea.GetTabStop: Boolean;
 begin
-  Result := FNativeControl.TabStop;
+  if Assigned(FLayout) then
+    Result := FLayout.TabOrder >= 0
+  else
+    Result := False;
 end;
 
 function TUIArea.GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart): string;
@@ -1986,7 +2029,7 @@ begin
 
   if Assigned(FLayout) then
   begin
-    FNativeControl.ApplyTabStops(FLayout);
+    FNativeControl.TabOrder := FLayout.TabOrder;
 
     vPopupArea := TryCreatePopupArea(FLayout);
     if Assigned(vPopupArea) then
@@ -2428,10 +2471,6 @@ end;
 
 { TNativeControl }
 
-procedure TNativeControl.ApplyTabStops(const ALayout: TLayout);
-begin
-end;
-
 function TNativeControl.AreaFromSender(const ASender: TObject): TUIArea;
 begin
   Result := nil;
@@ -2519,10 +2558,6 @@ procedure TNativeControl.DoActivate(const AUrlParams: string);
 begin
 end;
 
-procedure TNativeControl.DoAfterChildAreasCreated;
-begin
-end;
-
 procedure TNativeControl.DoBeginUpdate;
 begin
 end;
@@ -2565,6 +2600,11 @@ begin
   Result := '[area]';
 end;
 
+function TNativeControl.GetTabOrder: Integer;
+begin
+  Result := -1;
+end;
+
 function TNativeControl.GetViewState: TViewState;
 begin
   Result := vsUndefined;
@@ -2577,7 +2617,6 @@ end;
 
 procedure TNativeControl.PlaceLabel;
 begin
-
 end;
 
 procedure TNativeControl.RefillArea(const AKind: Word);
@@ -2622,12 +2661,20 @@ procedure TNativeControl.SetFocused(const Value: Boolean);
 begin
 end;
 
+procedure TNativeControl.SetLinkedControl(const ALinkedControl: TNativeControl);
+begin
+end;
+
 procedure TNativeControl.SetParent(const AParent: TUIArea);
 begin
   FParent := AParent;
 end;
 
 procedure TNativeControl.SetPopupArea(const APopupArea: TUIArea);
+begin
+end;
+
+procedure TNativeControl.SetTabOrder(const ATabOrder: Integer);
 begin
 end;
 

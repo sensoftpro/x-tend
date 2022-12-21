@@ -67,12 +67,11 @@ type
     function GetName: string; override;
     function DoGetDescription: string; override;
 
-    function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; override;
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); override;
     procedure SetPopupArea(const APopupArea: TUIArea); override;
-    procedure DoAfterChildAreasCreated; override;
 
     procedure SetControl(const AControl: TObject); override;
+    procedure SetLinkedControl(const ALinkedControl: TNativeControl); override;
     procedure SetParent(const AParent: TUIArea); override;
     function GetFocused: Boolean; override;
     procedure SetFocused(const Value: Boolean); override;
@@ -80,9 +79,10 @@ type
     procedure SetBounds(const Value: TRect); override;
     function GetViewState: TViewState; override;
     procedure SetViewState(const AViewState: TViewState); override;
+    function GetTabOrder: Integer; override;
+    procedure SetTabOrder(const ATabOrder: Integer); override;
 
-    procedure ApplyTabStops(const ALayout: TLayout); override;
-
+    function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; override;
     procedure PlaceLabel; override;
     procedure SetCaptionProperty(const ALayout: TLayout); virtual;
     procedure UpdateCaptionVisibility; override;
@@ -862,16 +862,6 @@ end;
 
 { TVCLControl }
 
-procedure TVCLControl.ApplyTabStops(const ALayout: TLayout);
-begin
-  if FControl is TWinControl then
-  begin
-    FTabStop := ALayout.TabStop;
-    FTabOrder := ALayout.TabOrder;
-    TWinControl(FControl).TabStop := FTabStop;
-  end;
-end;
-
 function TVCLControl.AreaFromSender(const ASender: TObject): TUIArea;
 begin
   if Assigned(ASender) and (ASender is TComponent) then
@@ -1112,52 +1102,6 @@ begin
   end;
 end;
 
-procedure TVCLControl.DoAfterChildAreasCreated;
-var
-  i: Integer;
-  function FindControlForSplitter(const ASplitter: TcxSplitter): TControl;
-  var
-    c: Integer;
-  begin
-    Result := nil;
-    for c := 0 to FOwner.Count - 1 do
-      if (FOwner[c].InnerControl <> ASplitter) and (FOwner[c].InnerControl is TControl)
-        and (TControl(FOwner[c].InnerControl).Align = ASplitter.Align) then
-      begin
-        Result := TControl(FOwner[c].InnerControl);
-        Break;
-      end;
-  end;
-
-  procedure ApplyTabOrder;
-  var
-    vList: TList<TUIArea>;
-    v: Integer;
-  begin
-    vList := TList<TUIArea>.Create(TUIAreaComparer.Create);
-    try
-      for v := 0 to FOwner.Count - 1 do
-        if (FOwner[v].InnerControl is TWinControl) and TWinControl(FOwner[v].InnerControl).TabStop then
-          vList.Add(TUIArea(FOwner[v]));
-
-      vList.Sort;
-
-      for v := 0 to vList.Count - 1 do
-        TWinControl(vList[v].InnerControl).TabOrder := vList[v].TabOrder;
-    finally
-      FreeAndNil(vList);
-    end;
-  end;
-begin
-  // прицепляем сплиттер к своему контролу, чтобы не отлипал в некоторых случаях, обрабатываем только простой случай: сплиттер с таким размещением один в текущей области
-  for i := 0 to FOwner.Count - 1 do
-    if FOwner[i].InnerControl is TcxSplitter then
-      TcxSplitter(FOwner[i].InnerControl).Control := FindControlForSplitter(TcxSplitter(FOwner[i].InnerControl));
-
-  if FOwner.Count > 1 then
-    ApplyTabOrder;
-end;
-
 procedure TVCLControl.DoBeginUpdate;
 begin
   if (not FIsForm) and (FControl is TWinControl) then
@@ -1256,6 +1200,14 @@ begin
     Result := FControl.ClassName + ': ' + FOwner.Id + ' (' + TCrackedWinControl(FControl).Caption + ')'
   else
     Result := FControl.ClassName + ': ' + FOwner.Id;
+end;
+
+function TVCLControl.GetTabOrder: Integer;
+begin
+  if (FControl is TWinControl) and TWinControl(FControl).TabStop then
+    Result := TWinControl(FControl).TabOrder
+  else
+    Result := -1;
 end;
 
 function TVCLControl.GetViewState: TViewState;
@@ -1388,6 +1340,12 @@ begin
     TWinControl(FControl).SetFocus;
 end;
 
+procedure TVCLControl.SetLinkedControl(const ALinkedControl: TNativeControl);
+begin
+  if FControl is TcxSplitter then
+    TcxSplitter(FControl).Control := TControl(TVCLControl(ALinkedControl).Control);
+end;
+
 procedure TVCLControl.SetParent(const AParent: TUIArea);
 begin
   inherited SetParent(AParent);
@@ -1410,6 +1368,20 @@ begin
   if not Assigned(vPopupMenu.OnPopup) then
     vPopupMenu.OnPopup := BeforeContextMenuShow;
   TCrackedControl(FControl).PopupMenu := vPopupMenu;
+end;
+
+procedure TVCLControl.SetTabOrder(const ATabOrder: Integer);
+begin
+  if not (FControl is TWinControl) then
+    Exit;
+
+  if ATabOrder >= 0 then
+  begin
+    TWinControl(FControl).TabStop := True;
+    TWinControl(FControl).TabOrder := ATabOrder;
+  end
+  else
+    TWinControl(FControl).TabStop := False;
 end;
 
 procedure TVCLControl.SetViewState(const AViewState: TViewState);
