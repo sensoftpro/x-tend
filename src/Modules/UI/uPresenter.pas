@@ -36,7 +36,8 @@ unit uPresenter;
 interface
 
 uses
-  Classes, Generics.Collections, SysUtils, uModule, uSettings, uInteractor, uView, uConsts, uUIBuilder, uLayout, uIcon, Types;
+  Classes, Generics.Collections, SysUtils, UITypes, Types,
+  uModule, uSettings, uDefinition, uInteractor, uView, uConsts, uUIBuilder, uLayout, uIcon;
 
 type
   { НАВИГАЦИЯ И ИДЕНТИФИКАЦИЯ ПОЛЕЙ }
@@ -206,6 +207,13 @@ type
     FNativeControlClass: TNativeControlClass;
     FOnAppStarted: TStartedEvent;
   protected
+    procedure OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
+    procedure OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
+    procedure DoChildFormClose(Sender: TObject; var Action: TCloseAction);
+    procedure DoFloatFormClose(Sender: TObject; var Action: TCloseAction);
+    procedure DoMainFormClose(Sender: TObject; var Action: TCloseAction);
+    procedure DoOnFormShow(Sender: TObject);
+  protected
     FName: string;
     FCursorType: TCursorType;
     FProgressInfo: TProgressInfo;
@@ -218,8 +226,10 @@ type
     procedure DoUnfreeze; virtual;
     procedure DoStop; virtual;
 
-    function DoLogin(const ADomain: TObject): TInteractor; virtual;
-    procedure DoLogout(const AInteractor: TInteractor); virtual;
+      function AreaFromSender(const ASender: TObject): TUIArea; virtual;
+      function DoLogin(const ADomain: TObject): TInteractor; virtual;
+      function ShowLoginForm(const AAppTitle: string; var ALoginName, APass: string): Boolean; virtual;
+      procedure DoLogout(const AInteractor: TInteractor); virtual;
 
     function GetNativeControlClass: TNativeControlClass; virtual; abstract;
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); virtual; abstract;
@@ -282,6 +292,7 @@ type
 
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
     function SetCursor(const ACursorType: TCursorType): TCursorType;
+    function GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
 
     procedure ShowMessage(const ACaption, AText: string; const AMessageType: TMessageType = msNone);
     function ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
@@ -302,7 +313,12 @@ type
 implementation
 
 uses
-  Math, IOUtils, uDefinition, uUtils, uSession;
+  Math, IOUtils, uUtils, uPlatform, uConfiguration, uDomain, uSession,
+  uEntity, uEntityList, uChangeManager;
+
+type
+  TLoginedProc = procedure(const AInteractor: TInteractor) of object;
+  TBeforeUIClosingFunc = function(const AInteractor: TInteractor): Boolean of object;
 
 { TPresenter }
 
@@ -312,6 +328,11 @@ begin
     Result := FInteractors[0]
   else
     Result := nil;
+end;
+
+function TPresenter.AreaFromSender(const ASender: TObject): TUIArea;
+begin
+  Result := nil;
 end;
 
 procedure TPresenter.ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement);
@@ -473,17 +494,267 @@ begin
   inherited Destroy;
 end;
 
+procedure TPresenter.DoChildFormClose(Sender: TObject; var Action: TCloseAction);
+var
+  vArea: TUIArea;
+  vInteractor: TInteractor;
+  vView, vCloseView: TView;
+  vHolder: TChangeHolder;
+  vRes: TDialogResult;
+  vChildArea: TUIArea;
+  i: Integer;
+  vCanBeClosed: Boolean;
+  vCloseProc: TProc;
+
+  function GetUnfilledRequiredFields(const AArea: TUIArea; var AFields: string): Boolean;
+  var
+    i: Integer;
+    vFieldDef: TFieldDef;
+    vChildArea: TUIArea;
+  begin
+    for i := 0 to AArea.Count - 1 do
+    begin
+      vChildArea := AArea.Areas[i];
+      if (vChildArea.View.DefinitionKind in [dkListField, dkObjectField, dkSimpleField]) then
+      begin
+        vFieldDef := TFieldDef(vChildArea.View.Definition);
+        if Assigned(vChildArea.View.ParentDomainObject)
+          and not TEntity(vChildArea.View.ParentDomainObject).FieldByName(vFieldDef.Name).IsValid then
+        begin
+          if Length(AFields) > 0 then
+            AFields := AFields + ', ';
+          AFields := AFields + TDomain(vInteractor.Domain).TranslateFieldDef(vFieldDef);
+        end;
+      end
+      else
+        GetUnfilledRequiredFields(vChildArea, AFields);
+    end;
+
+    Result := Length(AFields) > 0;
+  end;
+
+  procedure DoValidation;
+  var
+    vEmptyRequiredFields: string;
+    vEntity: TEntity;
+    vSimilar: TEntity;
+  begin
+    if not (vView.DefinitionKind in [dkObjectField, dkEntity, dkAction]) then
+      Exit;
+
+    vEntity := TEntity(vView.DomainObject);
+    if not Assigned(vEntity) then
+      Exit;
+
+    vEmptyRequiredFields := '';
+    if GetUnfilledRequiredFields(vArea, vEmptyRequiredFields) then
+    begin
+      vInteractor.ShowMessage(vInteractor.Translate('msgRequiredFieldsAreEmpty', 'Не заполнены обязательные поля') +
+        '. ' + #13#10 + vEmptyRequiredFields);
+      Action := TCloseAction.caNone;
+    end;
+
+    if Action <> TCloseAction.caNone then
+    begin
+      vSimilar := vEntity.FindSimilar(vInteractor.Session);
+      if Assigned(vSimilar) then
+      begin
+        vInteractor.ShowMessage(vInteractor.Translate('msgRecordExists', 'Такая запись уже существует') +
+          ' [' + vSimilar['Name'] + ']');
+        Action := TCloseAction.caNone;
+      end;
+    end;
+  end;
+begin
+  vArea := AreaFromSender(Sender);
+  vHolder := TChangeHolder(vArea.ThisHolder);
+  vView := vArea.View;
+  vInteractor := TInteractor(vArea.Interactor);
+
+  for i := 0 to vArea.Count - 1 do
+  begin
+    vChildArea := vArea[i];
+    if vChildArea.NativeControl.IsForm then
+    begin
+      vInteractor.ShowMessage('Невозможно закрыть окно, так как есть другие программные окна, зависящие от него', msWarning);
+      Action := TCloseAction.caNone;
+      Exit;
+    end;
+  end;
+
+  vCloseProc := nil;
+  vCloseView := vView.BuildView('Close');
+  vCloseView.AddListener(vArea);
+  try
+    //vCanBeClosed := not (Assigned(vCloseView) and (TCheckActionFlagsFunc(TConfiguration(vInteractor.Configuration).
+    //  CheckActionFlagsFunc)(vCloseView) <> vsFullAccess));
+    vCanBeClosed := True;
+
+    if vCanBeClosed then
+    begin
+      vCloseProc := vArea.OnClose;
+      if vArea.NativeControl.ModalResult = mrOk then
+        DoValidation
+      else
+      begin
+        if Assigned(vHolder) and vHolder.IsVisibleModified then
+        begin
+          vRes := TPresenter(vInteractor.Presenter).ShowYesNoDialog('Подтвердите', //vForm.Caption,
+            vInteractor.Translate('msgPromtSaveChanges', 'Сохранить изменения перед закрытием формы?'), True);
+          if vRes = drYes then
+          begin
+            vArea.NativeControl.ModalResult := mrOk;
+            DoValidation;
+          end
+          else if vRes = drNo then
+            vArea.NativeControl.ModalResult := mrCancel
+          else if vRes = drCancel then
+            vArea.NativeControl.ModalResult := mrNone;
+        end;
+      end;
+    end
+    else
+      Action := TCloseAction.caNone;
+  finally
+    vCloseView.RemoveListener(vArea);
+  end;
+
+  if Assigned(vCloseProc) then
+    vCloseProc;
+end;
+
 procedure TPresenter.DoEnumerateControls(const ALayout: TLayout; const AControl: TObject);
 begin
 end;
 
+procedure TPresenter.DoFloatFormClose(Sender: TObject; var Action: TCloseAction);
+var
+  vArea: TUIArea;
+  vView: TView;
+  vCloseView: TView;
+  vInteractor: TInteractor;
+  vCanBeClosed: Boolean;
+begin
+  vArea := AreaFromSender(Sender);
+  vView := vArea.View;
+  vCloseView := vView.BuildView('Close');
+  vCloseView.AddListener(vArea);
+  try
+    vInteractor := TInteractor(vArea.Interactor);
+
+    vCanBeClosed := not (Assigned(vCloseView) and (TCheckActionFlagsFunc(TConfiguration(vInteractor.Configuration).
+      CheckActionFlagsFunc)(vCloseView) <> vsFullAccess));
+
+    if vCanBeClosed then
+    begin
+      if Assigned(vArea.OnClose) then
+        vArea.OnClose();
+
+      // Возможно, нужно сбросить CurrentArea у UIBuilder-а в vArea.Parent
+
+      vArea.SetHolder(nil);
+      if Assigned(vArea.Parent) then
+        vArea.Parent.RemoveArea(vArea);
+
+      vInteractor.PrintHierarchy;
+      //Action := caFree;
+    end
+    else
+      Action := TCloseAction.caNone;
+  finally
+    vCloseView.RemoveListener(vArea);
+  end;
+end;
+
 function TPresenter.DoLogin(const ADomain: TObject): TInteractor;
+var
+  vDomain: TDomain absolute ADomain;
+  vLogin, vPassword: string;
+  //vRFID: string;
+  vSession: TUserSession;
+  vResult: Boolean;
+  vMainFormName: string;
+  vLayout: string;
+  vUsers: TEntityList;
 begin
   Result := nil;
+
+  vLayout := vDomain.Settings.GetValue('Core', 'Layout', '');
+
+  SetApplicationUI(vDomain.AppTitle, vDomain.Configuration.IconFileName);
+
+  vUsers := TEntityList.Create(vDomain, vDomain.DomainSession);
+  vDomain.GetEntityList(vDomain.DomainSession, vDomain.Configuration['SysUsers'], vUsers, '');
+  try
+    if vUsers.Count > 0 then
+    begin
+      if (vUsers.Count = 1) and (vDomain.Settings.GetValue('Core', 'AutoLogin', '') = '1') then
+        vSession := vDomain.Sessions.AddSession(vUsers[0])
+      else begin
+        vLogin := vDomain.UserSettings.GetValue('Core', 'LastLogin', '');
+        vPassword := '';
+        vSession := nil;
+        repeat
+          vResult := ShowLoginForm(vDomain.AppTitle, vLogin, vPassword{, vRFID});
+          if not vResult then
+            Break;
+
+          vSession := vDomain.Login(vLogin, vPassword);
+          if not Assigned(vSession) and (ShowYesNoDialog(_Platform.Translate('cptError', 'Ошибка'),
+            _Platform.Translate('txtWrongLoginOrPassword', 'Введены некорректные имя пользователя или пароль')
+            + #13#10 + _Platform.Translate('txtPromptTryAgain', 'Попробовать ещё раз?')) <> drYes) then Break;
+        until Assigned(vSession);
+
+        if not Assigned(vSession) then
+        begin
+          SetApplicationUI(cPlatformTitle); //todo: вернуть иконку по умолчанию
+          Exit;
+        end;
+
+        vDomain.UserSettings.SetValue('Core', 'LastLogin', vLogin);
+      end;
+    end
+    else
+      vSession := vDomain.DomainSession;
+  finally
+    FreeAndNil(vUsers);
+  end;
+
+  // Создаем корневую форму и интерактор для нее
+  Result := TInteractor.Create(Self, vSession);
+
+  vMainFormName := vDomain.Settings.GetValue('Core', 'MainForm', '');
+  if Trim(vMainFormName) = '' then
+    vMainFormName := 'MainForm';
+  Result.UIBuilder.Navigate(nil, '', vMainFormName, '', vSession.NullHolder);
+
+  TLoginedProc(vDomain.Configuration.LoginedProc)(Result);
 end;
 
 procedure TPresenter.DoLogout(const AInteractor: TInteractor);
 begin
+end;
+
+procedure TPresenter.DoMainFormClose(Sender: TObject; var Action: TCloseAction);
+var
+  vResult: Boolean;
+  vInteractor: TInteractor;
+begin
+  vInteractor := TInteractor(AreaFromSender(Sender).Interactor);
+  if Assigned(vInteractor) then
+    vResult := TBeforeUIClosingFunc(TConfiguration(vInteractor.Configuration).BeforeUIClosingFunc)(vInteractor)
+  else
+    vResult := True;
+
+  if vResult then
+  begin
+    StoreUILayout(vInteractor);
+    if Assigned(vInteractor) then
+      Logout(vInteractor);
+    Action := TCloseAction.caFree;
+  end
+  else
+    Action := TCloseAction.caNone;
 end;
 
 procedure TPresenter.DoOnAppStarted;
@@ -494,6 +765,14 @@ begin
     RestoreUILayout(FInteractors[i]);
   if Assigned(FOnAppStarted) then
     FOnAppStarted;
+end;
+
+procedure TPresenter.DoOnFormShow(Sender: TObject);
+var
+  vArea: TUIArea;
+begin
+  vArea := AreaFromSender(Sender);
+  vArea.Activate('');
 end;
 
 procedure TPresenter.DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False);
@@ -599,6 +878,18 @@ begin
     '", View Name: "' + vViewName + '" in UI: ' + ClassName);
 end;
 
+function TPresenter.GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
+begin
+  case AFieldDef.Kind of
+    fkInteger: Result := 70;
+    fkFloat: Result := 70;
+    fkDateTime: Result := 80;
+    fkCurrency: Result := 80;
+  else
+    Result := AWidth - 4;
+  end;
+end;
+
 function TPresenter.Login(const ADomain: TObject): TInteractor;
 begin
   Result := DoLogin(ADomain);
@@ -612,12 +903,83 @@ begin
   FInteractors.Remove(AInteractor);
 end;
 
+procedure TPresenter.OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
+var
+  vArea: TUIArea;
+  vView: TView;
+  vCloseView: TView;
+  vInteractor: TInteractor;
+  vCanBeClosed: Boolean;
+  vCloseProc: TProc;
+  vDelEntity: TEntity;
+begin
+  vArea := AreaFromSender(Sender);
+  vView := vArea.View;
+  vInteractor := TInteractor(vArea.Interactor);
+
+  vCloseView := vView.BuildView('Close');
+  vCloseView.AddListener(vArea);
+  vCloseProc := nil;
+  vDelEntity := nil;
+
+  try
+    vCanBeClosed := not (Assigned(vCloseView) and (TCheckActionFlagsFunc(TConfiguration(vInteractor.Configuration).
+      CheckActionFlagsFunc)(vCloseView) <> vsFullAccess));
+
+    if (vView.DomainObject is TEntity) and TEntity(vView.DomainObject).InstanceOf('_FormLayout') then
+      vDelEntity := TEntity(vView.DomainObject);
+
+    if vCanBeClosed then
+    begin
+      vCloseProc := vArea.OnClose;
+      vArea.SetControl(nil);
+      vArea.UIBuilder.RootArea.RemoveArea(vArea); // the form will be destroyed here
+    end
+    else
+      Action := TCloseAction.caNone;
+  finally
+    vCloseView.RemoveListener(vArea);
+  end;
+
+  if vCanBeClosed and Assigned(vDelEntity) then
+  begin
+    TUserSession(vInteractor.Session).AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
+    begin
+      vDelEntity.Delete(AHolder);
+      Result := True;
+    end, nil);
+  end;
+
+  if Assigned(vCloseProc) then
+    vCloseProc;
+end;
+
 procedure TPresenter.OnDomainError(const ACaption, AText: string);
 begin
 end;
 
 procedure TPresenter.OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
 begin
+end;
+
+procedure TPresenter.OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
+var
+  vPCArea: TUIArea;
+  vTabArea: TUIArea;
+begin
+  // Closing will be done using TUIArea mechanics
+  ACanClose := False;
+
+  vPCArea := AreaFromSender(Sender);
+  vTabArea := vPCArea.ActiveChildArea;
+  if not Assigned(vTabArea) then
+    Exit;
+
+  vPCArea.UIBuilder.LastArea := nil;
+
+  vPCArea.RemoveArea(vTabArea);
+
+  vPCArea.UIBuilder.PrintHierarchy;
 end;
 
 procedure TPresenter.OpenFile(const AFileName: string; const ADefaultApp: string = ''; const Await: Boolean = False);
@@ -711,6 +1073,11 @@ procedure TPresenter.ShowLayout(const AInteractor: TInteractor; const ATargetAre
 begin
   if Assigned(AInteractor) then
     AInteractor.UIBuilder.Navigate(nil, ATargetAreaName, ALayoutName, '', TUserSession(AInteractor.Session).NullHolder);
+end;
+
+function TPresenter.ShowLoginForm(const AAppTitle: string; var ALoginName, APass: string): Boolean;
+begin
+  Result := False;
 end;
 
 procedure TPresenter.ShowMessage(const ACaption, AText: string; const AMessageType: TMessageType = msNone);

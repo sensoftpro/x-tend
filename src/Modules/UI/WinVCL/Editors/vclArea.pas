@@ -78,6 +78,10 @@ type
     procedure SetViewState(const AViewState: TViewState); override;
     function GetTabOrder: Integer; override;
     procedure SetTabOrder(const ATabOrder: Integer); override;
+    function GetActiveChildArea: TUIArea; override;
+    procedure SetActiveChildArea(const AArea: TUIArea); override;
+    function GetModalResult: TModalResult; override;
+    procedure SetModalResult(const AModalResult: TModalResult); override;
 
     function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; override;
     procedure PlaceLabel; override;
@@ -1074,10 +1078,32 @@ begin
     FreeAndNil(vControl);
 end;
 
+function ClientWindowProc(Wnd: HWND; Msg: Cardinal; wparam, lparam: Integer ): Integer; stdcall;
+var
+  f: Pointer;
+begin
+  f := Pointer(GetWindowLong(Wnd, GWL_USERDATA));
+  case msg of
+    WM_NCCALCSIZE:
+      if (GetWindowLong(Wnd, GWL_STYLE ) and (WS_HSCROLL or WS_VSCROLL)) <> 0 then
+        SetWindowLong(Wnd, GWL_STYLE, GetWindowLong(Wnd, GWL_STYLE) and not (WS_HSCROLL or WS_VSCROLL));
+  end;
+  Result := CallWindowProc(f, Wnd, Msg, wparam, lparam);
+end;
+
 procedure TVCLControl.DoActivate(const AUrlParams: string);
 var
+  vForm: TForm;
   vChangeTab: Boolean;
 begin
+  if FControl is TForm then
+  begin
+    vForm := TForm(FControl);
+    if (vForm.FormStyle = fsMDIForm) and (vForm.ClientHandle > 0) and
+     (GetWindowLong(vForm.ClientHandle, GWL_USERDATA ) = 0 {cannot subclass client window, userdata already in use}) then
+    SetWindowLong(vForm.ClientHandle, GWL_USERDATA, SetWindowLong(vForm.ClientHandle, GWL_WNDPROC, Integer(@ClientWindowProc)));
+  end;
+
   vChangeTab := SameText(GetUrlParam(AUrlParams, 'TabActivationOption', ''), 'ChangeTab');
 
   if (FControl is TcxTabSheet) then
@@ -1162,6 +1188,16 @@ begin
   end;
 end;
 
+function TVCLControl.GetActiveChildArea: TUIArea;
+begin
+  if FControl is TPageControl then
+    Result := AreaFromSender(TPageControl(FControl).ActivePage)
+  else if FControl is TcxPageControl then
+    Result := AreaFromSender(TcxPageControl(FControl).ActivePage)
+  else
+    Result := nil;
+end;
+
 function TVCLControl.GetBounds: TRect;
 begin
   Result := TControl(FControl).BoundsRect;
@@ -1181,6 +1217,14 @@ begin
     Result := TWinControl(FControl).Focused
   else
     Result := False;
+end;
+
+function TVCLControl.GetModalResult: TModalResult;
+begin
+  if FControl is TForm then
+    Result := TForm(FControl).ModalResult
+  else
+    Result := mrNone;
 end;
 
 function TVCLControl.GetTabOrder: Integer;
@@ -1234,6 +1278,11 @@ begin
     vLabel.AutoSize := False;
   end;
   vLabel.Parent := TControl(FControl).Parent;
+end;
+
+procedure TVCLControl.SetActiveChildArea(const AArea: TUIArea);
+begin
+  //
 end;
 
 procedure TVCLControl.SetBounds(const Value: TRect);
@@ -1340,6 +1389,12 @@ begin
       vPopupMenu.OnPopup := BeforeContextMenuShow;
     TCrackedControl(FControl).PopupMenu := vPopupMenu;
   end;
+end;
+
+procedure TVCLControl.SetModalResult(const AModalResult: TModalResult);
+begin
+  if FControl is TForm then
+    TForm(FControl).ModalResult := AModalResult;
 end;
 
 procedure TVCLControl.SetParent(const AParent: TUIArea);

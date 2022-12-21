@@ -56,6 +56,7 @@ type
     [Weak] FView: TView;
     [Weak] FCaption: TObject;
     [Weak] FControl: TObject;
+    [Weak] FPresenter: TObject;
     [Weak] FInteractor: TObject;
     [Weak] FUIBuilder: TUIBuilder;
 
@@ -91,6 +92,10 @@ type
     procedure SetViewState(const AViewState: TViewState); virtual;
     function GetTabOrder: Integer; virtual;
     procedure SetTabOrder(const ATabOrder: Integer); virtual;
+    function GetActiveChildArea: TUIArea; virtual;
+    procedure SetActiveChildArea(const AArea: TUIArea); virtual;
+    function GetModalResult: TModalResult; virtual;
+    procedure SetModalResult(const AModalResult: TModalResult); virtual;
 
     procedure PlaceLabel; virtual;
     procedure UpdateCaptionVisibility; virtual;
@@ -113,6 +118,8 @@ type
     property ViewState: TViewState read GetViewState write SetViewState;
     property TabOrder: Integer read GetTabOrder write SetTabOrder;
     property Description: string read GetDescription;
+    property ActiveChildArea: TUIArea read GetActiveChildArea write SetActiveChildArea;
+    property ModalResult: TModalResult read GetModalResult write SetModalResult;
 
     property IsForm: Boolean read FIsForm;
     property ShowCaption: Boolean read FShowCaption;
@@ -146,6 +153,7 @@ type
     function GetTabOrder: Integer;
     function GetTabStop: Boolean;
     function GetControl: TObject;
+    function GetActiveChildArea: TUIArea;
   protected
     FCaption: TNativeControl;
     FNativeControl: TNativeControl;
@@ -257,6 +265,7 @@ type
     property InnerControl: TObject read GetInnerControl;
     property Count: Integer read GetCount;
     property Areas[const AIndex: Integer]: TUIArea read GetArea; default;
+    property ActiveChildArea: TUIArea read GetActiveChildArea;
     property Parent: TUIArea read FParent;
     property Layout: TLayout read FLayout write SetLayout;
     property CreateParams: TStrings read FCreateParams;
@@ -1629,6 +1638,11 @@ begin
     Validate;
 end;
 
+function TUIArea.GetActiveChildArea: TUIArea;
+begin
+  Result := FNativeControl.ActiveChildArea;
+end;
+
 function TUIArea.GetArea(const AIndex: Integer): TUIArea;
 begin
   Result := TUIArea(FAreas[AIndex]);
@@ -2480,6 +2494,7 @@ begin
   FLayout := AOwner.Layout;
   FView := AOwner.View;
   FControl := AControl;
+  FPresenter := AOwner.Presenter;
   FInteractor := AOwner.Interactor;
   FUIBuilder := AOwner.UIBuilder;
   FIsForm := False;
@@ -2572,6 +2587,11 @@ procedure TNativeControl.DoEndUpdate;
 begin
 end;
 
+function TNativeControl.GetActiveChildArea: TUIArea;
+begin
+  Result := nil;
+end;
+
 function TNativeControl.GetBounds: TRect;
 begin
   Result := TRect.Empty;
@@ -2585,6 +2605,11 @@ end;
 function TNativeControl.GetFocused: Boolean;
 begin
   Result := False;
+end;
+
+function TNativeControl.GetModalResult: TModalResult;
+begin
+  Result := mrNone;
 end;
 
 function TNativeControl.GetDescription: string;
@@ -2652,6 +2677,10 @@ begin
   UpdateCaptionVisibility;
 end;
 
+procedure TNativeControl.SetActiveChildArea(const AArea: TUIArea);
+begin
+end;
+
 procedure TNativeControl.SetBounds(const Value: TRect);
 begin
 end;
@@ -2666,6 +2695,10 @@ begin
 end;
 
 procedure TNativeControl.SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl);
+begin
+end;
+
+procedure TNativeControl.SetModalResult(const AModalResult: TModalResult);
 begin
 end;
 
