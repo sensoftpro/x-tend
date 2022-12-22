@@ -825,8 +825,13 @@ begin
   begin
     if Assigned(vPresenter) then
       TTaskHandle.SafeInvoke(ATask, procedure
+        var
+          vInteractor: TInteractor;
         begin
-          vPresenter.ShowLayout(TInteractor(AFiber.Session.Interactor), ACommand['TargetArea'], ACommand['Layout']);
+          vInteractor := TInteractor(AFiber.Session.Interactor);
+          if Assigned(vInteractor) then
+            vInteractor.UIBuilder.Navigate(nil, ACommand['TargetArea'], ACommand['Layout'], '',
+              TUserSession(vInteractor.Session).NullHolder);
         end);
   end
   else if vCommandName = 'FIND_OBJECT' then

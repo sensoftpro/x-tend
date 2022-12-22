@@ -479,7 +479,7 @@ end;
 
 function TUIBuilder.CreateSimpleLayout(const ALayoutKind: TLayoutKind): TLayout;
 begin
-  if not (ALayoutKind in [lkFrame, lkPanel, lkPage]) then
+  if not (ALayoutKind in [lkFrame, lkPanel, lkPage, lkAction]) then
     Exit(nil);
 
   Result := TLayout.Create(ALayoutKind);
@@ -739,6 +739,7 @@ function TUIBuilder.Navigate(const AView: TView; const AAreaName, ALayoutName: s
   const AOptions: string = ''; const AChangeHolder: TObject = nil;
   const ACaption: string = ''; const AOnClose: TProc = nil): TDialogResult;
 var
+  vFormLayout: TLayout;
   vLayoutName: string;
   vAreaName: string;
   vViewName: string;
@@ -792,7 +793,16 @@ begin
   else
     vAreaName := AAreaName;
 
-  vUIArea := TPresenter(FPresenter).CreateUIArea(TInteractor(FInteractor), FCurrentArea, vView, vAreaName, ACaption, AOnClose);
+  if (vAreaName = '') or (vAreaName = 'child') or (vAreaName = 'float') or (vAreaName = 'modal') then
+  begin
+    vFormLayout := CreateSimpleLayout(lkFrame);
+    vFormLayout.Caption := ACaption;
+    vFormLayout.StyleName := vAreaName;
+    vUIArea := TPresenter(FPresenter).CreateArea(FCurrentArea, vFormLayout, vView, '', AOnClose);
+  end
+  else
+    vUIArea := nil;
+
   // Главная форма и форма редактирования
   if Assigned(vUIArea) then
   begin
@@ -2137,7 +2147,7 @@ end;
 function TUIArea.TryCreatePopupArea(const ALayout: TLayout): TUIArea;
 begin
   if Assigned(ALayout) and Assigned(ALayout.Menu) then
-    Result := TPresenter(Presenter).CreatePopupArea(Self, ALayout)
+    Result := TPresenter(Presenter).CreateArea(Self, ALayout.Menu, FUIBuilder.RootView)
   else
     Result := nil;
 end;

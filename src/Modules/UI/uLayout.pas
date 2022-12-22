@@ -40,7 +40,7 @@ uses
 
 type
   TLayoutKind = (lkNone, lkPanel, lkPage, lkPages, lkFrame, lkMemo, lkLabel, lkImage, lkBevel, lkShape,
-    lkSplitter, lkScrollBox, lkGroup, lkAction);
+    lkSplitter, lkScrollBox, lkAction);
   TLayoutAlign = (lalNone, lalTop, lalBottom, lalLeft, lalRight, lalClient, lalCustom);
   TPageStyle = (psTabs, psButtons, psFlatButtons);
   TPagePosition = (ppTop, ppBottom, ppLeft, ppRight);
@@ -150,7 +150,7 @@ type
 
 const
   cLayoutKindNames: array[TLayoutKind] of string = ('', 'panel', 'page', 'pages', 'frame', 'memo', 'label',
-    'image', 'bevel', 'shape', 'splitter', 'scrollbox', 'group', 'action');
+    'image', 'bevel', 'shape', 'splitter', 'scrollbox', 'action');
   cAnchorKindNames: array[TAnchorKind] of string = ('left', 'top', 'right', 'bottom');
   cFontStyleNames: array[TFontStyle] of string = ('bold', 'italic', 'underline', 'strikeout');
   cAlignNames: array[TLayoutAlign] of string = ('', 'top', 'bottom', 'left', 'right', 'client', 'custom');
@@ -202,6 +202,7 @@ type
     FMenu: TNavigationItem;
     FUrlParser: TUrlParser;
     FKind: TLayoutKind;
+    FStyleName: string;
     FIndex: Integer;
     FPresenter: TObject;
 
@@ -286,6 +287,7 @@ type
     function ExtractString(const AParamName: string; const ADefault: string = ''): string;
 
     property Kind: TLayoutKind read FKind;
+    property StyleName: string read FStyleName write FStyleName;
     property Parent: TLayout read FParent;
     property Items: TList<TLayout> read GetItems;
 
@@ -347,9 +349,9 @@ type
   private
     FOwner: TLayout;
     FId: string;
-    FCaption: string;
-    FHint: string;
-    FImageID: Integer;
+    //FCaption: string;
+    //FHint: string;
+    //FImageID: Integer;
     FViewName: string;
     FContentLayout: string;
     FContentWorkArea: string;
@@ -371,9 +373,9 @@ type
     procedure SetUrl(const AUrl: string); override;
 
     property Id: string read FId;
-    property Caption: string read FCaption;
-    property Hint: string read FHint;
-    property ImageID: Integer read FImageID;
+    //property Caption: string read FCaption;
+    //property Hint: string read FHint;
+    //property ImageID: Integer read FImageID;
     property ViewName: string read FViewName;
     property ContentLayout: string read FContentLayout;
     property ContentWorkArea: string read FContentWorkArea;
@@ -957,6 +959,7 @@ begin
   FMenu := nil;
   FUrlParser := nil;
   FKind := AKind;
+  FStyleName := '';
   Assert(FKind > lkNone);
 
   FLeft := 0;

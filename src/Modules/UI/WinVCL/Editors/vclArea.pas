@@ -1135,11 +1135,26 @@ begin
 end;
 
 procedure TVCLControl.DoClose(const AModalResult: Integer);
+var
+  vForm: TForm;
+  vLayoutStr: string;
 begin
   if FIsForm then
   begin
+    vForm := TForm(FControl);
+
+    //if FLayout.StyleName = '' then
+    //begin
+
+    //end;
+
     if AModalResult = mrNone then
-      PostMessage(TForm(FControl).Handle, WM_CLOSE, 0, 0)
+    begin
+      vLayoutStr := IntToStr(vForm.Left) + ';' + IntToStr(vForm.Top) + ';' + IntToStr(vForm.Width) + ';' +
+        IntToStr(vForm.Height) + ';' + IntToStr(Ord(vForm.WindowState));
+      TDomain(FOwner.Domain).UserSettings.SetValue('MainForm', 'Layout', vLayoutStr);
+      PostMessage(TForm(FControl).Handle, WM_CLOSE, 0, 0);
+    end
     else begin
       TForm(FControl).Close;
       TForm(FControl).ModalResult := AModalResult;
@@ -1349,7 +1364,8 @@ begin
 
   if Assigned(FControl) then
   begin
-    TCrackedWinControl(FControl).Tag := Integer(FOwner);
+    if TCrackedWinControl(FControl).Tag = 0 then
+      TCrackedWinControl(FControl).Tag := Integer(FOwner);
     if FControl is TWinControl then
     begin
       TCrackedWinControl(FControl).OnEnter := FOwner.OnEnter;
@@ -1427,13 +1443,25 @@ end;
 
 procedure TVCLControl.SetViewState(const AViewState: TViewState);
 begin
-  if (FControl is TControl) and not FIsForm then
+  if FIsForm then
+    Exit;
+
+  if FControl is TControl then
   begin
     TControl(FControl).Visible := AViewState > vsHidden;
     if FControl is TcxTabSheet then
       TcxTabSheet(FControl).AllowCloseButton := AViewState > vsDisabled
     else
       TControl(FControl).Enabled := AViewState > vsDisabled;
+  end
+  else if FControl is TMenuItem then
+  begin
+    TMenuItem(FControl).Visible := AViewState > vsHidden;
+    TMenuItem(FControl).Enabled := AViewState > vsDisabled;
+  end
+  else if FControl is TTreeNode then
+  begin
+    TTreeNode(FControl).Enabled := AViewState > vsDisabled;
   end;
 end;
 

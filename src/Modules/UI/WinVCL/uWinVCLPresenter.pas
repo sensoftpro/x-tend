@@ -50,9 +50,6 @@ type
 type
   TWinVCLPresenter = class(TPresenter)
   private
-    procedure LoadImages(const AInteractor: TInteractor; const AImageList: TDragImageList; const AResolution: Integer);
-    procedure DoToggleUI(const AVisible: Boolean); // Rethink
-    procedure DoTrayIconClick(Sender: TObject);
     procedure DoDebugFormClose(Sender: TObject; var Action: TCloseAction);
   private
     FRowStyle: TObject;
@@ -60,31 +57,29 @@ type
     procedure SetAsMainForm(const AForm: TForm);
     function MessageTypeToMBFlags(const AMessageType: TMessageType): Integer;
 
-    procedure RestoreChildForms(const AInteractor: TInteractor);
-    procedure StoreChildForms(const AInteractor: TInteractor; const AMainForm: TForm);
+    //procedure StoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
+    procedure RestoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
 
     // Creation of Layout from DFM
     function GetLayoutKind(const AControl: TObject): TLayoutKind;
     procedure CopyControlPropertiesToLayout(const ALayout: TLayout; const AControl: TObject);
 
-    procedure CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
-     const ASrcItem: TNavigationItem; const ADestMenu: TMenuItem);
+    procedure LoadImages(const AInteractor: TInteractor; const AImageList: TDragImageList; const AResolution: Integer);
   protected
-    FTrayIcon: TTrayIcon;
     FStartForm: TStartFm;
     [Weak] FDebugForm: TDebugFm;
     [Weak] FSplashForm: TSplashFm;
-    procedure DoChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure OnShortCut(var Msg: TWMKey; var Handled: Boolean);
+    procedure OnChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   protected
     procedure DoRun(const AParameter: string); override;
     procedure DoUnfreeze; override;
     procedure DoStop; override;
 
-      function AreaFromSender(const ASender: TObject): TUIArea; override;
-      function DoLogin(const ADomain: TObject): TInteractor; override;
-      function ShowLoginForm(const AAppTitle: string; var ALoginName, APass: string): Boolean; override;
-      procedure DoLogout(const AInteractor: TInteractor); override;
+    function AreaFromSender(const ASender: TObject): TUIArea; override;
+    function DoLogin(const ADomain: TObject): TInteractor; override;
+    function ShowLoginForm(const AAppTitle: string; var ALoginName, APass: string): Boolean; override;
+    procedure DoLogout(const AInteractor: TInteractor); override;
 
     function GetNativeControlClass: TNativeControlClass; override;
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); override;
@@ -97,27 +92,20 @@ type
 
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; override;
 
-    procedure StoreUILayout(const AInteractor: TInteractor); override;
-    procedure RestoreUILayout(const AInteractor: TInteractor); override;
-
-    procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); override;
+    procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); override; // DFM
   public
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
 
-    function CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView; const AAreaName: string;
-      const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; override;
+    function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
+      const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
+    function CreateTempControl: TObject; override; // DFM
+
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
+    function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
+    procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
 
-      function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
-      procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
-
-      function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
-        const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
-      function CreateTempControl: TObject; override; // DFM
-      function CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea; override;
-
-      procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
+    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
 
     property RowStyle: TObject read FRowStyle;
   end;
@@ -547,214 +535,11 @@ begin
     ALayout.Caption := vSourceFrame.Hint;
     ALayout.Color := ColorToAlphaColor(vSourceFrame.Color);
   end
-  else if ALayout.Kind = lkGroup then
-  begin
-
-  end
   else if ALayout.Kind = lkAction then
   begin
-
   end
   else
     Assert(False, 'Тип контрола не поддерживается');
-end;
-
-procedure TWinVCLPresenter.CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
-  const ASrcItem: TNavigationItem; const ADestMenu: TMenuItem);
-var
-  vCaption: string;
-  vParams: TStrings;
-  vActions: TList<TActionDef>;
-  vReports: TList<TRTFReport>;
-  vDefinitions: TList<TDefinition>;
-  vId: string;
-  i, j: Integer;
-  vDefinition: TDefinition;
-  vSrcItem: TNavigationItem;
-  vDestItem: TMenuItem;
-  vChildItem: TMenuItem;
-  vView: TView;
-  vAction: TActionDef;
-  vReport: TRTFReport;
-  vChildArea: TUIArea;
-begin
-  for i := 0 to ASrcItem.Items.Count - 1 do
-  begin
-    vSrcItem := TNavigationItem(ASrcItem.Items[i]);
-    vCaption := vSrcItem.ViewName;
-
-    if SameText(vCaption, '#Placeholder') then
-    begin
-      if AView.DefinitionKind <> dkCollection then
-        Continue;
-
-      vDefinition := TDefinition(AView.Definition);
-      vActions := TList<TActionDef>.Create;
-      vDefinition.GetAllActions(vActions);
-      for vAction in vActions do
-      begin
-        if vAction.HasFlag(ccHideInMenu) then
-          Continue;
-
-        if vAction.HasFlag(ccContextAction) then
-        begin
-          vView := AParent.UIBuilder.RootView.BuildView(AView.Name + '/Selected/' + vAction.Name);
-        end
-        else
-          vView := AParent.UIBuilder.RootView.BuildView(AView.Name + '/' + vAction.Name);
-
-        if Assigned(vView) then
-        begin
-          if vView.DefinitionKind = dkAction then
-          begin
-            vDestItem := TMenuItem.Create(nil);
-            vDestItem.Caption := AParent.GetTranslation(vAction);
-            vDestItem.Hint := vDestItem.Caption;
-            vDestItem.ImageIndex := AParent.GetImageID(vAction._ImageID);
-            vDestItem.OnClick := AParent.OnAreaClick;
-            vDestItem.RadioItem := vSrcItem.RadioItem;
-            vDestItem.GroupIndex := vSrcItem.GroupIndex;
-
-            if Assigned(vView.DomainObject) and TEntity(vView.DomainObject).FieldExists('IsChecked') then
-              vDestItem.AutoCheck := True;
-
-            vChildArea := CreateFilledArea(AParent, vView, vSrcItem, vCaption, False, vDestItem);
-            TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
-            AParent.AddArea(vChildArea);
-
-            ADestMenu.Add(vDestItem);
-          end
-          else
-            vView.CleanView;
-        end;
-      end;
-
-      if vActions.Count > 0 then
-      begin
-        vDestItem := TMenuItem.Create(nil);
-        vDestItem.Caption := '-';
-        ADestMenu.Add(vDestItem);
-      end;
-
-      FreeAndNil(vActions);
-
-      vReports := TList<TRTFReport>.Create;
-      vDefinition.GetAllReports(vReports);
-      for vReport in vReports do
-      begin
-        vView := AParent.UIBuilder.RootView.BuildView(AView.Name + '/Selected/' + vReport.Name);
-
-        if Assigned(vView) then
-        begin
-          if vView.DefinitionKind = dkAction then
-          begin
-            vDestItem := TMenuItem.Create(nil);
-            vDestItem.Caption := AParent.GetTranslation(vReport);
-            vDestItem.Hint := vDestItem.Caption;
-            vDestItem.ImageIndex := 31;
-            vDestItem.OnClick := AParent.OnAreaClick;
-
-            vChildArea := CreateFilledArea(AParent, vView, vSrcItem, vCaption, False, vDestItem);
-            TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
-            AParent.AddArea(vChildArea);
-
-            ADestMenu.Add(vDestItem);
-          end
-          else
-            vView.CleanView;
-        end;
-      end;
-
-      if vReports.Count > 0 then
-      begin
-        vDestItem := TMenuItem.Create(nil);
-        vDestItem.Caption := '-';
-        ADestMenu.Add(vDestItem);
-      end;
-
-      FreeAndNil(vReports);
-
-      Continue;
-    end
-    else if Pos('@', vCaption) > 0 then
-    begin
-      vParams := CreateDelimitedList(vCaption, '@');
-      try
-        vId := vParams.Values['Id'];
-        vCaption := vParams.Values['Caption'];
-      finally
-        FreeAndNil(vParams);
-      end;
-
-      vDestItem := TMenuItem.Create(nil);
-      if vId <> '' then
-        vDestItem.Caption := TInteractor(AParent.Interactor).Translate(vId, vCaption)
-      else
-        vDestItem.Caption := vCaption;
-
-      vChildArea := CreateFilledArea(AParent, AParent.View, vSrcItem, vSrcItem.ViewName, False, vDestItem);
-      AParent.AddArea(vChildArea);
-
-      ADestMenu.Add(vDestItem);
-      CopyPopupMenuItems(vChildArea, AView, vSrcItem, vDestItem);
-
-      Continue;
-    end
-    else
-      vView := AView.BuildView(vCaption);
-
-    vDestItem := TMenuItem.Create(nil);
-
-    if Assigned(vView) and (vView.DefinitionKind = dkAction) then
-    begin
-      vAction := TActionDef(vView.Definition);
-      vDestItem.Caption := AParent.GetTranslation(vAction);
-      vDestItem.Hint := vDestItem.Caption;
-      vDestItem.ImageIndex := AParent.GetImageID(vAction._ImageID);
-
-      if (vAction.Name = 'Add') and Assigned(vView.ParentDomainObject) and (vView.ParentDomainObject is TEntityList) then
-      begin
-        vDefinitions := TEntityList(vView.ParentDomainObject).ContentDefinitions;
-        if vDefinitions.Count > 1 then
-        begin
-          for j := 0 to vDefinitions.Count - 1 do
-          begin
-            vDefinition := TDefinition(vDefinitions[j]);
-            vChildItem := TMenuItem.Create(nil);
-            vChildItem.Caption := AParent.GetTranslation(vDefinition);
-            vChildItem.OnClick := AParent.OnActionMenuSelected;
-            vDestItem.Add(vChildItem);
-          end;
-        end
-        else
-          vDestItem.OnClick := AParent.OnAreaClick;
-      end
-      else
-        vDestItem.OnClick := AParent.OnAreaClick;
-
-      vDestItem.RadioItem := vSrcItem.RadioItem;
-      vDestItem.GroupIndex := vSrcItem.GroupIndex;
-      if Assigned(vView.DomainObject) and TEntity(vView.DomainObject).FieldExists('IsChecked') then
-        vDestItem.AutoCheck := True;
-
-      vChildArea := CreateFilledArea(AParent, vView, vSrcItem, vCaption, False, vDestItem);
-      for j := 0 to vDestItem.Count - 1 do
-        vDestItem[j].Tag := Integer(vChildArea);
-
-      TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
-
-      AParent.AddArea(vChildArea);
-    end
-    else begin
-      if Assigned(vView) and (vView.DefinitionKind = dkUndefined) then
-        vView.CleanView;
-
-      vDestItem.Caption := vCaption;
-      vDestItem.Enabled := False;
-    end;
-
-    ADestMenu.Add(vDestItem);
-  end;
 end;
 
 constructor TWinVCLPresenter.Create(const AName: string; const ASettings: TSettings);
@@ -776,6 +561,7 @@ function TWinVCLPresenter.CreateArea(const AParent: TUIArea; const ALayout: TLay
   const AParams: string; const AOnClose: TProc): TUIArea;
 var
   vDomain: TDomain;
+  vInteractor: TInteractor;
   vStartPageName: string;
   vStartPageStr: string;
   vForm: TForm;
@@ -789,6 +575,11 @@ var
   vBox: TcxScrollBox;
   vBevel: TBevel;
   vSplitter: TcxSplitter;
+  vMenu: TPopupMenu;
+  vMenuItem: TMenuItem;
+  vId: string;
+  i: Integer;
+  vArea: TUIArea;
 
   procedure CopyPenSettings(const APen: TPen);
   begin
@@ -836,7 +627,8 @@ begin
   if not Assigned(ALayout) then
     Exit;
 
-  vDomain := TDomain(TInteractor(AView.Interactor).Domain);
+  vInteractor := TInteractor(AView.Interactor);
+  vDomain := TDomain(vInteractor.Domain);
 
   if ALayout.Kind = lkShape then
   begin
@@ -1100,100 +892,135 @@ begin
 
     Result := CreateFilledArea(AParent, AView, ALayout, Trim(ALayout.Caption), False, vPanel);
   end
+  else if ALayout.Kind = lkFrame then
+  begin
+    vForm := nil;
+
+    if ALayout.StyleName = '' then
+    begin
+      Application.CreateForm(TForm, vForm);
+
+      if vInteractor.Layout = 'mdi' then
+        vForm.FormStyle := fsMDIForm;
+
+      vForm.OnClose := DoMainFormClose;
+      vForm.Position := poScreenCenter;
+      vForm.Caption := vDomain.AppTitle + ' (' + TUserSession(vInteractor.Session).CurrentUserName + ')';
+
+      RestoreUILayout(vInteractor, vForm);
+
+      SetAsMainForm(vForm);
+    end
+    // второстепенная автономная форма
+    else if ALayout.StyleName = 'float' then
+    begin
+      vArea := nil;
+      for i := 0 to AParent.Count - 1 do
+      begin
+        vArea := AParent.Areas[i];
+        if (vArea.View = AView) and (vArea.InnerControl is TForm) then
+          Exit(vArea);
+      end;
+
+      vForm := TFloatFm.Create(nil);
+
+      vForm.OnClose := DoFloatFormClose;
+      vForm.Position := poMainFormCenter;
+      vForm.Font.Size := 12;
+      vForm.Caption := ALayout.Caption;
+      vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
+      if (AView.DefinitionKind in [dkCollection, dkAction, dkEntity]) then
+        TDragImageList(TInteractor(vInteractor).Images[16]).GetIcon(vArea.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
+    end
+    // дочерняя модальная форма
+    else if (ALayout.StyleName = 'child') or (ALayout.StyleName = 'modal') then
+    begin
+      vForm := TForm.Create(nil);
+      vForm.OnClose := DoChildFormClose;
+      vForm.OnKeyDown := OnChildFormKeyDown;
+      vForm.KeyPreview := True;
+      vForm.BorderIcons := [biSystemMenu];
+      vForm.Position := poMainFormCenter;
+      vForm.Font.Size := 12;
+      vForm.BorderStyle := bsSingle;  // for layouted form this property will be changed when assigned cEditFormResizable flag in Tag
+    end;
+
+    if vForm = nil then
+      Exit(nil);
+
+    vForm.ShowHint := True;
+    vForm.DisableAlign;
+    Assert(not Assigned(vForm.OnShow), 'vForm.OnShow already assigned');
+    vForm.OnShow := DoOnFormShow;
+    try
+      Result := CreateFilledArea(AParent, AView, ALayout, ALayout.StyleName, True, vForm);
+      if Assigned(AOnClose) then
+        Result.OnClose := AOnClose;
+    finally
+      vForm.EnableAlign;
+    end;
+  end
+  else if ALayout.Kind = lkAction then
+  begin
+    if (ALayout.StyleName = '') or (ALayout.StyleName = 'menu') then
+    begin
+      vMenu := TPopupMenu.Create(TComponent(AParent.InnerControl));
+      vMenu.Images := TDragImageList(TInteractor(AParent.Interactor).Images[16]);
+
+      Result := CreateFilledArea(AParent, AView, nil, '-popup-', False, vMenu);
+
+      CopyPopupMenuItems(Result, AParent.View, TNavigationItem(ALayout), Result);
+    end
+    else begin
+      vMenuItem := TMenuItem.Create(nil);
+      if ALayout.StyleName = 'action' then
+      begin
+        vMenuItem.Caption := ALayout.Caption;
+        vMenuItem.Hint := ALayout.Caption;
+        vMenuItem.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+        vMenuItem.OnClick := AParent.OnAreaClick;
+        if ALayout is TNavigationItem then
+        begin
+          vMenuItem.RadioItem := TNavigationItem(ALayout).RadioItem;
+          vMenuItem.GroupIndex := TNavigationItem(ALayout).GroupIndex;
+        end;
+
+        if Assigned(AView.DomainObject) and TEntity(AView.DomainObject).FieldExists('IsChecked') then
+          vMenuItem.AutoCheck := True;
+      end
+      else if ALayout.StyleName = 'select' then
+      begin
+        vMenuItem.Caption := ALayout.Caption;
+        vMenuItem.Hint := ALayout.Caption;
+        vMenuItem.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+        vMenuItem.Tag := Integer(AParent);
+        vMenuItem.OnClick := AParent.OnActionMenuSelected;
+      end
+      else
+        vMenuItem.Caption := ALayout.Caption;
+
+      if AParent.InnerControl is TPopupMenu then
+        TPopupMenu(AParent.InnerControl).Items.Add(vMenuItem)
+      else
+        TMenuItem(AParent.InnerControl).Add(vMenuItem);
+
+      if ALayout is TNavigationItem then
+        vId := TNavigationItem(ALayout).ViewName
+      else
+        vId := ALayout.Caption;
+
+      Result := CreateFilledArea(AParent, AView, ALayout, vId, False, vMenuItem);
+    end;
+  end
   else if ALayout.Kind <> lkNone then
     Assert(False, 'Класс не поддерживается для создания лэйаутов')
   else
     Assert(False, 'Пустой класс для лэйаута');
 end;
 
-function TWinVCLPresenter.CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea;
-var
-  vMenu: TPopupMenu;
-  vView: TView;
-begin
-  vMenu := TPopupMenu.Create(TComponent(AParent.InnerControl));
-  vMenu.Images := TDragImageList(TInteractor(AParent.Interactor).Images[16]);
-  vView := AParent.UIBuilder.RootView;
-  Result := CreateFilledArea(AParent, vView, nil, '-popup-', False, vMenu);
-  CopyPopupMenuItems(AParent, AParent.View, ALayout.Menu, vMenu.Items);
-end;
-
 function TWinVCLPresenter.CreateTempControl: TObject;
 begin
   Result := TFrame.Create(nil);
-end;
-
-function TWinVCLPresenter.CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
-  const AAreaName: string; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea;
-var
-  vForm: TForm;
-  i: Integer;
-  vArea: TUIArea;
-begin
-  Result := nil;
-  vForm := nil;
-
-  if AAreaName = '' then
-  begin
-    Application.CreateForm(TForm, vForm);
-
-    if AInteractor.Layout = 'mdi' then
-      vForm.FormStyle := fsMDIForm;
-
-    vForm.OnClose := DoMainFormClose;
-    vForm.Position := poScreenCenter;
-    vForm.Caption := TDomain(AInteractor.Domain).AppTitle + ' (' + TUserSession(AInteractor.Session).CurrentUserName + ')';
-
-    SetAsMainForm(vForm);
-  end
-  // второстепенная автономная форма
-  else if AAreaName = 'float' then
-  begin
-    vArea := nil;
-    for i := 0 to AParent.Count - 1 do
-    begin
-      vArea := AParent.Areas[i];
-      if (vArea.View = AView) and (vArea.InnerControl is TForm) then
-        Exit(vArea);
-    end;
-
-    vForm := TFloatFm.Create(nil);
-
-    vForm.OnClose := DoFloatFormClose;
-    vForm.Position := poMainFormCenter;
-    vForm.Font.Size := 12;
-    vForm.Caption := ACaption;
-    vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
-    if Assigned(vArea) and (AView.DefinitionKind in [dkCollection, dkAction, dkEntity]) then
-      TDragImageList(TInteractor(AInteractor).Images[16]).GetIcon(vArea.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
-  end
-  // дочерняя модальная форма
-  else if (AAreaName = 'child') or (AAreaName = 'modal') then
-  begin
-    vForm := TForm.Create(nil);
-    vForm.OnClose := DoChildFormClose;
-    vForm.OnKeyDown := DoChildFormKeyDown;
-    vForm.KeyPreview := True;
-    vForm.BorderIcons := [biSystemMenu];
-    vForm.Position := poMainFormCenter;
-    vForm.Font.Size := 12;
-    vForm.BorderStyle := bsSingle;  // for layouted form this property will be changed when assigned cEditFormResizable flag in Tag
-  end;
-
-  if vForm = nil then
-    Exit;
-
-  vForm.ShowHint := True;
-  vForm.DisableAlign;
-  Assert(not Assigned(vForm.OnShow), 'vForm.OnShow already assigned');
-  vForm.OnShow := DoOnFormShow;
-  try
-    Result := CreateFilledArea(AParent, AView, nil, AAreaName, True, vForm);
-    if Assigned(AOnClose) then
-      Result.OnClose := AOnClose;
-  finally
-    vForm.EnableAlign;
-  end;
 end;
 
 destructor TWinVCLPresenter.Destroy;
@@ -1379,16 +1206,48 @@ begin
   end;
 end;
 
+procedure TWinVCLPresenter.OnChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+var
+  vForm: TForm;
+  vHandled: Boolean;
+begin
+  vHandled := False;
+  DoChildFormKeyDown(Sender, Shift, Key, vHandled);
+  if vHandled then
+    Exit;
+
+  vForm := TForm(Sender);
+
+  if Key = vkReturn then
+  begin
+    //if vForm.ControlCount < 3 then
+    //  FForm.ModalResult := mrOk else
+    if (not (ssShift in Shift)) and (not (vForm.ActiveControl is TMemo)) and (not (vForm.ActiveControl is TcxMemo)) then
+      PostMessage(vForm.Handle, WM_NEXTDLGCTL, 0, 0);
+  end;
+end;
+
 procedure TWinVCLPresenter.OnShortCut(var Msg: TWMKey; var Handled: Boolean);
 var
   vActiveInteractor: TInteractor;
-  vView: TView;
+  vShift: TShiftState;
 begin
+  Handled := False;
+  vShift := [];
+  if GetKeyState(VK_CONTROL) < 0 then
+    Include(vShift, ssCtrl);
+  if GetKeyState(VK_MENU) < 0 then
+    Include(vShift, ssAlt);
+  if GetKeyState(VK_SHIFT) < 0 then
+    Include(vShift, ssShift);
+  DoProcessShortCut(vShift, Msg.CharCode, Handled);
+  if Handled then
+    Exit;
+
   vActiveInteractor := ActiveInteractor;
-  if Assigned(vActiveInteractor)
-    and (GetKeyState(VK_CONTROL) < 0) and (GetKeyState(VK_MENU) < 0) and (GetKeyState(VK_SHIFT) < 0) then
+  if Assigned(vActiveInteractor) and (ssCtrl in vShift) and (ssAlt in vShift) and (ssShift in vShift) then
   begin
-    if (Msg.CharCode = Ord('D')) or (Msg.CharCode = Ord('F')) then
+    if (Msg.CharCode = vkD) or (Msg.CharCode = vkF) then
     begin
       Handled := True;
       if Assigned(FDebugForm) then
@@ -1397,24 +1256,6 @@ begin
       if Assigned(FDebugForm) then
         SetForegroundWindow(FDebugForm.Handle);
     end
-    else if Msg.CharCode = Ord('E') then
-    begin
-      Handled := True;
-      if not Assigned(vActiveInteractor.UIBuilder.ActiveArea) then
-        Exit;
-      vView := vActiveInteractor.UIBuilder.ActiveArea.View;
-      if not (vView.DefinitionKind in [dkAction, dkListField, dkObjectField, dkSimpleField]) then
-        Exit;
-      if not TUserSession(vActiveInteractor.Session).IsAdmin then
-        Exit;
-
-      vView.ElevateAccess;
-    end
-    else if Msg.CharCode = Ord('R') then
-    begin
-      Handled := True;
-      TDomain(vActiveInteractor.Domain).ReloadChanges(TDomain(vActiveInteractor.Domain).DomainHolder);
-    end;
   end;
 end;
 
@@ -1590,168 +1431,31 @@ begin
   end;
 end;
 
-procedure TWinVCLPresenter.StoreUILayout(const AInteractor: TInteractor);
+procedure TWinVCLPresenter.RestoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
 var
-  vMainForm: TForm;
   vLayoutStr: string;
-
-  procedure SaveForm(const AForm: TForm; const AName: string);
-  begin
-    vLayoutStr := IntToStr(AForm.Left) + ';' + IntToStr(AForm.Top) + ';' + IntToStr(AForm.Width) + ';' + IntToStr(AForm.Height) + ';' + IntToStr(Ord(AForm.WindowState));
-    TDomain(AInteractor.Domain).UserSettings.SetValue(AName, 'Layout', vLayoutStr);
-  end;
+  vValues: TStrings;
 begin
-  vMainForm := TForm(AInteractor.UIBuilder.RootArea.InnerControl);
+  //if (not Assigned(vMainForm)) or (vMainForm.Position <> poDesigned) then Exit;
 
-  if not Assigned(vMainForm) then Exit;
+  vLayoutStr := TDomain(AInteractor.Domain).UserSettings.GetValue('MainForm', 'Layout');
+  if Length(vLayoutStr) = 0 then Exit;
 
-  StoreChildForms(AInteractor, vMainForm);
+  vValues := CreateDelimitedList(vLayoutStr, ';');
+  try
+    if vValues.Count <> 5 then Exit;
 
-  if (vMainForm.Position <> poDesigned) then Exit;
-
-  SaveForm(vMainForm, 'MainForm');
-end;
-
-procedure TWinVCLPresenter.StoreChildForms(const AInteractor: TInteractor; const AMainForm: TForm);
-var
-  i: Integer;
-  vForm: TForm;
-  vArea: TUIArea;
-  vView: TView;
-  vEntity: TEntity;
-begin
-  if AInteractor.Layout = 'mdi' then
-  begin
-    for i := AMainForm.MDIChildCount - 1 downto 0 do
-    begin
-      vForm := AMainForm.MDIChildren[i];
-      vArea := TUIArea(Pointer(vForm.Tag));
-      vView := vArea.View;
-      if Assigned(vView) and (vView.DomainObject is TEntity) then
-      begin
-        vEntity := TEntity(vView.DomainObject);
-
-        if Assigned(vEntity) and vEntity.InstanceOf('_FormLayout') then
-        begin
-          TUserSession(AInteractor.Session).AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
-          begin
-            vEntity._SetFieldValue(AHolder,'WindowState', vForm.WindowState);
-            if vForm.WindowState = wsNormal then
-            begin
-              vEntity._SetFieldValue(AHolder,'Left', vForm.Left);
-              vEntity._SetFieldValue(AHolder,'Top', vForm.Top);
-              vEntity._SetFieldValue(AHolder,'Width', vForm.Width);
-              vEntity._SetFieldValue(AHolder,'Height', vForm.Height);
-            end;
-            Result := True;
-          end, nil);
-        end;
-      end;
-    end;
+    AForm.Left := StrToIntDef(vValues[0], 100);
+    AForm.Top := StrToIntDef(vValues[1], 100);
+    AForm.Width := StrToIntDef(vValues[2], 1280);
+    AForm.Height := StrToIntDef(vValues[3], 960);
+    if TWindowState(StrToIntDef(vValues[4], 0)) = wsMaximized then
+      AForm.WindowState := wsMaximized;
+  finally
+    FreeAndNil(vValues);
   end;
-end;
 
-procedure TWinVCLPresenter.RestoreChildForms(const AInteractor: TInteractor);
-var
-  vDomain: TDomain;
-  i, j: Integer;
-  vEntity: TEntity;
-  vCollection: TCollection;
-begin
-  if not Assigned(AInteractor) then Exit;
-
-  vDomain := TDomain(AInteractor.Domain);
-
-  for i := 0 to vDomain.Collections.Count - 1 do
-  begin
-    vCollection := vDomain.Collections[i];
-    if vCollection.ContentDefinition.IsDescendantOf('_FormLayout') then
-    begin
-      for j := 0 to vCollection.Count - 1 do
-      begin
-        vEntity := vCollection[j];
-        AInteractor.UIBuilder.Navigate(AInteractor.GetViewOfEntity(vEntity), 'WorkArea', vCollection.ContentDefinition.Name + 'EditForm',
-          'Left=' + IntToStr(vEntity['Left']) +
-          '&Top=' + IntToStr(vEntity['Top']) +
-          '&Width=' + IntToStr(vEntity['Width']) +
-          '&Height=' + IntToStr(vEntity['Height']) +
-          '&WindowState=' + IntToStr(vEntity['WindowState']), nil, vEntity['Name']);
-      end;
-    end;
-  end;
-end;
-
-procedure TWinVCLPresenter.RestoreUILayout(const AInteractor: TInteractor);
-var
-  vMainForm: TForm;
-
-  procedure LoadForm(const AForm: TForm; const AName: string);
-  var
-    vLayoutStr: string;
-    vValues: TStrings;
-  begin
-    vLayoutStr := TDomain(AInteractor.Domain).UserSettings.GetValue(AName, 'Layout');
-    if Length(vLayoutStr) = 0 then Exit;
-
-    vValues := CreateDelimitedList(vLayoutStr, ';');
-    try
-      if vValues.Count <> 5 then Exit;
-
-      AForm.Left := StrToIntdef(vValues[0], 100);
-      AForm.Top := StrToIntdef(vValues[1], 100);
-      AForm.Width := StrToIntdef(vValues[2], 1280);
-      AForm.Height := StrToIntdef(vValues[3], 960);
-      if TWindowState(StrToIntdef(vValues[4], 0)) = wsMaximized then
-        AForm.WindowState := wsMaximized;
-    finally
-      FreeAndNil(vValues);
-    end;
-  end;
-begin
-  vMainForm := TForm(AInteractor.UIBuilder.RootArea.InnerControl);
-  if (not Assigned(vMainForm)) or (vMainForm.Position <> poDesigned) then Exit;
-
-  LoadForm(vMainForm, 'MainForm');
-
-  RestoreChildForms(AInteractor);
-end;
-
-procedure TWinVCLPresenter.DoChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
-var
-  vForm: TForm;
-  vFormArea: TUIArea;
-  vView: TView;
-begin
-  vForm := TForm(Sender);
-
-  if (Key = VK_RETURN) and (ssCtrl in Shift) then
-    vForm.ModalResult := mrOk
-  else if Key = VK_RETURN then
-  begin
-    //if vForm.ControlCount < 3 then
-    //  FForm.ModalResult := mrOk else
-    if (not (ssShift in Shift)) and (not (vForm.ActiveControl is TMemo)) and (not (vForm.ActiveControl is TcxMemo)) then
-      PostMessage(vForm.Handle, WM_NEXTDLGCTL, 0, 0);
-  end
-  else if Key = VK_ESCAPE then
-  begin
-    vFormArea := TUIArea(vForm.Tag);
-    if Assigned(vFormArea) then
-    begin
-      vFormArea.UIBuilder.LastArea := nil;
-      vView := vFormArea.View.ViewByName('Close');
-      if not Assigned(vView) then
-        vView := vFormArea.View.ViewByName('Cancel');
-      if Assigned(vView) then
-        vFormArea.ExecuteUIAction(vView)
-      else begin
-        vForm.ModalResult := mrCancel;
-        vForm.Close;
-      end;
-    end
-    else
-      vForm.Close;
-  end;
+  //RestoreChildForms(AInteractor);
 end;
 
 procedure TWinVCLPresenter.DoCloseAllPages(const AInteractor: TInteractor);
@@ -1826,8 +1530,6 @@ var
   vDomain: TDomain;
   vInteractor: TInteractor;
 begin
-  inherited;
-
   Application.Title := cPlatformTitle;
   Application.Initialize;
 
@@ -1845,8 +1547,6 @@ begin
     Application.CreateForm(TStartFm, FStartForm);
     FStartForm.Init(Self);
   end;
-
-  DoOnAppStarted; // здесь подгружаются размеры и позиция главной формы
 
   OnDomainLoadProgress(100, '');
 
@@ -1956,40 +1656,6 @@ begin
     FStartForm.Deinit;
 
   //Application.Terminate;
-end;
-
-procedure TWinVCLPresenter.DoToggleUI(const AVisible: Boolean);
-begin
-  if AVisible then
-  begin
-    if Assigned(FTrayIcon) then
-    begin
-      FTrayIcon.Visible := False;
-      Application.MainForm.Show;
-    end;
-  end
-  else begin
-    if not Assigned(FTrayIcon) then
-    begin
-      FTrayIcon := TTrayIcon.Create(nil);
-      FTrayIcon.OnClick := DoTrayIconClick;
-    end;
-
-    ShowWindow(Application.MainForm.Handle, SW_HIDE);  // Скрываем программу
-    ShowWindow(Application.Handle, SW_HIDE);  // Скрываем кнопку с TaskBar'а
-    SetWindowLong(Application.Handle, GWL_EXSTYLE,
-    GetWindowLong(Application.Handle, GWL_EXSTYLE) or (not WS_EX_APPWINDOW));
-    FTrayIcon.Visible := True;
-    Application.MainForm.Hide;
-    FTrayIcon.ShowBalloonHint; // показываем наше уведомление
-    FTrayIcon.BalloonTitle := 'My Program';
-    FTrayIcon.BalloonHint := 'Version';
-  end;
-end;
-
-procedure TWinVCLPresenter.DoTrayIconClick(Sender: TObject);
-begin
-  DoToggleUI(True);
 end;
 
 procedure TWinVCLPresenter.DoUnfreeze;

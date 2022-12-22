@@ -185,8 +185,6 @@ type
     property Info: string read FInfo;
   end;
 
-  TStartedEvent = reference to procedure;
-
   TPresenter = class(TBaseModule)
   private
     class var RegisteredUIClasses: TObjectDictionary<string, TObjectDictionary<string, TUIClassInfo>>;
@@ -205,7 +203,6 @@ type
       const AStyleName: string): TNativeControlClass;
   private
     FNativeControlClass: TNativeControlClass;
-    FOnAppStarted: TStartedEvent;
   protected
     procedure OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
     procedure OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
@@ -213,6 +210,8 @@ type
     procedure DoFloatFormClose(Sender: TObject; var Action: TCloseAction);
     procedure DoMainFormClose(Sender: TObject; var Action: TCloseAction);
     procedure DoOnFormShow(Sender: TObject);
+    procedure DoChildFormKeyDown(Sender: TObject; const AShift: TShiftState; const AKey: Word; var AHandled: Boolean);
+    procedure DoProcessShortCut(const AShift: TShiftState; const AKey: Word; var AHandled: Boolean);
   protected
     FName: string;
     FCursorType: TCursorType;
@@ -221,16 +220,14 @@ type
     FCommonIcons: TIcons;
     FNeedShowSplash: Boolean;
 
-    procedure DoOnAppStarted;
-
     procedure DoRun(const AParameter: string); virtual;
     procedure DoUnfreeze; virtual;
     procedure DoStop; virtual;
 
-      function AreaFromSender(const ASender: TObject): TUIArea; virtual;
-      function DoLogin(const ADomain: TObject): TInteractor; virtual;
-      function ShowLoginForm(const AAppTitle: string; var ALoginName, APass: string): Boolean; virtual;
-      procedure DoLogout(const AInteractor: TInteractor); virtual;
+    function AreaFromSender(const ASender: TObject): TUIArea; virtual;
+    function DoLogin(const ADomain: TObject): TInteractor; virtual;
+    function ShowLoginForm(const AAppTitle: string; var ALoginName, APass: string): Boolean; virtual;
+    procedure DoLogout(const AInteractor: TInteractor); virtual;
 
     function GetNativeControlClass: TNativeControlClass; virtual; abstract;
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); virtual; abstract;
@@ -242,13 +239,15 @@ type
     procedure DoSetCursor(const ACursorType: TCursorType); virtual;
     procedure DoCloseAllPages(const AInteractor: TInteractor); virtual; abstract;
 
+    procedure CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
+      const ASrcItem: TNavigationItem; const ADestArea: TUIArea);
     function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; virtual; abstract;
 
     procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
     procedure OnDomainError(const ACaption, AText: string);
 
-    procedure StoreUILayout(const AInteractor: TInteractor); virtual;
-    procedure RestoreUILayout(const AInteractor: TInteractor); virtual;
+    //procedure StoreUILayout(const AInteractor: TInteractor); virtual;
+    //procedure RestoreUILayout(const AInteractor: TInteractor); virtual;
 
     procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); virtual;
 
@@ -263,11 +262,9 @@ type
     function Login(const ADomain: TObject): TInteractor;
     procedure Logout(const AInteractor: TInteractor);
 
-    function CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView; const AAreaName: string;
-      const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea; virtual;
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; virtual;
     function CreateFilledArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
-      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''): TUIArea; virtual;
+      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''): TUIArea;
 
     // Layouts operations
     function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TLayout;
@@ -280,7 +277,7 @@ type
       const AView: TView; const AStyleName, AParams: string): TUIArea;
     function CreateNativeControl(const AArea: TUIArea; const ALayout: TLayout;
       const AView: TView; const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
-    procedure ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
+
     procedure EnumerateControls(const ALayout: TLayout; const AControl: TObject);
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; virtual;
@@ -290,7 +287,6 @@ type
     function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
     function CreateTempControl: TObject; virtual; abstract;
-    function CreatePopupArea(const AParent: TUIArea; const ALayout: TLayout): TUIArea; virtual; abstract;
 
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
     function SetCursor(const ACursorType: TCursorType): TCursorType;
@@ -305,7 +301,6 @@ type
     function ShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean;
 
     function CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
-    property OnAppStarted: TStartedEvent read FOnAppStarted write FOnAppStarted;
     property Name: string read FName;
     property NativeControlClass: TNativeControlClass read FNativeControlClass;
   end;
@@ -321,6 +316,7 @@ uses
 type
   TLoginedProc = procedure(const AInteractor: TInteractor) of object;
   TBeforeUIClosingFunc = function(const AInteractor: TInteractor): Boolean of object;
+  TCrackedArea = class(TUIArea) end;
 
 { TPresenter }
 
@@ -359,6 +355,183 @@ begin
   begin
     vChildArea := AInteractor.UIBuilder.PagedArea.Areas[i];
     AInteractor.UIBuilder.PagedArea.RemoveArea(vChildArea);
+  end;
+end;
+
+procedure TPresenter.CopyPopupMenuItems(const AParent: TUIArea; const AView: TView; const ASrcItem: TNavigationItem;
+  const ADestArea: TUIArea);
+var
+  vCaption: string;
+  vActions: TList<TActionDef>;
+  vReports: TList<TRTFReport>;
+  vDefinitions: TList<TDefinition>;
+  i, j: Integer;
+  vDefinition: TDefinition;
+  vSrcItem: TNavigationItem;
+  vChildItem: TLayout;
+  vView: TView;
+  vAction: TActionDef;
+  vReport: TRTFReport;
+  vChildArea: TUIArea;
+  vDefArea: TUIArea;
+begin
+  for i := 0 to ASrcItem.Items.Count - 1 do
+  begin
+    vSrcItem := TNavigationItem(ASrcItem.Items[i]);
+    vCaption := vSrcItem.ViewName;
+
+    if SameText(vCaption, '#Placeholder') then
+    begin
+      if AView.DefinitionKind <> dkCollection then
+        Continue;
+
+      vDefinition := TDefinition(AView.Definition);
+      vActions := TList<TActionDef>.Create;
+      vDefinition.GetAllActions(vActions);
+      for vAction in vActions do
+      begin
+        if vAction.HasFlag(ccHideInMenu) then
+          Continue;
+
+        if vAction.HasFlag(ccContextAction) then
+        begin
+          vView := AParent.UIBuilder.RootView.BuildView(AView.Name + '/Selected/' + vAction.Name);
+        end
+        else
+          vView := AParent.UIBuilder.RootView.BuildView(AView.Name + '/' + vAction.Name);
+
+        if Assigned(vView) then
+        begin
+          if vView.DefinitionKind = dkAction then
+          begin
+            vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+            vChildItem.StyleName := 'action';
+            vChildItem.Caption := AParent.GetTranslation(vAction);
+            vChildItem.Hint := vChildItem.Caption;
+            vChildItem.ImageID := vAction._ImageID;
+
+            vChildArea := CreateArea(AParent, vChildItem, vView);
+            TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
+            AParent.AddArea(vChildArea);
+          end
+          else
+            vView.CleanView;
+        end;
+      end;
+
+      if vActions.Count > 0 then
+      begin
+        vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+        vChildItem.StyleName := 'line';
+        vChildItem.Caption := '-';
+        vChildArea := CreateArea(AParent, vChildItem, AParent.UIBuilder.RootView);
+        AParent.AddArea(vChildArea);
+      end;
+
+      FreeAndNil(vActions);
+
+      vReports := TList<TRTFReport>.Create;
+      vDefinition.GetAllReports(vReports);
+      for vReport in vReports do
+      begin
+        vView := AParent.UIBuilder.RootView.BuildView(AView.Name + '/Selected/' + vReport.Name);
+
+        if Assigned(vView) then
+        begin
+          if vView.DefinitionKind = dkAction then
+          begin
+            vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+            vChildItem.StyleName := 'action';
+            vChildItem.Caption := AParent.GetTranslation(vReport);
+            vChildItem.Hint := vChildItem.Caption;
+            vChildItem.ImageID := 31;
+
+            vChildArea := CreateArea(AParent, vChildItem, vView);
+            TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
+            AParent.AddArea(vChildArea);
+          end
+          else
+            vView.CleanView;
+        end;
+      end;
+
+      if vReports.Count > 0 then
+      begin
+        vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+        vChildItem.StyleName := 'line';
+        vChildItem.Caption := '-';
+        vChildArea := CreateArea(AParent, vChildItem, AParent.UIBuilder.RootView);
+        AParent.AddArea(vChildArea);
+      end;
+
+      FreeAndNil(vReports);
+
+      Continue;
+    end
+    else if Pos('@', vCaption) > 0 then
+    begin
+      vSrcItem.StyleName := 'group';
+      vChildArea := CreateArea(AParent, vSrcItem, AParent.View);
+      AParent.AddArea(vChildArea);
+
+      CopyPopupMenuItems(vChildArea, AView, vSrcItem, vChildArea);
+
+      Continue;
+    end
+    else
+      vView := AView.BuildView(vCaption);
+
+    if Assigned(vView) and (vView.DefinitionKind = dkAction) then
+    begin
+      vAction := TActionDef(vView.Definition);
+      vSrcItem.StyleName := 'action';
+      vSrcItem.Caption := AParent.GetTranslation(vAction);
+      vSrcItem.Hint := vSrcItem.Caption;
+      vSrcItem.ImageID := vAction._ImageID;
+
+      if (vAction.Name = 'Add') and Assigned(vView.ParentDomainObject) and (vView.ParentDomainObject is TEntityList) then
+      begin
+        vDefinitions := TEntityList(vView.ParentDomainObject).ContentDefinitions;
+        if vDefinitions.Count > 1 then
+        begin
+          vSrcItem.StyleName := 'group';
+          vChildArea := CreateArea(AParent, vSrcItem, vView);
+          for j := 0 to vDefinitions.Count - 1 do
+          begin
+            vDefinition := TDefinition(vDefinitions[j]);
+            vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+            vChildItem.StyleName := 'select';
+            vChildItem.Caption := AParent.GetTranslation(vDefinition);
+            vChildItem.Hint := vChildItem.Caption;
+            vChildItem.ImageID := vDefinition._ImageID;
+            vDefArea := CreateArea(vChildArea, vChildItem, AParent.UIBuilder.RootView);
+            vChildArea.AddArea(vDefArea);
+          end;
+        end
+        else begin
+          vChildArea := CreateArea(AParent, vSrcItem, vView);
+          TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
+        end;
+      end
+      else begin
+        vChildArea := CreateArea(AParent, vSrcItem, vView);
+        TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
+      end;
+
+      //for j := 0 to vDestItem.Count - 1 do
+      //  vDestItem[j].Tag := Integer(vChildArea);
+      AParent.AddArea(vChildArea);
+    end
+    else begin
+      if Assigned(vView) and (vView.DefinitionKind = dkUndefined) then
+        vView.CleanView;
+
+      vSrcItem.StyleName := 'group';
+      vSrcItem.Caption := vCaption;
+      vChildArea := CreateArea(AParent, vSrcItem, AParent.UIBuilder.RootView);
+      vChildArea.NativeControl.ViewState := vsDisabled;
+      AParent.AddArea(vChildArea);
+    end;
   end;
 end;
 
@@ -485,12 +658,6 @@ begin
     Result := nil;
 
   Assert(Assigned(Result), 'Не удалось создать навигационную область ' + AStyleName);
-end;
-
-function TPresenter.CreateUIArea(const AInteractor: TInteractor; const AParent: TUIArea; const AView: TView;
-  const AAreaName: string; const ACaption: string = ''; const AOnClose: TProc = nil): TUIArea;
-begin
-  Result := nil;
 end;
 
 destructor TPresenter.Destroy;
@@ -630,6 +797,31 @@ begin
     vCloseProc;
 end;
 
+procedure TPresenter.DoChildFormKeyDown(Sender: TObject; const AShift: TShiftState; const AKey: Word; var AHandled: Boolean);
+var
+  vFormArea: TUIArea;
+  vView: TView;
+begin
+  vFormArea := AreaFromSender(Sender);
+
+  AHandled := True;
+  if (AKey = vkReturn) and (ssCtrl in AShift) then
+    vFormArea.Close(mrOk)
+  else if AKey = vkEscape then
+  begin
+    vFormArea.UIBuilder.LastArea := nil;
+    vView := vFormArea.View.ViewByName('Close');
+    if not Assigned(vView) then
+      vView := vFormArea.View.ViewByName('Cancel');
+    if Assigned(vView) then
+      vFormArea.ExecuteUIAction(vView)
+    else
+      vFormArea.Close(mrCancel);
+  end
+  else
+    AHandled := False;
+end;
+
 procedure TPresenter.DoEnumerateControls(const ALayout: TLayout; const AControl: TObject);
 begin
 end;
@@ -755,23 +947,13 @@ begin
 
   if vResult then
   begin
-    StoreUILayout(vInteractor);
+    //StoreUILayout(vInteractor);
     if Assigned(vInteractor) then
       Logout(vInteractor);
     Action := TCloseAction.caFree;
   end
   else
     Action := TCloseAction.caNone;
-end;
-
-procedure TPresenter.DoOnAppStarted;
-var
-  i: Integer;
-begin
-  for i := 0 to FInteractors.Count - 1 do
-    RestoreUILayout(FInteractors[i]);
-  if Assigned(FOnAppStarted) then
-    FOnAppStarted;
 end;
 
 procedure TPresenter.DoOnFormShow(Sender: TObject);
@@ -784,6 +966,35 @@ end;
 
 procedure TPresenter.DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False);
 begin
+end;
+
+procedure TPresenter.DoProcessShortCut(const AShift: TShiftState; const AKey: Word; var AHandled: Boolean);
+var
+  vActiveInteractor: TInteractor;
+  vView: TView;
+begin
+  vActiveInteractor := ActiveInteractor;
+  if Assigned(vActiveInteractor) and (ssCtrl in AShift) and (ssAlt in AShift) and (ssShift in AShift) then
+  begin
+    if AKey = vkE then
+    begin
+      AHandled := True;
+      if not Assigned(vActiveInteractor.UIBuilder.ActiveArea) then
+        Exit;
+      vView := vActiveInteractor.UIBuilder.ActiveArea.View;
+      if not (vView.DefinitionKind in [dkAction, dkListField, dkObjectField, dkSimpleField]) then
+        Exit;
+      if not TUserSession(vActiveInteractor.Session).IsAdmin then
+        Exit;
+
+      vView.ElevateAccess;
+    end
+    else if AKey = vkR then
+    begin
+      AHandled := True;
+      TDomain(vActiveInteractor.Domain).ReloadChanges(TDomain(vActiveInteractor.Domain).DomainHolder);
+    end;
+  end;
 end;
 
 procedure TPresenter.DoRun;
@@ -1059,10 +1270,6 @@ begin
   vClassesList.Add(vTypeName + vViewName, vClassInfo);
 end;
 
-procedure TPresenter.RestoreUILayout(const AInteractor: TInteractor);
-begin
-end;
-
 procedure TPresenter.Run(const AParameter: string = '');
 begin
   DoRun(AParameter);
@@ -1080,12 +1287,6 @@ end;
 function TPresenter.ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
 begin
   Result := DoShowDialog(ACaption, AText, ADialogActions);
-end;
-
-procedure TPresenter.ShowLayout(const AInteractor: TInteractor; const ATargetAreaName, ALayoutName: string);
-begin
-  if Assigned(AInteractor) then
-    AInteractor.UIBuilder.Navigate(nil, ATargetAreaName, ALayoutName, '', TUserSession(AInteractor.Session).NullHolder);
 end;
 
 function TPresenter.ShowLoginForm(const AAppTitle: string; var ALoginName, APass: string): Boolean;
@@ -1136,10 +1337,6 @@ end;
 procedure TPresenter.Stop;
 begin
   DoStop;
-end;
-
-procedure TPresenter.StoreUILayout(const AInteractor: TInteractor);
-begin
 end;
 
 procedure TPresenter.Unfreeze;
