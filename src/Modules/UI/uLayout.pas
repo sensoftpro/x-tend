@@ -199,7 +199,6 @@ type
   TLayout = class
   private
     FContentLayout: TLayout;
-    FOverwrittenLayout: TLayout;
     FMenu: TNavigationItem;
     FUrlParser: TUrlParser;
     FKind: TLayoutKind;
@@ -282,13 +281,12 @@ type
 
     procedure Add(const AChild: TLayout);
     procedure ArrangeChildAreas;
-    procedure SaveOverwrittenLayout(const ALayout: TLayout);
 
     procedure SetUrl(const AUrl: string); virtual;
     function ExtractInteger(const AParamName: string; const ADefault: Integer = -1): Integer;
     function ExtractString(const AParamName: string; const ADefault: string = ''): string;
 
-    property Kind: TLayoutKind read FKind;
+    property Kind: TLayoutKind read FKind write FKind;
     property StyleName: string read FStyleName write FStyleName;
     property Parent: TLayout read FParent;
     property Items: TList<TLayout> read GetItems;
@@ -958,7 +956,6 @@ begin
   FParent := nil;
   FItems := TList<TLayout>.Create;
   FContentLayout := nil;
-  FOverwrittenLayout := nil;
   FMenu := nil;
   FUrlParser := nil;
   FKind := AKind;
@@ -1368,11 +1365,6 @@ begin
   finally
     FreeAndNil(jLayout);
   end;
-end;
-
-procedure TLayout.SaveOverwrittenLayout(const ALayout: TLayout);
-begin
-  FOverwrittenLayout := ALayout;
 end;
 
 procedure TLayout.SetContentLayout(const Value: TLayout);

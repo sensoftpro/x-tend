@@ -2532,7 +2532,7 @@ begin
       vTabLayout.Name, False, vPage));
     AddArea(vChildArea);
 
-    TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vTabLayout, '');
+    TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vChildArea.View, vTabLayout, '');
   end;
 end;
 

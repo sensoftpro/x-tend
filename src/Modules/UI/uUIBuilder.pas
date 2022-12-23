@@ -177,6 +177,7 @@ type
     function GetAreaByView(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
     procedure Clear;
     procedure ClearContent;
+    function IndexOf(const AArea: TUIArea): Integer;
     // Отвязать все нативные элементы
     procedure UnbindContent;
 
@@ -319,12 +320,12 @@ type
 
   TNavigationArea = class(TUIArea)
   private
-    function CreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem;
+    function CreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
       const AView: TView; const ALevel: Integer): TObject;
   protected
     FInitialMenu: TNavigationItem;
     FParams: string;
-    function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
+    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; virtual; abstract;
     procedure DoAfterCreate(const AInteractor: TObject); virtual;
     procedure DoProcessChilds(const AParentArea: TUIArea; const AView: TView; const ANavItem: TNavigationItem;
@@ -370,7 +371,7 @@ type
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
 
     function CreateSimpleLayout(const ALayoutKind: TLayoutKind): TLayout;
-    procedure CreateChildAreas(const AArea: TUIArea; const ALayout: TLayout; const AParams: string);
+    procedure CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
     procedure CloseCurrentArea(const AModalResult: Integer);
     procedure PrintHierarchy;
     procedure ProcessAreaDeleting(const AArea: TUIArea);
@@ -439,7 +440,7 @@ begin
   try
     AArea.AssignFromLayout(vLayout, AParams);
     AArea.SetView(AView);
-    CreateChildAreas(AArea, vLayout, AParams);
+    CreateChildAreas(AArea, AView, vLayout, AParams);
     AArea.SetBounds(
       StrToIntDef(GetUrlParam(AParams, 'Left', ''), -1),
       StrToIntDef(GetUrlParam(AParams, 'Top', ''), -1),
@@ -470,13 +471,13 @@ begin
   FRootView := TView.Create(TInteractor(FInteractor), nil, '');
 end;
 
-procedure TUIBuilder.CreateChildAreas(const AArea: TUIArea; const ALayout: TLayout; const AParams: string);
+procedure TUIBuilder.CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
 var
   i: Integer;
 begin
   AArea.Layout := ALayout;
   for i := 0 to ALayout.Items.Count - 1 do
-    AArea.CreateChildArea(AArea.View, ALayout.Items[i], AParams);
+    AArea.CreateChildArea(AView, ALayout.Items[i], AParams);
   AArea.AfterChildAreasCreated;
 end;
 
@@ -1333,8 +1334,10 @@ begin
       else if not Result.IsDefault then
         FUIBuilder.ApplyLayout(Result, FView, vLayoutName, vQuery)
     end
-    else if not vAlreadyAssigned then //#Check!
-      FUIBuilder.CreateChildAreas(Result, ALayout, vQuery);
+    else if Result.IsDefault and (ALayout.Items.Count > 0) then
+      FUIBuilder.CreateChildAreas(Result, FView, ALayout, vQuery)
+    else if not vAlreadyAssigned or Result.IsDefault then //#Check!
+      FUIBuilder.CreateChildAreas(Result, Result.View, ALayout, vQuery);
   end
   else
     ALayout.Free;
@@ -1742,6 +1745,16 @@ end;
 function TUIArea.GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart): string;
 begin
   Result := FUIBuilder.GetTranslation(ADefinition, ATranslationPart);
+end;
+
+function TUIArea.IndexOf(const AArea: TUIArea): Integer;
+var
+  i: Integer;
+begin
+  for i := 0 to FAreas.Count - 1 do
+    if FAreas[i] = AArea then
+      Exit(i);
+  Result := -1;
 end;
 
 function TUIArea.LessThanUIState(const ADefinition: TDefinition; const ASession: TObject;
@@ -2295,7 +2308,7 @@ begin
   FInitialMenu := ALayout.Menu;
 end;
 
-function TNavigationArea.CreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const AView: TView;
+function TNavigationArea.CreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const AView: TView;
   const ALevel: Integer): TObject;
 var
   vDefinition: TDefinition;
@@ -2348,7 +2361,7 @@ procedure TNavigationArea.DoProcessChilds(const AParentArea: TUIArea; const AVie
 var
   i: Integer;
   vNavItem: TNavigationItem;
-  vParentObj: TObject;
+  vParentObj: TNativeControl;
   vViewPath: TStrings;
 
   procedure CreateGroupNode(const ACurrentItem: TNavigationItem; const ACurrentView: TView);
@@ -2470,7 +2483,7 @@ begin
     if AParentArea = Self then
       vParentObj := nil
     else
-      vParentObj := AParentArea.InnerControl;
+      vParentObj := AParentArea.NativeControl;
 
     vViewPath := CreateDelimitedList(vNavItem.ViewName, '/');
     try

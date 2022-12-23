@@ -723,7 +723,8 @@ begin
 
       vStartPageName := TDomain(AParent.View.Domain).Settings.GetValue('Core', 'StartPage', '');
       vTab.TabVisible := ALayout.ShowCaption;
-      vTab.PageControl := TPageControl(AParent.InnerControl);
+      if AParent.InnerControl is TPageControl then
+        vTab.PageControl := TPageControl(AParent.InnerControl);
 
       Result := CreateFilledArea(AParent, AView, ALayout, ALayout.Name, False, vTab);
     end;

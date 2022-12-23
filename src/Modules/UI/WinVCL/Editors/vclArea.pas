@@ -115,7 +115,7 @@ type
     FMenuItem: TMenuItem;
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
+    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
@@ -126,7 +126,7 @@ type
     FMenuItem: TMenuItem;
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
+    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
     procedure DoAfterCreate(const AInteractor: TObject); override;
   end;
@@ -143,7 +143,7 @@ type
     //procedure DrawButton(ARect: TRect; Node: TTreeNode);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
+    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
     procedure DoExecuteUIAction(const AView: TView); override;
   end;
@@ -156,7 +156,7 @@ type
     procedure OnClick(Sender: TObject);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
+    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
@@ -247,7 +247,7 @@ begin
   Result := FButton;
 end;
 
-function TOneButtonArea.DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem;
+function TOneButtonArea.DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
   const ALevel: Integer; const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 begin
   FItem := TMenuItem.Create(nil);
@@ -255,11 +255,8 @@ begin
   FItem.Hint := AHint;
   FItem.ImageIndex := AImageIndex;
   FItem.OnClick := OnAreaClick;
-  if Assigned(AParentObj) then
-  begin
-    Assert(AParentObj is TMenuItem);
-    TMenuItem(AParentObj).Add(FItem);
-  end
+  if Assigned(AParentObj) and (TVCLControl(AParentObj).Control is TMenuItem) then
+    TMenuItem(TVCLControl(AParentObj).Control).Add(FItem)
   else
     FMenu.Items.Add(FItem);
   Result := FItem;
@@ -282,7 +279,7 @@ begin
   Result := FMenu;
 end;
 
-function TMainMenuArea.DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem;
+function TMainMenuArea.DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
   const ALevel: Integer; const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
   vForm: TForm;
@@ -301,9 +298,9 @@ begin
   end
   else
   begin
-    if Assigned(AParentObj) and (AParentObj is TMenuItem) then
+    if Assigned(AParentObj) and (TVCLControl(AParentObj).Control is TMenuItem) then
     begin
-      TMenuItem(AParentObj).Add(FMenuItem);
+      TMenuItem(TVCLControl(AParentObj).Control).Add(FMenuItem);
       Result := FMenuItem;
     end;
   end;
@@ -345,12 +342,13 @@ begin
   Result := FToolBar;
 end;
 
-function TToolBarArea.DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
+function TToolBarArea.DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
   const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
   vMenu: TPopupMenu;
   vLeft: Integer;
   vToolButton: TToolButton;
+  vParentObj: TObject;
 begin
   Result := nil;
 
@@ -377,28 +375,30 @@ begin
   else begin
     if Assigned(AParentObj) then
     begin
+      vParentObj := TVCLControl(AParentObj).Control;
+
       FMenuItem := TMenuItem.Create(FToolBar);
       FMenuItem.Caption := ACaption;
       FMenuItem.Hint := AHint;
       FMenuItem.ImageIndex := AImageIndex;
       FMenuItem.OnClick := OnAreaClick;
 
-      if AParentObj is TToolButton then
+      if vParentObj is TToolButton then
       begin
-        TToolButton(AParentObj).Style := tbsDropDown;
-        if Assigned(TToolButton(AParentObj).DropdownMenu) then
-          vMenu := TToolButton(AParentObj).DropdownMenu
+        TToolButton(vParentObj).Style := tbsDropDown;
+        if Assigned(TToolButton(vParentObj).DropdownMenu) then
+          vMenu := TToolButton(vParentObj).DropdownMenu
         else
         begin
           vMenu := TPopupMenu.Create(FToolBar);
-          TToolButton(AParentObj).DropdownMenu := vMenu;
+          TToolButton(vParentObj).DropdownMenu := vMenu;
         end;
 
         vMenu.Items.Add(FMenuItem);
       end
-      else if AParentObj is TMenuItem then
+      else if vParentObj is TMenuItem then
       begin
-        TMenuItem(AParentObj).Add(FMenuItem);
+        TMenuItem(vParentObj).Add(FMenuItem);
       end;
 
       Result := FMenuItem;
@@ -426,14 +426,19 @@ begin
   Result := FTreeView;
 end;
 
-function TTreeViewArea.DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem;
+function TTreeViewArea.DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
   const ALevel: Integer; const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
-  vParentNode: TTreeNode absolute AParentObj;
+  vParentNode: TTreeNode;
   vTreeNode: TTreeNode;
 begin
   if ANavItem.IsLine then
     Exit(nil);
+
+  if Assigned(AParentObj) then
+    vParentNode := TTreeNode(TVCLControl(AParentObj).Control)
+  else
+    vParentNode := nil;
 
   vTreeNode := FTreeView.Items.AddChild(vParentNode, ACaption);
   vTreeNode.ImageIndex := AImageIndex;
@@ -621,6 +626,7 @@ begin
   vButton.Images := TDragImageList(TInteractor(Interactor).Images[vImageSize]);
   vImageID := GetImageID(vImageID);
 
+  //TODO: We need another control or style here
   if (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone) then
   begin
     //vButton.SpeedButtonOptions.Flat := True;

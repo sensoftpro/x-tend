@@ -610,23 +610,19 @@ end;
 
 function TPresenter.CreateDefaultArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
   const AParams: string): TUIArea;
-var
-  vLayout: TLayout;
 begin
   Randomize;
-  vLayout := TLayout.Create(lkPanel);
-  vLayout.Presenter := Self;
-  vLayout.Font.Size := 10;
-  vLayout.Font.Color := ColorToAlphaColor(TColorRec.SysWindowText);
-  vLayout.Font.Family := 'Tahoma';
-  vLayout.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
-  vLayout.ShowCaption := True;
-  vLayout.Caption := ALayout.Caption;
-  vLayout.BevelInner := lbkRaised;
-  vLayout.BevelOuter := lbkLowered;
-  vLayout.SaveOverwrittenLayout(ALayout);
+  ALayout.Kind := lkPanel;
+  ALayout.Font.Size := 10;
+  ALayout.Font.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+  ALayout.Font.Family := 'Tahoma';
+  ALayout.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+  ALayout.ShowCaption := True;
+  ALayout.Caption := ALayout.Caption;
+  ALayout.BevelInner := lbkRaised;
+  ALayout.BevelOuter := lbkLowered;
 
-  Result := CreateArea(AParentArea, AView, vLayout, AParams);
+  Result := CreateArea(AParentArea, AView, ALayout, AParams);
   Result.IsDefault := True;
 end;
 
