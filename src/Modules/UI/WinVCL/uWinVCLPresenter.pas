@@ -52,7 +52,6 @@ type
   private
     procedure DoDebugFormClose(Sender: TObject; var Action: TCloseAction);
   private
-    FRowStyle: TObject;
     procedure ArrangeMozaic(const AMDIForm: TForm);
     procedure SetAsMainForm(const AForm: TForm);
     function MessageTypeToMBFlags(const AMessageType: TMessageType): Integer;
@@ -96,7 +95,7 @@ type
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
 
-    function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
+    function CreateArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
     function CreateTempControl: TObject; override; // DFM
 
@@ -105,22 +104,20 @@ type
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
 
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
-
-    property RowStyle: TObject read FRowStyle;
   end;
 
 procedure CopyFontSettings(const AFont: TFont; const ALayout: TLayout);
 procedure CopyMargins(const AControl: TControl; const ALayout: TLayout);
 procedure CopyPadding(const AControl: TWinControl; const ALayout: TLayout);
 procedure CopyConstraints(const AControl: TControl; const ALayout: TLayout);
+procedure CopyPenSettings(const APen: TPen; const ALayout: TLayout);
+procedure CopyBrushSettings(const ABrush: TBrush; const ALayout: TLayout);
+procedure SetPictureFromStream(const APicture: TPicture; const ALayout: TLayout);
 
 implementation
 
 uses
   Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX, JPEG, PngImage,
-  cxGraphics, dxGDIPlusClasses, cxImage, cxEdit, cxPC, cxLookAndFeels, cxLookAndFeelPainters, cxStyles, cxMemo,
-  cxLabel, cxTextEdit, cxButtons, cxScrollBox, cxControls, cxSplitter,
-
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity, uEntityList, vclArea, uSession,
   uManagedForm, AboutForm, ReportConfigureForm, OptionsForm, LoginForm, FloatForm, uCollection;
 
@@ -136,6 +133,14 @@ type
   TCrackedWinControl = class(TWinControl) end;
   TCrackedControl = class(TControl) end;
   TCrackedArea = class(TUIArea) end;
+
+type
+  TImageHeaderGetter = packed record
+    case Byte of
+      0: (Bytes: array[0..3] of Byte);
+      1: (Words: array[0..1] of Word);
+      2: (Value: Cardinal);
+  end;
 
 procedure CopyFontSettings(const AFont: TFont; const ALayout: TLayout);
 begin
@@ -173,6 +178,47 @@ begin
   AControl.Constraints.MinHeight := ALayout.Constraints.MinHeight;
   AControl.Constraints.MaxWidth := ALayout.Constraints.MaxWidth;
   AControl.Constraints.MaxHeight := ALayout.Constraints.MaxHeight;
+end;
+
+procedure CopyPenSettings(const APen: TPen; const ALayout: TLayout);
+begin
+  APen.Color := AlphaColorToColor(ALayout.Pen.Color);
+  APen.Width := ALayout.Pen.Width;
+end;
+
+procedure CopyBrushSettings(const ABrush: TBrush; const ALayout: TLayout);
+begin
+  ABrush.Color := AlphaColorToColor(ALayout.Brush.Color);
+end;
+
+procedure SetPictureFromStream(const APicture: TPicture; const ALayout: TLayout);
+var
+  vRecognizer: TImageHeaderGetter;
+  vGraphic: TGraphic;
+begin
+  if not Assigned(ALayout.Image_Picture) then
+    Exit;
+
+  ALayout.Image_Picture.Position := 0;
+  ALayout.Image_Picture.Read(vRecognizer, SizeOf(TImageHeaderGetter));
+  if (vRecognizer.Bytes[0] = $42) and (vRecognizer.Bytes[1] = $4D) then
+    vGraphic := TBitmap.Create
+  else if (vRecognizer.Bytes[0] = $FF) and (vRecognizer.Bytes[1] = $D8) and (vRecognizer.Bytes[2] = $FF) and (vRecognizer.Bytes[3] = $E0) then
+    vGraphic := TJPEGImage.Create
+  else if (vRecognizer.Bytes[1] = $50) and (vRecognizer.Bytes[2] = $4E) and (vRecognizer.Bytes[3] = $47) then
+    vGraphic := TPngImage.Create
+  else
+    vGraphic := nil;
+  if not Assigned(vGraphic) then
+    Assert(False, 'Формат графического файла не поддерживается');
+
+  try
+    ALayout.Image_Picture.Position := 0;
+    vGraphic.LoadFromStream(ALayout.Image_Picture);
+    APicture.Assign(vGraphic);
+  finally
+    FreeAndNil(vGraphic);
+  end;
 end;
 
 { TWinVCLPresenter }
@@ -544,19 +590,9 @@ end;
 constructor TWinVCLPresenter.Create(const AName: string; const ASettings: TSettings);
 begin
   inherited Create(AName, ASettings);
-
-  FRowStyle := TcxStyle.Create(nil);
 end;
 
-type
-  TImageHeaderGetter = packed record
-    case Byte of
-      0: (Bytes: array[0..3] of Byte);
-      1: (Words: array[0..1] of Word);
-      2: (Value: Cardinal);
-  end;
-
-function TWinVCLPresenter.CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
+function TWinVCLPresenter.CreateArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
   const AParams: string; const AOnClose: TProc): TUIArea;
 var
   vDomain: TDomain;
@@ -565,61 +601,20 @@ var
   vStartPageStr: string;
   vForm: TForm;
   vShape: TShape;
-  vLabel: TcxLabel; //TStaticText;
-  vImage: TcxImage;
-  vPC: TcxPageControl;
-  vTab: TcxTabSheet;
+  vLabel: TLabel; //TStaticText;
+  vImage: TImage;
+  vPC: TPageControl;
+  vTab: TTabSheet;
   vPanel: TPanel;
   vParams: TStrings;
-  vBox: TcxScrollBox;
+  vBox: TScrollBox;
   vBevel: TBevel;
-  vSplitter: TcxSplitter;
+  vSplitter: TSplitter;
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
   vId: string;
   i: Integer;
   vArea: TUIArea;
-
-  procedure CopyPenSettings(const APen: TPen);
-  begin
-    APen.Color := AlphaColorToColor(ALayout.Pen.Color);
-    APen.Width := ALayout.Pen.Width;
-  end;
-
-  procedure CopyBrushSettings(const ABrush: TBrush);
-  begin
-    ABrush.Color := AlphaColorToColor(ALayout.Brush.Color);
-  end;
-
-  procedure SetPictureFromStream(const APicture: TPicture);
-  var
-    vRecognizer: TImageHeaderGetter;
-    vGraphic: TGraphic;
-  begin
-    if not Assigned(ALayout.Image_Picture) then
-      Exit;
-
-    ALayout.Image_Picture.Position := 0;
-    ALayout.Image_Picture.Read(vRecognizer, SizeOf(TImageHeaderGetter));
-    if (vRecognizer.Bytes[0] = $42) and (vRecognizer.Bytes[1] = $4D) then
-      vGraphic := TBitmap.Create
-    else if (vRecognizer.Bytes[0] = $FF) and (vRecognizer.Bytes[1] = $D8) and (vRecognizer.Bytes[2] = $FF) and (vRecognizer.Bytes[3] = $E0) then
-      vGraphic := TJPEGImage.Create
-    else if (vRecognizer.Bytes[1] = $50) and (vRecognizer.Bytes[2] = $4E) and (vRecognizer.Bytes[3] = $47) then
-      vGraphic := TPngImage.Create
-    else
-      vGraphic := nil;
-    if not Assigned(vGraphic) then
-      Assert(False, 'Формат графического файла не поддерживается');
-
-    try
-      ALayout.Image_Picture.Position := 0;
-      vGraphic.LoadFromStream(ALayout.Image_Picture);
-      APicture.Assign(vGraphic);
-    finally
-      FreeAndNil(vGraphic);
-    end;
-  end;
 begin
   Result := nil;
 
@@ -637,8 +632,8 @@ begin
     vShape.Align := TAlign(ALayout.Align);
     vShape.Hint := ALayout.Hint;
     vShape.Visible := ALayout.State > vsHidden;
-    CopyPenSettings(vShape.Pen);
-    CopyBrushSettings(vShape.Brush);
+    CopyPenSettings(vShape.Pen, ALayout);
+    CopyBrushSettings(vShape.Brush, ALayout);
     CopyMargins(vShape, ALayout);
     CopyConstraints(vShape, ALayout);
     vShape.Shape := TShapeType(ALayout.Shape_Type);
@@ -647,12 +642,12 @@ begin
   end
   else if ALayout.Kind = lkLabel then
   begin
-    vLabel := TcxLabel.Create(nil);
+    vLabel := TLabel.Create(nil);
     vLabel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vLabel.Transparent := ALayout.Transparent;
     vLabel.AutoSize := ALayout.AutoSize;
-    vLabel.Properties.WordWrap := ALayout.WordWrap;
-    CopyFontSettings(vLabel.Style.Font, ALayout);
+    vLabel.WordWrap := ALayout.WordWrap;
+    CopyFontSettings(vLabel.Font, ALayout);
     vLabel.Anchors := ALayout.Anchors;
 
     if (ALayout.Caption  = '$') and (ALayout.UIParams = 'Caption') then
@@ -671,13 +666,8 @@ begin
   end
   else if ALayout.Kind = lkImage then
   begin
-    vImage := TcxImage.Create(nil);
-    vImage.Style.BorderStyle := ebsNone;
+    vImage := TImage.Create(nil);
     vImage.ControlStyle := vImage.ControlStyle + [csOpaque];
-    vImage.Properties.ShowFocusRect := False;
-    vImage.Properties.PopupMenuLayout.MenuItems := [];
-    vImage.Properties.FitMode := ifmNormal;
-    vImage.DoubleBuffered := True;
     vImage.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vImage.Anchors := ALayout.Anchors;
     vImage.Align := TAlign(ALayout.Align);
@@ -686,34 +676,21 @@ begin
     vImage.Transparent := ALayout.Transparent;
     vImage.AutoSize := ALayout.AutoSize;
 
-    SetPictureFromStream(vImage.Picture);
-    vImage.Properties.Stretch := ALayout.Image_Stretch;
-    vImage.Properties.Proportional := ALayout.Image_Proportional;
-    vImage.Properties.Center := ALayout.Image_Center;
+    SetPictureFromStream(vImage.Picture, ALayout);
+    vImage.Stretch := ALayout.Image_Stretch;
+    vImage.Proportional := ALayout.Image_Proportional;
+    vImage.Center := ALayout.Image_Center;
 
     Result := CreateFilledArea(AParent, AView, ALayout, '', False, vImage);
   end
   else if ALayout.Kind = lkPages then
   begin
-    vPC := TcxPageControl.Create(nil);
+    vPC := TPageControl.Create(nil);
     vPC.DoubleBuffered := True;
-    if (ALayout.Tag and cPCNavigatorFlag) > 0 then
-    begin
-      vPC.Properties.Rotate := True;
-      vPC.Properties.Images := TDragImageList(TInteractor(AView.Interactor).Images[32]);
-      vPC.Properties.TabCaptionAlignment := taLeftJustify;
-    end
-    else
-    begin
-      vPC.Properties.Options := vPC.Properties.Options + [pcoTopToBottomText];
-      vPC.LookAndFeel.NativeStyle := False;
-      vPC.LookAndFeel.Kind := lfUltraFlat;
-    end;
-
     vPC.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
-    vPC.Properties.TabPosition := TcxTabPosition(ALayout.Page_Position);
-    vPC.Properties.TabHeight := ALayout.Page_Height;
-    vPC.Properties.TabWidth := ALayout.Page_Width;
+    vPC.TabPosition := TTabPosition(ALayout.Page_Position);
+    vPC.TabHeight := ALayout.Page_Height;
+    vPC.TabWidth := ALayout.Page_Width;
     vPC.Anchors := ALayout.Anchors;
     CopyFontSettings(vPC.Font, ALayout);
     vPC.Align := TAlign(ALayout.Align);
@@ -740,13 +717,13 @@ begin
       Result.OnClose := AOnClose;
     end
     else begin
-      vTab := TcxTabSheet.Create(TComponent(AParent.InnerControl));
+      vTab := TTabSheet.Create(TComponent(AParent.InnerControl));
       vTab.Caption := ALayout.Caption;
       vTab.ImageIndex := AParent.GetImageID(ALayout.ImageID);
 
       vStartPageName := TDomain(AParent.View.Domain).Settings.GetValue('Core', 'StartPage', '');
-      vTab.AllowCloseButton := not SameText(ALayout.Name, vStartPageName);
       vTab.TabVisible := ALayout.ShowCaption;
+      vTab.PageControl := TPageControl(AParent.InnerControl);
 
       Result := CreateFilledArea(AParent, AView, ALayout, ALayout.Name, False, vTab);
     end;
@@ -764,20 +741,12 @@ begin
   end
   else if ALayout.Kind = lkSplitter then
   begin
-    vSplitter := TcxSplitter.Create(nil);
-    case ALayout.Align of
-      lalTop: vSplitter.AlignSplitter := salTop;
-      lalLeft: vSplitter.AlignSplitter := salLeft;
-      lalRight: vSplitter.AlignSplitter := salRight;
-    else
-      vSplitter.AlignSplitter := salBottom;
-    end;
+    vSplitter := TSplitter.Create(nil);
+    vSplitter.Align := TAlign(ALayout.Align);
     vSplitter.Cursor := ALayout.Cursor;
-    vSplitter.HotZone := TcxSimpleStyle.Create(vSplitter);
     vSplitter.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vSplitter.Color := AlphaColorToColor(ALayout.Color);
     vSplitter.ParentColor := False;
-    vSplitter.NativeBackground := False;
 
     Result := CreateFilledArea(AParent, AView, ALayout, '-splitter-', False, vSplitter);
   end
@@ -797,15 +766,14 @@ begin
         Exit(nil);
       end;
 
-      vPC := TcxPageControl.Create(nil);
+      vPC := TPageControl.Create(nil);
       vPC.DoubleBuffered := True;
       vPC.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
-      vPC.Properties.Images := TDragImageList(TInteractor(AView.Interactor).Images[16]);
-      vPC.Properties.TabPosition := tpBottom;
+      vPC.Images := TDragImageList(TInteractor(AView.Interactor).Images[16]);
+      vPC.TabPosition := tpBottom;
       if vParams.Values['PageLayout'] = 'Top' then
-        vPC.Properties.TabPosition := tpTop;
-      vPC.Properties.CloseButtonMode := cbmActiveTab;
-      vPC.OnCanClose := OnPCCanClose;
+        vPC.TabPosition := tpTop;
+      //vPC.OnCanClose := OnPCCanClose;
       vPC.Align := TAlign(ALayout.Align);
       vPC.Anchors := ALayout.Anchors;
       CopyFontSettings(vPC.Font, ALayout);
@@ -855,15 +823,14 @@ begin
   end
   else if ALayout.Kind = lkScrollBox then
   begin
-    vBox := TcxScrollBox.Create(nil);
+    vBox := TScrollBox.Create(nil);
     vBox.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vBox.Anchors := ALayout.Anchors;
     vBox.Align := TAlign(ALayout.Align);
     CopyMargins(vBox, ALayout);
     CopyPadding(vBox, ALayout);
-    vBox.LookAndFeel.ScrollbarMode := sbmClassic;
     if ALayout.BorderStyle = lbsNone then
-      vBox.BorderStyle := cxcbsNone;
+      vBox.BorderStyle := bsNone;
 
     Result := CreateFilledArea(AParent, AView, ALayout, '', False, vBox);
   end
@@ -1024,7 +991,6 @@ end;
 
 destructor TWinVCLPresenter.Destroy;
 begin
-  FreeAndNil(FRowStyle);
   FreeAndNil(FSplashForm);
 
   inherited Destroy;
@@ -1032,21 +998,27 @@ end;
 
 function TWinVCLPresenter.DoCreateImages(const AInteractor: TInteractor; const AImages: TImages; const ASize: Integer): TObject;
 var
-  vImageList: TcxImageList;
-  vImage: TdxPNGImage;
+  vImageList: TImageList;
+  vImage: TPngImage;
   vIndex: Integer;
   vStream: TStream;
   vBitmap: TBitmap;
   i: Integer;
 begin
-  vImageList := TcxImageList.Create(nil);
+  vImageList := TImageList.Create(nil);
   vImageList.SetSize(ASize, ASize);
+  vImageList.BlendColor := clBtnFace;
   Result := vImageList;
 
   for vIndex in AImages.Indices.Keys do
     AInteractor.StoreImageIndex(vIndex, AImages.Indices[vIndex]);
 
-  vImage := TdxPNGImage.Create;
+  vImage := TPngImage.Create;
+  vBitmap := TBitmap.Create;
+  vBitmap.SetSize(ASize, ASize);
+  vBitmap.PixelFormat := pf32bit;
+  vBitmap.Canvas.Brush.Color := clBtnFace;
+
   vImageList.BeginUpdate;
   try
     for i := 0 to AImages.Count - 1 do
@@ -1054,16 +1026,14 @@ begin
       vStream := AImages[i];
       vStream.Position := 0;
       vImage.LoadFromStream(vStream);
-      vBitmap := vImage.GetAsBitmap;
-      try
-        vImageList.AddBitmap(vBitmap, nil, clnone, True, True)
-      finally
-        FreeAndNil(vBitmap);
-      end;
+      vBitmap.Canvas.FillRect(Rect(0, 0, ASize, ASize));
+      vImage.Draw(vBitmap.Canvas, Rect(0, 0, ASize, ASize));
+      vImageList.Add(vBitmap, nil);
     end;
   finally
     vImageList.EndUpdate;
     FreeAndNil(vImage);
+    FreeAndNil(vBitmap);
   end;
 end;
 
@@ -1194,7 +1164,7 @@ begin
   begin
     //if vForm.ControlCount < 3 then
     //  FForm.ModalResult := mrOk else
-    if (not (ssShift in Shift)) and (not (vForm.ActiveControl is TMemo)) and (not (vForm.ActiveControl is TcxMemo)) then
+    if (not (ssShift in Shift)) and (not (vForm.ActiveControl is TMemo))then
       PostMessage(vForm.Handle, WM_NEXTDLGCTL, 0, 0);
   end;
 end;
@@ -1660,6 +1630,6 @@ end;
 
 initialization
 
-TBaseModule.RegisterModule('UI', 'Windows.DevExpress', TWinVCLPresenter);
+TBaseModule.RegisterModule('UI', 'Windows.VCL', TWinVCLPresenter);
 
 end.

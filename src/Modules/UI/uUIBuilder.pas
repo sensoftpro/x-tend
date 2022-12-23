@@ -96,6 +96,7 @@ type
     procedure SetActiveChildArea(const AArea: TUIArea); virtual;
     function GetModalResult: TModalResult; virtual;
     procedure SetModalResult(const AModalResult: TModalResult); virtual;
+    procedure SetAlignment(const AAlignment: TAlignment); virtual;
 
     procedure PlaceLabel; virtual;
     procedure UpdateCaptionVisibility; virtual;
@@ -134,6 +135,7 @@ type
     FAreas: TList<TUIArea>;
     FParams: TStrings;
     FIsService: Boolean;
+    FIsDefault: Boolean;
     FUpdateCount: Integer;
     FOnClose: TProc;
     function GetArea(const AIndex: Integer): TUIArea;
@@ -285,6 +287,7 @@ type
     property TabStop: Boolean read GetTabStop;
     property OnClose: TProc read FOnClose write FOnClose;
     property Focused: Boolean read GetFocused write SetFocused;
+    property IsDefault: Boolean read FIsDefault write FIsDefault;
   end;
 
   TUIAreaComparer = class(TComparer<TUIArea>)
@@ -798,7 +801,7 @@ begin
     vFormLayout := CreateSimpleLayout(lkFrame);
     vFormLayout.Caption := ACaption;
     vFormLayout.StyleName := vAreaName;
-    vUIArea := TPresenter(FPresenter).CreateArea(FCurrentArea, vFormLayout, vView, '', AOnClose);
+    vUIArea := TPresenter(FPresenter).CreateArea(FCurrentArea, vView, vFormLayout, '', AOnClose);
   end
   else
     vUIArea := nil;
@@ -1183,6 +1186,7 @@ begin
   FUId := AId;
   FIsService := AIsService;
   FLayout := ALayout;
+  FIsDefault := False;
   FUpdateCount := 0;
   FNeedCreateCaption := True;
 
@@ -1326,7 +1330,7 @@ begin
 
         FUIBuilder.Navigate(vDefaultView, Result.UId, vLayoutName, Result.QueryParameter('Options'), nil, Result.QueryParameter('Caption'));
       end
-      else
+      else if not Result.IsDefault then
         FUIBuilder.ApplyLayout(Result, FView, vLayoutName, vQuery)
     end
     else if not vAlreadyAssigned then //#Check!
@@ -1472,13 +1476,13 @@ var
 begin
   vStyleName := GetUrlParam(AParams, 'ViewStyle'{'view'});
 
-  Result := TPresenter(FUIBuilder.Presenter).CreateActionArea(Self, ALayout, AView, vStyleName, AParams);
+  Result := TPresenter(FUIBuilder.Presenter).CreateActionArea(Self, AView, ALayout, vStyleName, AParams);
 end;
 
 function TUIArea.DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string;
   const AOnClose: TProc): TUIArea;
 begin
-  Result := TPresenter(FUIBuilder.Presenter).CreateArea(Self, ALayout, AView, AParams, AOnClose);
+  Result := TPresenter(FUIBuilder.Presenter).CreateArea(Self, AView, ALayout, AParams, AOnClose);
 end;
 
 function TUIArea.DoCreateChildEditor(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
@@ -1493,7 +1497,7 @@ begin
       vStyleName := TFieldDef(AView.Definition).StyleName;
   end;
 
-  Result := TPresenter(FUIBuilder.Presenter).CreateFieldArea(Self, ALayout, AView, vStyleName, AParams);
+  Result := TPresenter(FUIBuilder.Presenter).CreateFieldArea(Self, AView, ALayout, vStyleName, AParams);
 end;
 
 function TUIArea.DoCreateChildList(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
@@ -1501,7 +1505,7 @@ var
   vStyleName: string;
 begin
   vStyleName := GetUrlParam(AParams, 'view');
-  Result := TPresenter(FUIBuilder.Presenter).CreateCollectionArea(Self, ALayout, AView, vStyleName, AParams);
+  Result := TPresenter(FUIBuilder.Presenter).CreateCollectionArea(Self, AView, ALayout, vStyleName, AParams);
 end;
 
 function TUIArea.DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
@@ -1512,7 +1516,7 @@ begin
   Assert(Assigned(ALayout.Menu), 'У панели навигации [' + AView.InitialName + '] не задано PopupMenu.');
 
   vStyleName := GetUrlParam(AParams, 'ViewType');
-  vNavArea := TNavigationArea(TPresenter(FUIBuilder.Presenter).CreateNavigationArea(Self, ALayout, AView, vStyleName, AParams));
+  vNavArea := TNavigationArea(TPresenter(FUIBuilder.Presenter).CreateNavigationArea(Self, AView, ALayout, vStyleName, AParams));
   vNavArea.ProcessChilds;
 
   Result := vNavArea;
@@ -2147,7 +2151,7 @@ end;
 function TUIArea.TryCreatePopupArea(const ALayout: TLayout): TUIArea;
 begin
   if Assigned(ALayout) and Assigned(ALayout.Menu) then
-    Result := TPresenter(Presenter).CreateArea(Self, ALayout.Menu, FUIBuilder.RootView)
+    Result := TPresenter(Presenter).CreateArea(Self, FUIBuilder.RootView, ALayout.Menu)
   else
     Result := nil;
 end;
@@ -2691,6 +2695,10 @@ begin
 end;
 
 procedure TNativeControl.SetActiveChildArea(const AArea: TUIArea);
+begin
+end;
+
+procedure TNativeControl.SetAlignment(const AAlignment: TAlignment);
 begin
 end;
 

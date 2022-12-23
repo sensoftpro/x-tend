@@ -20,3 +20,6 @@
   ReportConfigureForm in '..\..\Modules\UI\WinVCL\Forms\ReportConfigureForm.pas' {ReportConfigureFm},
   DebugInfoForm in '..\..\Modules\UI\WinVCL\Forms\DebugInfoForm.pas' {DebugFm},
   FloatForm in '..\..\Modules\UI\WinVCL\Forms\FloatForm.pas' {FloatFm},
+  // UI: DevExpress
+  uDevExpressPresenter in '..\..\Modules\UI\WinVCL\DevExpress\uDevExpressPresenter.pas',
+  uDEArea in '..\..\Modules\UI\WinVCL\DevExpress\Editors\uDEArea.pas',

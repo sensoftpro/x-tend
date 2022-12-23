@@ -399,7 +399,7 @@ implementation
 uses
   TypInfo, Windows, SysUtils, Messages, Math, Variants, DateUtils, Dialogs, Menus, ShellApi, IOUtils, StrUtils,
 
-  uWinVCLPresenter, uObjectField, uInteractor, uEnumeration, uSession, uChangeManager,
+  uDevExpressPresenter, uObjectField, uInteractor, uEnumeration, uSession, uChangeManager,
   uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings, uCollection,
 
   dxCore, cxGridStrs, cxPivotGridStrs, cxDataStorage, cxGridCustomView, cxImageComboBox, cxDateUtils,
@@ -533,7 +533,7 @@ var
   vColor: TColor;
   vStyle: TcxStyle;
 begin
-  vStyle := TcxStyle(TWinVCLPresenter(AArea.Presenter).RowStyle);
+  vStyle := TcxStyle(TDevExpressPresenter(AArea.Presenter).RowStyle);
   vStyle.Color := clDefault;
   vStyle.TextColor := clDefault;
 
@@ -1380,7 +1380,7 @@ begin
         if TInteractor(FView.Interactor).NeedSkipColumn(FAllData, vFieldDef) then
           Continue;
 
-        vWidth := TWinVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
+        vWidth := TPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
         { TODO -cUI refactoring : Перенести описание аггрегаций в слой описания UI }
         vAggType := vMainDefinition.Reductions.ReductionForField(vFieldDef.Name);
         CreateColumn(vFieldDef, vFieldDef.Name, GetFieldTranslation(vFieldDef),
@@ -1400,7 +1400,7 @@ begin
           vFieldDef := vMainDefinition.ExtractFieldDef(vFieldName);
           if Assigned(vFieldDef) then
           begin
-            vWidth := TWinVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
+            vWidth := TPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
             vAggType := TDefinition(vFieldDef.Definition).Reductions.ReductionForField(vFieldName);
 
             CreateColumn(vFieldDef, vFieldName, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
@@ -2565,7 +2565,7 @@ begin
         if TInteractor(FView.Interactor).NeedSkipColumn(FAllData, vFieldDef) then
           Continue;
 
-        vWidth := TWinVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
+        vWidth := TPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
         { TODO -cUI refactoring : Перенести описание аггрегаций в слой описания UI }
         vAggType := vMainDefinition.Reductions.ReductionForField(vFieldDef.Name);
         CreateColumn(vFieldDef, vFieldDef.Name, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
@@ -2584,7 +2584,7 @@ begin
           if not Assigned(vFieldDef) then
             Continue;
 
-          vWidth := TWinVCLPresenter(Presenter).GetWidthByType(100, vFieldDef);
+          vWidth := TPresenter(Presenter).GetWidthByType(100, vFieldDef);
           vAggType := TDefinition(vFieldDef.Definition).Reductions.ReductionForField(vFieldName);
 
           CreateColumn(vFieldDef, vFieldName, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
@@ -3637,7 +3637,7 @@ begin
         if TInteractor(FView.Interactor).NeedSkipColumn(FAllData, vFieldDef) then
           Continue;
 
-        vWidth := TWinVCLPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
+        vWidth := TPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
         { TODO -cUI refactoring : Перенести описание аггрегаций в слой описания UI }
         vAggType := vMainDefinition.Reductions.ReductionForField(vFieldDef.Name);
         CreateColumn(vFieldDef, vFieldDef.Name, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
@@ -3656,7 +3656,7 @@ begin
           if not Assigned(vFieldDef) then
             Continue;
 
-          vWidth := TWinVCLPresenter(Presenter).GetWidthByType(100, vFieldDef);
+          vWidth := TPresenter(Presenter).GetWidthByType(100, vFieldDef);
           vAggType := TDefinition(vFieldDef.Definition).Reductions.ReductionForField(vFieldName);
 
           CreateColumn(vFieldDef, vFieldName, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);

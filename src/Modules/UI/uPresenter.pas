@@ -287,14 +287,16 @@ type
       const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''): TUIArea;
 
     // Layouts operations
-    function CreateFieldArea(const AParentArea: TUIArea; const ALayout: TLayout;
-      const AView: TView; const AStyleName, AParams: string): TUIArea;
-    function CreateActionArea(const AParentArea: TUIArea; const ALayout: TLayout;
-      const AView: TView; const AStyleName, AParams: string): TUIArea;
-    function CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TLayout;
-      const AView: TView; const AStyleName, AParams: string): TUIArea;
-    function CreateNavigationArea(const AParentArea: TUIArea; const ALayout: TLayout;
-      const AView: TView; const AStyleName, AParams: string): TUIArea;
+    function CreateDefaultArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AParams: string): TUIArea;
+    function CreateFieldArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AStyleName, AParams: string): TUIArea;
+    function CreateActionArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AStyleName, AParams: string): TUIArea;
+    function CreateCollectionArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AStyleName, AParams: string): TUIArea;
+    function CreateNavigationArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AStyleName, AParams: string): TUIArea;
     function CreateNativeControl(const AArea: TUIArea; const ALayout: TLayout;
       const AView: TView; const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
 
@@ -304,7 +306,7 @@ type
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
     procedure CloseAllPages(const AInteractor: TInteractor);
 
-    function CreateArea(const AParent: TUIArea; const ALayout: TLayout; const AView: TView;
+    function CreateArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
     function CreateTempControl: TObject; virtual; abstract;
 
@@ -430,7 +432,7 @@ begin
             vChildItem.Hint := vChildItem.Caption;
             vChildItem.ImageID := vAction._ImageID;
 
-            vChildArea := CreateArea(AParent, vChildItem, vView);
+            vChildArea := CreateArea(AParent, vView, vChildItem);
             TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
           end
@@ -444,7 +446,7 @@ begin
         vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
         vChildItem.StyleName := 'line';
         vChildItem.Caption := '-';
-        vChildArea := CreateArea(AParent, vChildItem, AParent.UIBuilder.RootView);
+        vChildArea := CreateArea(AParent, AParent.UIBuilder.RootView, vChildItem);
         AParent.AddArea(vChildArea);
       end;
 
@@ -466,7 +468,7 @@ begin
             vChildItem.Hint := vChildItem.Caption;
             vChildItem.ImageID := 31;
 
-            vChildArea := CreateArea(AParent, vChildItem, vView);
+            vChildArea := CreateArea(AParent, vView, vChildItem);
             TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
           end
@@ -480,7 +482,7 @@ begin
         vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
         vChildItem.StyleName := 'line';
         vChildItem.Caption := '-';
-        vChildArea := CreateArea(AParent, vChildItem, AParent.UIBuilder.RootView);
+        vChildArea := CreateArea(AParent, AParent.UIBuilder.RootView, vChildItem);
         AParent.AddArea(vChildArea);
       end;
 
@@ -491,7 +493,7 @@ begin
     else if Pos('@', vCaption) > 0 then
     begin
       vSrcItem.StyleName := 'group';
-      vChildArea := CreateArea(AParent, vSrcItem, AParent.View);
+      vChildArea := CreateArea(AParent, AParent.View, vSrcItem);
       AParent.AddArea(vChildArea);
 
       CopyPopupMenuItems(vChildArea, AView, vSrcItem, vChildArea);
@@ -515,7 +517,7 @@ begin
         if vDefinitions.Count > 1 then
         begin
           vSrcItem.StyleName := 'group';
-          vChildArea := CreateArea(AParent, vSrcItem, vView);
+          vChildArea := CreateArea(AParent, vView, vSrcItem);
           for j := 0 to vDefinitions.Count - 1 do
           begin
             vDefinition := TDefinition(vDefinitions[j]);
@@ -524,17 +526,17 @@ begin
             vChildItem.Caption := AParent.GetTranslation(vDefinition);
             vChildItem.Hint := vChildItem.Caption;
             vChildItem.ImageID := vDefinition._ImageID;
-            vDefArea := CreateArea(vChildArea, vChildItem, AParent.UIBuilder.RootView);
+            vDefArea := CreateArea(vChildArea, AParent.UIBuilder.RootView, vChildItem);
             vChildArea.AddArea(vDefArea);
           end;
         end
         else begin
-          vChildArea := CreateArea(AParent, vSrcItem, vView);
+          vChildArea := CreateArea(AParent, vView, vSrcItem);
           TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
         end;
       end
       else begin
-        vChildArea := CreateArea(AParent, vSrcItem, vView);
+        vChildArea := CreateArea(AParent, vView, vSrcItem);
         TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
       end;
 
@@ -548,7 +550,7 @@ begin
 
       vSrcItem.StyleName := 'group';
       vSrcItem.Caption := vCaption;
-      vChildArea := CreateArea(AParent, vSrcItem, AParent.UIBuilder.RootView);
+      vChildArea := CreateArea(AParent, AParent.UIBuilder.RootView, vSrcItem);
       vChildArea.NativeControl.ViewState := vsDisabled;
       AParent.AddArea(vChildArea);
     end;
@@ -576,18 +578,21 @@ begin
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
 end;
 
-function TPresenter.CreateActionArea(const AParentArea: TUIArea; const ALayout: TLayout; const AView: TView;
+function TPresenter.CreateActionArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
   const AStyleName, AParams: string): TUIArea;
 var
   vActionAreaClass: TUIAreaClass;
 begin
   vActionAreaClass := TUIAreaClass(GetUIClass(FName, uiAction, AStyleName));
 
-  Result := vActionAreaClass.Create(AParentArea, AView, ALayout, 'Action', False, nil, AParams);
+  if Assigned(vActionAreaClass) then
+    Result := vActionAreaClass.Create(AParentArea, AView, ALayout, 'Action', False, nil, AParams)
+  else
+    Result := CreateDefaultArea(AParentArea, AView, ALayout, AParams);
 end;
 
-function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const ALayout: TLayout; const AView: TView; const AStyleName,
-  AParams: string): TUIArea;
+function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const AView: TView;
+  const ALayout: TLayout; const AStyleName, AParams: string): TUIArea;
 var
   //vParams, vViewName: string;
   vCollectionAreaClass: TUIAreaClass;
@@ -597,11 +602,36 @@ begin
 
   vCollectionAreaClass := TUIAreaClass(GetUIClass(FName, uiCollection, AStyleName));
 
-  Result := vCollectionAreaClass.Create(AParentArea, AView, ALayout, 'List', False, nil, AParams);
+  if Assigned(vCollectionAreaClass) then
+    Result := vCollectionAreaClass.Create(AParentArea, AView, ALayout, 'List', False, nil, AParams)
+  else
+    Result := CreateDefaultArea(AParentArea, AView, ALayout, AParams);
 end;
 
-function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const ALayout: TLayout;
-  const AView: TView; const AStyleName, AParams: string): TUIArea;
+function TPresenter.CreateDefaultArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
+  const AParams: string): TUIArea;
+var
+  vLayout: TLayout;
+begin
+  Randomize;
+  vLayout := TLayout.Create(lkPanel);
+  vLayout.Presenter := Self;
+  vLayout.Font.Size := 10;
+  vLayout.Font.Color := ColorToAlphaColor(TColorRec.SysWindowText);
+  vLayout.Font.Family := 'Tahoma';
+  vLayout.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+  vLayout.ShowCaption := True;
+  vLayout.Caption := ALayout.Caption;
+  vLayout.BevelInner := lbkRaised;
+  vLayout.BevelOuter := lbkLowered;
+  vLayout.SaveOverwrittenLayout(ALayout);
+
+  Result := CreateArea(AParentArea, AView, vLayout, AParams);
+  Result.IsDefault := True;
+end;
+
+function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
+  const AStyleName, AParams: string): TUIArea;
 var
   vParams, vViewName: string;
   vControlType: TUIItemType;
@@ -624,7 +654,10 @@ begin
   else
     vParams := vParams + '&' + AParams;
 
-  Result := vFieldAreaClass.Create(AParentArea, AView, ALayout, '', False, nil, vParams);
+  if Assigned(vFieldAreaClass) then
+    Result := vFieldAreaClass.Create(AParentArea, AView, ALayout, '', False, nil, vParams)
+  else
+    Result := CreateDefaultArea(AParentArea, AView, ALayout, vParams);
 end;
 
 function TPresenter.CreateFilledArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
@@ -701,7 +734,7 @@ begin
   Result := nil;
 end;
 
-function TPresenter.CreateNavigationArea(const AParentArea: TUIArea; const ALayout: TLayout; const AView: TView;
+function TPresenter.CreateNavigationArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
   const AStyleName, AParams: string): TUIArea;
 var
   vNavigationAreaClass: TUIAreaClass;
@@ -710,7 +743,7 @@ begin
   if Assigned(vNavigationAreaClass) then
     Result := vNavigationAreaClass.Create(AParentArea, AView, ALayout, 'Navigation', False, nil, AParams)
   else
-    Result := nil;
+    Result := CreateDefaultArea(AParentArea, AView, ALayout, AParams);
 
   Assert(Assigned(Result), 'Не удалось создать навигационную область ' + AStyleName);
 end;
@@ -1146,8 +1179,11 @@ begin
   if Assigned(vClassInfo) then
     Result := vClassInfo.FItemClass
   else
-    Assert(False, 'UI Class not found for type: "' + vTypeName +
-    '", View Name: "' + vViewName + '" in UI: ' + ClassName);
+    Result := nil;
+
+  //else
+  //  Assert(False, 'UI Class not found for type: "' + vTypeName +
+  //  '", View Name: "' + vViewName + '" in UI: ' + ClassName);
 end;
 
 function TPresenter.GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;

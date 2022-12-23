@@ -36,7 +36,7 @@ unit vclArea;
 interface
 
 uses
-  Windows, Classes, Forms, Messages, Generics.Collections, Controls, StdCtrls, ExtCtrls, Menus, UITypes, SysUtils,
+  Windows, Classes, Forms, Messages, Generics.Collections, Controls, StdCtrls, ExtCtrls, ComCtrls, Buttons, Menus, UITypes, SysUtils,
   uConsts, uUIBuilder, uDefinition, uEntity, uView, uLayout;
 
 //////  1. Привязка сплиттера к контролу
@@ -82,6 +82,7 @@ type
     procedure SetActiveChildArea(const AArea: TUIArea); override;
     function GetModalResult: TModalResult; override;
     procedure SetModalResult(const AModalResult: TModalResult); override;
+    procedure SetAlignment(const AAlignment: TAlignment); override;
 
     function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; override;
     procedure PlaceLabel; override;
@@ -106,30 +107,6 @@ type
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure RefillArea(const AKind: Word); override;
-  end;
-
-type
-  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
-
-implementation
-
-uses
-  Types, Graphics, Math, StrUtils, ComCtrls, Buttons,
-  Generics.Defaults, Variants, cxGraphics, dxGDIPlusClasses, cxLabel, cxImage, cxEdit, cxTextEdit, cxPC, dxBar, dxNavBar, dxNavBarGroupItems,
-  dxNavBarCollns, dxNavBarBase, dxNavBarExplorerViews,
-  cxLookAndFeels, cxButtons, cxScrollBox, cxControls, cxSplitter,
-
-  uDomain, uPresenter, uWinVCLPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
-  vclSimpleEditors, uEntityList, uDomainUtils, uChangeManager;
-
-type
-  TCrackedWinControl = class(TWinControl) end;
-  TCrackedControl = class(TControl) end;
-
-type
-  TUIAreaComparer = class(TComparer<TUIArea>)
-  public
-    function Compare(const ALeft, ARight: TUIArea): Integer; override;
   end;
 
   TMainMenuArea = class(TNavigationArea)
@@ -171,17 +148,6 @@ type
     procedure DoExecuteUIAction(const AView: TView); override;
   end;
 
-  TNavBarArea = class(TNavigationArea)
-  private
-    FNavBar: TdxNavBar;
-    FNavBarGroup: TdxNavBarGroup;
-    FNavBarItem: TdxNavBarItem;
-  protected
-    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
-      const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
-  end;
-
   TOneButtonArea = class(TNavigationArea)
   private
     FButton: TButton;
@@ -192,6 +158,26 @@ type
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     function DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
+  end;
+
+type
+  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
+
+implementation
+
+uses
+  Types, Graphics, Math, StrUtils, Generics.Defaults, Variants,
+
+  uDomain, uPresenter, uWinVCLPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
+  vclSimpleEditors, uEntityList, uDomainUtils, uChangeManager;
+
+type
+  TCrackedWinControl = class(TWinControl) end;
+  TCrackedControl = class(TControl) end;
+
+  TUIAreaComparer = class(TComparer<TUIArea>)
+  public
+    function Compare(const ALeft, ARight: TUIArea): Integer; override;
   end;
 
 const
@@ -215,66 +201,6 @@ end;
 function TUIAreaComparer.Compare(const ALeft, ARight: TUIArea): Integer;
 begin
   Result := ARight.TabOrder - ALeft.TabOrder;
-end;
-
-{ TNavBarArea }
-
-function TNavBarArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
-var
-  vColor: TColor;
-begin
-  FNavBar := TdxNavBar.Create(nil);
-  FNavBar.DoubleBuffered := True;
-  FNavBar.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
-  FNavBar.SmallImages := TDragImageList(TInteractor(FView.Interactor).Images[16]);
-  FNavBar.LargeImages := TDragImageList(TInteractor(FView.Interactor).Images[32]);
-  FNavBar.View := StrToIntDef(GetUrlParam(ALayout.Params, 'NavBarKind'), 4);
-  CopyFontSettings(FNavBar.OptionsStyle.DefaultStyles.GroupHeader.Font, ALayout);
-  FNavBar.OptionsStyle.DefaultStyles.GroupHeader.Font.Size := 12;
-  CopyFontSettings(FNavBar.OptionsStyle.DefaultStyles.Item.Font, ALayout);
-  vColor := AlphaColorToColor(ALayout.Color);
-  FNavBar.OptionsStyle.DefaultStyles.Background.BackColor := vColor;
-  FNavBar.OptionsStyle.DefaultStyles.Background.BackColor2 := DimColor(vColor, 0.2);
-  FNavBar.OptionsStyle.DefaultStyles.GroupBackground.BackColor := vColor;
-  FNavBar.OptionsStyle.DefaultStyles.GroupBackground.BackColor2 := DimColor(vColor, 0.2);
-  FNavBar.OptionsStyle.DefaultStyles.GroupHeader.BackColor := vColor;
-  FNavBar.OptionsStyle.DefaultStyles.GroupHeader.BackColor2 := DimColor(vColor, 0.2);
-  FNavBar.DragDropFlags := [];
-
-  FNavBarGroup := nil;
-  FNavBarItem := nil;
-
-  Result := FNavBar;
-end;
-
-function TNavBarArea.DoCreateItem(const AParentObj: TObject; const ANavItem: TNavigationItem;
-  const ALevel: Integer; const ACaption, AHint: string; const AImageIndex: Integer): TObject;
-begin
-  if ALevel = 0 then
-  begin
-    FNavBarGroup := FNavBar.Groups.Add;
-    FNavBarGroup.LinksUseSmallImages := False;
-    FNavBarGroup.OptionsExpansion.Expandable := False;
-    FNavBarGroup.OptionsExpansion.ShowExpandButton := False;
-    FNavBarGroup.Caption := ACaption;
-    FNavBarGroup.Hint := AHint;
-    FNavBarGroup.SmallImageIndex := AImageIndex;
-    FNavBarGroup.LargeImageIndex := AImageIndex;
-    FNavBarGroup.OnClick := nil;
-    Result := FNavBarGroup;
-  end
-  else
-  begin
-    FNavBarItem := FNavBar.Items.Add;
-    if Assigned(AParentObj) and (AParentObj is TdxNavBarGroup) then
-      TdxNavBarGroup(AParentObj).CreateLink(FNavBarItem);
-    FNavBarItem.Caption := ACaption;
-    FNavBarItem.Hint := AHint;
-    FNavBarItem.SmallImageIndex := AImageIndex;
-    FNavBarItem.LargeImageIndex := AImageIndex;
-    FNavBarItem.OnClick := OnAreaClick;
-    Result := FNavBarItem;
-  end;
 end;
 
 { TOneButtonArea }
@@ -664,13 +590,14 @@ end;
 function TButtonArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vParams: TStrings;
-  vButton: TcxButton;
+  vButton: TButton;
   vActionDef: TDefinition;
   vDefinitions: TList<TDefinition>;
   i: Integer;
   vMenuItem: TMenuItem;
   vDefinition: TDefinition;
   vImageID: Integer;
+  vCaption: string;
   vImageSize: Integer;
   vComposition: string;
   vViewStyle: string;
@@ -690,55 +617,58 @@ begin
     FreeAndNil(vParams);
   end;
 
-  vButton := TcxButton.Create(nil);
-  vButton.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[vImageSize]);
+  vButton := TButton.Create(nil);
+  vButton.Images := TDragImageList(TInteractor(Interactor).Images[vImageSize]);
   vImageID := GetImageID(vImageID);
 
   if (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone) then
   begin
-    vButton.SpeedButtonOptions.Flat := True;
-    vButton.SpeedButtonOptions.CanBeFocused := False;
+    //vButton.SpeedButtonOptions.Flat := True;
+    //vButton.SpeedButtonOptions.CanBeFocused := False;
   end;
 
-  vButton.Caption := GetTranslation(vActionDef);
-  vButton.Hint := vButton.Caption;
+  vCaption := GetTranslation(vActionDef);
+  vButton.Hint := vCaption;
   if Length(vOverriddenCaption) > 0 then
-    vButton.Caption := vOverriddenCaption;
+    vCaption := vOverriddenCaption;
   if Length(vOverriddenHint) > 0 then
     vButton.Hint := vOverriddenHint;
 
-  if (vButton.OptionsImage.Images.Count + 1 >= vImageID) and (vImageID > 0) then
+  vButton.ImageIndex := -1;
+  vButton.Caption := '';
+  if (vButton.Images.Count + 1 >= vImageID) and (vImageID > 0) then
   begin
     if vComposition = '' then
     begin
       if ALayout.Button_ShowCaption then
-        vButton.PaintStyle := bpsDefault
-      else
-        vButton.PaintStyle := bpsGlyph;
+        vButton.Caption := vCaption
+      else begin
+        vButton.ImageAlignment := TImageAlignment.iaCenter;
+        vButton.ImageIndex := vImageID;
+      end;
     end
     else if vComposition = 'TextOnly' then
-    begin
-      vButton.PaintStyle := bpsCaption;
-    end
+      vButton.Caption := vCaption
     else if vComposition = 'ImageOnly' then
-      vButton.PaintStyle := bpsGlyph
-    else
     begin
-      vButton.PaintStyle := bpsDefault;
+      vButton.ImageAlignment := TImageAlignment.iaCenter;
+      vButton.ImageIndex := vImageID;
+    end
+    else begin
+      vButton.Caption := vCaption;
+      vButton.ImageIndex := vImageID;
       if vComposition = 'ImageRight' then
-        vButton.Layout := TButtonLayout.blGlyphRight
+        vButton.ImageAlignment := TImageAlignment.iaRight
       else if vComposition = 'ImageTop' then
-        vButton.Layout := TButtonLayout.blGlyphTop
+        vButton.ImageAlignment := TImageAlignment.iaTop
       else if vComposition = 'ImageBottom' then
-        vButton.Layout := TButtonLayout.blGlyphBottom
+        vButton.ImageAlignment := TImageAlignment.iaBottom
       else
-        vButton.Layout := TButtonLayout.blGlyphLeft;
+        vButton.ImageAlignment := TImageAlignment.iaLeft;
     end;
-    vButton.OptionsImage.ImageIndex := vImageID;
   end
-  else
-  begin
-    vButton.PaintStyle := bpsCaption;
+  else begin
+    vButton.Caption := vCaption;
     vButton.WordWrap := True;
   end;
 
@@ -762,8 +692,11 @@ begin
         FTypeSelectionMenu.Items.Add(vMenuItem);
       end;
       vButton.DropDownMenu := FTypeSelectionMenu;
-      vButton.Kind := cxbkOfficeDropDown;
-      vButton.OptionsImage.Margin := 4;
+      vButton.Style := bsSplitButton;
+      vButton.ImageMargins.Left := 4;
+      vButton.ImageMargins.Top := 4;
+      vButton.ImageMargins.Right := 4;
+      vButton.ImageMargins.Bottom := 4;
     end
     else begin
       vButton.OnClick := OnAreaClick;
@@ -778,7 +711,7 @@ end;
 
 procedure TButtonArea.RefillArea(const AKind: Word);
 var
-  vButton: TcxButton;
+  vButton: TButton;
   vActionDef: TDefinition;
   vImageID: Integer;
 begin
@@ -788,13 +721,13 @@ begin
     Exit;
   end;
 
-  vButton := TcxButton(FControl);
+  vButton := TButton(FControl);
 
   vActionDef := TDefinition(FView.Definition);
   vImageID := GetImageID(vActionDef._ImageID);
 
-  if (vButton.OptionsImage.Images.Count + 1 >= vImageID) and (vImageID > 0) then
-    vButton.OptionsImage.ImageIndex := vImageID;
+  if (vButton.Images.Count + 1 >= vImageID) and (vImageID > 0) then
+    vButton.ImageIndex := vImageID;
 
   vButton.Caption := GetTranslation(vActionDef);
   vButton.Hint := vButton.Caption;
@@ -805,7 +738,7 @@ end;
 function TLinkArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vParams: TStrings;
-  vLabel: TcxLabel;
+  vLabel: TLabel;
   vActionDef: TDefinition;
   vComposition: string;
   vViewStyle: string;
@@ -823,7 +756,7 @@ begin
 
   vActionDef := TDefinition(FView.Definition);
 
-  vLabel := TcxLabel.Create(nil);
+  vLabel := TLabel.Create(nil);
   vLabel.Caption := GetTranslation(vActionDef);
   vLabel.Hint := vLabel.Caption;
   if Length(vOverriddenCaption) > 0 then
@@ -832,12 +765,9 @@ begin
     vLabel.Hint := vOverriddenHint;
   vLabel.Cursor := crHandPoint;
   vLabel.Transparent := True;
-  vLabel.Properties.Alignment.Vert := TcxEditVertAlignment.taVCenter;
-  vLabel.Style.TextColor := AlphaColorToColor(ALayout.Font.Color);
-  //vLabel.Style.TextStyle := [fsUnderline];
-  vLabel.Style.HotTrack := True;
-  //vLabel.StyleHot.TextColor := clBlue;
-  vLabel.StyleHot.TextStyle := [fsUnderline];
+  vLabel.Alignment := TAlignment.taLeftJustify;
+  vLabel.Font.Color := AlphaColorToColor(ALayout.Font.Color);
+  vLabel.Font.Style := [fsUnderline];
   vLabel.OnClick := OnAreaClick;
 
   Result := vLabel;
@@ -845,7 +775,7 @@ end;
 
 procedure TLinkArea.RefillArea(const AKind: Word);
 var
-  vLabel: TcxLabel;
+  vLabel: TLabel;
   vActionDef: TDefinition;
 begin
   if AKind <> dckContentTypeChanged then
@@ -854,7 +784,7 @@ begin
     Exit;
   end;
 
-  vLabel := TcxLabel(FControl);
+  vLabel := TLabel(FControl);
 
   vActionDef := TDefinition(FView.Definition);
   vLabel.Caption := GetTranslation(vActionDef);
@@ -874,7 +804,6 @@ end;
 procedure TVCLControl.AssignFromLayout(const ALayout: TLayout; const AParams: string);
 var
   vForm: TForm;
-  vAlignment: TAlignment;
   vWS: Integer;
 begin
   if FIsForm then
@@ -946,13 +875,13 @@ begin
   else if ALayout.Kind = lkFrame then
   begin
     //vFrame.SetBounds(Control.Left, Control.Top, Control.Width, Control.Height);
-    if (ALayout.Caption <> '') and (FControl is TcxTabSheet) then
+    if (ALayout.Caption <> '') and (FControl is TTabSheet) then
     begin
-      TcxTabSheet(FControl).Caption := ALayout.Caption;
+      TTabSheet(FControl).Caption := ALayout.Caption;
       if Pos('=', ALayout.Caption) > 0 then // Hint содержит url-строку с параметрами
       begin
-        TcxTabSheet(FControl).Caption := GetUrlParam(ALayout.Caption, 'Caption', '');
-        TcxTabSheet(FControl).ImageIndex := FOwner.GetImageId(StrToIntDef(GetUrlParam(ALayout.Caption, 'ImageIndex', ''), -1));
+        TTabSheet(FControl).Caption := GetUrlParam(ALayout.Caption, 'Caption', '');
+        TTabSheet(FControl).ImageIndex := FOwner.GetImageId(StrToIntDef(GetUrlParam(ALayout.Caption, 'ImageIndex', ''), -1));
       end;
     end;
   end
@@ -962,10 +891,7 @@ begin
       ALayout.Left + ALayout.Width, ALayout.Top + ALayout.Height));
     SetCaptionProperty(ALayout);
 
-    if FControl is TcxCustomEdit then
-      CopyFontSettings(TcxCustomEdit(FControl).Style.Font, ALayout)
-    else
-      CopyFontSettings(TCrackedWinControl(FControl).Font, ALayout);
+    CopyFontSettings(TCrackedWinControl(FControl).Font, ALayout);
 
     TControl(FControl).Anchors := ALayout.Anchors;
     TControl(FControl).Align := TAlign(ALayout.Align);
@@ -973,36 +899,15 @@ begin
     if FControl is TWinControl then
       CopyPadding(TWinControl(FControl), ALayout);
 
-    vAlignment := ALayout.Alignment;
-    if vAlignment = taRightJustify then
-    begin
-      if FControl.InheritsFrom(TLabel) then
-        TLabel(FControl).Alignment := taRightJustify
-      else if FControl.InheritsFrom(TEdit) then
-        TEdit(FControl).Alignment := taRightJustify
-      else if FControl.InheritsFrom(TStaticText) then
-      begin
-        TStaticText(FControl).Alignment := taRightJustify;
-        TStaticText(FControl).AutoSize := False;
-        TStaticText(FControl).Height := ALayout.Height;
-        TStaticText(FControl).Width := ALayout.Width;
-      end
-      else if FControl.InheritsFrom(TCheckBox) then
-        TCheckBox(FControl).Alignment := taRightJustify
-      else if FControl.InheritsFrom(TRadioButton) then
-        TRadioButton(FControl).Alignment := taRightJustify
-      else if FControl.InheritsFrom(TcxLabel) then
-        TcxLabel(FControl).Properties.Alignment.Horz := taRightJustify
-      else if FControl.InheritsFrom(TcxTextEdit) then
-        TcxTextEdit(FControl).Properties.Alignment.Horz := taRightJustify
-      else if FOwner is TFilenameFieldEditor then
-        TFilenameFieldEditor(FOwner).TextEdit.Properties.Alignment.Horz := taRightJustify
-    end;
+    SetAlignment(ALayout.Alignment);
 
-    TCrackedControl(FControl).Color := AlphaColorToColor(ALayout.Color);
-    TCrackedControl(FControl).ParentColor := False;
-    if FControl is TWinControl then
-      TCrackedWinControl(FControl).ParentBackground := False;
+    if not FOwner.IsDefault then
+    begin
+      TCrackedControl(FControl).Color := AlphaColorToColor(ALayout.Color);
+      TCrackedControl(FControl).ParentColor := False;
+      if FControl is TWinControl then
+        TCrackedWinControl(FControl).ParentBackground := False;
+    end;
   end;
 end;
 
@@ -1102,26 +1007,23 @@ begin
     if (vForm.FormStyle = fsMDIForm) and (vForm.ClientHandle > 0) and
      (GetWindowLong(vForm.ClientHandle, GWL_USERDATA ) = 0 {cannot subclass client window, userdata already in use}) then
     SetWindowLong(vForm.ClientHandle, GWL_USERDATA, SetWindowLong(vForm.ClientHandle, GWL_WNDPROC, Integer(@ClientWindowProc)));
-  end;
 
-  vChangeTab := SameText(GetUrlParam(AUrlParams, 'TabActivationOption', ''), 'ChangeTab');
-
-  if (FControl is TcxTabSheet) then
+    if vForm.FormStyle = fsMDIChild then
+    begin
+      if SameText(GetUrlParam(AUrlParams, 'State'), 'Max') then
+        vForm.WindowState := wsMaximized
+      else
+        vForm.BringToFront;
+    end;
+  end
+  else if FControl is TTabSheet then
   begin
+    vChangeTab := SameText(GetUrlParam(AUrlParams, 'TabActivationOption', ''), 'ChangeTab');
     if Assigned(Parent.CreateParams) and (Parent.CreateParams.IndexOfName('TabActivationOption') >= 0) and
       (not SameText(Parent.CreateParams.Values['TabActivationOption'], 'ChangeTab')) then
       vChangeTab := False;
     if vChangeTab then
-      TcxPageControl(TControl(FControl).Parent).Properties.ActivePage := TcxTabSheet(FControl);
-  end
-  else if (FControl is TForm) and (TForm(FControl).FormStyle = fsMDIChild) then
-  begin
-    if SameText(GetUrlParam(AUrlParams, 'State'), 'Max') then
-      TForm(FControl).WindowState := wsMaximized
-    else
-    begin
-      TForm(FControl).BringToFront;
-    end;
+      TPageControl(TControl(FControl).Parent).ActivePage := TTabSheet(FControl);
   end;
 end;
 
@@ -1196,8 +1098,6 @@ function TVCLControl.GetActiveChildArea: TUIArea;
 begin
   if FControl is TPageControl then
     Result := AreaFromSender(TPageControl(FControl).ActivePage)
-  else if FControl is TcxPageControl then
-    Result := AreaFromSender(TcxPageControl(FControl).ActivePage)
   else
     Result := nil;
 end;
@@ -1247,8 +1147,6 @@ begin
     Result := vsHidden
   else if not TControl(FControl).Enabled then
     Result := vsDisabled
-  else if (FControl is TcxTabSheet) and not TcxTabSheet(FControl).AllowCloseButton then
-    Result := vsDisabled
   else
     Result := vsFullAccess;
 end;
@@ -1287,6 +1185,26 @@ end;
 procedure TVCLControl.SetActiveChildArea(const AArea: TUIArea);
 begin
   //
+end;
+
+procedure TVCLControl.SetAlignment(const AAlignment: TAlignment);
+begin
+  if FControl.InheritsFrom(TLabel) then
+    TLabel(FControl).Alignment := AAlignment
+  else if FControl.InheritsFrom(TEdit) then
+    TEdit(FControl).Alignment := AAlignment
+  else if FControl.InheritsFrom(TStaticText) then
+    TStaticText(FControl).Alignment := AAlignment
+  else if FControl.InheritsFrom(TCheckBox) then
+    TCheckBox(FControl).Alignment := AAlignment
+  else if FControl.InheritsFrom(TRadioButton) then
+    TRadioButton(FControl).Alignment := AAlignment
+  else if FControl.InheritsFrom(TLabel) then
+    TLabel(FControl).Alignment := AAlignment
+  else if FControl.InheritsFrom(TEdit) then
+    TEdit(FControl).Alignment:= AAlignment
+  else if FOwner is TFilenameFieldEditor then
+    TFilenameFieldEditor(FOwner).TextEdit.Properties.Alignment.Horz := AAlignment;
 end;
 
 procedure TVCLControl.SetBounds(const Value: TRect);
@@ -1382,12 +1300,7 @@ begin
   if not Assigned(FControl) then
     Exit;
 
-  if SameText(ATargetName, 'splitter') then
-  begin
-    if FControl is TcxSplitter then
-      TcxSplitter(FControl).Control := TControl(TVCLControl(ALinkedControl).Control);
-  end
-  else if SameText(ATargetName, 'popup') then
+  if SameText(ATargetName, 'popup') then
   begin
     vPopupMenu := TPopupMenu(ALinkedControl.Control);
     if not Assigned(vPopupMenu.OnPopup) then
@@ -1438,10 +1351,7 @@ begin
   if FControl is TControl then
   begin
     TControl(FControl).Visible := AViewState > vsHidden;
-    if FControl is TcxTabSheet then
-      TcxTabSheet(FControl).AllowCloseButton := AViewState > vsDisabled
-    else
-      TControl(FControl).Enabled := AViewState > vsDisabled;
+    TControl(FControl).Enabled := AViewState > vsDisabled;
   end
   else if FControl is TMenuItem then
   begin
@@ -1464,14 +1374,13 @@ initialization
 
 RegisterClasses([TLabel, TPanel, TSplitter, TImage, TBevel, TPageControl, TMemo, TTabSheet, TScrollBox, TShape, TPopupMenu]);
 
-TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, '', TTreeViewArea);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'TreeView', TTreeViewArea);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'NavBar', TNavBarArea);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'MainMenu', TMainMenuArea);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'ToolBar', TToolBarArea);
+TPresenter.RegisterUIClass('Windows.VCL', uiNavigation, '', TTreeViewArea);
+TPresenter.RegisterUIClass('Windows.VCL', uiNavigation, 'TreeView', TTreeViewArea);
+TPresenter.RegisterUIClass('Windows.VCL', uiNavigation, 'MainMenu', TMainMenuArea);
+TPresenter.RegisterUIClass('Windows.VCL', uiNavigation, 'ToolBar', TToolBarArea);
 //TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'OneButton', TOneButtonArea);
 
-TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, '', TButtonArea);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, 'link', TLinkArea);
+TPresenter.RegisterUIClass('Windows.VCL', uiAction, '', TButtonArea);
+TPresenter.RegisterUIClass('Windows.VCL', uiAction, 'link', TLinkArea);
 
 end.

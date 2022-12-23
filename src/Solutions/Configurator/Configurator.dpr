@@ -61,6 +61,8 @@ uses
   uScene in '..\..\Modules\Drawing\uScene.pas',
   // Reporting common
   uReport in '..\..\Modules\Reporting\uReport.pas',
+
+  // UI: WinVCL
   uWinVCLPresenter in '..\..\Modules\UI\WinVCL\uWinVCLPresenter.pas',
   uWinScene in '..\..\Modules\UI\WinVCL\uWinScene.pas',
   vclArea in '..\..\Modules\UI\WinVCL\Editors\vclArea.pas',
@@ -81,6 +83,9 @@ uses
   DebugInfoForm in '..\..\Modules\UI\WinVCL\Forms\DebugInfoForm.pas' {DebugFm},
   SplashForm in '..\..\Modules\UI\WinVCL\Forms\SplashForm.pas' {SplashFm},
   FloatForm in '..\..\Modules\UI\WinVCL\Forms\FloatForm.pas' {FloatFm},
+  // UI: DevExpress
+  uDevExpressPresenter in '..\..\Modules\UI\WinVCL\DevExpress\uDevExpressPresenter.pas',
+  uDEArea in '..\..\Modules\UI\WinVCL\DevExpress\Editors\uDEArea.pas',
 
   // Storage: SQLite
   uSQLite3 in '..\..\Modules\Storage\SQLite\uSQLite3.pas',

@@ -186,11 +186,14 @@
         <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\FloatForm.pas">
             <Form>FloatFm</Form>
         </DCCReference>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\DevExpress\uDevExpressPresenter.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\DevExpress\Editors\uDEArea.pas"/>
         <DCCReference Include="..\..\Modules\Storage\SQLite\uSQLite3.pas"/>
         <DCCReference Include="..\..\Modules\Storage\SQLite\uSQLiteStorage.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\VCL\uVCLPainter.pas"/>
         <DCCReference Include="..\..\Modules\Reporting\FastReport\uFRReport.pas"/>
         <DCCReference Include="uConfiguratorScript.pas"/>
+        <None Include="Profiling\AQtimeModule2.aqt"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
@@ -247,6 +250,12 @@
                 <DeployFile LocalName="..\..\..\bin\Configurator.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
                         <RemoteName>Configurator.exe</RemoteName>
+                        <Overwrite>true</Overwrite>
+                    </Platform>
+                </DeployFile>
+                <DeployFile LocalName="Profiling\AQtimeModule2.aqt" Configuration="Debug" Class="ProjectFile">
+                    <Platform Name="Win32">
+                        <RemoteDir>.\</RemoteDir>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
