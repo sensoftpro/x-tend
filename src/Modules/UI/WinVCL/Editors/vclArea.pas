@@ -1137,27 +1137,16 @@ end;
 procedure TVCLControl.DoClose(const AModalResult: Integer);
 var
   vForm: TForm;
-  vLayoutStr: string;
 begin
   if FIsForm then
   begin
     vForm := TForm(FControl);
 
-    //if FLayout.StyleName = '' then
-    //begin
-
-    //end;
-
     if AModalResult = mrNone then
-    begin
-      vLayoutStr := IntToStr(vForm.Left) + ';' + IntToStr(vForm.Top) + ';' + IntToStr(vForm.Width) + ';' +
-        IntToStr(vForm.Height) + ';' + IntToStr(Ord(vForm.WindowState));
-      TDomain(FOwner.Domain).UserSettings.SetValue('MainForm', 'Layout', vLayoutStr);
-      PostMessage(TForm(FControl).Handle, WM_CLOSE, 0, 0);
-    end
+      PostMessage(vForm.Handle, WM_CLOSE, 0, 0)
     else begin
-      TForm(FControl).Close;
-      TForm(FControl).ModalResult := AModalResult;
+      vForm.Close;
+      vForm.ModalResult := AModalResult;
     end;
   end;
 end;

@@ -185,6 +185,27 @@ type
     property Info: string read FInfo;
   end;
 
+  TImages = class
+  private
+    FSize: Integer;
+    FItems: TList<TStream>;
+    FIndices: TDictionary<Integer, Integer>;
+    FPlaceholder: TStream;
+    function GetCount: Integer;
+    function GetItem(const AIndex: Integer): TStream;
+  public
+    constructor Create(const ASize: Integer);
+    destructor Destroy; override;
+
+    procedure Add(const AIndex: Integer; const AStream: TStream);
+    procedure FillWithPlaceholder(const APlaceholder: TStream);
+
+    property Items[const AIndex: Integer]: TStream read GetItem; default;
+    property Count: Integer read GetCount;
+    property Indices: TDictionary<Integer, Integer> read FIndices;
+    property Placeholder: TStream read FPlaceholder;
+  end;
+
   TPresenter = class(TBaseModule)
   private
     class var RegisteredUIClasses: TObjectDictionary<string, TObjectDictionary<string, TUIClassInfo>>;
@@ -241,13 +262,12 @@ type
 
     procedure CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
       const ASrcItem: TNavigationItem; const ADestArea: TUIArea);
-    function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; virtual; abstract;
+
+    function GetImagePlaceholder(const ASize: Integer): TStream; virtual; abstract;
+    function DoCreateImages(const AInteractor: TInteractor; const AImages: TImages; const ASize: Integer): TObject; virtual; abstract;
 
     procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
     procedure OnDomainError(const ACaption, AText: string);
-
-    //procedure StoreUILayout(const AInteractor: TInteractor); virtual;
-    //procedure RestoreUILayout(const AInteractor: TInteractor); virtual;
 
     procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); virtual;
 
@@ -615,8 +635,43 @@ begin
 end;
 
 function TPresenter.CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
+var
+  vConfiguration: TConfiguration;
+  vImages: TImages;
+  vPlaceholder: TStream;
+
+  procedure AppendIconsToImages(const AIcons: TIcons; const AImages: TImages);
+  var
+    vIndex: Integer;
+    vStream: TStream;
+  begin
+    for vIndex in AIcons.IconIndices do
+    begin
+      vStream := AIcons.IconByIndex(vIndex, ASize);
+      AImages.Add(vIndex, vStream);
+    end;
+  end;
 begin
-  Result := DoCreateImages(AInteractor, ASize);
+  vImages := TImages.Create(ASize);
+  try
+    AppendIconsToImages(FCommonIcons, vImages);
+
+    vConfiguration := TConfiguration(AInteractor.Configuration);
+    AppendIconsToImages(vConfiguration.Icons, vImages);
+
+    vPlaceholder := vImages.Placeholder;
+    if not Assigned(vPlaceholder) then
+      vPlaceholder := GetImagePlaceholder(ASize);
+
+    if Assigned(vPlaceholder) then
+      vImages.FillWithPlaceholder(vPlaceholder);
+
+    Result := DoCreateImages(AInteractor, vImages, ASize);
+  finally
+    if not Assigned(vImages.Placeholder) then
+      FreeAndNil(vPlaceholder);
+    FreeAndNil(vImages);
+  end;
 end;
 
 function TPresenter.CreateNativeControl(const AArea: TUIArea; const ALayout: TLayout; const AView: TView;
@@ -947,7 +1002,6 @@ begin
 
   if vResult then
   begin
-    //StoreUILayout(vInteractor);
     if Assigned(vInteractor) then
       Logout(vInteractor);
     Action := TCloseAction.caFree;
@@ -1381,6 +1435,52 @@ begin
   FName := AStyleName;
   FType := AControlType;
   FControlClass := AControlClass;
+end;
+
+{ TImages }
+
+procedure TImages.Add(const AIndex: Integer; const AStream: TStream);
+begin
+  FIndices.Add(AIndex, FItems.Count);
+  if AIndex = 0 then
+    FPlaceholder := AStream;
+  FItems.Add(AStream);
+end;
+
+constructor TImages.Create(const ASize: Integer);
+begin
+  inherited Create;
+  FSize := ASize;
+  FItems := TList<TStream>.Create;
+  FIndices := TDictionary<Integer, Integer>.Create;
+  FPlaceholder := nil;
+end;
+
+destructor TImages.Destroy;
+begin
+  FreeAndNil(FItems);
+  FreeAndNil(FIndices);
+  FPlaceholder := nil;
+  inherited Destroy;
+end;
+
+procedure TImages.FillWithPlaceholder(const APlaceholder: TStream);
+var
+  i: Integer;
+begin
+  for i := 0 to FItems.Count - 1 do
+    if not Assigned(FItems[i]) then
+      FItems[i] := APlaceholder;
+end;
+
+function TImages.GetCount: Integer;
+begin
+  Result := FItems.Count;
+end;
+
+function TImages.GetItem(const AIndex: Integer): TStream;
+begin
+  Result := FItems[AIndex];
 end;
 
 initialization

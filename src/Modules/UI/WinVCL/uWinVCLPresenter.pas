@@ -57,14 +57,12 @@ type
     procedure SetAsMainForm(const AForm: TForm);
     function MessageTypeToMBFlags(const AMessageType: TMessageType): Integer;
 
-    //procedure StoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
+    procedure StoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
     procedure RestoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
 
     // Creation of Layout from DFM
     function GetLayoutKind(const AControl: TObject): TLayoutKind;
     procedure CopyControlPropertiesToLayout(const ALayout: TLayout; const AControl: TObject);
-
-    procedure LoadImages(const AInteractor: TInteractor; const AImageList: TDragImageList; const AResolution: Integer);
   protected
     FStartForm: TStartFm;
     [Weak] FDebugForm: TDebugFm;
@@ -90,7 +88,8 @@ type
     procedure DoSetCursor(const ACursorType: TCursorType); override;
     procedure DoCloseAllPages(const AInteractor: TInteractor); override;
 
-    function DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject; override;
+    function GetImagePlaceholder(const ASize: Integer): TStream; override;
+    function DoCreateImages(const AInteractor: TInteractor; const AImages: TImages; const ASize: Integer): TObject; override;
 
     procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); override; // DFM
   public
@@ -1031,11 +1030,41 @@ begin
   inherited Destroy;
 end;
 
-function TWinVCLPresenter.DoCreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
+function TWinVCLPresenter.DoCreateImages(const AInteractor: TInteractor; const AImages: TImages; const ASize: Integer): TObject;
+var
+  vImageList: TcxImageList;
+  vImage: TdxPNGImage;
+  vIndex: Integer;
+  vStream: TStream;
+  vBitmap: TBitmap;
+  i: Integer;
 begin
-  Result := TcxImageList.Create(nil);
-  TcxImageList(Result).SetSize(ASize, ASize);
-  LoadImages(AInteractor, TcxImageList(Result), ASize);
+  vImageList := TcxImageList.Create(nil);
+  vImageList.SetSize(ASize, ASize);
+  Result := vImageList;
+
+  for vIndex in AImages.Indices.Keys do
+    AInteractor.StoreImageIndex(vIndex, AImages.Indices[vIndex]);
+
+  vImage := TdxPNGImage.Create;
+  vImageList.BeginUpdate;
+  try
+    for i := 0 to AImages.Count - 1 do
+    begin
+      vStream := AImages[i];
+      vStream.Position := 0;
+      vImage.LoadFromStream(vStream);
+      vBitmap := vImage.GetAsBitmap;
+      try
+        vImageList.AddBitmap(vBitmap, nil, clnone, True, True)
+      finally
+        FreeAndNil(vBitmap);
+      end;
+    end;
+  finally
+    vImageList.EndUpdate;
+    FreeAndNil(vImage);
+  end;
 end;
 
 procedure TWinVCLPresenter.DoDebugFormClose(Sender: TObject; var Action: TCloseAction);
@@ -1088,6 +1117,23 @@ begin
   end;
 end;
 
+function TWinVCLPresenter.GetImagePlaceholder(const ASize: Integer): TStream;
+var
+  vPlaceholder: TBitmap;
+  vResDiv8: Integer;
+begin
+  vPlaceholder := TBitmap.Create;
+  vPlaceholder.SetSize(ASize, ASize);
+  vPlaceholder.PixelFormat := pf32bit;
+  vResDiv8 := Max(ASize div 8, 1);
+  vPlaceholder.Canvas.Pen.Width := 1;
+  vPlaceholder.Canvas.Pen.Color := clGray;
+  vPlaceholder.Canvas.Rectangle(vResDiv8, vResDiv8, ASize - vResDiv8, ASize - vResDiv8);
+
+  Result := TMemoryStream.Create;
+  vPlaceholder.SaveToStream(Result);
+end;
+
 function TWinVCLPresenter.GetLayoutKind(const AControl: TObject): TLayoutKind;
 begin
   if AControl is TPanel then
@@ -1119,80 +1165,6 @@ end;
 function TWinVCLPresenter.GetNativeControlClass: TNativeControlClass;
 begin
   Result := TVCLControl;
-end;
-
-procedure TWinVCLPresenter.LoadImages(const AInteractor: TInteractor;
-  const AImageList: TDragImageList; const AResolution: Integer);
-var
-  vConfiguration: TConfiguration;
-  vImage: TdxPNGImage;
-  vPlaceholder: TBitmap;
-
-  function GetPlaceholder: TBitmap;
-  var
-    vResDiv8: Integer;
-  begin
-    if not Assigned(vPlaceholder) then
-    begin
-      vPlaceholder := TBitmap.Create;
-      vPlaceholder.SetSize(AResolution, AResolution);
-      vPlaceholder.PixelFormat := pf32bit;
-      vResDiv8 := Max(AResolution div 8, 1);
-      vPlaceholder.Canvas.Pen.Width := 1;
-      vPlaceholder.Canvas.Rectangle(vResDiv8, vResDiv8, AResolution - vResDiv8, AResolution - vResDiv8);
-    end;
-
-    Result := vPlaceholder;
-  end;
-
-  procedure AppendIconsToImageList(const AIcons: TIcons);
-  var
-    vIndex: Integer;
-    vStream: TStream;
-    vBitmap: TBitmap;
-  begin
-    for vIndex in AIcons.IconIndices do
-    begin
-      AInteractor.StoreImageIndex(vIndex, AImageList.Count);
-
-      vStream := AIcons.IconByIndex(vIndex, AResolution);
-      if not Assigned(vStream) then
-        AImageList.Add(GetPlaceholder, nil)
-      else begin
-        vStream.Position := 0;
-        vImage.LoadFromStream(vStream);
-        vBitmap := vImage.GetAsBitmap;
-        try
-          if AImageList is TcxImageList then
-            TcxImageList(AImageList).AddBitmap(vBitmap, nil, clnone, True, True)
-          else
-            AImageList.Add(vBitmap, nil);
-        finally
-          if vIndex = 0 then
-            vPlaceholder := vBitmap
-          else
-            vBitmap.Free;
-        end;
-      end;
-    end;
-  end;
-
-begin
-  vImage := TdxPNGImage.Create;
-  vPlaceholder := nil;
-
-  AImageList.BeginUpdate;
-  try
-    AppendIconsToImageList(FCommonIcons);
-
-    vConfiguration := TConfiguration(AInteractor.Configuration);
-    AppendIconsToImageList(vConfiguration.Icons);
-  finally
-    AImageList.EndUpdate;
-  end;
-
-  FreeAndNil(vImage);
-  FreeAndNil(vPlaceholder);
 end;
 
 function TWinVCLPresenter.MessageTypeToMBFlags(const AMessageType: TMessageType): Integer;
@@ -1272,6 +1244,7 @@ end;
 procedure TWinVCLPresenter.DoLogout(const AInteractor: TInteractor);
 begin
   inherited DoLogout(AInteractor);
+  StoreUILayout(AInteractor, TForm(AInteractor.UIBuilder.RootArea.InnerControl));
   if Assigned(FDebugForm) then
     FDebugForm.RemoveInteractor(AInteractor);
 end;
@@ -1431,6 +1404,15 @@ begin
   end;
 end;
 
+procedure TWinVCLPresenter.StoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
+var
+  vLayoutStr: string;
+begin
+  vLayoutStr := IntToStr(AForm.Left) + ';' + IntToStr(AForm.Top) + ';' + IntToStr(AForm.Width) + ';' +
+    IntToStr(AForm.Height) + ';' + IntToStr(Ord(AForm.WindowState));
+  TDomain(AInteractor.Domain).UserSettings.SetValue('MainForm', 'Layout', vLayoutStr);
+end;
+
 procedure TWinVCLPresenter.RestoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
 var
   vLayoutStr: string;
@@ -1454,8 +1436,6 @@ begin
   finally
     FreeAndNil(vValues);
   end;
-
-  //RestoreChildForms(AInteractor);
 end;
 
 procedure TWinVCLPresenter.DoCloseAllPages(const AInteractor: TInteractor);
