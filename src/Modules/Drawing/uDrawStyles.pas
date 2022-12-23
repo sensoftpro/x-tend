@@ -1065,7 +1065,7 @@ begin
 end;
 
 procedure TPainter.DrawContext(const AContext: TDrawContext);
-begin
+ begin
   if Assigned(AContext) then
     DoDrawContext(AContext);
 end;

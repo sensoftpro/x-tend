@@ -23,7 +23,7 @@ object fmMain: TfmMain
     TabOrder = 0
     object lblFPS: TLabel
       Left = 692
-      Top = 21
+      Top = 16
       Width = 129
       Height = 23
       Caption = '<'#1085#1077#1090' '#1076#1072#1085#1085#1099#1093'>'

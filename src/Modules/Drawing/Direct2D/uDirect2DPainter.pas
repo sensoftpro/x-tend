@@ -381,7 +381,6 @@ begin
   begin
     vStrokeProperties := D2D1StrokeStyleProperties(D2D1_CAP_STYLE_FLAT, D2D1_CAP_STYLE_FLAT, D2D1_CAP_STYLE_ROUND,
       D2D1_LINE_JOIN_ROUND, 10, cDashStyles[AStroke.Style], 0);
-    FD2DFactory.CreateStrokeStyle(vStrokeProperties, nil, 0, vStyle);
   end
   else
     vStyle := nil;

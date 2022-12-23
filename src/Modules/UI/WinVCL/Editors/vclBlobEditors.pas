@@ -43,7 +43,7 @@ type
   protected
     FScene: TScene;
     procedure DoActivate(const AAreaState: string = ''); override;
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoDisableContent; override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
@@ -53,7 +53,7 @@ type
   TFieldChartArea = class(TFieldSceneArea)
   protected
     FChart: TSimpleChart;
-    procedure DoCreateControl(const AParent: TUIArea; const ALayout: TLayout); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
   end;
 
 implementation
@@ -74,7 +74,7 @@ begin
   FScene.Free;
 end;
 
-procedure TFieldSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TFieldSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vDomain: TDomain;
   vSceneClass: TSceneClass;
@@ -82,8 +82,8 @@ var
 begin
   vDomain := TDomain(FView.Domain);
   vSceneClass := TSceneClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ChartPainter', 'Painting', vModuleName));
-  FScene := vSceneClass.Create(TVCLArea(AParent).Control);
-  FControl := TWinScene(FScene).Panel;
+  FScene := vSceneClass.Create(TVCLArea(AParent).InnerControl);
+  Result := TWinScene(FScene).Panel;
 end;
 
 procedure TFieldSceneArea.DoDisableContent;
@@ -96,7 +96,7 @@ begin
   inherited;
   // FView
   // FFieldDef
-  // FControl
+  // FControl.Control
 end;
 
 procedure TFieldSceneArea.RefillArea(const AKind: Word);
@@ -107,9 +107,9 @@ end;
 
 { TFieldChartArea }
 
-procedure TFieldChartArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout);
+function TFieldChartArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  inherited DoCreateControl(AParent, ALayout);
+  Result := inherited DoCreateControl(AParent, ALayout);
   FId := 'Chart';
   FChart := TDataChart.Create(FScene, nil);
 end;

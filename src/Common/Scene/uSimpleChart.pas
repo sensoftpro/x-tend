@@ -197,14 +197,14 @@ begin
     FStyle.AddFontParams('title', 'Tahoma', 12, TAlphaColorRec.Black); // Заголовок чарта
     FStyle.AddFontParams('x.tick', 'Tahoma', 10, TAlphaColorRec.Black); // значения по шкале X
     FStyle.AddFontParams('extra.tick', 'Tahoma', 8, TAlphaColorRec.Navy); // доп. значения по шкале X
-    FStyle.AddFontParams('y.tick', 'Tahoma', 10, TAlphaColorRec.Black); // значения по шкале Y
+    FStyle.AddFontParams('y.tick', 'Tahoma', 10, TAlphaColorRec.Black, FontStyleUnderline); // значения по шкале Y
     FStyle.AddFontParams('power', 'Tahoma', 7, TAlphaColorRec.Black); // степень по шкале Y
     FStyle.AddStrokeParams('line.values', TAlphaColorRec.Red, 1); // values
     FStyle.AddFillParams('hist.values', TAlphaColorRec.Red and $BFFFFFFF); // values
     FStyle.AddFillParams('spot.values', TAlphaColorRec.Red); // values
     FStyle.AddFillParams('back.values', TAlphaColorRec.Red and $7FFFFFFF); // стиль фонового спектра
     FStyle.AddFontParams('x.title', 'Tahoma', 10, TAlphaColorRec.Black); // заголовок оси X
-    FStyle.AddFontParams('y.title', 'Tahoma', 10, TAlphaColorRec.Black, 0, 270); // заголовок оси Y
+    FStyle.AddFontParams('y.title', 'Tahoma', 10, TAlphaColorRec.Black, FontStyleStrikeout or FontStyleUnderline, 270, rqHigh); // заголовок оси Y
     FStyle.AddStrokeParams('tick.line', TAlphaColorRec.Gray, 1); // линия-указатель текущего значения X
     FStyle.AddFillParams('tick.selected', MakeColor(TAlphaColorRec.Black, 0.5)); // область вывода текущего значения X
     FStyle.AddFillParams('extra.tick.selected', MakeColor(TAlphaColorRec.Navy, 0.5)); // область вывода доп. значения X
@@ -213,7 +213,7 @@ begin
     FStyle.AddFillParams('scroll.fill', MakeColor(TAlphaColorRec.Black, 40 / 256));
     FStyle.AddStrokeParams('scroll.stroke', TAlphaColorRec.Gray, 1);
     FStyle.AddFillParams('lightarea', $FFB8CBB4, AppendColor(TAlphaColorRec.Silver, $00191919), gkVertical);
-    FStyle.AddFontParams('info.text', 'Tahoma', 8, $FF303030);
+    FStyle.AddFontParams('info.text', 'Tahoma', 8, $FF303030, FontStyleUnderline);
     FStyle.AddStrokeParams('peak', TAlphaColorRec.Skyblue);
     FStyle.AddFontParams('peak', 'Tahoma', 8, $FF303030);
     FStyle.AddImageParams('peak', 'panel_peak.png', False).CutRect := Rect(7, 27, 8, 28);
@@ -265,6 +265,9 @@ begin
   vRect := ARect;
 
   APainter.DrawRect(FStyle, 'background', '', vRect);
+//  APainter.ClipRect(RectF(200, 100, 450, 300));
+  APainter.DrawBezier(FStyle, 'peak', PPointF(TArray<TPointF>.Create(PointF(100,0), PointF(120,50),PointF(160,100),
+    PointF(250,50), PointF(160,100), PointF(223,32), PointF(245,132), PointF(609,100), PointF(609,100))), 9 ,TAlphaColorRec.Red);
 
   vTextHeight := 0.8 * APainter.TextHeight(FStyle, 'x.title', 'fg');
   InflateRect(vRect, -vTextHeight, -vTextHeight);
@@ -283,13 +286,15 @@ begin
 
   FXMetrics.Ratio := vRatio.X;
   FYMetrics.Ratio := vRatio.Y;
-
   // Отрисовываем дочерние объекты
   inherited DoRenderStatic(APainter, ARect, AMode);
 
   APainter.DrawImage(FStyle, 'peak', RectF(200, 100, 450, 300), 0.7);
   APainter.DrawEllipse(FStyle, '_nuclide', 'peak', RectF(500, 100, 650, 200));
   APainter.DrawPie(FStyle, '_nuclide', 'peak', RectF(100, 350, 350, 420), 360, 320);
+  APainter.DrawRegion(FStyle, '_nuclide', 'line.values', PPointF(TArray<TPointF>.Create(PointF(0,0), PointF(20,20),PointF(50,50),
+    PointF(80,80), PointF(80,50), PointF(50,20), PointF(0,0))), 7, TAlphaColorRec.Navy);
+//  APainter.DrawPath(FStyle, '_nuclide', 'peak', TArray<Integer>.Create(0,0,0),TAlphaColorRec.Red);
 end;
 
 procedure TSimpleChart.DoRenderDynamic(const APainter: TPainter; const ARect: TRectF);

@@ -83,7 +83,7 @@ type
     function DoLogin(const ADomain: TObject): TInteractor; override;
     procedure DoLogout(const AInteractor: TInteractor); override;
 
-    function GetMainUIAreaClass: TUIAreaClass; override;
+    function GetNativeControlClass: TNativeControlClass; override;
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); override;
     function DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult; override;
     procedure DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False); override;
@@ -207,7 +207,7 @@ begin
   if AInteractor.Layout <> 'mdi'  then
     Exit;
 
-  vForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).Control);
+  vForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).InnerControl);
   case AArrangeKind of
     waCascade:
       vForm.Cascade;
@@ -235,17 +235,17 @@ var
 begin
   if Assigned(AOldArea) then
   begin
-    vForm := TForm(TVCLArea(AOldArea).Control);
+    vForm := TForm(TVCLArea(AOldArea).InnerControl);
     CloseAllPages(AInteractor);
     TUIAreaCrack(AOldArea).ClearContent;
 
-    SetAsMainForm(TForm(TVCLArea(ANewArea).Control));
+    SetAsMainForm(TForm(TVCLArea(ANewArea).InnerControl));
 
     vForm.Close;
     AOldArea.Free;
   end
   else
-    SetAsMainForm(TForm(TVCLArea(ANewArea).Control));
+    SetAsMainForm(TForm(TVCLArea(ANewArea).InnerControl));
 end;
 
 constructor TWinVCLPresenter.Create(const AName: string; const ASettings: TSettings);
@@ -319,7 +319,7 @@ begin
     for i := 0 to AParent.Count - 1 do
     begin
       vArea := AParent.Areas[i];
-      if (vArea.View = AView) and (TVCLArea(vArea).Control is TForm) then
+      if (vArea.View = AView) and (TVCLArea(vArea).InnerControl is TForm) then
         Exit(vArea);
     end;
 
@@ -517,9 +517,9 @@ begin
     Result := lkFrame;
 end;
 
-function TWinVCLPresenter.GetMainUIAreaClass: TUIAreaClass;
+function TWinVCLPresenter.GetNativeControlClass: TNativeControlClass;
 begin
-  Result := TVCLArea;
+  Result := TVCLControl;
 end;
 
 procedure TWinVCLPresenter.LoadImages(const AInteractor: TInteractor;
@@ -865,12 +865,12 @@ begin
   Result := drNone;
   if (AAreaName = '') or (AAreaName = 'float') then
   begin
-    vForm := TForm(vArea.Control);
+    vForm := TForm(vArea.InnerControl);
     vForm.Show;
   end
   else if (AAreaName = 'child') or (AAreaName = 'modal') then
   begin
-    vForm := TForm(vArea.Control);
+    vForm := TForm(vArea.InnerControl);
     vForm.ShowHint := True;
     vView := vArea.View;
 
@@ -927,7 +927,7 @@ var
     TDomain(AInteractor.Domain).UserSettings.SetValue(AName, 'Layout', vLayoutStr);
   end;
 begin
-  vMainForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).Control);
+  vMainForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).InnerControl);
 
   if not Assigned(vMainForm) then Exit;
 
@@ -1035,7 +1035,7 @@ var
     end;
   end;
 begin
-  vMainForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).Control);
+  vMainForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).InnerControl);
   if (not Assigned(vMainForm)) or (vMainForm.Position <> poDesigned) then Exit;
 
   LoadForm(vMainForm, 'MainForm');
@@ -1125,7 +1125,7 @@ begin
   for i := 0 to vArea.Count - 1 do
   begin
     vChildArea := TVCLArea(vArea[i]);
-    if vChildArea.Control is TForm then
+    if vChildArea.InnerControl is TForm then
     begin
       vInteractor.ShowMessage('Невозможно закрыть окно, так как есть другие программные окна, зависящие от него', msWarning);
       Action := caNone;
@@ -1219,7 +1219,7 @@ var
 begin
   if AInteractor.Layout = 'mdi' then
   begin
-    vMainForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).Control);
+    vMainForm := TForm(TVCLArea(AInteractor.UIBuilder.RootArea).InnerControl);
     if Assigned(vMainForm) and (vMainForm.FormStyle = fsMDIForm) then
       for i := vMainForm.MDIChildCount - 1 downto 0 do
         vMainForm.MDIChildren[i].Close;

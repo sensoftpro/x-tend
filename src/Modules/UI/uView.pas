@@ -188,7 +188,12 @@ begin
     begin
       vViewName := Trim(vViewPath[i]);
       if vViewName = '$' then
+        Continue
+      else if vViewName = '~' then
+      begin
+        Result := TInteractor(FInteractor).UIBuilder.RootView;
         Continue;
+      end;
 
       vView := Result.ViewByName(vViewName);
       if not Assigned(vView) then
