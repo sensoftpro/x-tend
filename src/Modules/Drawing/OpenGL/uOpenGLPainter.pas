@@ -93,9 +93,7 @@ type
     FPixelFormat: Integer;
     FUsedFontFamilies: TDictionary<string, PTrueTypeFont>;
     procedure SetDCPixelFormat;
-    function IsInsideTriangle(const APoint: TPointF; const ATriangle: TArray<TPointF>): Boolean;
     procedure DrawLine(const APoint1, APoint2: TPointF);
-    procedure ErrorCallback(AErrorCode: GLEnum);
   protected
     procedure DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF); override;
     procedure DoDrawPie(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF; const AStartAngle, AEndAngle: Single); override;
@@ -313,7 +311,6 @@ begin
   if vRect = Rect(0,0,0,0) then
     glDisable(GL_SCISSOR_TEST);
   glScissor(vRect.Left, FContext.Height - vRect.Bottom, vRect.Width, vRect.Height);
-
 end;
 
 procedure TOpenGLPainter.DoColorizeBrush(const AFill: TStyleBrush; const AColor: Cardinal);
@@ -588,133 +585,25 @@ var
   vPoints: TArray<TPointF> absolute APoints;
   vPoint1, vPoint2: TPointF;
   i: Integer;
-  j: Integer;
-
-  function TriangulatePolygon(): TList<TArray<TPointF>>;
-  var
-    vVertices: TList<TPointF>;
-    vPointsOutsideTriangle: TList<TPointF>;
-    vTrianglesFound: Integer;
-    vTriangle: TArray<TPointF>;
-    vCurrentPoint, vNextPoint, vPrevPoint: TPointF;
-    vInsideEval: Boolean;
-    vAngle: Single;
-    i, j: Integer;
-  begin
-    Result := TList<TArray<TPointF>>.Create;
-    vPointsOutsideTriangle := TList<TPointF>.Create;
-    SetLength(vTriangle, 3);
-    vVertices := TList<TPointF>.Create();
-    for i := 0 to ACount - 1 do
-      vVertices.Add(vPoints[i]);
-
-    vTrianglesFound := -1;
-
-    while vTrianglesFound <> 0 do
-    begin
-      vTrianglesFound := 0;
-
-      for i := 0 to vVertices.Count - 1 do
-      begin
-        vPrevPoint := vVertices.Last;
-        vNextPoint := vVertices[(i + 1) mod vVertices.Count];
-        vCurrentPoint := vVertices[i];
-
-        vPoint1 := vCurrentPoint - vPrevPoint;
-        vPoint2 := vNextPoint - vCurrentPoint;
-
-        vInsideEval := False;
-
-        vAngle := (Arctan2((vPoint1.Y - vPoint2.Y), (vPoint1.X - vPoint2.X))) * 180 / PI;
-//        if vAngle < 0 then
-//          vAngle := vAngle + 360;
-
-
-        if vAngle >= 180 then
-        begin
-          Continue;
-        end else
-        begin
-          vTriangle[0] := vPrevPoint;
-          vTriangle[1] := vCurrentPoint;
-          vTriangle[2] := vNextPoint;
-
-          for j := 0 to (ACount - 2) do
-          begin
-            if not (vPoints[j] = vTriangle[1]) and (vPoints[j] = vTriangle[0]) and (vPoints[j] = vTriangle[2]) then
-              vPointsOutsideTriangle.Add(vPoints[j]);
-          end;
-
-          for j := 0 to (vPointsOutsideTriangle.Count - 1) do
-          begin
-            if (IsInsideTriangle(vPointsOutsideTriangle[j], vTriangle)) = True then
-              vInsideEval := True;
-          end;
-
-          if vInsideEval then
-          begin
-            Continue;
-          end else
-          begin
-            Result.Add(TArray<TPointF>.Create(vPrevPoint, vCurrentPoint, vNextPoint));
-            vVertices.Delete(i);
-
-            Inc(vTrianglesFound);
-            break;
-          end;
-        end;
-      end;
-    end;
-    vPointsOutsideTriangle.Free;
-    vVertices.Free;
-  end;
-
-var
   vColor: TColor;
-  vTriPolygon: TList<TArray<TPointF>>;
-  vTesselator: PGLUTesselator;
-  vGLUPoints: TArray<TArray<TGLVectord3>>;
 begin
   if Assigned(AFill) then
   begin
+    //При пересечении многоульнка с самим собой, заполнит все,
+    //никакого пропуска заливки не произойдет в отличии от Skia, GDI
     vColor := HexToRGBA(AStroke.Color);
     glColor4f(vColor.Red, vColor.Green, vColor.Blue, vColor.Alpha);
-    vTriPolygon := TriangulatePolygon;
-
-    vTesselator := gluNewTess();
-    gluTessCallback(vTesselator, GLU_TESS_BEGIN, @glBegin);
-    gluTessCallback(vTesselator, GLU_TESS_VERTEX, @glVertex3dv);
-    gluTessCallback(vTesselator, GLU_TESS_END, @glEnd);
-    gluTessCallback(vTesselator, GLU_TESS_ERROR, @TOpenGLPainter.ErrorCallback);
-    SetLength(vGLUPoints, 4, 3);
-    for i := 0 to 3 do
+    glBegin(GL_POLYGON);
+    for i := 0 to ACount - 2 do
     begin
-      for j := 0 to 2 do
-      begin
-        vGLUPoints[i, j, 0] := vTriPolygon[i][j].X;
-        vGLUPoints[i, j, 1] := vTriPolygon[i][j].Y;
-        vGLUPoints[i, j, 2] := 0;
-      end;
+      vPoint1 := vPoints[i];
+      vPoint2 := vPoints[i + 1];
+      glVertex2f(vPoint1.X, FContext.Height - vPoint1.Y);
+      glVertex2f(vPoint2.X, FContext.Height - vPoint2.Y);
     end;
-
-    glNewList(1, GL_COMPILE);
-    gluTessBeginPolygon(vTesselator, nil);
-    for i := 0 to 3 do
-    begin
-      gluTessBeginContour(vTesselator);
-      for j := 0 to 2 do
-      begin
-        glColor3f(1,1,1);
-        gluTessVertex(vTesselator, vGLUPoints[i,j], @vGLUPoints[i,j] );
-      end;
-      gluTessEndContour(vTesselator);
-    end;
-    gluTessEndPolygon(vTesselator);
-    glEndList();
-
-    glCallList(1);
-    gluDeleteTess(vTesselator);
-    vTriPolygon.Free;
+    glVertex2f(vPoints[ACount - 1].X, FContext.Height - vPoints[ACount - 1].Y);
+    glVertex2f(vPoints[0].X, FContext.Height - vPoints[0].Y);
+    glEnd;
   end;
 
   if Assigned(AStroke) then
@@ -829,18 +718,8 @@ begin
     end;
     glEnd;
 
-
-
     glBindTexture(GL_TEXTURE_2D, 0);
-//    glColor4f(0,0,0,1);
-//
-//    if (AFont.Style and FontStyleUnderline <> 0) and (i = strlen(PWideChar(AText))) then
-//    begin
-//    glBegin(GL_LINES);
-//      glVertex2f(ARect.Left, vLocation.Y + GetTextExtents(AFont, AText).cy / 2);
-//      glVertex2f(ARect.Left + GetTextExtents(AFont, AText).cx, vLocation.Y + GetTextExtents(AFont, AText).cy / 2);
-//    glEnd;
-//    end;
+    //Подчеркивание и зачеркивание текста
     glPopMatrix;
   end;
 
@@ -882,11 +761,6 @@ begin
   SwapBuffers(FDC);
 end;
 
-procedure TOpenGLPainter.ErrorCallback(AErrorCode: GLEnum);
-begin
-  OutputDebugString(PWideChar(gluErrorString(AErrorCode)));
-end;
-
 function TOpenGLPainter.GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF;
 var
   vChar: TCharacter;
@@ -904,26 +778,6 @@ begin
   end;
 
   Result.cx := vTotalWidth;
-end;
-
-function TOpenGLPainter.IsInsideTriangle(const APoint: TPointF; const ATriangle: TArray<TPointF>): Boolean;
-
-  function Sign(const vPoint1, vPoint2, vPoint3: TPointF): Single;
-  begin
-    Result := (vPoint1.X - vPoint3.X) * (vPoint2.Y - vPoint3.Y) - (vPoint2.X - vPoint3.X) * (vPoint1.Y - vPoint3.Y);
-  end;
-var
-  vHasNegative, vHasPositive: Boolean;
-  vD1, vD2, vD3: Single;
-begin
-  vD1 := Sign(APoint, ATriangle[0], ATriangle[1]);
-  vD2 := Sign(APoint, ATriangle[1], ATriangle[2]);
-  vD3 := Sign(APoint, ATriangle[2], ATriangle[0]);
-
-  vHasNegative := (vD1 < 0) or (vD2 < 0) or (vD3 < 0);
-  vHasPositive := (vD1 > 0) or (vD2 > 0) or (vD3 > 0);
-
-  Result := not(vHasNegative and vHasPositive);
 end;
 
 function TOpenGLPainter.SetContext(const AContext: TDrawContext): TDrawContext;
@@ -1244,7 +1098,6 @@ end;
 function NextPow2(const x: Cardinal): Cardinal;
 var
   vMaxTextureSize: GLuint;
-//    i, cur: Cardinal;
 begin
   glGetIntegerv(GL_MAX_TEXTURE_SIZE, @vMaxTextureSize);
   Result := 2;

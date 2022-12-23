@@ -79,8 +79,6 @@ type
 
   TGDIPlusPainter = class(TPainter)
   private
-    FDC: HDC;
-
     function ThisGPCanvas: TGPGraphics;
   protected
     procedure DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF); override;
@@ -161,8 +159,6 @@ var
 begin
   inherited Create(AContainer);
   FContext := TGDIPlusDrawContext.Create(Self, vContainer, vContainer.Width, vContainer.Height);
-  FDC := TGDIPlusDrawContext(FContext).GPCanvas.GetHDC;
-  TGDIPlusDrawContext(FContext).GPCanvas.ReleaseHDC(FDC);
 end;
 
 procedure TGDIPlusPainter.CreateBrush(const AFill: TStyleBrush);
@@ -238,16 +234,14 @@ end;
 procedure TGDIPlusPainter.CreatePen(const AStroke: TStylePen);
 var
   vPen: TGPPen;
-  vDashPattern: TArray<Single>;
 begin
   vPen := TGPPen.Create(AStroke.Color, AStroke.Width);
   vPen.SetLineJoin(LineJoinRound);
-  vDashPattern := TArray<Single>.Create(3,3);
 
   case AStroke.Style of
     psSolid: vPen.SetDashStyle(DashStyleSolid);
     psDash: vPen.SetDashStyle(DashStyleDash);
-    psDot: vPen.SetDashPattern(PSingle(vDashPattern), 2);
+    psDot: vPen.SetDashPattern(PSingle(TArray<Single>.Create(3,3)), 2);
     psDashDot: vPen.SetDashStyle(DashStyleDashDot);
     psDashDotDot: vPen.SetDashStyle(DashStyleDashDotDot);
     psInsideFrame: begin
@@ -457,11 +451,8 @@ begin
 end;
 
 procedure TGDIPlusPainter.DoInvertRect(const ARect: TRectF);
-var
-  vRect: TRect;
 begin
-  vRect := ARect.Round;
-  Windows.InvertRect(FDC ,vRect);
+  //Пробовал делать через BitBlt, Windwows.InvertRect, ColorMatrix
 end;
 
 //******************************************************************************
@@ -572,7 +563,6 @@ begin
   if Assigned(FGPBitmap) then
   begin
     FGPBitmap := TGPBitmap.Create(Round(AWidth), Round(AHeight), PixelFormat32bppARGB);
-
     FGPCanvas := TGPGraphics.Create(FGPBitmap);
   end else
   begin
@@ -580,12 +570,9 @@ begin
     vDC := FGPCanvas.GetHDC;
     FGPCanvas := TGPGraphics.Create(vDC);
     FGPCanvas.ReleaseHDC(vDC);
-
-
   end;
 
   FGPCanvas.SetPageUnit(UnitPixel);
-//  FGPCanvas.SetCompositingMode(CompositingModeSourceOver);
   FGPCanvas.SetSmoothingMode(SmoothingModeAntiAlias);
   FGPCanvas.SetInterpolationMode(InterpolationModeHighQualityBicubic);
 end;
