@@ -616,7 +616,7 @@ begin
       vNeedRegisterChanges := vHolder.KeepOldData(FInstance, GetFieldName);
     DoSetValue(AValue);
     if vNeedRegisterChanges then
-      vHolder.RegisterFieldChanges(TEntity(FInstance), GetFieldName);
+      vHolder.RegisterFieldChanges(FInstance, GetFieldName);
   end;
 
   AfterChanges(AHolder);

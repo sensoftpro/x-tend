@@ -11,7 +11,7 @@ __recovery
 *.tvsconfig
 *.orig
 __history
-bin/setup_*_*.exe
+bin/setup_*.exe
 bin/*.exe
 bin/*.json
 *.aqt
@@ -20,3 +20,5 @@ bin/*.json
 *.rsm
 *.map
 *.drc
+/bin/Win32/*.exe
+/bin/Win64/*.exe

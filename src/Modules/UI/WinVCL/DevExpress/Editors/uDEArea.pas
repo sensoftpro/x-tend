@@ -267,7 +267,7 @@ begin
         if Length(vOverriddenCaption) > 0 then
           vMenuItem.Caption := vOverriddenCaption;
         vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
-        vMenuItem.Tag := Integer(Self); //Integer(vButton);
+        vMenuItem.Tag := NativeInt(Self); //NativeInt(vButton);
         vMenuItem.OnClick := OnActionMenuSelected;
         FTypeSelectionMenu.Items.Add(vMenuItem);
       end;

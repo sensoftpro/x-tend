@@ -246,7 +246,7 @@ begin
 
   vCollection := vDomain['SysUsersRoles'];
   vCollection.CreateDefaultEntity(AHolder, 1, 'User;Role;Flags', [
-    Integer(vDomain.EntityByID('SysUsers', 1)), Integer(vDomain.EntityByID('SysRoles', 1))], True);
+    NativeInt(vDomain.EntityByID('SysUsers', 1)), NativeInt(vDomain.EntityByID('SysRoles', 1))], True);
 
   vCollection := vDomain['SysConstants'];
   vCollection.CreateDefaultEntity(AHolder, 1, 'Code;MailLogin;MailPassword', ['debug', 'noname@mail.ru', '']);

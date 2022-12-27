@@ -57,7 +57,6 @@ type
     procedure DoWriteStream(const ATag: string; const AStream: TStream); virtual; abstract;
     function DoReadStream(const ATag: string): TStream; virtual; abstract;
     procedure DoReadGroup(const ATag: string; const AReadFunc: TStorageFunc); virtual; abstract;
-    procedure DoReadGroupAsync(const ATag: string; const AFetchFunc: TFetchDataFunc); virtual;
     function DoSyncGroupDef(const ATag: string; const ASyncFunc:
       TStorageFunc): Boolean; virtual; abstract;
     procedure DoWriteItem(const AWriteFunc: TStorageFunc;
@@ -91,7 +90,6 @@ type
     procedure WriteStream(const ATag: string; const AStream: TStream);
     function ReadStream(const ATag: string): TStream;
     procedure ReadGroup(const ATag: string; const AReadFunc: TStorageFunc);
-    procedure ReadGroupAsync(const ATag: string; const AFetchFunc: TFetchDataFunc);
     function SyncGroupDef(const ATag: string; const ASyncFunc:
       TStorageFunc): Boolean;
 
@@ -308,11 +306,6 @@ begin
   Result := -1;
 end;
 
-procedure TStorage.DoReadGroupAsync(const ATag: string; const AFetchFunc: TFetchDataFunc);
-begin
-  //DoReadGroup(ATag, AFetchFunc);
-end;
-
 procedure TStorage.DoRebuild;
 begin
 end;
@@ -367,11 +360,6 @@ end;
 procedure TStorage.ReadGroup(const ATag: string; const AReadFunc: TStorageFunc);
 begin
   DoReadGroup(ATag, AReadFunc);
-end;
-
-procedure TStorage.ReadGroupAsync(const ATag: string; const AFetchFunc: TFetchDataFunc);
-begin
-  DoReadGroupAsync(ATag, AFetchFunc);
 end;
 
 function TStorage.BeginTransaction: Integer;

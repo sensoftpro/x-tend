@@ -89,7 +89,6 @@ type
     function GetName: string;
   private
     procedure DoLoadAll(const AStorage: TStorage);
-    procedure DoFetchAll(const AFieldDict: TDictionary<string, Integer>; const AData: Variant);
 
     function InternalCreateEntity(const AID: Integer = cNewID;
       const AIsNew: Boolean = False): TEntity;
@@ -513,61 +512,6 @@ begin
   inherited Destroy;
 end;
 
-procedure TCollection.DoFetchAll(const AFieldDict: TDictionary<string, Integer>; const AData: Variant);
-var
-  i, j: Integer;
-  vId: Integer;
-  vEntity: TEntity;
-  vField: TBaseField;
-
-  function ValueByFieldName(const ARowNo: Integer; const AFieldName: string): Variant;
-  var
-    vIndex: Integer;
-  begin
-    if AFieldDict.TryGetValue(AFieldName, vIndex) then
-      Result := AData[vIndex, ARowNo]
-    else
-      Result := Null;
-  end;
-begin
-  for i := VarArrayLowBound(AData, 2) to VarArrayHighBound(AData, 2) do
-  begin
-    vId := ValueByFieldName(i, 'id');
-    if Assigned(EntityByID(vId)) then
-      Continue;
-
-    if (FContentDefinition = TDomain(FDomain).Configuration.RootDefinition) and (vId = 2) then
-      vEntity := Self
-    else
-      vEntity := InternalCreateEntity(vId, False);
-
-    vEntity.IsNew := False;
-    if vEntity.IsEnvSpecific then
-      vEntity.EnvironmentID := VarToStrDef(ValueByFieldName(i, 'guid'), '');
-
-    for j := 0 to vEntity.FieldCount - 1 do
-    begin
-      vField := vEntity.Fields[j];
-      if vField.FieldKind in [fkString..fkCurrency] then
-        vField.Value := ValueByFieldName(i, vField.StorageName)
-      else if vField.FieldKind = fkObject then
-      begin
-        if TEntityField(vField).IsSelector then
-          TEntityField(vField).SetIdentifiers(VarToInt(ValueByFieldName(i, vField.StorageName), 0),
-            VarToInt(ValueByFieldName(i, TEntityFieldDef(vField.FieldDef).SelectorStorageName), 0))
-        else
-          TEntityField(vField).SetIdentifiers(VarToInt(ValueByFieldName(i, vField.StorageName), 0));
-      end
-      else if vField.FieldKind = fkBlob then
-      begin
-      end
-      else if vField.FieldKind = fkComplex then
-      begin
-      end;
-    end;
-  end;
-end;
-
 procedure TCollection.DoLoadAll(const AStorage: TStorage);
 var
   vId: Integer;
@@ -845,13 +789,7 @@ begin
     AStorage.Activate(FContentDefinition.StorageName);
     try
       try
-        if APreferAsync and False // FContentDefinition.IsDescendantOf('SysDefinitions')
-        //  or FContentDefinition.IsDescendantOf('Invoices')
-        //  or FContentDefinition.IsDescendantOf('InvoiceServices'))
-        then
-          AStorage.ReadGroupAsync(FContentDefinition.StorageName, DoFetchAll)
-        else
-          AStorage.ReadGroup(FContentDefinition.StorageName, DoLoadAll);
+        AStorage.ReadGroup(FContentDefinition.StorageName, DoLoadAll);
       except
         if not TDomain(FDomain).SyncWithStorage(FContentDefinition, AStorage) then
           AStorage.Rebuild

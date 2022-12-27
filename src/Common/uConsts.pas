@@ -62,12 +62,7 @@ type
     Kind: Word;
     View: TObject;
     Parameter: TObject;
-    Reserved: Integer;
   end;
-
-  TRFIDReadEvent = procedure(const ANewRFID: string) of object;
-
-  TFetchDataFunc = reference to procedure(const AFieldDict: TDictionary<string, Integer>; const AData: Variant);
 
 const
   cNewID = -1;
@@ -355,6 +350,7 @@ function AggregationKindToText(const AKind: TAggregationKind): string;
 function StrToCondition(const ACondition: string): TConditionKind;
 function ApplyModifier(const AValue: string; const AModifier: TConditionModifier = cmNone): string;
 
+function GetBinDir: string;
 function GetPlatformDir: string;
 function GetCommonDir: string;
 function GetDesktopDir: string;
@@ -374,10 +370,15 @@ uses
 ////  _system(PAnsiChar('open ' + AnsiString(AFileName)))
 ////end;
 
+function GetBinDir: string;
+begin
+  Result := TPath.GetDirectoryName(ParamStr(0)) + '\..';
+end;
+
 function GetPlatformDir: string;
 begin
 {$IFDEF MSWINDOWS}
-  Result := TPath.GetDirectoryName(ParamStr(0));
+  Result := GetBinDir;
 {$ELSE}
   Result := TPath.Combine(TPath.GetHomePath, 'Common');
 {$ENDIF MSWINDOWS}
@@ -389,7 +390,7 @@ end;
 function GetCommonDir: string;
 begin
 {$IFDEF MSWINDOWS}
-  Result := TPath.GetDirectoryName(ParamStr(0));
+  Result := GetBinDir;
 {$ELSE}
   Result := TPath.Combine(TPath.GetSharedDocumentsPath, cProductCreator);
 {$ENDIF}

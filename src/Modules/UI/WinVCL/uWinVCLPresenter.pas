@@ -960,7 +960,7 @@ begin
         vMenuItem.Caption := ALayout.Caption;
         vMenuItem.Hint := ALayout.Caption;
         vMenuItem.ImageIndex := AParent.GetImageID(ALayout.ImageID);
-        vMenuItem.Tag := Integer(AParent);
+        vMenuItem.Tag := NativeInt(AParent);
         vMenuItem.OnClick := AParent.OnActionMenuSelected;
       end
       else

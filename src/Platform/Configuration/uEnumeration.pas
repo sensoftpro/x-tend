@@ -305,7 +305,7 @@ begin
     Result := True
   else
     Result := True;
-    //Result := FAvailableTransitions.IndexOf(Pointer(Integer(ANewState))) >= 0;
+    //Result := FAvailableTransitions.IndexOf(Integer(ANewState)) >= 0;
 end;
 
 constructor TState.Create(const AID: Integer; const AValueName, AFullName: string);

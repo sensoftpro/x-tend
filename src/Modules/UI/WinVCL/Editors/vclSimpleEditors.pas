@@ -981,7 +981,7 @@ begin
         begin
           vRadioItem := TcxRadioGroup(Result).Properties.Items.Add;
           vRadioItem.Caption := vEntity['Name'];
-          vRadioItem.Value := Integer(vEntity);
+          vRadioItem.Value := NativeInt(vEntity);
         end;
     end;
   finally
@@ -993,7 +993,7 @@ end;
 
 procedure TDEEnumFieldEditor.DoOnChange;
 begin
-  SetFieldEntity(TEntity(Integer(TcxRadioGroup(FControl).EditingValue)));
+  SetFieldEntity(TEntity(NativeInt(TcxRadioGroup(FControl).EditingValue)));
 end;
 
 procedure TDEEnumFieldEditor.FillEditor;
@@ -2577,7 +2577,7 @@ begin
     else if TFieldDef(FView.Definition).Kind = fkInteger then
       vTag := vValue
     else if TFieldDef(FView.Definition).Kind = fkObject then
-      vTag := TEntity(Integer(vValue)).ID
+      vTag := TEntity(NativeInt(vValue)).ID
     else
       vTag := -1;
   end;

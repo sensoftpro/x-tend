@@ -184,7 +184,7 @@ uses
 
 procedure TConfiguration.AddInclusion(const AName: string);
 begin
-  FResFolders.Add(TPath.Combine(TPath.GetDirectoryName(ParamStr(0)), 'Modules' + PathDelim + AName));
+  FResFolders.Add(TPath.Combine(GetBinDir, 'Modules' + PathDelim + AName));
 end;
 
 constructor TConfiguration.Create(const APlatform: TObject; const AName: string);
@@ -197,7 +197,7 @@ begin
   FResFolders := TStringList.Create;
 
 {$IFDEF MSWINDOWS}
-  FConfigurationDir := TPath.Combine(TPath.GetDirectoryName(ParamStr(0)), 'Solutions' + PathDelim + FName);
+  FConfigurationDir := TPath.Combine(GetBinDir, 'Solutions' + PathDelim + FName);
   FCacheDir := TPath.Combine(TPath.GetCachePath, cProductCreator + PathDelim + FName);
   if not TDirectory.Exists(FCacheDir) then
     TDirectory.CreateDirectory(FCacheDir);
@@ -458,7 +458,7 @@ begin
   vUserSettings := TIniSettings.Create(TPath.Combine(FCacheDir, 'settings.ini'));
   try
   {$IFNDEF DEBUG}
-    if SameText(vUserSettings.GetValue('Core', 'UIVersion', ''), FVersion) then
+    if SameText(vUserSettings.GetValue('Core', 'UIVersion', ''), FVersion.ToString) then
       Exit;
   {$ENDIF}
 

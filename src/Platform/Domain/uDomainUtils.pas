@@ -481,7 +481,7 @@ begin
   if VarIsNull(AValue) or not VarIsOrdinal(AValue) then
     Result := nil
   else
-    Result := TStream(Integer(AValue));
+    Result := TStream(NativeInt(AValue));
 end;
 
 function VarToInt(const AValue: Variant; const ANullValue: Integer): Integer;
@@ -597,7 +597,7 @@ end;
 
 procedure SetObjectValue(var vOut: TReportValue; const AValue: TObject);
 begin
-  vOut.Value := Integer(AValue);
+  vOut.Value := NativeInt(AValue);
   vOut.FieldKind := fkObject;
 end;
 

@@ -620,7 +620,7 @@ var
 begin
   SetLength(Result, ACount);
   for i := 0 to ACount - 1 do
-    Result[i] := PPointF(Integer(APoints) + i * SizeOf(TPointF))^.Round;
+    Result[i] := PPointF(NativeInt(APoints) + i * SizeOf(TPointF))^.Round;
 end;
 
 function TVCLPainter.ThisCanvas: TCanvas;

@@ -3467,11 +3467,11 @@ function TPivotDataSource.GetValue(
 var
   vEntity: TEntity;
 begin
-  vEntity := FEntities[Integer(ARecordHandle)];
-  if FColumns[Integer(AItemHandle)].FieldDef.Kind = fkEnum then
-    Result := vEntity.FieldToString(FColumns[Integer(AItemHandle)].FieldName)
+  vEntity := FEntities[NativeInt(ARecordHandle)];
+  if FColumns[NativeInt(AItemHandle)].FieldDef.Kind = fkEnum then
+    Result := vEntity.FieldToString(FColumns[NativeInt(AItemHandle)].FieldName)
   else
-    Result := vEntity[FColumns[Integer(AItemHandle)].FieldName];
+    Result := vEntity[FColumns[NativeInt(AItemHandle)].FieldName];
 end;
 
 { TTreeCollectionEditor }
@@ -4110,7 +4110,7 @@ begin
       var
         vTransitEntity: TEntity;
       begin
-        vTransitEntity := TEntityList(FView.DomainObject).AddEntity(AHolder, '', FTransitFieldDef.Name, [Integer(vEntity)]);
+        vTransitEntity := TEntityList(FView.DomainObject).AddEntity(AHolder, '', FTransitFieldDef.Name, [NativeInt(vEntity)]);
         //vTransitEntity._SetFieldEntity(AHolder, FTransitField.Name, vEntity);
         FListBox.Items[AIndex].ItemObject := vTransitEntity;
         Result := True;

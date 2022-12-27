@@ -343,7 +343,6 @@ end;
 
 procedure TChangeHolder.DeleteChangedEntity(const AIndex: Integer);
 begin
-  //Core.AddMessage('%%% ENTITY DELETED: ' + IntToStr(Integer(FChangedEntityLinks[AIndex])));
   FChangedEntities.Delete(AIndex);
 end;
 

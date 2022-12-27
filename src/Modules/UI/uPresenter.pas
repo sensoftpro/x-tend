@@ -541,7 +541,7 @@ begin
       end;
 
       //for j := 0 to vDestItem.Count - 1 do
-      //  vDestItem[j].Tag := Integer(vChildArea);
+      //  vDestItem[j].Tag := NativeInt(vChildArea);
       AParent.AddArea(vChildArea);
     end
     else begin

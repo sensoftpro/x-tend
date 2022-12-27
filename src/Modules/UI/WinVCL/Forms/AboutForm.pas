@@ -39,7 +39,7 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   cxGraphics, Menus, StdCtrls, ImgList, CheckLst, cxLookAndFeels, cxLookAndFeelPainters,
   cxControls, cxContainer, cxEdit, cxLabel, uInteractor, dxGDIPlusClasses,
-  Vcl.ExtCtrls;
+  Vcl.ExtCtrls, System.ImageList, Vcl.Buttons;
 
 type
   TAboutFm = class(TForm)
@@ -55,6 +55,10 @@ type
     lblWeb: TLabel;
     lblAllRightsReserved: TLabel;
     Shape1: TShape;
+    ImageList1: TImageList;
+    Button1: TButton;
+    SpeedButton1: TSpeedButton;
+    BitBtn1: TBitBtn;
     procedure lblSiteClick(Sender: TObject);
     procedure lblMailClick(Sender: TObject);
   private

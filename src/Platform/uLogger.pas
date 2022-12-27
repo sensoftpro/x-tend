@@ -87,6 +87,11 @@ begin
 end;
 
 function TLogger.AddMessage(const AMessage: string; const AMessageKind: TMessageKind): string;
+{$IFDEF DEBUG}
+var
+  vFile: TFileStream;
+  vBuffer: TBytes;
+{$ENDIF}
 begin
   Result := '';
   if not FEnabled then
@@ -96,8 +101,21 @@ begin
 {$IFDEF DEBUG}
   Result := FormatDateTime('hh:nn:ss.zzz', Now) + ' ' + cLogMessageTypes[AMessageKind] +
     ' ' + StringOfChar(' ', FLogIndentLevel * 2) + AMessage;
-  FItems.Add(Result);
-  Flush;
+  if FileExists(FFileName) then
+  begin
+    vFile := TFileStream.Create(FFileName, fmOpenWrite);
+    vFile.Position := vFile.Size;
+    vFile.Write(sLineBreak, Length(sLineBreak));
+  end
+  else
+    vFile := TFileStream.Create(FFileName, fmCreate);
+
+  try
+    vBuffer := TEncoding.Default.GetBytes(Result);
+    vFile.WriteData(vBuffer, Length(Result));
+  finally
+    vFile.Free;
+  end;
 {$ENDIF}
 end;
 

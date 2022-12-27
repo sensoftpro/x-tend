@@ -39,11 +39,7 @@ uses
   Classes, SysUtils, windows, Generics.Collections;
 
 const
-{$IFDEF WIN64}
-  cSqlite3Lib = 'x64/sqlite3.dll';
-{$ELSE}
-  cSqlite3Lib = 'x86/sqlite3.dll';
-{$ENDIF}
+  cSqlite3Lib = 'sqlite3.dll';
 
 type
   qword = int64;

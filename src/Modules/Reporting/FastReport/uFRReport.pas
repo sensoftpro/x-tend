@@ -119,7 +119,7 @@ begin
           vPicture.Picture.Bitmap.FreeImage;
           vPictureData := ValueByName(vPicture.TagStr).Value;
           if not VarIsNull(vPictureData) and VarIsOrdinal(vPictureData) then
-            vPicture.LoadPictureFromStream(TMemoryStream(Integer(vPictureData)));
+            vPicture.LoadPictureFromStream(TMemoryStream(NativeInt(vPictureData)));
         end;
       end;
       FPage.Report.Engine.ShowBand(vBand);

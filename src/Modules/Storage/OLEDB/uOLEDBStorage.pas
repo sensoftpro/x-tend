@@ -36,7 +36,7 @@ unit uOLEDBStorage;
 interface
 
 uses
-  Classes, ADOX_TLB, DB, Generics.Collections, uDBConnector, uStorage, uJSON, uParameters, uConsts;
+  Classes, ADOX_TLB, DB, Generics.Collections, uDBConnector, uStorage, uJSON, uConsts;
 
 type
   TDBContext = class

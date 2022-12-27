@@ -268,7 +268,7 @@ begin
       vMenuItem := TMenuItem.Create(nil);
       vMenuItem.Caption := GetTranslation(vDefinition);
       vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
-      vMenuItem.Tag := Integer(FAddArea);
+      vMenuItem.Tag := NativeInt(FAddArea);
       vMenuItem.OnClick := OnActionMenuSelected;
       FTypeSelectionMenu.Items.Add(vMenuItem);
     end;
@@ -770,7 +770,7 @@ begin
   Result := TcxCategoryRow(FEditor.Add(TcxCategoryRow));
   Result.Properties.Caption := GetFieldTranslation(AFieldDef);
   Result.Properties.Hint := GetFieldTranslation(AFieldDef, tpHint);
-  Result.Tag := Integer(TRowData.Create(ARootEntity, AFieldDef));
+  Result.Tag := NativeInt(TRowData.Create(ARootEntity, AFieldDef));
 end;
 
 function TEntityFieldListEditor.CreateEditRow(const ARootEntity: TEntity; const AFieldDef: TFieldDef;
@@ -786,7 +786,7 @@ begin
   else
     Result.Properties.Caption := AOverriddenCaption;
 
-  Result.Tag := Integer(TRowData.Create(ARootEntity, AFieldDef));
+  Result.Tag := NativeInt(TRowData.Create(ARootEntity, AFieldDef));
 
   Result.Properties.EditPropertiesClassName := 'TcxTextEditProperties';
   case AFieldDef.Kind of
@@ -1212,8 +1212,8 @@ begin
       begin
         vRadioItem := vRadioItems.Add;
         vRadioItem.Caption := vEnt.DisplayName;
-        vRadioItem.Tag := Integer(vEnt);
-        if vEnt = TEntity(Integer(FView.FieldValue)) then
+        vRadioItem.Tag := NativeInt(vEnt);
+        if vEnt = TEntity(NativeInt(FView.FieldValue)) then
           TcxRadioGroup(FControl).ItemIndex := TcxRadioGroup(FControl).Properties.Items.Count - 1;
       end;
       //todo: обработать <не задано> если нужно

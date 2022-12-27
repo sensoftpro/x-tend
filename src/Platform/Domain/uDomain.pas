@@ -100,7 +100,9 @@ type
     FAppTitle: string;
     FLoadingChanges: Boolean;
 
+    {$IFDEF DEBUG}
     procedure SyncFieldsWithStorage(const ADefinition: TDefinition; const AStorage: TStorage);
+    {$ENDIF}
     function VerifyStorageStructure: Boolean;
     //procedure UpdateDomainStructures;
     function GetLanguage: string;
@@ -1195,6 +1197,7 @@ begin
   TDomainStoppedProc(FConfiguration.DomainStoppedProc)(Self);
 end;
 
+{$IFDEF DEBUG}
 procedure TDomain.SyncFieldsWithStorage(const ADefinition: TDefinition; const AStorage: TStorage);
 var
   vField: TFieldDef;
@@ -1238,6 +1241,7 @@ begin
   for vField in ADefinition.ServiceFields.Objects do
     InternalSyncronize(vField);
 end;
+{$ENDIF}
 
 function TDomain.SyncWithStorage(const ADefinition: TDefinition; const AStorage: TStorage): Boolean;
 begin

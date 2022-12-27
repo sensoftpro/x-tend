@@ -692,8 +692,8 @@ var
       if vInsertingCount > 0 then
         Move(Pointer(NativeInt(FData) + (vPrevRemovingIndex + 1) * FValueSize)^,
           Pointer(NativeInt(FData) + vInsertIndex * FValueSize)^, vInsertingCount * FValueSize);
-        //MoveMemory(Pointer(Integer(FData) + vInsertIndex * FValueSize),
-        //  Pointer(Integer(FData) + (vPrevRemovingIndex + 1) * FValueSize), vInsertingCount * FValueSize);
+        //MoveMemory(Pointer(NativeInt(FData) + vInsertIndex * FValueSize),
+        //  Pointer(NativeInt(FData) + (vPrevRemovingIndex + 1) * FValueSize), vInsertingCount * FValueSize);
     end;
   end;
 

@@ -1186,7 +1186,7 @@ end;
 
 procedure ExpandStream(const AInStream, AOutStream: TStream);
 var
-  vCount: integer;
+  vCount: Integer;
   vZStream: TDecompressionStream;
   vBuffer: Byte;
 begin

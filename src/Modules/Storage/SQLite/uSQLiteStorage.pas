@@ -63,7 +63,6 @@ type
     procedure AddBlobParameter(const AName: string; const AValue: TStream); virtual;
 
     procedure Commit(const ASQLite: TSQLite; const ASaveAction: TEntitySaveAction);
-    procedure OpenQueryAsync(const ASQLite: TSQLite; const AFetchFunc: TFetchDataFunc);
   end;
 
   TSQLiteStorage = class(TStorage)
@@ -92,7 +91,6 @@ type
     procedure DoWriteStream(const ATag: string; const AStream: TStream); override;
     function DoReadStream(const ATag: string): TStream; override;
     procedure DoReadGroup(const ATag: string; const AReadFunc: TStorageFunc); override;
-    procedure DoReadGroupAsync(const ATag: string; const AFetchFunc: TFetchDataFunc); override;
 
     function DoSyncGroupDef(const ATag: string; const ASyncFunc:
       TStorageFunc): Boolean; override;
@@ -372,68 +370,6 @@ begin
   end;
 end;
 
-procedure TSQLiteDBContext.OpenQueryAsync(const ASQLite: TSQLite; const AFetchFunc: TFetchDataFunc);
-var
-  vSQLText: string;
-  i, vCol, vRow, vColCount, vRowCount: Integer;
-  vWhereStr: string;
-  vParamName: string;
-  vFields, vRows: Variant;
-  vFieldDict: TDictionary<string, Integer>;
-  vRec: TSQLiteRecord;
-begin
-  if ASQLite = nil then
-    Exit;
-  if not Assigned(AFetchFunc) then
-    Exit;
-
-  vWhereStr := '';
-  for i := 0 to FKeyParameters.Count - 1 do
-  begin
-    vParamName := TSimpleParameter(FKeyParameters[i]).Name;
-    if vParamName = 'id' then
-      Continue;
-    if i > 0 then
-      vWhereStr := vWhereStr + ' and ';
-    vWhereStr := vWhereStr + vParamName + ' = ?';
-  end;
-
-  if vWhereStr <> '' then
-    vWhereStr := ' where ' + vWhereStr;
-
-  vSQLText := Format('select * from [%s]' + vWhereStr, [FTableName]);
-
-  ASQLite.DBQuery(vSQLText, []);
-  if ASQLite.SQLiteResult.Empty then
-    Exit;
-
-  vFieldDict := TDictionary<string, Integer>.Create;
-  try
-    vColCount := ASQLite.SQLiteResult.Columns.Count;
-    vFields := VarArrayCreate([0, vColCount - 1], varVariant);
-    for i := 0 to vColCount - 1 do
-    begin
-      vFields[i] := i;
-      vFieldDict.Add(ASQLite.SQLiteResult.Columns[i], i);
-    end;
-
-    vRowCount := ASQLite.SQLiteResult.Records.Count;
-    vRows := VarArrayCreate([0, vColCount - 1, 0, vRowCount - 1], varVariant);
-
-    // Выгружаем значения всех записей в массив
-    for vRow := 0 to vRowCount - 1 do
-    begin
-      vRec := ASQLite.SQLiteResult.Records[vRow];
-      for vCol := 0 to vColCount - 1 do
-        vRows[vCol, vRow] := vRec[vCol];
-    end;
-
-    AFetchFunc(vFieldDict, vRows);
-  finally
-    vFieldDict.Free;
-  end;
-end;
-
 { TSQLiteStorage }
 
 constructor TSQLiteStorage.Create(const ADomain: TObject; const AName: string);
@@ -697,11 +633,6 @@ begin
   finally
     Pop;
   end;
-end;
-
-procedure TSQLiteStorage.DoReadGroupAsync(const ATag: string; const AFetchFunc: TFetchDataFunc);
-begin
-  GetActiveContext.OpenQueryAsync(FSQLite, AFetchFunc);
 end;
 
 function TSQLiteStorage.DoReadStream(const ATag: string): TStream;
