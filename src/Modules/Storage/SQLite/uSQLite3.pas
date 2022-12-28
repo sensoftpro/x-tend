@@ -43,7 +43,7 @@ const
 
 type
   qword = int64;
-  ptruint = cardinal;
+  ptruint = NativeInt;
   pptruint = ^ptruint;
 
   { the following type definitions are compiler dependant }
@@ -1602,7 +1602,7 @@ begin
   res := sqlite3_prepare(FDB, PAnsiChar(asql), Length(asql), @stm, @tail);
   if res <> SQLITE_OK then
   begin
-    if tail <> nil then
+    if tail <> '' then
       sqlite3_free(tail);
     Exit;
   end;

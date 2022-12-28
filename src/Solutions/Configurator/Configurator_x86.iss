@@ -80,9 +80,9 @@ Source: "{#MySolutionDir}\templates\layouts\*.*"; DestDir: "{app}\solutions\{#My
 Source: "{#MySolutionDir}\favicon.ico"; DestDir: "{app}\solutions\{#MyLowerCaseAppName}"; Flags: ignoreversion skipifsourcedoesntexist
 
 [Icons]
-Name: "{group}\{#MyAppTitle} (64-бит)"; Filename: "{app}\Win32\{#MyAppExeName}"; IconFilename: "{app}\solutions\{#MyLowerCaseAppName}\favicon.ico"
+Name: "{group}\{#MyAppTitle}"; Filename: "{app}\Win32\{#MyAppExeName}"; IconFilename: "{app}\solutions\{#MyLowerCaseAppName}\favicon.ico"
 Name: "{group}\{cm:UninstallProgram,{#MyAppTitle}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#MyAppTitle} (64-бит)"; Filename: "{app}\Win32\{#MyAppExeName}"; Tasks: desktopicon; IconFilename: "{app}\solutions\{#MyLowerCaseAppName}\favicon.ico"
+Name: "{autodesktop}\{#MyAppTitle}"; Filename: "{app}\Win32\{#MyAppExeName}"; Tasks: desktopicon; IconFilename: "{app}\solutions\{#MyLowerCaseAppName}\favicon.ico"
 
 [Languages]
 Name: "en"; MessagesFile: "compiler:Default.isl"
@@ -94,6 +94,7 @@ Filename: "{app}\Win32\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#Strin
 [UninstallDelete]
 Type: files; Name: "{app}\solutions\{#MyLowerCaseAppName}\settings.ini"
 Type: files; Name: "{app}\solutions\{#MyLowerCaseAppName}\local.db"
+Type: files; Name: "{app}\settings.ini"
 
 [INI]
 Filename: "{app}\settings.ini"; Section: "Core"; Key: "RunMode"; String: "singleton"; Flags: uninsdeletesectionifempty uninsdeleteentry

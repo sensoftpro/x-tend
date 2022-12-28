@@ -96,6 +96,7 @@ Filename: "{app}\Win64\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#Strin
 [UninstallDelete]
 Type: files; Name: "{app}\solutions\{#MyLowerCaseAppName}\settings.ini"
 Type: files; Name: "{app}\solutions\{#MyLowerCaseAppName}\local.db"
+Type: files; Name: "{app}\settings.ini"
 
 [INI]
 Filename: "{app}\settings.ini"; Section: "Core"; Key: "RunMode"; String: "singleton"; Flags: uninsdeletesectionifempty uninsdeleteentry

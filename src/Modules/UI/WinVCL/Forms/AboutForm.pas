@@ -54,11 +54,8 @@ type
     lblEmail: TLabel;
     lblWeb: TLabel;
     lblAllRightsReserved: TLabel;
-    Shape1: TShape;
     ImageList1: TImageList;
     Button1: TButton;
-    SpeedButton1: TSpeedButton;
-    BitBtn1: TBitBtn;
     procedure lblSiteClick(Sender: TObject);
     procedure lblMailClick(Sender: TObject);
   private
