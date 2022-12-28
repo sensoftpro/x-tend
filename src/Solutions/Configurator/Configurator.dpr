@@ -86,6 +86,8 @@ uses
   // UI: DevExpress
   uDevExpressPresenter in '..\..\Modules\UI\WinVCL\DevExpress\uDevExpressPresenter.pas',
   uDEArea in '..\..\Modules\UI\WinVCL\DevExpress\Editors\uDEArea.pas',
+  uDESimpleEditors in '..\..\Modules\UI\WinVCL\DevExpress\Editors\uDESimpleEditors.pas',
+  uDEListEditors in '..\..\Modules\UI\WinVCL\DevExpress\Editors\uDEListEditors.pas',
 
   // Storage: SQLite
   uSQLite3 in '..\..\Modules\Storage\SQLite\uSQLite3.pas',
