@@ -71,6 +71,10 @@ uses
   vclListEditors in '..\..\Modules\UI\WinVCL\Editors\vclListEditors.pas',
   vclBlobEditors in '..\..\Modules\UI\WinVCL\Editors\vclBlobEditors.pas',
   vclPopupForm in '..\..\Modules\UI\WinVCL\Editors\vclPopupForm.pas',
+  uVST in '..\..\Modules\UI\WinVCL\VST\uVST.pas',
+  VirtualTrees in '..\..\Modules\UI\WinVCL\VST\VirtualTrees.pas',
+  VTAccessibilityFactory in '..\..\Modules\UI\WinVCL\VST\VTAccessibilityFactory.pas',
+
   // ... and forms
   uManagedForm in '..\..\Modules\UI\WinVCL\Forms\uManagedForm.pas',
   StartForm in '..\..\Modules\UI\WinVCL\Forms\StartForm.pas' {StartFm},
@@ -86,6 +90,8 @@ uses
   // UI: DevExpress
   uDevExpressPresenter in '..\..\Modules\UI\WinVCL\DevExpress\uDevExpressPresenter.pas',
   uDEArea in '..\..\Modules\UI\WinVCL\DevExpress\Editors\uDEArea.pas',
+  uDESimpleEditors in '..\..\Modules\UI\WinVCL\DevExpress\Editors\uDESimpleEditors.pas',
+  uDEListEditors in '..\..\Modules\UI\WinVCL\DevExpress\Editors\uDEListEditors.pas',
 
   // Storage: SQLite
   uSQLite3 in '..\..\Modules\Storage\SQLite\uSQLite3.pas',

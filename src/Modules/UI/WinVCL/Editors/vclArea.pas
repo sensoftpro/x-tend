@@ -1210,7 +1210,7 @@ begin
   else if FControl.InheritsFrom(TEdit) then
     TEdit(FControl).Alignment:= AAlignment
   else if FOwner is TFilenameFieldEditor then
-    TFilenameFieldEditor(FOwner).TextEdit.Properties.Alignment.Horz := AAlignment;
+    TFilenameFieldEditor(FOwner).TextEdit.Alignment := AAlignment;
 end;
 
 procedure TVCLControl.SetBounds(const Value: TRect);
