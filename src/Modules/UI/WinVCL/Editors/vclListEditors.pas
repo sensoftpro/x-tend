@@ -75,7 +75,7 @@ type
     procedure CreateColumnsFromModel(const AFields: string = '');
     procedure EnableColumnParamsChangeHandlers(const AEnable: Boolean);
     procedure CreateColumn(const AFieldDef: TFieldDef; const AOverriddenCaption: string; const AWidth: Integer);
-    procedure BeforeContextMenuShow(Sender: TObject);
+
     procedure SaveColumnWidths(Sender: TObject);
     procedure LoadColumnWidths;
     {function FindColumnByFieldName(const AFieldName: string): TListColumn;}
@@ -94,6 +94,8 @@ type
     constructor Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
       const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''); override;
     destructor Destroy; override;
+
+    procedure BeforeContextMenuShow(Sender: TObject); // не нужен?
   end;
 
   TColumnListEditor = class(TFieldArea)
@@ -109,7 +111,6 @@ type
     procedure CreateColumnsFromModel(const AFields: string = '');
     procedure EnableColumnParamsChangeHandlers(const AEnable: Boolean);
     procedure CreateColumn(const AFieldDef: TFieldDef; const AOverriddenCaption: string; const AWidth: Integer);
-    procedure BeforeContextMenuShow(Sender: TObject);
     procedure SaveColumnWidths(Sender: TObject);
     procedure LoadColumnWidths;
     function CreateRow(AEntity: TEntity): Boolean;
@@ -119,6 +120,8 @@ type
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
+  public
+    procedure BeforeContextMenuShow(Sender: TObject); // не нужен?
   end;
 
 implementation

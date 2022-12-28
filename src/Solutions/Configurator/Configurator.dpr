@@ -71,6 +71,10 @@ uses
   vclListEditors in '..\..\Modules\UI\WinVCL\Editors\vclListEditors.pas',
   vclBlobEditors in '..\..\Modules\UI\WinVCL\Editors\vclBlobEditors.pas',
   vclPopupForm in '..\..\Modules\UI\WinVCL\Editors\vclPopupForm.pas',
+  uVST in '..\..\Modules\UI\WinVCL\VST\uVST.pas',
+  VirtualTrees in '..\..\Modules\UI\WinVCL\VST\VirtualTrees.pas',
+  VTAccessibilityFactory in '..\..\Modules\UI\WinVCL\VST\VTAccessibilityFactory.pas',
+
   // ... and forms
   uManagedForm in '..\..\Modules\UI\WinVCL\Forms\uManagedForm.pas',
   StartForm in '..\..\Modules\UI\WinVCL\Forms\StartForm.pas' {StartFm},
