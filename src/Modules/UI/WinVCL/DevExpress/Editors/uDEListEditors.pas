@@ -4419,5 +4419,18 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, '', TCollectionEd
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, 'Pivot', TPivotGrid);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, 'Tree', TTreeCollectionEditor);
 
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, '', TColumnListEditor);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'simple', TListEditor);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'selector', TEntityListSelector); //deprecated
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'multiselect', TEntityListSelector2);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'multiselect3', TEntityListSelector3);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'mtm', TEntityListSelectorMTM);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'parameters', TParametersEditor);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'paged', TPagedEntityListSelector);
+//
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiCollection, '', TCollectionEditor);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiCollection, 'Pivot', TPivotGrid);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiCollection, 'Tree', TTreeCollectionEditor);
+
 end.
 

@@ -471,4 +471,14 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'ToolBar', TToolB
 TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, '', TDEButtonArea);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, 'link', TDELinkArea);
 
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, '', TTreeViewArea);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'TreeView', TTreeViewArea);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'NavBar', TNavBarArea);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'MainMenu', TMainMenuArea);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'ToolBar', TToolBarArea);
+////TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'OneButton', TOneButtonArea);
+//
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, '', TDEButtonArea);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, 'link', TDELinkArea);
+
 end.

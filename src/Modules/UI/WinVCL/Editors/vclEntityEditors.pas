@@ -1238,4 +1238,12 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'select', TVCLEnt
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'fieldlist', TEntityFieldListEditor);
 TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'radio', TRadioEntitySelector);
 
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, '', TVCLEntityFieldEditor);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'simple', TVCLEntityFieldEditor);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'list', TListEntityFieldEditor);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'link', TVCLLinkedEntityFieldEditor);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'select', TVCLEntitySelector);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'fieldlist', TEntityFieldListEditor);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'radio', TRadioEntitySelector);
+
 end.

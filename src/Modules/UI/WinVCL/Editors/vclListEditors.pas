@@ -1659,4 +1659,10 @@ TPresenter.RegisterUIClass('Windows.VCL', uiListEdit, 'mtm', TEntityListSelector
 
 TPresenter.RegisterUIClass('Windows.VCL', uiCollection, '', TCollectionEditor); // !
 
+//TPresenter.RegisterControlClass('Windows.VCL', uiListEdit, '', TColumnListEditor); // !
+////TPresenter.RegisterControlClass('Windows.VCL', uiListEdit, 'simple', TListEditor);
+//TPresenter.RegisterControlClass('Windows.VCL', uiListEdit, 'mtm', TEntityListSelectorMTM);
+//
+//TPresenter.RegisterControlClass('Windows.VCL', uiCollection, '', TCollectionEditor); // !
+
 end.

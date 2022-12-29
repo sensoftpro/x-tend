@@ -413,4 +413,8 @@ TPresenter.RegisterUIClass('Windows.VCL', uiTextEdit, '', TTextFieldEditor);
 TPresenter.RegisterUIClass('Windows.VCL', uiTextEdit, 'info', TTextInfo);
 TPresenter.RegisterUIClass('Windows.VCL', uiIntegerEdit, '', TIntegerFieldEditor);
 
+//TPresenter.RegisterControlClass('Windows.VCL', uiTextEdit, '', TTextFieldEditor);
+//TPresenter.RegisterControlClass('Windows.VCL', uiTextEdit, 'info', TTextInfo);
+//TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, '', TIntegerFieldEditor);
+
 end.

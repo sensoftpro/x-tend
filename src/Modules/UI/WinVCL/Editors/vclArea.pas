@@ -1389,4 +1389,13 @@ TPresenter.RegisterUIClass('Windows.VCL', uiNavigation, 'ToolBar', TToolBarArea)
 TPresenter.RegisterUIClass('Windows.VCL', uiAction, '', TButtonArea);
 TPresenter.RegisterUIClass('Windows.VCL', uiAction, 'link', TLinkArea);
 
+//TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, '', TTreeViewArea);
+//TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'TreeView', TTreeViewArea);
+//TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'MainMenu', TMainMenuArea);
+//TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'ToolBar', TToolBarArea);
+////TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'OneButton', TOneButtonArea);
+//
+//TPresenter.RegisterControlClass('Windows.VCL', uiAction, '', TButtonArea);
+//TPresenter.RegisterControlClass('Windows.VCL', uiAction, 'link', TLinkArea);
+
 end.

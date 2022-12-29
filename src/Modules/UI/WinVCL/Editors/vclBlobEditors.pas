@@ -118,4 +118,6 @@ initialization
 
 TPresenter.RegisterUIClass('Windows.DevExpress', uiComplexEdit, 'chart', TFieldChartArea);
 
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiComplexEdit, 'chart', TFieldChartArea);
+
 end.

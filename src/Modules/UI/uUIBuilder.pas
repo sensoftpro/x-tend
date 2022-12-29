@@ -139,6 +139,7 @@ type
   end;
 
   TNativeControlClass = class of TNativeControl;
+  //TNativeControlClass = class of TUIArea;
 
   TUIArea = class
   private
