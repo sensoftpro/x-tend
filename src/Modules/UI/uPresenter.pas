@@ -272,6 +272,7 @@ type
     procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); virtual;
 
     function ActiveInteractor: TInteractor;
+    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
   public
     constructor Create(const AName: string; const ASettings: TSettings); virtual;
     destructor Destroy; override;
@@ -310,7 +311,6 @@ type
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
     function CreateTempControl: TObject; virtual; abstract;
 
-    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
     function SetCursor(const ACursorType: TCursorType): TCursorType;
     function GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
 
