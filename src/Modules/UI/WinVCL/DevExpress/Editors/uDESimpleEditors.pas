@@ -294,8 +294,6 @@ type
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
-  public
-    destructor Destroy; override;
   end;
 
   TDEPagesFieldEditor = class(TDEEditor)
@@ -385,7 +383,6 @@ type
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
-    procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); override;
   end;
 
   // определённый по времени процесс
@@ -406,11 +403,12 @@ type
   end;
 
   TEntityBreadcrumb = class (TFieldArea)
+  private
+    procedure SetValidateDefinition(const ADefinition: TDefinition);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
-    procedure SetValidateDefinition(const ADefinition: TDefinition);
   end;
 
   TLogEditor = class(TFieldArea)
@@ -1879,28 +1877,9 @@ type
 
 { TSpinner }
 
-procedure TSpinner.AssignFromLayout(const ALayout: TLayout; const AParams: string);
+function TSpinner.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vColor: Cardinal;
-begin
-  inherited;
-
-  if ALayout.Kind in [lkPanel, lkMemo] then
-  begin
-    if (FControl is TdxActivityIndicator) and (AlphaColorToColor(ALayout.Font.Color) <> clWindowText) then
-    begin
-      vColor := ALayout.Font.Color;
-      if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorHorizontalDotsProperties then
-        TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(FControl).Properties).DotColor := vColor
-      else if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorGravityDotsProperties then
-        TdxActivityIndicatorGravityDotsProperties(TdxActivityIndicator(FControl).Properties).DotColor := vColor
-      else if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorElasticCircleProperties then
-        TdxActivityIndicatorElasticCircleProperties(TdxActivityIndicator(FControl).Properties).ArcColor := vColor;
-    end;
-  end;
-end;
-
-function TSpinner.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   Result := TdxActivityIndicator.Create(nil);
   TdxActivityIndicator(Result).Transparent := True;
@@ -1915,8 +1894,20 @@ begin
       TdxActivityIndicatorElasticCircleProperties(TdxActivityIndicator(Result).Properties).ArcThickness := StrToIntDef(FCreateParams.Values['ArcThickness'], 3);
     end
     else
-    begin
       TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(Result).Properties).DotSize := StrToIntDef(FCreateParams.Values['DotSize'], 5);
+  end;
+
+  if ALayout.Kind in [lkPanel, lkMemo] then
+  begin
+    if (Result is TdxActivityIndicator) and (AlphaColorToColor(ALayout.Font.Color) <> clWindowText) then
+    begin
+      vColor := ALayout.Font.Color;
+      if TdxActivityIndicator(Result).Properties is TdxActivityIndicatorHorizontalDotsProperties then
+        TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(Result).Properties).DotColor := vColor
+      else if TdxActivityIndicator(Result).Properties is TdxActivityIndicatorGravityDotsProperties then
+        TdxActivityIndicatorGravityDotsProperties(TdxActivityIndicator(Result).Properties).DotColor := vColor
+      else if TdxActivityIndicator(Result).Properties is TdxActivityIndicatorElasticCircleProperties then
+        TdxActivityIndicatorElasticCircleProperties(TdxActivityIndicator(Result).Properties).ArcColor := vColor;
     end;
   end;
 end;
@@ -2766,12 +2757,6 @@ begin
 end;
 
 { TDEImagedAction }
-
-destructor TDEImagedAction.Destroy;
-begin
-
-  inherited;
-end;
 
 procedure TDEImagedAction.DoBeforeFreeControl;
 begin

@@ -44,7 +44,7 @@ uses
 //////  3. Обработка TabOrder
 ///  4. Сохранение и восстановление размеров форм в презентере
 //////  5. Name и Description
-///  6. Перенести AssignFromLayout в общий код создания
+//////  6. Перенести AssignFromLayout в общий код создания
 ///  7. Сделать TCollectionArea, перенести код в DoCreateControl
 ///  8. Разбраться с надписью для полей
 ///  9. Внутри у TNativeControl может не быть нативного контрола, а, например, html-текст
@@ -89,7 +89,7 @@ type
     procedure SetCaptionProperty(const ALayout: TLayout); virtual;
     procedure UpdateCaptionVisibility; override;
   public
-    constructor Create(const AOwner: TUIArea; const AControl: TObject); override;
+    constructor Create(const AOwner: TUIArea; const AControl: TObject; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
 
@@ -954,9 +954,9 @@ begin
     CheckMenuItems(vMenuItem);
 end;
 
-constructor TVCLControl.Create(const AOwner: TUIArea; const AControl: TObject);
+constructor TVCLControl.Create(const AOwner: TUIArea; const AControl: TObject; const AParams: string);
 begin
-  inherited Create(AOwner, AControl);
+  inherited Create(AOwner, AControl, AParams);
 
   FIsForm := AControl is TForm;
   FIsAutoReleased := AControl is TMenuItem;

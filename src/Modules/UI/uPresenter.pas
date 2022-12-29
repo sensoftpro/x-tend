@@ -297,8 +297,8 @@ type
       const AStyleName, AParams: string): TUIArea;
     function CreateNavigationArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
       const AStyleName, AParams: string): TUIArea;
-    function CreateNativeControl(const AArea: TUIArea; const ALayout: TLayout;
-      const AView: TView; const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
+    function CreateNativeControl(const AArea: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
 
     procedure EnumerateControls(const ALayout: TLayout; const AControl: TObject);
 
@@ -703,7 +703,7 @@ begin
   end;
 end;
 
-function TPresenter.CreateNativeControl(const AArea: TUIArea; const ALayout: TLayout; const AView: TView;
+function TPresenter.CreateNativeControl(const AArea: TUIArea; const AView: TView; const ALayout: TLayout;
   const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
 var
   vParams: string;
@@ -726,7 +726,7 @@ begin
   else
     vParams := vParams + '&' + AParams;
 
-  //Result := vControlClass.Create(AArea, ALayout, AView, vParams);
+  //Result := vControlClass.Create(AArea, vParams);
   Result := nil;
 end;
 
