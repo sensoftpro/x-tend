@@ -824,7 +824,7 @@ begin
 
         if FCurrentArea.FAreas.IndexOf(vUIArea) >= 0 then
         begin
-          Result := TPresenter(TInteractor(FInteractor).Presenter).ShowUIArea(TInteractor(FInteractor), vAreaName, AOptions, vUIArea);
+          Result := TPresenter(FPresenter).ShowUIArea(TInteractor(FInteractor), vAreaName, AOptions, vUIArea);
           Exit;
         end;
 
@@ -939,7 +939,7 @@ begin
     vOptions := vOptions + 'Caption=' + ACaption;
   end;
 
-  Result := TPresenter(TInteractor(FInteractor).Presenter).ShowUIArea(TInteractor(FInteractor), vAreaName, vOptions, vUIArea);
+  Result := TPresenter(FPresenter).ShowUIArea(TInteractor(FInteractor), vAreaName, vOptions, vUIArea);
   if Result > drNone then
     FCurrentArea := vLastCurrentArea;
 
