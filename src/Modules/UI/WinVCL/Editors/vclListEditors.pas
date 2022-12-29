@@ -1653,11 +1653,11 @@ end;
 
 initialization
 
-TPresenter.RegisterUIClass('Windows.VCL', uiListEdit, '', TColumnListEditor); // !
+//TPresenter.RegisterUIClass('Windows.VCL', uiListEdit, '', TColumnListEditor); // !
 //TPresenter.RegisterUIClass('Windows.VCL', uiListEdit, 'simple', TListEditor);
-TPresenter.RegisterUIClass('Windows.VCL', uiListEdit, 'mtm', TEntityListSelectorMTM);
+//TPresenter.RegisterUIClass('Windows.VCL', uiListEdit, 'mtm', TEntityListSelectorMTM);
 
-TPresenter.RegisterUIClass('Windows.VCL', uiCollection, '', TCollectionEditor); // !
+//TPresenter.RegisterUIClass('Windows.VCL', uiCollection, '', TCollectionEditor); // !
 
 //TPresenter.RegisterControlClass('Windows.VCL', uiListEdit, '', TColumnListEditor); // !
 ////TPresenter.RegisterControlClass('Windows.VCL', uiListEdit, 'simple', TListEditor);

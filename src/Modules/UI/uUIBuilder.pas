@@ -60,6 +60,8 @@ type
     [Weak] FPresenter: TObject;
     [Weak] FInteractor: TObject;
     [Weak] FUIBuilder: TUIBuilder;
+    [Weak] FCreateParams: TStrings;
+    FInternalParams: string;
 
     FParams: string;
     FIsForm: Boolean;
@@ -322,15 +324,18 @@ type
 
     function GetName: string; override;
     procedure RefillArea(const AKind: Word); override;
+  public
+    constructor Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
+      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''); override;
 
     procedure SetFieldValue(const AValue: Variant);
     procedure SetFieldEntity(const AEntity: TEntity);
     procedure SetFieldStream(const AStream: TStream);
 
     function GetFormat: string;
-  public
-    constructor Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
-      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''); override;
+
+    property FieldDef: TFieldDef read FFieldDef;
+    property DefinitionName: string read FDefinitionName;
   end;
 
   TNavigationArea = class(TUIArea)
@@ -1222,10 +1227,13 @@ begin
     ALayout.Params := AParams;
 
   FParent := AParent;
-  FNativeControl := NativeControlClass.Create(Self, AControl, AParams); //?? Создать меню здесь?
+  if Assigned(ALayout) and not Assigned(AControl) and not (ALayout is TNavigationItem)
+    and (ALayout.Kind = lkPanel) and (AView.DefinitionKind in [dkAction, dkSimpleField])
+  then
+    FNativeControl := _CreateNativeControl(ALayout, AView, uiUnknown, AParams)
+  else
+    FNativeControl := NativeControlClass.Create(Self, AControl, AParams);
   SetControl(InnerControl);
-
-  //FNewNativeControl := _CreateNativeControl(AView, ALayout, uiUnknown, '', AParams);
 end;
 
 function TUIArea.CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TProc = nil): TUIArea;
@@ -2534,6 +2542,8 @@ begin
   FPresenter := AOwner.Presenter;
   FInteractor := AOwner.Interactor;
   FUIBuilder := AOwner.UIBuilder;
+  FCreateParams := AOwner.CreateParams;
+  FInternalParams := AOwner.InternalParams;
   FIsForm := False;
   FIsAutoReleased := False;
   FShowCaption := True;
@@ -2542,8 +2552,11 @@ begin
 
   if Assigned(AControl) then
     FControl := AControl
-  else
+  else begin
     FControl := FMockOwner.DoCreateControl(FParent, FLayout);
+    if not Assigned(FControl) then
+      FControl := DoCreateControl(FParent, FLayout);
+  end;
 end;
 
 procedure TNativeControl.CreateCaption(const AFieldDef: TFieldDef);

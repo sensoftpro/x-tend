@@ -298,8 +298,12 @@ type
       const AStyleName, AParams: string): TUIArea;
     function CreateNavigationArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
       const AStyleName, AParams: string): TUIArea;
+
     function CreateNativeControl(const AArea: TUIArea; const AView: TView; const ALayout: TLayout;
       const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
+    function CreateDefaultControl(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AParams: string): TNativeControl;
+
 
     procedure EnumerateControls(const ALayout: TLayout; const AControl: TObject);
 
@@ -307,6 +311,8 @@ type
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
     procedure CloseAllPages(const AInteractor: TInteractor);
 
+    function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AParams: string = ''; const AOnClose: TProc = nil): TObject; virtual; abstract;
     function CreateArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
     function CreateTempControl: TObject; virtual; abstract;
@@ -583,6 +589,10 @@ function TPresenter.CreateActionArea(const AParentArea: TUIArea; const AView: TV
 var
   vActionAreaClass: TUIAreaClass;
 begin
+  Result := TUIArea.Create(AParentArea, AView, ALayout, 'Action', False, nil, AParams);
+
+  Exit;
+
   vActionAreaClass := TUIAreaClass(GetUIClass(FName, uiAction, AStyleName));
 
   if Assigned(vActionAreaClass) then
@@ -626,6 +636,23 @@ begin
   Result.IsDefault := True;
 end;
 
+function TPresenter.CreateDefaultControl(const AParentArea: TUIArea;
+  const AView: TView; const ALayout: TLayout; const AParams: string): TNativeControl;
+begin
+  Randomize;
+  ALayout.Kind := lkPanel;
+  ALayout.Font.Size := 10;
+  ALayout.Font.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+  ALayout.Font.Family := 'Tahoma';
+  ALayout.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+  ALayout.ShowCaption := True;
+  ALayout.Caption := ALayout.Caption;
+  ALayout.BevelInner := lbkRaised;
+  ALayout.BevelOuter := lbkLowered;
+
+  Result := GetNativeControlClass.Create(AParentArea, nil, AParams);
+end;
+
 function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
   const AStyleName, AParams: string): TUIArea;
 var
@@ -633,6 +660,11 @@ var
   vControlType: TUIItemType;
   vFieldAreaClass: TUIAreaClass;
 begin
+  Result := TFieldArea.Create(AParentArea, AView, ALayout, '', False, nil, AParams);
+
+  Exit;
+
+
   if Assigned(ALayout) and (ALayout.Kind = lkPages) then
     vViewName := 'pages'
   else
@@ -659,8 +691,8 @@ end;
 function TPresenter.CreateFilledArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
   const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''): TUIArea;
 begin
-  Result := TUIArea.Create(AParent, AView, ALayout, AId, AIsService, nil, AParams);
-  Result.SetControl(AControl);
+  Result := TUIArea.Create(AParent, AView, ALayout, AId, AIsService, AControl, AParams);
+  //Result.SetControl(AControl);
 end;
 
 function TPresenter.CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
@@ -715,19 +747,18 @@ begin
   else
     vStyleName := GetUrlCommand(AStyleName, AStyleName);
   vParams := ExtractUrlParams(AStyleName);
-
-  vControlClass := TNativeControlClass(GetControlClass(FName, AControlType, vStyleName));
-  if not Assigned(vControlClass) then
-    Assert(Assigned(vControlClass), 'Control class not found for type: "' + cControlTypeNames[AControlType] +
-      '", style name: "' + vStyleName + '" in UI: ' + ClassName);
-
   if vParams = '' then
     vParams := AParams
   else
     vParams := vParams + '&' + AParams;
 
-  //Result := vControlClass.Create(AArea, vParams);
-  Result := nil;
+  vControlClass := TNativeControlClass(GetControlClass(FName, AControlType, vStyleName));
+  if Assigned(vControlClass) then
+    Result := vControlClass.Create(AArea, nil, vParams)
+  else
+    Result := CreateDefaultControl(AArea, AView, ALayout, vParams);
+    //Assert(Assigned(vControlClass), 'Control class not found for type: "' + cControlTypeNames[AControlType] +
+    //  '", style name: "' + vStyleName + '" in UI: ' + ClassName);
 end;
 
 function TPresenter.CreateNavigationArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
@@ -1138,8 +1169,10 @@ begin
   if Assigned(vClassInfo) then
     Result := vClassInfo.FControlClass
   else
-    Assert(False, 'Control class not found for type: "' + vTypeName +
-      '", style Name: "' + vStyleName + '" in UI: ' + ClassName);
+    Result := nil;
+  //else
+  //  Assert(False, 'Control class not found for type: "' + vTypeName +
+  //    '", style Name: "' + vStyleName + '" in UI: ' + ClassName);
 end;
 
 class function TPresenter.GetPageClass(const APresenterName, APageName: string): TClass;

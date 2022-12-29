@@ -43,13 +43,22 @@ uses
   Vcl.Samples.Spin;
 
 type
-  TTextInfo = class (TFieldArea)
+  TVCLField = class(TVCLControl)
+  protected
+    [Weak] FFieldArea: TFieldArea;
+    [Weak] FFieldDef: TFieldDef;
+  public
+    constructor Create(const AOwner: TUIArea; const AControl: TObject; const AParams: string = ''); override;
+    destructor Destroy; override;
+  end;
+
+  TTextInfo = class (TVCLField)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
   end;
 
-  TIntegerFieldEditor = class (TFieldArea)
+  TIntegerFieldEditor = class (TVCLField)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -58,7 +67,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TTextFieldEditor = class (TFieldArea)
+  TTextFieldEditor = class (TVCLField)
   private
     procedure OnPhoneKeyPress(Sender: TObject; var Key: Char);
   protected
@@ -68,7 +77,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TFilenameFieldEditor = class (TFieldArea)
+  TFilenameFieldEditor = class(TFieldArea)
   private
     FBtn: TButton;
     FAction: TFileOpen;
@@ -122,14 +131,14 @@ begin
   else if FFieldDef.Kind = fkCurrency then
   begin
     if FFieldDef.Format <> '' then
-      TLabel(FControl).Caption := FormatFloat(GetFormat, FView.FieldValue)
+      TLabel(FControl).Caption := FormatFloat(FFieldArea.GetFormat, FView.FieldValue)
     else
       TLabel(FControl).Caption := FormatFloat('#,##0.00;;0', FView.FieldValue);
   end
   else if FFieldDef.Kind = fkFloat then
   begin
     if FFieldDef.Format <> '' then
-      TLabel(FControl).Caption := FormatFloat(GetFormat, FView.FieldValue)
+      TLabel(FControl).Caption := FormatFloat(FFieldArea.GetFormat, FView.FieldValue)
     else
       TLabel(FControl).Caption := FView.FieldValue;
   end
@@ -139,7 +148,7 @@ begin
     if IsZero(vValue, 1e-6) then
       TLabel(FControl).Caption := ''
     else if FFieldDef.Format <> '' then
-      TLabel(FControl).Caption := FormatDateTime(GetFormat, vValue)
+      TLabel(FControl).Caption := FormatDateTime(FFieldArea.GetFormat, vValue)
     else
       TLabel(FControl).Caption := FormatDateTime('dd.mm.yyyy hh:nn:ss', vValue);
   end
@@ -193,9 +202,9 @@ end;
 procedure TIntegerFieldEditor.DoOnChange;
 begin
   if TSpinEdit(FControl).Value = 0 then
-    SetFieldValue(Null)
+    FFieldArea.SetFieldValue(Null)
   else
-    SetFieldValue(TSpinEdit(FControl).Value);
+    FFieldArea.SetFieldValue(TSpinEdit(FControl).Value);
 end;
 
 procedure TIntegerFieldEditor.FillEditor;
@@ -222,7 +231,7 @@ begin
     end
     else begin
       vEdit.Color := clWindow;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FFieldArea.TabStop;
     end;
   end;
 end;
@@ -233,7 +242,7 @@ begin
   if not AFocused then
   begin
     // обрабатываем 0
-    SetFieldValue(TSpinEdit(FControl).Value);
+    FFieldArea.SetFieldValue(TSpinEdit(FControl).Value);
   end;
 end;
 
@@ -264,7 +273,7 @@ end;
 procedure TTextFieldEditor.DoOnChange;
 begin
   //важно использовать именно EditingText, иначе при PostMessage(KeyDown) Value = Null
-  SetFieldValue(TEdit(FControl).Text);
+  FFieldArea.SetFieldValue(TEdit(FControl).Text);
 end;
 
 procedure TTextFieldEditor.OnPhoneKeyPress(Sender: TObject; var Key: Char);
@@ -299,7 +308,7 @@ begin
       vEdit.Color := clBtnFace;
     end
     else begin
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FFieldArea.TabStop;
       vEdit.Color := clWindow;
     end;
   end;
@@ -321,7 +330,6 @@ end;
 
 procedure TFilenameFieldEditor.DoBeforeFreeControl;
 begin
-  inherited;
   FreeAndNil(FAction);
 end;
 
@@ -405,16 +413,32 @@ begin
   FText.OnChange := AHandler;
 end;
 
+{ TVCLField }
+
+constructor TVCLField.Create(const AOwner: TUIArea; const AControl: TObject;
+  const AParams: string);
+begin
+  FFieldArea := TFieldArea(AOwner);
+  FFieldDef := FFieldArea.FieldDef;
+  inherited Create(AOwner, AControl, AParams);
+end;
+
+destructor TVCLField.Destroy;
+begin
+
+  inherited;
+end;
+
 initialization
 
 RegisterClasses([TBevel, TLabel]);
 
-TPresenter.RegisterUIClass('Windows.VCL', uiTextEdit, '', TTextFieldEditor);
-TPresenter.RegisterUIClass('Windows.VCL', uiTextEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('Windows.VCL', uiIntegerEdit, '', TIntegerFieldEditor);
+//TPresenter.RegisterUIClass('Windows.VCL', uiTextEdit, '', TTextFieldEditor);
+//TPresenter.RegisterUIClass('Windows.VCL', uiTextEdit, 'info', TTextInfo);
+//TPresenter.RegisterUIClass('Windows.VCL', uiIntegerEdit, '', TIntegerFieldEditor);
 
-//TPresenter.RegisterControlClass('Windows.VCL', uiTextEdit, '', TTextFieldEditor);
-//TPresenter.RegisterControlClass('Windows.VCL', uiTextEdit, 'info', TTextInfo);
-//TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, '', TIntegerFieldEditor);
+TPresenter.RegisterControlClass('Windows.VCL', uiTextEdit, '', TTextFieldEditor);
+TPresenter.RegisterControlClass('Windows.VCL', uiTextEdit, 'info', TTextInfo);
+TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, '', TIntegerFieldEditor);
 
 end.

@@ -218,6 +218,7 @@ type
     FConstraints: TLayoutConstraints;
 
     // Надписи и внутреннее состояние
+    FId: string;
     FName: string;
     FHint: string;
     FShowCaption: Boolean;
@@ -309,6 +310,7 @@ type
     property BorderStyle: TLayoutBorderStyle read FBorderStyle write FBorderStyle;
     property TabOrder: Integer read FTabOrder write FTabOrder;
 
+    property Id: string read FId write FId;
     property Name: string read FName write FName;
     property Tag: NativeInt read FTag write FTag;
     property Caption: string read FCaption write FCaption;
@@ -981,6 +983,7 @@ begin
   FCursor := crDefault;
   FTransparent := False;
 
+  FId := '';
   FName := '';
   FHint := '';
   FShowCaption := False;
