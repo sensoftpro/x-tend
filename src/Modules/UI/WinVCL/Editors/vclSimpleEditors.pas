@@ -2526,8 +2526,7 @@ begin
     vPage.ImageIndex := FOwner.GetImageID(vTabLayout.ImageID);
     vPage.Parent := vPC;
 
-    vChildArea := TUIArea(TPresenter(FPresenter).CreateFilledArea(FOwner, FView.Parent, vTabLayout,
-      vTabLayout.Name, False, vPage));
+    vChildArea := TUIArea.Create(FOwner, FView.Parent, vTabLayout, vTabLayout.Name, False, vPage);
     FOwner.AddArea(vChildArea);
 
     TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vChildArea.View, vTabLayout, '');

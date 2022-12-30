@@ -41,6 +41,7 @@ uses
 type
   TLayoutKind = (lkNone, lkPanel, lkPage, lkPages, lkFrame, lkMemo, lkLabel, lkImage, lkBevel, lkShape,
     lkSplitter, lkScrollBox, lkAction);
+  TAreaKind = (akUnknown, akDecor, akField, akList, akAction, akNavigation);
   TLayoutAlign = (lalNone, lalTop, lalBottom, lalLeft, lalRight, lalClient, lalCustom);
   TPageStyle = (psTabs, psButtons, psFlatButtons);
   TPagePosition = (ppTop, ppBottom, ppLeft, ppRight);
@@ -219,6 +220,7 @@ type
 
     // Надписи и внутреннее состояние
     FId: string;
+    FAreaKind: TAreaKind;
     FName: string;
     FHint: string;
     FShowCaption: Boolean;
@@ -311,6 +313,7 @@ type
     property TabOrder: Integer read FTabOrder write FTabOrder;
 
     property Id: string read FId write FId;
+    property AreaKind: TAreaKind read FAreaKind write FAreaKind;
     property Name: string read FName write FName;
     property Tag: NativeInt read FTag write FTag;
     property Caption: string read FCaption write FCaption;
@@ -984,6 +987,7 @@ begin
   FTransparent := False;
 
   FId := '';
+  FAreaKind := akUnknown;
   FName := '';
   FHint := '';
   FShowCaption := False;

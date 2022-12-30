@@ -42,14 +42,17 @@ uses
 //////  1. Привязка сплиттера к контролу
 //////  2. Привязка меню к контролу
 //////  3. Обработка TabOrder
-///  4. Сохранение и восстановление размеров форм в презентере
+//////  4. Сохранение и восстановление размеров форм в презентере
 //////  5. Name и Description
 //////  6. Перенести AssignFromLayout в общий код создания
-///  7. Сделать TCollectionArea, перенести код в DoCreateControl
-///  8. Разбраться с надписью для полей
+//////  7. Сделать TCollectionArea, перенести код в DoCreateControl
+//////  8. Разбраться с надписью для полей
 ///  9. Внутри у TNativeControl может не быть нативного контрола, а, например, html-текст
 ///  10. Работа с FParams
-///  11. Перенести общее поведение и обработчики в TPresenter
+//////  11. Перенести общее поведение и обработчики в TPresenter
+///  12. Рефакторинг связки TUIArea + TNativeControl, распределение ответственности
+///  13. Рефакторинг TLayout, добавление нужных полей и удаление лишних
+///  14. Разделение TUIBuilder и отстроенных объектов
 
 type
   TVCLControl = class(TNativeControl)
@@ -95,7 +98,6 @@ type
 
   TVCLField = class(TVCLControl)
   protected
-    [Weak] FFieldArea: TFieldArea;
     [Weak] FFieldDef: TFieldDef;
 
     procedure SetFieldValue(const AValue: Variant);
@@ -162,7 +164,7 @@ type
     procedure DoExecuteUIAction(const AView: TView); override;
   end;
 
-  TOneButtonArea = class(TNavigationArea)
+  TOneButtonArea = class(TVCLControl)
   private
     FButton: TButton;
     FMenu: TPopupMenu;
@@ -215,36 +217,34 @@ end;
 constructor TVCLField.Create(const AOwner: TUIArea; const AControl: TObject;
   const AParams: string);
 begin
-  FFieldArea := TFieldArea(AOwner);
-  FFieldDef := FFieldArea.FieldDef;
+  FFieldDef := AOwner.FieldDef;
   inherited Create(AOwner, AControl, AParams);
 end;
 
 destructor TVCLField.Destroy;
 begin
-  FFieldArea := nil;
   FFieldDef := nil;
   inherited Destroy;
 end;
 
 function TVCLField.GetFormat: string;
 begin
-  Result := FFieldArea.GetFormat;
+  Result := FOwner.GetFormat;
 end;
 
 procedure TVCLField.SetFieldEntity(const AEntity: TEntity);
 begin
-  FFieldArea.SetFieldEntity(AEntity);
+  FOwner.SetFieldEntity(AEntity);
 end;
 
 procedure TVCLField.SetFieldStream(const AStream: TStream);
 begin
-  FFieldArea.SetFieldStream(AStream);
+  FOwner.SetFieldStream(AStream);
 end;
 
 procedure TVCLField.SetFieldValue(const AValue: Variant);
 begin
-  FFieldArea.SetFieldValue(AValue);
+  FOwner.SetFieldValue(AValue);
 end;
 
 { TUIAreaComparer }
@@ -305,7 +305,7 @@ begin
   FItem.Caption := ACaption;
   FItem.Hint := AHint;
   FItem.ImageIndex := AImageIndex;
-  FItem.OnClick := OnAreaClick;
+  FItem.OnClick := FOwner.OnAreaClick;
   if Assigned(AParentObj) and (TVCLControl(AParentObj).Control is TMenuItem) then
     TMenuItem(TVCLControl(AParentObj).Control).Add(FItem)
   else
@@ -625,7 +625,7 @@ procedure TTreeViewArea.Refill;
 begin
   FOwner.Clear;
   FTreeView.Items.Clear;
-  TNavigationArea(FOwner).ProcessChilds;
+  FOwner.ProcessChilds;
 end;
 
 procedure TTreeViewArea.SelectNode(const ANode: TTreeNode);
@@ -748,7 +748,7 @@ begin
         if Length(vOverriddenCaption) > 0 then
           vMenuItem.Caption := vOverriddenCaption;
         vMenuItem.ImageIndex := FOwner.GetImageID(vDefinition._ImageID);
-        vMenuItem.Tag := NativeInt(FOwner); //NativeInt(vButton);
+        vMenuItem.Tag := NativeInt(FOwner);
         vMenuItem.OnClick := FOwner.OnActionMenuSelected;
         FTypeSelectionMenu.Items.Add(vMenuItem);
       end;

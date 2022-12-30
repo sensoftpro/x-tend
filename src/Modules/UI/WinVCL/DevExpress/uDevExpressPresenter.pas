@@ -55,8 +55,8 @@ type
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
 
-    function CreateArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
+    function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AParams: string = ''; const AOnClose: TProc = nil): TObject; override;
 
     property RowStyle: TObject read FRowStyle;
   end;
@@ -89,13 +89,10 @@ begin
   FRowStyle := TcxStyle.Create(nil);
 end;
 
-function TDevExpressPresenter.CreateArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-  const AParams: string; const AOnClose: TProc): TUIArea;
+function TDevExpressPresenter.CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+  const AParams: string; const AOnClose: TProc): TObject;
 var
-  vDomain: TDomain;
-  vInteractor: TInteractor;
   vStartPageName: string;
-  vStartPageStr: string;
   vLabel: TcxLabel;
   vImage: TcxImage;
   vPC: TcxPageControl;
@@ -105,12 +102,10 @@ var
   vSplitter: TcxSplitter;
 begin
   Result := nil;
-
   if not Assigned(ALayout) then
     Exit;
 
-  vInteractor := TInteractor(AView.Interactor);
-  vDomain := TDomain(vInteractor.Domain);
+  ALayout.Id := '';
 
   if ALayout.Kind = lkLabel then
   begin
@@ -134,7 +129,7 @@ begin
     else
       vLabel.Caption := ALayout.Caption;
 
-    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vLabel);
+    Result := vLabel;
   end
   else if ALayout.Kind = lkImage then
   begin
@@ -158,7 +153,7 @@ begin
     vImage.Properties.Proportional := ALayout.Image_Proportional;
     vImage.Properties.Center := ALayout.Image_Center;
 
-    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vImage);
+    Result := vImage;
   end
   else if ALayout.Kind = lkPages then
   begin
@@ -188,12 +183,12 @@ begin
     vPC.Visible := ALayout.State > vsHidden;
     vPC.Enabled := ALayout.State > vsDisabled;
 
-    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vPC);
+    Result := vPC;
   end
   else if ALayout.Kind = lkPage then
   begin
     if (TInteractor(AView.Interactor).Layout = 'mdi') and (ALayout.Tag = 11) then
-      Result := inherited CreateArea(AParent, AView, ALayout, AParams, AOnClose)
+      Result := inherited CreateControl(AParent, AView, ALayout, AParams, AOnClose)
     else begin
       vTab := TcxTabSheet.Create(TComponent(AParent.InnerControl));
       vTab.Caption := ALayout.Caption;
@@ -203,7 +198,8 @@ begin
       vTab.AllowCloseButton := not SameText(ALayout.Name, vStartPageName);
       vTab.TabVisible := ALayout.ShowCaption;
 
-      Result := CreateFilledArea(AParent, AView, ALayout, ALayout.Name, False, vTab);
+      ALayout.Id := ALayout.Name;
+      Result := vTab;
     end;
   end
   else if ALayout.Kind = lkSplitter then
@@ -223,7 +219,8 @@ begin
     vSplitter.ParentColor := False;
     vSplitter.NativeBackground := False;
 
-    Result := CreateFilledArea(AParent, AView, ALayout, '-splitter-', False, vSplitter);
+    ALayout.Id := '-splitter-';
+    Result := vSplitter;
   end
   else if ALayout.Kind = lkPanel then
   begin
@@ -253,27 +250,15 @@ begin
       vPC.Align := TAlign(ALayout.Align);
       vPC.Anchors := ALayout.Anchors;
       CopyFontSettings(vPC.Font, ALayout);
-      Result := CreateFilledArea(AParent, AView, ALayout, Trim(ALayout.Caption), False, vPC);
 
-      // Здесь можно подкорректировать параметры
-      if StrToBoolDef(vDomain.UserSettings.GetValue('Core', 'ShowStartPage'), True) then
-      begin
-        vStartPageStr := vDomain.Settings.GetValue('Core', 'StartPage', '');
-
-        vStartPageName := GetUrlCommand(vStartPageStr);
-        if (vStartPageName <> '') and FileExists(vDomain.Configuration.FindLayoutFile(vStartPageName, LAYOUT_DFM_EXT)) then
-        begin
-          vParams.Values['Layout'] := vStartPageName;
-          vParams.Values['View'] := '';
-        end;
-      end;
-
-      AParent.UIBuilder.PagedArea := Result;
-      Result.AddParams(vParams);
+      FreeAndNil(vParams);
+      ALayout.Id := Trim(ALayout.Caption);
+      ALayout.Name := '-pages-';
+      Result := vPC;
     end
     else begin
       FreeAndNil(vParams);
-      Result := inherited CreateArea(AParent, AView, ALayout, AParams, AOnClose);
+      Result := inherited CreateControl(AParent, AView, ALayout, AParams, AOnClose);
     end;
   end
   else if ALayout.Kind = lkScrollBox then
@@ -288,11 +273,11 @@ begin
     if ALayout.BorderStyle = lbsNone then
       vBox.BorderStyle := cxcbsNone;
 
-    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vBox);
+    Result := vBox;
   end
   else if ALayout.Kind <> lkNone then
   begin
-    Result := inherited CreateArea(AParent, AView, ALayout, AParams, AOnClose);
+    Result := inherited CreateControl(AParent, AView, ALayout, AParams, AOnClose);
     Assert(Assigned(Result), 'Класс не поддерживается для создания лэйаутов');
   end
   else

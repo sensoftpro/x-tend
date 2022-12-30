@@ -208,17 +208,12 @@ type
 
   TPresenter = class(TBaseModule)
   private
-    class var RegisteredUIClasses: TObjectDictionary<string, TObjectDictionary<string, TUIClassInfo>>;
     class var RegisteredPages: TObjectDictionary<string, TDictionary<string, TClass>>;
     class var RegisteredControlClasses: TObjectDictionary<string, TObjectDictionary<string, TControlClassInfo>>;
   public
-    class procedure RegisterUIClass(const APresenterName: string; const AItemType: TUIItemType;
-      const AViewName: string; const AElementClass: TUIAreaClass);
     class procedure RegisterPage(const APresenterName: string; const APageName: string; const APageClass: TClass);
     class procedure RegisterControlClass(const APresenterName: string; const AControlType: TUIItemType;
       const AStyleName: string; const AControlClass: TNativeControlClass);
-    class function GetUIClass(const APresenterName: string; const AItemType: TUIItemType;
-      const AViewName: string): TUIAreaClass;
     class function GetPageClass(const APresenterName: string; const APageName: string): TClass;
     class function GetControlClass(const APresenterName: string; const AControlType: TUIItemType;
       const AStyleName: string): TNativeControlClass;
@@ -283,22 +278,6 @@ type
     function Login(const ADomain: TObject): TInteractor;
     procedure Logout(const AInteractor: TInteractor);
 
-    function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; virtual;
-    function CreateFilledArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
-      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''): TUIArea;
-
-    // Layouts operations
-    function CreateDefaultArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AParams: string): TUIArea;
-    function CreateFieldArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AStyleName, AParams: string): TUIArea;
-    function CreateActionArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AStyleName, AParams: string): TUIArea;
-    function CreateCollectionArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AStyleName, AParams: string): TUIArea;
-    function CreateNavigationArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AStyleName, AParams: string): TUIArea;
-
     function CreateNativeControl(const AArea: TUIArea; const AView: TView; const ALayout: TLayout;
       const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
     function CreateDefaultControl(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
@@ -306,6 +285,7 @@ type
 
     procedure EnumerateControls(const ALayout: TLayout; const AControl: TObject);
 
+    function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; virtual;
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; virtual;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
     procedure CloseAllPages(const AInteractor: TInteractor);
@@ -545,8 +525,6 @@ begin
         TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
       end;
 
-      //for j := 0 to vDestItem.Count - 1 do
-      //  vDestItem[j].Tag := NativeInt(vChildArea);
       AParent.AddArea(vChildArea);
     end
     else begin
@@ -583,60 +561,6 @@ begin
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
 end;
 
-function TPresenter.CreateActionArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
-  const AStyleName, AParams: string): TUIArea;
-var
-  vActionAreaClass: TUIAreaClass;
-begin
-  Result := TUIArea.Create(AParentArea, AView, ALayout, 'Action', False, nil, AParams);
-
-  Exit;
-
-  vActionAreaClass := TUIAreaClass(GetUIClass(FName, uiAction, AStyleName));
-
-  if Assigned(vActionAreaClass) then
-    Result := vActionAreaClass.Create(AParentArea, AView, ALayout, 'Action', False, nil, AParams)
-  else
-    Result := CreateDefaultArea(AParentArea, AView, ALayout, AParams);
-end;
-
-function TPresenter.CreateCollectionArea(const AParentArea: TUIArea; const AView: TView;
-  const ALayout: TLayout; const AStyleName, AParams: string): TUIArea;
-var
-  //vParams, vViewName: string;
-  vCollectionAreaClass: TUIAreaClass;
-begin
-  Result := TUIArea.Create(AParentArea, AView, ALayout, 'List', False, nil, AParams);
-
-  Exit;
-
-
-  vCollectionAreaClass := TUIAreaClass(GetUIClass(FName, uiCollection, AStyleName));
-
-  if Assigned(vCollectionAreaClass) then
-    Result := vCollectionAreaClass.Create(AParentArea, AView, ALayout, 'List', False, nil, AParams)
-  else
-    Result := CreateDefaultArea(AParentArea, AView, ALayout, AParams);
-end;
-
-function TPresenter.CreateDefaultArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
-  const AParams: string): TUIArea;
-begin
-  Randomize;
-  ALayout.Kind := lkPanel;
-  ALayout.Font.Size := 10;
-  ALayout.Font.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
-  ALayout.Font.Family := 'Tahoma';
-  ALayout.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
-  ALayout.ShowCaption := True;
-  ALayout.Caption := ALayout.Caption;
-  ALayout.BevelInner := lbkRaised;
-  ALayout.BevelOuter := lbkLowered;
-
-  Result := CreateArea(AParentArea, AView, ALayout, AParams);
-  Result.IsDefault := True;
-end;
-
 function TPresenter.CreateDefaultControl(const AParentArea: TUIArea;
   const AView: TView; const ALayout: TLayout; const AParams: string): TNativeControl;
 var
@@ -656,49 +580,6 @@ begin
   vControl := CreateControl(AParentArea, AView, ALayout, AParams);
 
   Result := GetNativeControlClass.Create(AParentArea, vControl, AParams);
-end;
-
-function TPresenter.CreateFieldArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
-  const AStyleName, AParams: string): TUIArea;
-var
-  vParams, vViewName: string;
-  vControlType: TUIItemType;
-  vFieldAreaClass: TUIAreaClass;
-begin
-  if AView.DefinitionKind in [dkSimpleField, dkObjectField, dkComplexField, dkListField] then
-  begin
-    Result := TFieldArea.Create(AParentArea, AView, ALayout, '', False, nil, AParams);
-    Exit;
-  end;
-
-  if Assigned(ALayout) and (ALayout.Kind = lkPages) then
-    vViewName := 'pages'
-  else
-    vViewName := GetUrlCommand(AStyleName, AStyleName);
-  vParams := ExtractUrlParams(AStyleName);
-
-  if AView.DefinitionKind = dkEntity then
-    vControlType := uiEntityEdit
-  else
-    vControlType := ItemTypeByFieldType(TFieldDef(AView.Definition).Kind);
-  vFieldAreaClass := TUIAreaClass(GetUIClass(FName, vControlType, vViewName));
-
-  if vParams = '' then
-    vParams := AParams
-  else
-    vParams := vParams + '&' + AParams;
-
-  if Assigned(vFieldAreaClass) then
-    Result := vFieldAreaClass.Create(AParentArea, AView, ALayout, '', False, nil, vParams)
-  else
-    Result := CreateDefaultArea(AParentArea, AView, ALayout, vParams);
-end;
-
-function TPresenter.CreateFilledArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
-  const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''): TUIArea;
-begin
-  Result := TUIArea.Create(AParent, AView, ALayout, AId, AIsService, AControl, AParams);
-  //Result.SetControl(AControl);
 end;
 
 function TPresenter.CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
@@ -763,26 +644,6 @@ begin
     Result := vControlClass.Create(AArea, nil, vParams)
   else
     Result := CreateDefaultControl(AArea, AView, ALayout, vParams);
-    //Assert(Assigned(vControlClass), 'Control class not found for type: "' + cControlTypeNames[AControlType] +
-    //  '", style name: "' + vStyleName + '" in UI: ' + ClassName);
-end;
-
-function TPresenter.CreateNavigationArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
-  const AStyleName, AParams: string): TUIArea;
-var
-  vNavigationAreaClass: TUIAreaClass;
-begin
-  Result := TNavigationArea.Create(AParentArea, AView, ALayout, 'Navigation', False, nil, AParams);
-
-  Exit;
-
-  vNavigationAreaClass := TUIAreaClass(GetUIClass(FName, uiNavigation, AStyleName));
-  if Assigned(vNavigationAreaClass) then
-    Result := vNavigationAreaClass.Create(AParentArea, AView, ALayout, 'Navigation', False, nil, AParams)
-  else
-    Result := CreateDefaultArea(AParentArea, AView, ALayout, AParams);
-
-  Assert(Assigned(Result), 'Не удалось создать навигационную область ' + AStyleName);
 end;
 
 destructor TPresenter.Destroy;
@@ -1198,33 +1059,6 @@ begin
       '" in presenter: "' + APresenterName + '" classified as: ' + ClassName);
 end;
 
-class function TPresenter.GetUIClass(const APresenterName: string; const AItemType: TUIItemType; const AViewName: string): TUIAreaClass;
-var
-  vTypeName, vViewName: string;
-  vClassesList: TObjectDictionary<string, TUIClassInfo>;
-  vClassInfo: TUIClassInfo;
-begin
-  Result := nil;
-  if not RegisteredUIClasses.TryGetValue(APresenterName, vClassesList) then
-    Exit;
-
-  vTypeName := cControlTypeNames[AItemType];
-  vViewName := AnsiLowerCase(AViewName);
-
-  if not vClassesList.TryGetValue(vTypeName + vViewName, vClassInfo) and (vViewName <> '') then
-    if not vClassesList.TryGetValue(vTypeName, vClassInfo) then
-      vClassInfo := nil;
-
-  if Assigned(vClassInfo) then
-    Result := vClassInfo.FItemClass
-  else
-    Result := nil;
-
-  //else
-  //  Assert(False, 'UI Class not found for type: "' + vTypeName +
-  //  '", View Name: "' + vViewName + '" in UI: ' + ClassName);
-end;
-
 function TPresenter.GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
 begin
   case AFieldDef.Kind of
@@ -1375,28 +1209,6 @@ begin
     Assert(not vClassesList.ContainsKey(APageName), 'Page already registered for type: "' + APageName + '"');
 
   vClassesList.Add(APageName, APageClass);
-end;
-
-class procedure TPresenter.RegisterUIClass(const APresenterName: string; const AItemType: TUIItemType;
-  const AViewName: string; const AElementClass: TUIAreaClass);
-var
-  vTypeName, vViewName: string;
-  vClassesList: TObjectDictionary<string, TUIClassInfo>;
-  vClassInfo: TUIClassInfo;
-begin
-  vTypeName := cControlTypeNames[AItemType];
-  vViewName := AnsiLowerCase(AViewName);
-  if not RegisteredUIClasses.TryGetValue(APresenterName, vClassesList) then
-  begin
-    vClassesList := TObjectDictionary<string, TUIClassInfo>.Create([doOwnsValues]);
-    RegisteredUIClasses.Add(APresenterName, vClassesList);
-  end
-  else
-    Assert(not vClassesList.TryGetValue(vTypeName + vViewName, vClassInfo),
-      'UI Class already registered for type: "' + vTypeName + '", View Name: "' + vViewName + '"');
-
-  vClassInfo := TUIClassInfo.Create(AItemType, vViewName, AElementClass);
-  vClassesList.Add(vTypeName + vViewName, vClassInfo);
 end;
 
 procedure TPresenter.Run(const AParameter: string = '');
@@ -1560,13 +1372,11 @@ end;
 
 initialization
 
-TPresenter.RegisteredUIClasses := TObjectDictionary<string, TObjectDictionary<string, TUIClassInfo>>.Create([doOwnsValues]);
 TPresenter.RegisteredPages := TObjectDictionary<string, TDictionary<string, TClass>>.Create([doOwnsValues]);
 TPresenter.RegisteredControlClasses := TObjectDictionary<string, TObjectDictionary<string, TControlClassInfo>>.Create([doOwnsValues]);
 
 finalization
 
-FreeAndNil(TPresenter.RegisteredUIClasses);
 FreeAndNil(TPresenter.RegisteredPages);
 FreeAndNil(TPresenter.RegisteredControlClasses);
 

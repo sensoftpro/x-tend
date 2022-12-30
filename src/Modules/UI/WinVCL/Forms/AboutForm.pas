@@ -54,8 +54,6 @@ type
     lblEmail: TLabel;
     lblWeb: TLabel;
     lblAllRightsReserved: TLabel;
-    ImageList1: TImageList;
-    Button1: TButton;
     procedure lblSiteClick(Sender: TObject);
     procedure lblMailClick(Sender: TObject);
   private

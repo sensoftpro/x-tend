@@ -620,12 +620,12 @@ begin
 
   if vControl is TForm then
   begin
-    Result := CreateFilledArea(AParent, AView, ALayout, ALayout.Id, True, vControl);
+    Result := TUIArea.Create(AParent, AView, ALayout, ALayout.Id, True, vControl);
     if Assigned(AOnClose) then
       Result.OnClose := AOnClose;
   end
   else begin
-    Result := CreateFilledArea(AParent, AView, ALayout, ALayout.Id, False, vControl);
+    Result := TUIArea.Create(AParent, AView, ALayout, ALayout.Id, False, vControl);
     if ALayout.Name = '-popup-' then
       CopyPopupMenuItems(Result, AParent.View, TNavigationItem(ALayout), Result)
     else if ALayout.Name = '-pages-' then

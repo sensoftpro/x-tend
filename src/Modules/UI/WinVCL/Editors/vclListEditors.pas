@@ -4070,7 +4070,7 @@ begin
 
         vItem := FListBox.Items.Add;
 
-        if FCreateParams.Values['DisplayName'] = '' then
+        if not Assigned(FCreateParams) or (FCreateParams.Values['DisplayName'] = '') then
           vItem.Text := vEntity.DisplayName
         else
           vItem.Text := vEntity[FCreateParams.Values['DisplayName']];
