@@ -54,7 +54,7 @@ type
     procedure SetActiveChildArea(const AArea: TUIArea); override;
   end;
 
-  TDEButtonArea = class(TUIArea)
+  TDEButtonArea = class(TDEControl)
   private
     FTypeSelectionMenu: TPopupMenu;
   protected
@@ -64,7 +64,7 @@ type
     destructor Destroy; override;
   end;
 
-  TDELinkArea = class(TUIArea)
+  TDELinkArea = class(TDEControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure RefillArea(const AKind: Word); override;
@@ -201,8 +201,8 @@ begin
   end;
 
   vButton := TcxButton.Create(nil);
-  vButton.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[vImageSize]);
-  vImageID := GetImageID(vImageID);
+  vButton.OptionsImage.Images := TDragImageList(TInteractor(FInteractor).Images[vImageSize]);
+  vImageID := FOwner.GetImageID(vImageID);
 
   if (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone) then
   begin
@@ -210,7 +210,7 @@ begin
     vButton.SpeedButtonOptions.CanBeFocused := False;
   end;
 
-  vButton.Caption := GetTranslation(vActionDef);
+  vButton.Caption := FOwner.GetTranslation(vActionDef);
   vButton.Hint := vButton.Caption;
   if Length(vOverriddenCaption) > 0 then
     vButton.Caption := vOverriddenCaption;
@@ -258,17 +258,17 @@ begin
     if vDefinitions.Count > 1 then
     begin
       FTypeSelectionMenu := TPopupMenu.Create(nil);
-      FTypeSelectionMenu.Images := TDragImageList(TInteractor(Interactor).Images[16]);
+      FTypeSelectionMenu.Images := TDragImageList(TInteractor(FInteractor).Images[16]);
       for i := 0 to vDefinitions.Count - 1 do
       begin
         vDefinition := TDefinition(vDefinitions[i]);
         vMenuItem := TMenuItem.Create(nil);
-        vMenuItem.Caption := GetTranslation(vDefinition);
+        vMenuItem.Caption := FOwner.GetTranslation(vDefinition);
         if Length(vOverriddenCaption) > 0 then
           vMenuItem.Caption := vOverriddenCaption;
-        vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
-        vMenuItem.Tag := NativeInt(Self); //NativeInt(vButton);
-        vMenuItem.OnClick := OnActionMenuSelected;
+        vMenuItem.ImageIndex := FOwner.GetImageID(vDefinition._ImageID);
+        vMenuItem.Tag := NativeInt(FOwner); //NativeInt(vButton);
+        vMenuItem.OnClick := FOwner.OnActionMenuSelected;
         FTypeSelectionMenu.Items.Add(vMenuItem);
       end;
       vButton.DropDownMenu := FTypeSelectionMenu;
@@ -276,12 +276,12 @@ begin
       vButton.OptionsImage.Margin := 4;
     end
     else begin
-      vButton.OnClick := OnAreaClick;
+      vButton.OnClick := FOwner.OnAreaClick;
       ALayout.Width := ALayout.Height;
     end;
   end
   else
-    vButton.OnClick := OnAreaClick;
+    vButton.OnClick := FOwner.OnAreaClick;
 
   Result := vButton;
 end;
@@ -301,12 +301,12 @@ begin
   vButton := TcxButton(FControl);
 
   vActionDef := TDefinition(FView.Definition);
-  vImageID := GetImageID(vActionDef._ImageID);
+  vImageID := FOwner.GetImageID(vActionDef._ImageID);
 
   if (vButton.OptionsImage.Images.Count + 1 >= vImageID) and (vImageID > 0) then
     vButton.OptionsImage.ImageIndex := vImageID;
 
-  vButton.Caption := GetTranslation(vActionDef);
+  vButton.Caption := FOwner.GetTranslation(vActionDef);
   vButton.Hint := vButton.Caption;
 end;
 
@@ -334,7 +334,7 @@ begin
   vActionDef := TDefinition(FView.Definition);
 
   vLabel := TcxLabel.Create(nil);
-  vLabel.Caption := GetTranslation(vActionDef);
+  vLabel.Caption := FOwner.GetTranslation(vActionDef);
   vLabel.Hint := vLabel.Caption;
   if Length(vOverriddenCaption) > 0 then
     vLabel.Caption := vOverriddenCaption;
@@ -348,7 +348,7 @@ begin
   vLabel.Style.HotTrack := True;
   //vLabel.StyleHot.TextColor := clBlue;
   vLabel.StyleHot.TextStyle := [fsUnderline];
-  vLabel.OnClick := OnAreaClick;
+  vLabel.OnClick := FOwner.OnAreaClick;
 
   Result := vLabel;
 end;
@@ -367,7 +367,7 @@ begin
   vLabel := TcxLabel(FControl);
 
   vActionDef := TDefinition(FView.Definition);
-  vLabel.Caption := GetTranslation(vActionDef);
+  vLabel.Caption := FOwner.GetTranslation(vActionDef);
   vLabel.Hint := vLabel.Caption;
 end;
 
@@ -468,8 +468,8 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'MainMenu', TMain
 TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'ToolBar', TToolBarArea);
 //TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'OneButton', TOneButtonArea);
 
-TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, '', TDEButtonArea);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, 'link', TDELinkArea);
+//TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, '', TDEButtonArea);
+//TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, 'link', TDELinkArea);
 
 //TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, '', TTreeViewArea);
 //TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'TreeView', TTreeViewArea);
@@ -477,8 +477,8 @@ TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, 'link', TDELinkArea);
 //TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'MainMenu', TMainMenuArea);
 //TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'ToolBar', TToolBarArea);
 ////TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'OneButton', TOneButtonArea);
-//
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, '', TDEButtonArea);
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, 'link', TDELinkArea);
+
+TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, '', TDEButtonArea);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, 'link', TDELinkArea);
 
 end.

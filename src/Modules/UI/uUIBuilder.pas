@@ -1196,8 +1196,6 @@ end;
 
 constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
   const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = '');
-var
-  vControl: TObject;
 begin
   inherited Create;
 
@@ -1227,12 +1225,13 @@ begin
     ALayout.Params := AParams;
 
   FParent := AParent;
-  if not Assigned(AControl) then
-    vControl := DoCreateControl(AParent, ALayout)
+  if Assigned(ALayout) and not Assigned(AControl) and not (ALayout is TNavigationItem)
+    and (ALayout.Kind = lkPanel) and (AView.DefinitionKind in [dkAction])
+  then
+    FNativeControl := _CreateNativeControl(ALayout, AView, uiUnknown, AParams)
   else
-    vControl := AControl;
-  FNativeControl := NativeControlClass.Create(Self, vControl); //?? Создать меню здесь?
-  SetControl(vControl);
+    FNativeControl := NativeControlClass.Create(Self, AControl, AParams);
+  SetControl(InnerControl);
 end;
 
 function TUIArea.CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TProc = nil): TUIArea;

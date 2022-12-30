@@ -589,6 +589,10 @@ function TPresenter.CreateActionArea(const AParentArea: TUIArea; const AView: TV
 var
   vActionAreaClass: TUIAreaClass;
 begin
+  Result := TUIArea.Create(AParentArea, AView, ALayout, 'Action', False, nil, AParams);
+
+  Exit;
+
   vActionAreaClass := TUIAreaClass(GetUIClass(FName, uiAction, AStyleName));
 
   if Assigned(vActionAreaClass) then
@@ -748,11 +752,12 @@ begin
     vParams := vParams + '&' + AParams;
 
   vControlClass := TNativeControlClass(GetControlClass(FName, AControlType, vStyleName));
-  if not Assigned(vControlClass) then
-    Assert(Assigned(vControlClass), 'Control class not found for type: "' + cControlTypeNames[AControlType] +
-      '", style name: "' + vStyleName + '" in UI: ' + ClassName);
-  //Result := vControlClass.Create(AArea, ALayout, AView, vParams);
-  Result := nil;
+  if Assigned(vControlClass) then
+    Result := vControlClass.Create(AArea, nil, vParams)
+  else
+    Result := CreateDefaultControl(AArea, AView, ALayout, vParams);
+    //Assert(Assigned(vControlClass), 'Control class not found for type: "' + cControlTypeNames[AControlType] +
+    //  '", style name: "' + vStyleName + '" in UI: ' + ClassName);
 end;
 
 function TPresenter.CreateNavigationArea(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
@@ -1163,8 +1168,10 @@ begin
   if Assigned(vClassInfo) then
     Result := vClassInfo.FControlClass
   else
-    Assert(False, 'Control class not found for type: "' + vTypeName +
-      '", style Name: "' + vStyleName + '" in UI: ' + ClassName);
+    Result := nil;
+  //else
+  //  Assert(False, 'Control class not found for type: "' + vTypeName +
+  //    '", style Name: "' + vStyleName + '" in UI: ' + ClassName);
 end;
 
 class function TPresenter.GetPageClass(const APresenterName, APageName: string): TClass;
