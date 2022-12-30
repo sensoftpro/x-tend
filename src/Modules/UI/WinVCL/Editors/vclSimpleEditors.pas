@@ -48,6 +48,15 @@ uses
   dxGaugeCustomScale, dxGaugeQuantitativeScale, dxGaugeCircularScale, dxGaugeControl;
 
 type
+  TVCLField = class(TVCLControl)
+  protected
+    [Weak] FFieldArea: TFieldArea;
+    [Weak] FFieldDef: TFieldDef;
+  public
+    constructor Create(const AOwner: TUIArea; const AControl: TObject; const AParams: string = ''); override;
+    destructor Destroy; override;
+  end;
+
   TTextInfo = class (TFieldArea)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
@@ -435,6 +444,22 @@ uses
 
   uConfiguration, uDomain, uInteractor, uPresenter, uWinVCLPresenter, uCollection, uEntity, uConsts,
   uUtils, UITypes;
+  
+{ TVCLField }
+
+constructor TVCLField.Create(const AOwner: TUIArea; const AControl: TObject;
+  const AParams: string);
+begin
+  FFieldArea := TFieldArea(AOwner);
+  FFieldDef := FFieldArea.FieldDef;
+  inherited Create(AOwner, AControl, AParams);
+end;
+
+destructor TVCLField.Destroy;
+begin
+
+  inherited;
+end;
 
 { TTextInfo }
 
