@@ -304,7 +304,6 @@ type
     function CreateDefaultControl(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string): TNativeControl;
 
-
     procedure EnumerateControls(const ALayout: TLayout; const AControl: TObject);
 
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; virtual;
@@ -607,8 +606,10 @@ var
   //vParams, vViewName: string;
   vCollectionAreaClass: TUIAreaClass;
 begin
-  //vViewName := GetUrlCommand(AStyleName, AStyleName);
-  //vParams := ExtractUrlParams(AStyleName);
+  Result := TUIArea.Create(AParentArea, AView, ALayout, 'List', False, nil, AParams);
+
+  Exit;
+
 
   vCollectionAreaClass := TUIAreaClass(GetUIClass(FName, uiCollection, AStyleName));
 
@@ -664,6 +665,12 @@ var
   vControlType: TUIItemType;
   vFieldAreaClass: TUIAreaClass;
 begin
+  if AView.DefinitionKind in [dkSimpleField, dkObjectField, dkComplexField, dkListField] then
+  begin
+    Result := TFieldArea.Create(AParentArea, AView, ALayout, '', False, nil, AParams);
+    Exit;
+  end;
+
   if Assigned(ALayout) and (ALayout.Kind = lkPages) then
     vViewName := 'pages'
   else
@@ -765,6 +772,10 @@ function TPresenter.CreateNavigationArea(const AParentArea: TUIArea; const AView
 var
   vNavigationAreaClass: TUIAreaClass;
 begin
+  Result := TNavigationArea.Create(AParentArea, AView, ALayout, 'Navigation', False, nil, AParams);
+
+  Exit;
+
   vNavigationAreaClass := TUIAreaClass(GetUIClass(FName, uiNavigation, AStyleName));
   if Assigned(vNavigationAreaClass) then
     Result := vNavigationAreaClass.Create(AParentArea, AView, ALayout, 'Navigation', False, nil, AParams)

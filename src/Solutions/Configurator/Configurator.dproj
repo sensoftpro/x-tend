@@ -113,6 +113,10 @@
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Icon_MainIcon>..\..\..\bin\favicon.ico</Icon_MainIcon>
+        <DCC_DebugDCUs>false</DCC_DebugDCUs>
+        <VerInfo_MajorVer>0</VerInfo_MajorVer>
+        <VerInfo_MinorVer>1</VerInfo_MinorVer>
+        <VerInfo_Keys>CompanyName=Sensoft;FileDescription=$(MSBuildProjectName);FileVersion=0.1.0.0;InternalName=;LegalCopyright=© Sensoft, 2023;LegalTrademarks=X-Tend™;OriginalFilename=;ProgramID=pro.sensoft.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=0.1.0.0;Comments=</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
         <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>

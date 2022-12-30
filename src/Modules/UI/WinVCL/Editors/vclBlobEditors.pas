@@ -39,7 +39,7 @@ uses
   uUIBuilder, vclArea, uScene, uSimpleChart, uLayout;
 
 type
-  TFieldSceneArea = class(TFieldArea)
+  TFieldSceneArea = class(TVCLField)
   protected
     FScene: TScene;
     procedure DoActivate(const AAreaState: string = ''); override;
@@ -110,14 +110,14 @@ end;
 function TFieldChartArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   Result := inherited DoCreateControl(AParent, ALayout);
-  FId := 'Chart';
+  FOwner.Id := 'Chart';
   FChart := TDataChart.Create(FScene, nil);
 end;
 
 initialization
 
-TPresenter.RegisterUIClass('Windows.DevExpress', uiComplexEdit, 'chart', TFieldChartArea);
+//TPresenter.RegisterUIClass('Windows.DevExpress', uiComplexEdit, 'chart', TFieldChartArea);
 
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiComplexEdit, 'chart', TFieldChartArea);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiComplexEdit, 'chart', TFieldChartArea);
 
 end.

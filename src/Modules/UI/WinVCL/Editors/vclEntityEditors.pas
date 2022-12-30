@@ -42,7 +42,7 @@ uses
   Buttons, vclArea, vclPopupForm, uUIBuilder, uLayout, uView, uEntity, uEntityList, uDefinition, Controls;
 
 type
-  TVCLEntitySelector = class(TFieldArea)
+  TVCLEntitySelector = class(TVCLField)
   private
     FFlat: Boolean;
     FEntities: TEntityList;
@@ -57,7 +57,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TVCLEntityFieldEditor = class(TFieldArea)
+  TVCLEntityFieldEditor = class(TVCLField)
   private
     FBasePanel: TPanel;
     FSelectButton: TcxComboBox;
@@ -89,7 +89,7 @@ type
     procedure DoDeinit; override;
   end;
 
-  TRadioEntitySelector = class(TFieldArea)
+  TRadioEntitySelector = class(TVCLField)
   private
     FEntities: TEntityList;
     procedure FillList;
@@ -110,7 +110,7 @@ type
     procedure UpdateVisibility; override;
   end;
 
-  TListEntityFieldEditor = class (TFieldArea)
+  TListEntityFieldEditor = class(TVCLField)
   private
     FGrid: TcxTreeList;
     FEntities: TEntityList;
@@ -123,7 +123,7 @@ type
     procedure FillEditor; override;
   end;
 
-  TEntityFieldListEditor = class(TFieldArea) // property editor
+  TEntityFieldListEditor = class(TVCLField) // property editor
   private
     FEditor: TcxVerticalGrid;
     FDomainObject: TEntity;
@@ -245,7 +245,7 @@ begin
   FbtnAdd.Caption := TInteractor(FView.Interactor).Translate('cptAddEntity', 'Добавить');
   FbtnAdd.Hint := FbtnAdd.Caption;
   FbtnAdd.PaintStyle := bpsGlyph;
-  FbtnAdd.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[16]);
+  FbtnAdd.OptionsImage.Images := TDragImageList(TInteractor(FInteractor).Images[16]);
   FbtnAdd.OptionsImage.ImageIndex := 1;
   FbtnAdd.SpeedButtonOptions.CanBeFocused := False;
   FbtnAdd.SpeedButtonOptions.Flat := True;
@@ -254,22 +254,22 @@ begin
   FbtnAdd.TabStop := False;
   FButtonView := FView.BuildView('Create?place=embedded');
 
-  FAddArea := TPresenter(Presenter).CreateFilledArea(Self, FButtonView, nil, '', False, FbtnAdd);
-  AddArea(FAddArea);
+  FAddArea := TPresenter(FPresenter).CreateFilledArea(FOwner, FButtonView, nil, '', False, FbtnAdd);
+  FOwner.AddArea(FAddArea);
 
   vDefinitions := TEntityFieldDef(FFieldDef).ContentDefinitions;
   if vDefinitions.Count > 1 then
   begin
     FTypeSelectionMenu := TPopupMenu.Create(nil);
-    FTypeSelectionMenu.Images := TDragImageList(TInteractor(Interactor).Images[16]);
+    FTypeSelectionMenu.Images := TDragImageList(TInteractor(FInteractor).Images[16]);
     for i := 0 to vDefinitions.Count - 1 do
     begin
       vDefinition := TDefinition(vDefinitions[i]);
       vMenuItem := TMenuItem.Create(nil);
-      vMenuItem.Caption := GetTranslation(vDefinition);
-      vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
+      vMenuItem.Caption := FOwner.GetTranslation(vDefinition);
+      vMenuItem.ImageIndex := FOwner.GetImageID(vDefinition._ImageID);
       vMenuItem.Tag := NativeInt(FAddArea);
-      vMenuItem.OnClick := OnActionMenuSelected;
+      vMenuItem.OnClick := FOwner.OnActionMenuSelected;
       FTypeSelectionMenu.Items.Add(vMenuItem);
     end;
     FbtnAdd.DropDownMenu := FTypeSelectionMenu;
@@ -322,7 +322,7 @@ begin
   with FSelectButton do
   begin
     if not Assigned(vEntity) then
-      Text := GetTranslation(vDefinition, tpEmptyValue)
+      Text := FOwner.GetTranslation(vDefinition, tpEmptyValue)
     else
       Text := vEntity['Name'];
     Hint := Text;
@@ -354,9 +354,9 @@ begin
   SetFocused(True);
   if Assigned(FButtonView) then
   begin
-    TEntity(FButtonView.DomainObject)._SetFieldValue(FSession.NullHolder, 'SelectedIndex', 0);
-    FUIBuilder.LastArea := Self;
-    ExecuteUIAction(FButtonView);
+    TEntity(FButtonView.DomainObject)._SetFieldValue(TUserSession(FView.Session).NullHolder, 'SelectedIndex', 0);
+    FUIBuilder.LastArea := FOwner;
+    FOwner.ExecuteUIAction(FButtonView);
     //if vSaved then
     //  PostMessage(TWinControl(FControl.Control).Handle, WM_NEXTDLGCTL, 0, 0)
   end;
@@ -709,7 +709,7 @@ begin
       end
       else
         vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
     end;
   end
   else begin
@@ -768,8 +768,8 @@ end;
 function TEntityFieldListEditor.CreateCategoryRow(const ARootEntity: TEntity; const AFieldDef: TFieldDef): TcxCategoryRow;
 begin
   Result := TcxCategoryRow(FEditor.Add(TcxCategoryRow));
-  Result.Properties.Caption := GetFieldTranslation(AFieldDef);
-  Result.Properties.Hint := GetFieldTranslation(AFieldDef, tpHint);
+  Result.Properties.Caption := FOwner.GetFieldTranslation(AFieldDef);
+  Result.Properties.Hint := FOwner.GetFieldTranslation(AFieldDef, tpHint);
   Result.Tag := NativeInt(TRowData.Create(ARootEntity, AFieldDef));
 end;
 
@@ -782,7 +782,7 @@ begin
   Result := TcxEditorRow(FEditor.Add(TcxEditorRow));
   vStyleName := GetUrlCommand(AFieldDef.StyleName);
   if AOverriddenCaption = '' then
-    Result.Properties.Caption := GetFieldTranslation(AFieldDef)
+    Result.Properties.Caption := FOwner.GetFieldTranslation(AFieldDef)
   else
     Result.Properties.Caption := AOverriddenCaption;
 
@@ -861,7 +861,8 @@ begin
     begin
       if vFieldDef.HasFlag(cHideInEdit) or (vFieldDef.UIState < vsDisabled) then
         Continue;
-      CreateEditRow(ARootEntity, vFieldDef, AViewPath, GetFieldTranslation(vFieldDef) + ' ' + IfThen(ARootEntityIndex > -1, IntToStr(ARootEntityIndex + 1))).Parent := ARootRow;
+      CreateEditRow(ARootEntity, vFieldDef, AViewPath, FOwner.GetFieldTranslation(vFieldDef) + ' ' +
+        IfThen(ARootEntityIndex > -1, IntToStr(ARootEntityIndex + 1))).Parent := ARootRow;
     end;
   end;
 end;
@@ -1051,7 +1052,7 @@ begin
     else if (AKind <> dckViewStateChanged) and (AKind <> dckNameChanged) then
       FillEditor;
 
-    SwitchChangeHandlers(OnChange);
+    SwitchChangeHandlers(FOwner.OnChange);
   except
     TInteractor(FView.Interactor).ShowMessage('Error in FillEditorFromModel, Field: ' + FFieldDef.Name);
   end;
@@ -1089,7 +1090,7 @@ begin
 
             TUserSession(FView.Session).DomainWrite(procedure
               begin
-                vLevelEntity._SetFieldValue(TChangeHolder(Holder), vFieldDef.Name, vId);
+                vLevelEntity._SetFieldValue(TChangeHolder(FOwner.Holder), vFieldDef.Name, vId);
               end);
           end;
 
@@ -1110,7 +1111,7 @@ begin
 
             TUserSession(FView.Session).DomainWrite(procedure
               begin
-                vLevelEntity._SetFieldEntity(TChangeHolder(Holder), vFieldDef.Name, vEntity);
+                vLevelEntity._SetFieldEntity(TChangeHolder(FOwner.Holder), vFieldDef.Name, vEntity);
               end);
           end;
 
@@ -1123,7 +1124,7 @@ begin
 
     TUserSession(FView.Session).DomainWrite(procedure
       begin
-        vLevelEntity._SetFieldValue(TChangeHolder(Holder), vFieldDef.Name, vValue);
+        vLevelEntity._SetFieldValue(TChangeHolder(FOwner.Holder), vFieldDef.Name, vValue);
       end);
   end;
 end;
@@ -1151,7 +1152,7 @@ begin
   TcxRadioGroup(Result).Style.BorderStyle := ebsNone;
   TcxRadioGroup(Result).Name := 'radio';
   TcxRadioGroup(Result).Caption := '';
-  FNeedCreateCaption := False;
+  FOwner.NeedCreateCaption := False;
 
   FEntities := TEntityList.Create(TInteractor(FView.Interactor).Domain, TInteractor(FView.Interactor).Session);
 end;
@@ -1186,7 +1187,7 @@ begin
     if vRadioEdit.Properties.ReadOnly then
       vRadioEdit.TabStop := False
     else
-      vRadioEdit.TabStop := TabStop;
+      vRadioEdit.TabStop := FOwner.TabStop;
   end;
 end;
 
@@ -1230,20 +1231,12 @@ end;
 
 initialization
 
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, '', TVCLEntityFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'simple', TVCLEntityFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'list', TListEntityFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'link', TVCLLinkedEntityFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'select', TVCLEntitySelector);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'fieldlist', TEntityFieldListEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'radio', TRadioEntitySelector);
-
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, '', TVCLEntityFieldEditor);
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'simple', TVCLEntityFieldEditor);
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'list', TListEntityFieldEditor);
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'link', TVCLLinkedEntityFieldEditor);
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'select', TVCLEntitySelector);
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'fieldlist', TEntityFieldListEditor);
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'radio', TRadioEntitySelector);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, '', TVCLEntityFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'simple', TVCLEntityFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'list', TListEntityFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'link', TVCLLinkedEntityFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'select', TVCLEntitySelector);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'fieldlist', TEntityFieldListEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'radio', TRadioEntitySelector);
 
 end.

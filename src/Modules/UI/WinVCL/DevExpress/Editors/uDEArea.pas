@@ -37,6 +37,7 @@ interface
 
 uses
   Windows, Classes, Forms, Messages, Generics.Collections, Controls, StdCtrls, ExtCtrls, Menus, UITypes, SysUtils,
+  dxBar, dxNavBar, dxNavBarGroupItems, dxNavBarCollns, dxNavBarBase, dxNavBarExplorerViews,
   uConsts, uUIBuilder, vclArea, uDefinition, uEntity, uView, uLayout;
 
 type
@@ -70,26 +71,7 @@ type
     procedure RefillArea(const AKind: Word); override;
   end;
 
-type
-  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
-
-implementation
-
-uses
-  Types, Graphics, Math, StrUtils, ComCtrls, Buttons,
-  Generics.Defaults, Variants,
-  cxGraphics, dxGDIPlusClasses, cxLabel, cxImage, cxEdit, cxTextEdit, cxPC, dxBar, dxNavBar, dxNavBarGroupItems,
-  dxNavBarCollns, dxNavBarBase, dxNavBarExplorerViews,
-  cxLookAndFeels, cxButtons, cxScrollBox, cxControls, cxSplitter,
-
-  uDomain, uPresenter, uWinVCLPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
-  vclSimpleEditors, uEntityList, uDomainUtils, uChangeManager;
-
-type
-  TCrackedWinControl = class(TWinControl) end;
-  TCrackedControl = class(TControl) end;
-
-  TNavBarArea = class(TNavigationArea)
+  TNavBarArea = class(TDEControl)
   private
     FNavBar: TdxNavBar;
     FNavBarGroup: TdxNavBarGroup;
@@ -99,6 +81,24 @@ type
     function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
+
+type
+  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
+
+implementation
+
+uses
+  Types, Graphics, Math, StrUtils, ComCtrls, Buttons,
+  Generics.Defaults, Variants,
+  cxGraphics, dxGDIPlusClasses, cxLabel, cxImage, cxEdit, cxTextEdit, cxPC,
+  cxLookAndFeels, cxButtons, cxScrollBox, cxControls, cxSplitter,
+
+  uDomain, uPresenter, uWinVCLPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
+  vclSimpleEditors, uEntityList, uDomainUtils, uChangeManager;
+
+type
+  TCrackedWinControl = class(TWinControl) end;
+  TCrackedControl = class(TControl) end;
 
 const
   cServiceAreaHeight = 44;
@@ -158,7 +158,7 @@ begin
     FNavBarItem.Hint := AHint;
     FNavBarItem.SmallImageIndex := AImageIndex;
     FNavBarItem.LargeImageIndex := AImageIndex;
-    FNavBarItem.OnClick := OnAreaClick;
+    FNavBarItem.OnClick := FOwner.OnAreaClick;
     Result := FNavBarItem;
   end;
 end;
@@ -267,7 +267,7 @@ begin
         if Length(vOverriddenCaption) > 0 then
           vMenuItem.Caption := vOverriddenCaption;
         vMenuItem.ImageIndex := FOwner.GetImageID(vDefinition._ImageID);
-        vMenuItem.Tag := NativeInt(FOwner); //NativeInt(vButton);
+        vMenuItem.Tag := NativeInt(FOwner);
         vMenuItem.OnClick := FOwner.OnActionMenuSelected;
         FTypeSelectionMenu.Items.Add(vMenuItem);
       end;
@@ -461,22 +461,11 @@ end;
 
 initialization
 
-TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, '', TTreeViewArea);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'TreeView', TTreeViewArea);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'NavBar', TNavBarArea);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'MainMenu', TMainMenuArea);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'ToolBar', TToolBarArea);
-//TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'OneButton', TOneButtonArea);
-
-//TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, '', TDEButtonArea);
-//TPresenter.RegisterUIClass('Windows.DevExpress', uiAction, 'link', TDELinkArea);
-
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, '', TTreeViewArea);
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'TreeView', TTreeViewArea);
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'NavBar', TNavBarArea);
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'MainMenu', TMainMenuArea);
-//TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'ToolBar', TToolBarArea);
-////TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'OneButton', TOneButtonArea);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, '', TTreeViewArea);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'TreeView', TTreeViewArea);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'NavBar', TNavBarArea);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'MainMenu', TMainMenuArea);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'ToolBar', TToolBarArea);
 
 TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, '', TDEButtonArea);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, 'link', TDELinkArea);

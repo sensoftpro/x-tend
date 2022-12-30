@@ -47,7 +47,7 @@ uses
   cxExportPivotGridLink, cxTLData, cxButtonEdit, cxEditRepositoryItems, cxPC;
 
 type
-  TEntityListSelector = class(TFieldArea)
+  TEntityListSelector = class(TVCLField)
   private
     FListBox: TCheckListBox;
     FEntityList: TEntityList;
@@ -60,7 +60,7 @@ type
     procedure DoOnChange; override;
   end;
 
-  TEntityListSelector2 = class(TFieldArea)
+  TEntityListSelector2 = class(TVCLField)
   private
     FListBox: TcxCheckListBox;
     FEntityList: TEntityList;
@@ -72,7 +72,7 @@ type
     procedure DoOnChange; override;
   end;
 
-  TEntityListSelector3 = class(TFieldArea)
+  TEntityListSelector3 = class(TVCLField)
   private
     FListBox: TcxCheckListBox;
     FLookupCollection: string;
@@ -90,7 +90,7 @@ type
     procedure DoDisableContent; override;
   end;
 
-  TPagedEntityListSelector = class(TFieldArea)
+  TPagedEntityListSelector = class(TVCLField)
   private
     FPages: TcxPageControl;
     FEntityList: TEntityList;
@@ -104,7 +104,7 @@ type
     procedure DoOnChange; override;
   end;
 
-  TEntityListSelectorMTM = class(TFieldArea) // many to many link
+  TEntityListSelectorMTM = class(TVCLField) // many to many link
   private
     FListBox: TcxCheckListBox;
     FEntityList: TEntityList;
@@ -122,7 +122,7 @@ type
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
   end;
 
-  TParametersEditor = class(TFieldArea)
+  TParametersEditor = class(TVCLField)
   private
     FGrid: TcxVerticalGrid;
     FParams: TList<TEntity>;
@@ -186,7 +186,7 @@ type
     property IsLoading: Boolean read FIsLoading;
   end;
 
-  TCollectionEditor = class(TUIArea)
+  TCollectionEditor = class(TVCLControl)
   private
     FGrid: TcxGrid;
     FMasterTableView: TcxGridTableView;
@@ -230,14 +230,12 @@ type
   protected
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
     procedure DoExecuteUIAction(const AView: TView); override;
-    procedure SetPopupArea(const APopupArea: TUIArea); override;
-  public
-    constructor Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
-      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''); override;
-    destructor Destroy; override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoBeforeFreeControl; override;
+    procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
   end;
 
-  TColumnListEditor = class (TFieldArea)
+  TColumnListEditor = class(TVCLField)
   private
     FGrid: TcxGrid;
     FMasterTableView: TcxGridTableView;
@@ -277,13 +275,11 @@ type
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
-    procedure SetPopupArea(const APopupArea: TUIArea); override;
+    procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
-  public
-    destructor Destroy; override;
   end;
 
-  TListEditor = class (TFieldArea)
+  TListEditor = class(TVCLField)
   private
     FList: TcxTreeList;
     procedure OnSelectionChanged(Sender: TObject);
@@ -312,7 +308,7 @@ type
     property Data: TList<TEntity> read FEntities;
   end;
 
-  TPivotGrid = class (TUIArea)
+  TPivotGrid = class(TVCLControl)
   private
     FPivot: TcxPivotGrid;
     FCube: TDataCube;
@@ -326,11 +322,9 @@ type
     procedure ExportToExcel;
   protected
     procedure DoExecuteUIAction(const AView: TView); override;
-    procedure SetPopupArea(const APopupArea: TUIArea); override;
-  public
-    constructor Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
-      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''); override;
-    destructor Destroy; override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoBeforeFreeControl; override;
+    procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
   end;
 
   TTreeLevel = class
@@ -342,7 +336,7 @@ type
     destructor Destroy; override;
   end;
 
-  TTreeCollectionEditor = class (TUIArea)
+  TTreeCollectionEditor = class(TVCLControl)
   private
     FTreeList: TcxVirtualTreeList;
     FBGStyle: TcxStyle;
@@ -351,7 +345,6 @@ type
 //    FFilterText: string;
 //    FFilterDateFrom, FFilterDateTo: TDateTime;
 //    FFilterDateActive: Boolean;
-    FDomain: TObject;
     FLevels: TObjectList<TTreeLevel>;
 //    procedure DoOnCompare(ADataController: TcxCustomDataController; ARecordIndex1, ARecordIndex2, AItemIndex: Integer;
 //      const V1, V2: Variant; var Compare: Integer);
@@ -387,11 +380,9 @@ type
   protected
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
     procedure DoExecuteUIAction(const AView: TView); override;
-    procedure SetPopupArea(const APopupArea: TUIArea); override;
-  public
-    constructor Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
-      const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = ''); override;
-    destructor Destroy; override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoBeforeFreeControl; override;
+    procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
   end;
 
 implementation
@@ -879,7 +870,7 @@ begin
   if not Assigned(vList) then
     Exit;
 
-  vHolder := Holder;
+  vHolder := FOwner.Holder;
   for i := 0 to FListBox.Count - 1 do
     if FListBox.Checked[i] then
       vList.LinkListEntity(vHolder, TEntity(FListBox.Items.Objects[i]))
@@ -924,13 +915,13 @@ begin
   begin
     SwitchChangeHandlers(nil);
 
-    vHolder := Holder;
+    vHolder := FOwner.Holder;
     for i := 0 to FListBox.Count - 1 do
     begin
       FListBox.Checked[i] := True;
       vList.LinkListEntity(vHolder, TEntity(FListBox.Items.Objects[i]));
     end;
-    SwitchChangeHandlers(OnChange);
+    SwitchChangeHandlers(FOwner.OnChange);
   end;
 end;
 
@@ -959,7 +950,7 @@ begin
   if not Assigned(vList) then
     Exit;
 
-  vHolder := Holder;
+  vHolder := FOwner.Holder;
   for i := 0 to FListBox.Count - 1 do
     if FListBox.Items[i].Checked then
       vList.LinkListEntity(vHolder, TEntity(FListBox.Items.Objects[i]))
@@ -1227,136 +1218,12 @@ begin
       vParams := TEntity(vArea.View.DomainObject);
       vMenuItem.Checked := FMasterTableView.OptionsView.GroupByBox;
       if vParams['IsChecked'] <> vMenuItem.Checked then
-        vParams._SetFieldValue(FSession.NullHolder, 'IsChecked', vMenuItem.Checked);
+        vParams._SetFieldValue(TUserSession(FView.Session).NullHolder, 'IsChecked', vMenuItem.Checked);
     end;
   end;
 
   vMenuItem := vMenu.Items[vMenu.Items.Count - 1];
-  vMenuItem.Caption := TInteractor(Interactor).Translate('txtRecordCount', 'Записей') + ': ' + IntToStr(FAllData.Count);
-end;
-
-constructor TCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-  const AId: string; const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = '');
-var
-  vDefinition: TDefinition;
-  vView: TView;
-  vColumn: TcxGridColumn;
-  vFields: string;
-begin
-  FBGStyle := TcxStyle.Create(nil);
-  FHeaderStyle := TcxStyle.Create(nil);
-  FEditRepository := TcxEditRepository.Create(nil);
-  FMasterDS := TUserDataSource.Create(Self);
-
-  FMasterTableView := TcxGridTableView.Create(nil);
-  FMasterTableView.DataController.OnCompare := DoOnCompare;
-  FMasterTableView.OptionsData.Editing := False;
-  FMasterTableView.OptionsData.Deleting := False;
-  FMasterTableView.OptionsData.Inserting := False;
-  FMasterTableView.OptionsCustomize.ColumnsQuickCustomization := True;
-//  FMasterTableView.OptionsSelection.CellSelect := False;
-  FMasterTableView.OptionsSelection.MultiSelect := True;
-  FMasterTableView.OptionsSelection.HideSelection := True;
-
-  if StrToBoolDef(TDomain(TInteractor(AView.Interactor).Domain).UserSettings.GetValue('Core', 'MouseMultiSelectInGrids'), False) then
-  begin
-    FMasterTableView.OptionsSelection.CheckBoxVisibility := [cbvDataRow, cbvColumnHeader];
-    FMasterTableView.OptionsSelection.ShowCheckBoxesDynamically := True;
-  end
-  else
-  begin
-    FMasterTableView.OptionsSelection.CheckBoxVisibility := [];
-    FMasterTableView.OptionsSelection.ShowCheckBoxesDynamically := False;
-  end;
-
-  FMasterTableView.OptionsView.GroupByBox := False;
-
-  if StrToBoolDef(TDomain(TInteractor(AView.Interactor).Domain).UserSettings.GetValue('Core', 'ShowHorzLines'), True) then
-    FMasterTableView.OptionsView.GridLines := glBoth
-  else
-    FMasterTableView.OptionsView.GridLines := glVertical;
-
-  FMasterTableView.OptionsBehavior.CellHints := True;
-  FMasterTableView.DataController.CustomDataSource := FMasterDS;
-  FMasterTableView.OnCellDblClick:= DoOnCellDblClick;
-  FMasterTableView.OnSelectionChanged := DoOnSelectionChanged;
-  FMasterTableView.OnCanSelectRecord := DoCanSelectRecord;
-  FMasterTableView.DataController.Summary.Options := [soSelectedRecords, soMultipleSelectedRecords];
-  FMasterTableView.Styles.Background := FBGStyle;
-  FMasterTableView.Styles.Header := FHeaderStyle;
-
-  FGrid := TcxGrid.Create(nil);
-  FGrid.LookAndFeel.NativeStyle := False;
-  FGrid.LookAndFeel.Kind := lfFlat;
-
-  if ALayout.Kind = lkPanel then
-    FGrid.Align := TAlign(ALayout.Align)
-  else
-    FGrid.Align := alClient;
-  FGrid.Levels.Add.GridView := FMasterTableView;
-//  FGrid.Levels.Add.GridView := FChartView;
-  FGrid.Font.Size := 12;
-
-  inherited Create(AParent, AView, ALayout, AId, AIsService, FGrid, AParams);
-
-  // after inherited Create, Interactor must be initialized
-  cxSetResourceString(@scxGridGroupByBoxCaption, TInteractor(Interactor).Translate('txtMoveColumnForGrouping',
-    'Перетащите сюда колонку для группировки'));
-  FMasterTableView.OptionsView.NoDataToDisplayInfoText := TInteractor(Interactor).Translate('@Grid@NoDataText', '<Нет данных>');
-  FAllData := TEntityList(FView.DomainObject);
-
-  FBGStyle.Color := GetBGColor(FAllData.MainDefinition, clWindow);
-  FHeaderStyle.Font.Size := 10;
-  FHeaderStyle.TextColor := clGray;
-
-  EnableColumnParamsChangeHandlers(False);
-
-  if Assigned(FCreateParams) then
-  begin
-    vFields := FCreateParams.Values['fields'];
-    if FCreateParams.Values['editingInGrid'] = 'true' then
-    begin
-      FMasterTableView.OptionsData.Editing := True;
-      FMasterTableView.OptionsSelection.CellSelect := True;
-    end;
-  end
-  else
-    vFields := '';
-
-  if vFields = '' then
-    vFields := AParent.QueryParameter('fields');
-
-  CreateColumnsFromModel(vFields);
-  LoadColumnWidths;
-
-  EnableColumnParamsChangeHandlers(True);
-
-  vDefinition := FAllData.MainDefinition;
-  FGroupFieldName := Trim(AParent.QueryParameter('Group'));
-  if (FGroupFieldName = '') and Assigned(vDefinition) then
-    FGroupFieldName := Trim(vDefinition.GroupFieldName);
-  if FGroupFieldName = '-' then
-    FGroupFieldName := '';
-
-  FColorFieldName := Trim(AParent.QueryParameter('Color'));
-  if (FColorFieldName = '') and Assigned(vDefinition) then
-    FColorFieldName := Trim(vDefinition.ColorFieldName);
-  if FColorFieldName = '-' then
-    FColorFieldName := '';
-
-  if (FGroupFieldName <> '') and (FAllData.FillerKind = lfkDefinition) then
-  begin
-    vColumn := FindColumnByFieldName(FGroupFieldName);
-    if Assigned(vColumn) then
-    begin
-      vColumn.Visible := False;
-      vColumn.GroupIndex := 0;
-      vView := FView.BuildView('#GroupByColumn');
-      TEntity(vView.DomainObject)._SetFieldValue(FSession.NullHolder, 'IsChecked', True);
-      FMasterTableView.OptionsView.GroupByBox := True;
-      FMasterTableView.DataController.Options := FMasterTableView.DataController.Options + [dcoGroupsAlwaysExpanded];
-    end;
-  end;
+  vMenuItem.Caption := TInteractor(FInteractor).Translate('txtRecordCount', 'Записей') + ': ' + IntToStr(FAllData.Count);
 end;
 
 procedure TCollectionEditor.CreateColumnsFromModel(const AFields: string = '');
@@ -1383,7 +1250,7 @@ begin
         vWidth := TPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
         { TODO -cUI refactoring : Перенести описание аггрегаций в слой описания UI }
         vAggType := vMainDefinition.Reductions.ReductionForField(vFieldDef.Name);
-        CreateColumn(vFieldDef, vFieldDef.Name, GetFieldTranslation(vFieldDef),
+        CreateColumn(vFieldDef, vFieldDef.Name, FOwner.GetFieldTranslation(vFieldDef),
           vWidth, uConsts.soNone, vAggType);
       end;
 
@@ -1403,7 +1270,7 @@ begin
             vWidth := TPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
             vAggType := TDefinition(vFieldDef.Definition).Reductions.ReductionForField(vFieldName);
 
-            CreateColumn(vFieldDef, vFieldName, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
+            CreateColumn(vFieldDef, vFieldName, FOwner.GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
           end
           else
           begin
@@ -1419,25 +1286,6 @@ begin
   finally
     FMasterTableView.EndUpdate;
   end;
-end;
-
-destructor TCollectionEditor.Destroy;
-begin
-  if Assigned(FMasterTableView.PopupMenu) then
-  begin
-    TPopupMenu(FMasterTableView.PopupMenu).OnPopup := nil;
-    FMasterTableView.PopupMenu := nil;
-  end;
-
-  FAllData := nil;
-
-  FreeAndNil(FMasterTableView);
-  FreeAndNil(FMasterDS);
-  FreeAndNil(FBGStyle);
-  FreeAndNil(FHeaderStyle);
-  FreeAndNil(FEditRepository);
-
-  inherited Destroy;
 end;
 
 function TCollectionEditor.GetSearchType: TSearchType;
@@ -1478,8 +1326,8 @@ begin
 
   ExportGridToExcel(vFileName, FGrid, True, FMasterTableView.Controller.SelectedRowCount < 2, False);
 
-  if FileExists(vFileName) and (TPresenter(Presenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
-    TPresenter(Presenter).OpenFile(vFileName);
+  if FileExists(vFileName) and (TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
+    TPresenter(FPresenter).OpenFile(vFileName);
 end;
 
 procedure TCollectionEditor.ExportToCsv;
@@ -1511,8 +1359,8 @@ begin
 
   ExportGridToCSV(vFileName, FGrid, True, FMasterTableView.Controller.SelectedRowCount < 2, ';', 'csv');
 
-  if FileExists(vFileName) and (TPresenter(Presenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
-    TPresenter(Presenter).OpenFile(vFileName);
+  if FileExists(vFileName) and (TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
+    TPresenter(FPresenter).OpenFile(vFileName);
 end;
 
 function TCollectionEditor.FindColumnByFieldName(const AFieldName: string): TcxGridColumn;
@@ -1606,11 +1454,11 @@ begin
   end
   else if AKind = dckListAdded then
   begin
-    FMasterDS.Add(AParameter, not TDomain(Domain).LoadingChanges);
+    FMasterDS.Add(AParameter, not FDomain.LoadingChanges);
   end
   else if AKind = dckListRemoved then
   begin
-    FMasterDS.Remove(AParameter, not TDomain(Domain).LoadingChanges);
+    FMasterDS.Remove(AParameter, not FDomain.LoadingChanges);
   end
   else if AKind = dckSelectionChanged then
   begin
@@ -1771,7 +1619,7 @@ begin
         begin
           vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
           vComboItem := TcxImageComboBoxProperties(vCol.Properties).Items.Add;
-          vImageID := GetImageID(vDefinition._ImageID);
+          vImageID := FOwner.GetImageID(vDefinition._ImageID);
           vComboItem.Value := vImageID;
           vComboItem.ImageIndex := vImageID;
         end;
@@ -1799,7 +1647,7 @@ begin
     begin
       vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
       vComboItem := TcxImageComboBoxProperties(vCol.Properties).Items.Add;
-      vImageID := GetImageID(vDefinition._ImageID);
+      vImageID := FOwner.GetImageID(vDefinition._ImageID);
       vComboItem.Value := vImageID;
       vComboItem.ImageIndex := vImageID;
     end;
@@ -1820,7 +1668,7 @@ var
     vEditRepositoryButtonItem.Properties.Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
     vBtn := vEditRepositoryButtonItem.Properties.Buttons[0];
     vBtn.Kind := bkGlyph;
-    vBtn.ImageIndex := GetImageID(AActionDef._ImageID);
+    vBtn.ImageIndex := FOwner.GetImageID(AActionDef._ImageID);
     vBtn.Hint := AActionDef._Caption; 
     vBtn.Enabled := AEnabled;
   end;
@@ -1861,7 +1709,7 @@ end;
 procedure TCollectionEditor.OnGetContentStyle(Sender: TcxCustomGridTableView;
   ARecord: TcxCustomGridRecord; AItem: TcxCustomGridTableItem; var AStyle: TcxStyle);
 begin
-  GetContentStyle(Self, FAllData, FColorFieldName, FMasterDS.Data, Sender, ARecord, AItem, AStyle);
+  GetContentStyle(FOwner, FAllData, FColorFieldName, FMasterDS.Data, Sender, ARecord, AItem, AStyle);
 end;
 
 procedure TCollectionEditor.SaveColumnWidths;
@@ -1869,13 +1717,17 @@ begin
   SaveGridColumnWidths(TInteractor(FView.Interactor).Domain, FMasterTableView, FView.InitialName);
 end;
 
-procedure TCollectionEditor.SetPopupArea(const APopupArea: TUIArea);
+procedure TCollectionEditor.SetLinkedControl(const ATargetName: string;
+  const ALinkedControl: TNativeControl);
 var
   vPopupMenu: TPopupMenu;
 begin
-  vPopupMenu := TPopupMenu(APopupArea.InnerControl);
-  vPopupMenu.OnPopup := BeforeContextMenuShow;
-  FMasterTableView.PopupMenu := vPopupMenu;
+  if ATargetName = 'popup' then
+  begin
+    vPopupMenu := TPopupMenu(ALinkedControl.Control);
+    vPopupMenu.OnPopup := BeforeContextMenuShow;
+    FMasterTableView.PopupMenu := vPopupMenu;
+  end;
 end;
 
 procedure TCollectionEditor.LoadColumnWidths;
@@ -1883,10 +1735,151 @@ begin
   FLayoutExists := LoadGridColumnWidths(TInteractor(FView.Interactor).Domain, FMasterTableView, FView.InitialName);
 end;
 
+procedure TCollectionEditor.DoBeforeFreeControl;
+begin
+  if Assigned(FMasterTableView.PopupMenu) then
+  begin
+    TPopupMenu(FMasterTableView.PopupMenu).OnPopup := nil;
+    FMasterTableView.PopupMenu := nil;
+  end;
+
+  FAllData := nil;
+
+  FreeAndNil(FMasterTableView);
+  FreeAndNil(FMasterDS);
+  FreeAndNil(FBGStyle);
+  FreeAndNil(FHeaderStyle);
+  FreeAndNil(FEditRepository);
+end;
+
 procedure TCollectionEditor.DoCanSelectRecord(Sender: TcxCustomGridTableView; ARecord: TcxCustomGridRecord;
   var AAllow: Boolean);
 begin
   AAllow := not (ARecord is TcxGridGroupRow);
+end;
+
+function TCollectionEditor.DoCreateControl(const AParent: TUIArea;
+  const ALayout: TLayout): TObject;
+var
+  vDefinition: TDefinition;
+  vView: TView;
+  vColumn: TcxGridColumn;
+  vFields: string;
+begin
+  FBGStyle := TcxStyle.Create(nil);
+  FHeaderStyle := TcxStyle.Create(nil);
+  FEditRepository := TcxEditRepository.Create(nil);
+  FMasterDS := TUserDataSource.Create(FOwner);
+
+  FMasterTableView := TcxGridTableView.Create(nil);
+  FMasterTableView.DataController.OnCompare := DoOnCompare;
+  FMasterTableView.OptionsData.Editing := False;
+  FMasterTableView.OptionsData.Deleting := False;
+  FMasterTableView.OptionsData.Inserting := False;
+  FMasterTableView.OptionsCustomize.ColumnsQuickCustomization := True;
+//  FMasterTableView.OptionsSelection.CellSelect := False;
+  FMasterTableView.OptionsSelection.MultiSelect := True;
+  FMasterTableView.OptionsSelection.HideSelection := True;
+
+  if StrToBoolDef(FDomain.UserSettings.GetValue('Core', 'MouseMultiSelectInGrids'), False) then
+  begin
+    FMasterTableView.OptionsSelection.CheckBoxVisibility := [cbvDataRow, cbvColumnHeader];
+    FMasterTableView.OptionsSelection.ShowCheckBoxesDynamically := True;
+  end
+  else
+  begin
+    FMasterTableView.OptionsSelection.CheckBoxVisibility := [];
+    FMasterTableView.OptionsSelection.ShowCheckBoxesDynamically := False;
+  end;
+
+  FMasterTableView.OptionsView.GroupByBox := False;
+
+  if StrToBoolDef(TDomain(TInteractor(FInteractor).Domain).UserSettings.GetValue('Core', 'ShowHorzLines'), True) then
+    FMasterTableView.OptionsView.GridLines := glBoth
+  else
+    FMasterTableView.OptionsView.GridLines := glVertical;
+
+  FMasterTableView.OptionsBehavior.CellHints := True;
+  FMasterTableView.DataController.CustomDataSource := FMasterDS;
+  FMasterTableView.OnCellDblClick:= DoOnCellDblClick;
+  FMasterTableView.OnSelectionChanged := DoOnSelectionChanged;
+  FMasterTableView.OnCanSelectRecord := DoCanSelectRecord;
+  FMasterTableView.DataController.Summary.Options := [soSelectedRecords, soMultipleSelectedRecords];
+  FMasterTableView.Styles.Background := FBGStyle;
+  FMasterTableView.Styles.Header := FHeaderStyle;
+
+  FGrid := TcxGrid.Create(nil);
+  Result := FGrid;
+
+  FGrid.LookAndFeel.NativeStyle := False;
+  FGrid.LookAndFeel.Kind := lfFlat;
+
+  if ALayout.Kind = lkPanel then
+    FGrid.Align := TAlign(ALayout.Align)
+  else
+    FGrid.Align := alClient;
+  FGrid.Levels.Add.GridView := FMasterTableView;
+//  FGrid.Levels.Add.GridView := FChartView;
+  FGrid.Font.Size := 12;
+
+  // after inherited Create, Interactor must be initialized
+  cxSetResourceString(@scxGridGroupByBoxCaption, TInteractor(FInteractor).Translate('txtMoveColumnForGrouping',
+    'Перетащите сюда колонку для группировки'));
+  FMasterTableView.OptionsView.NoDataToDisplayInfoText := TInteractor(FInteractor).Translate('@Grid@NoDataText', '<Нет данных>');
+  FAllData := TEntityList(FView.DomainObject);
+
+  FBGStyle.Color := GetBGColor(FAllData.MainDefinition, clWindow);
+  FHeaderStyle.Font.Size := 10;
+  FHeaderStyle.TextColor := clGray;
+
+  EnableColumnParamsChangeHandlers(False);
+
+  if Assigned(FCreateParams) then
+  begin
+    vFields := FCreateParams.Values['fields'];
+    if FCreateParams.Values['editingInGrid'] = 'true' then
+    begin
+      FMasterTableView.OptionsData.Editing := True;
+      FMasterTableView.OptionsSelection.CellSelect := True;
+    end;
+  end
+  else
+    vFields := '';
+
+  if vFields = '' then
+    vFields := AParent.QueryParameter('fields');
+
+  CreateColumnsFromModel(vFields);
+  LoadColumnWidths;
+
+  EnableColumnParamsChangeHandlers(True);
+
+  vDefinition := FAllData.MainDefinition;
+  FGroupFieldName := Trim(AParent.QueryParameter('Group'));
+  if (FGroupFieldName = '') and Assigned(vDefinition) then
+    FGroupFieldName := Trim(vDefinition.GroupFieldName);
+  if FGroupFieldName = '-' then
+    FGroupFieldName := '';
+
+  FColorFieldName := Trim(AParent.QueryParameter('Color'));
+  if (FColorFieldName = '') and Assigned(vDefinition) then
+    FColorFieldName := Trim(vDefinition.ColorFieldName);
+  if FColorFieldName = '-' then
+    FColorFieldName := '';
+
+  if (FGroupFieldName <> '') and (FAllData.FillerKind = lfkDefinition) then
+  begin
+    vColumn := FindColumnByFieldName(FGroupFieldName);
+    if Assigned(vColumn) then
+    begin
+      vColumn.Visible := False;
+      vColumn.GroupIndex := 0;
+      vView := FView.BuildView('#GroupByColumn');
+      TEntity(vView.DomainObject)._SetFieldValue(TUserSession(FView.Session).NullHolder, 'IsChecked', True);
+      FMasterTableView.OptionsView.GroupByBox := True;
+      FMasterTableView.DataController.Options := FMasterTableView.DataController.Options + [dcoGroupsAlwaysExpanded];
+    end;
+  end;
 end;
 
 procedure TCollectionEditor.DoExecuteUIAction(const AView: TView);
@@ -1935,7 +1928,7 @@ begin
   else if AView.Name = '#GroupByColumn' then
   begin
     vParams := TEntity(AView.DomainObject);
-    vParams._SetFieldValue(FSession.NullHolder, 'IsChecked', not vParams['IsChecked']);
+    vParams._SetFieldValue(TUserSession(FView.Session).NullHolder, 'IsChecked', not vParams['IsChecked']);
     FMasterTableView.OptionsView.GroupByBox := vParams['IsChecked'];
     if not FMasterTableView.OptionsView.GroupByBox then // remove groups
       for i := 0 to FMasterTableView.ColumnCount - 1 do
@@ -1989,7 +1982,7 @@ procedure TCollectionEditor.DoOnCellDblClick(Sender: TcxCustomGridTableView; ACe
   AShift: TShiftState; var AHandled: Boolean);
 begin
   if AButton = mbLeft then
-    OnTableViewDblClick(FView, Self);
+    OnTableViewDblClick(FView, FOwner);
 end;
 
 { TUserDataSource }
@@ -2314,12 +2307,12 @@ begin
       vParams := TEntity(vArea.View.DomainObject);
       vMenuItem.Checked := FMasterTableView.OptionsView.GroupByBox;
       if vParams['IsChecked'] <> vMenuItem.Checked then
-        vParams._SetFieldValue(FSession.NullHolder, 'IsChecked', vMenuItem.Checked);
+        vParams._SetFieldValue(TUserSession(TInteractor(FInteractor).Session).NullHolder, 'IsChecked', vMenuItem.Checked);
     end;
   end;
 
   vMenuItem := vMenu.Items[vMenu.Items.Count - 1];
-  vMenuItem.Caption := TInteractor(Interactor).Translate('txtRecordCount', 'Записей') + ': ' + IntToStr(FAllData.Count);
+  vMenuItem.Caption := TInteractor(FInteractor).Translate('txtRecordCount', 'Записей') + ': ' + IntToStr(FAllData.Count);
 end;
 
 procedure TColumnListEditor.GetPropertiesForEdit(Sender: TcxCustomGridTableItem; ARecord: TcxCustomGridRecord;
@@ -2357,7 +2350,7 @@ var
         else begin
           vEntityField.RestoreContentDefinition;
           if (vEntityField.ContentDefinition.Name = '~') and Assigned(vEntityField.Entity) then
-            vEntityField.SetContentDefinition(Holder, vEntityField.Entity.Definition);
+            vEntityField.SetContentDefinition(FOwner.Holder, vEntityField.Entity.Definition);
           if (vEntityField.ContentDefinition.Name <> '~') then
             vName := vName + '_' + vEntityField.ContentDefinition.Name;
         end;
@@ -2373,7 +2366,7 @@ var
         TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.ValueType := vtInt;
         TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.Alignment.Horz := taRightJustify;
         if AFieldDef.Format <> '' then
-          TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.DisplayFormat := GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
+          TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.DisplayFormat := FOwner.GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
       end
       else if vFieldKind in [fkFloat, fkCurrency] then
       begin
@@ -2381,7 +2374,7 @@ var
         TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.ValueType := vtFloat;
         TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.Alignment.Horz := taRightJustify;
         if AFieldDef.Format <> '' then
-          TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.DisplayFormat := GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
+          TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.DisplayFormat := FOwner.GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
       end
       else if vFieldKind = fkBoolean then
       begin
@@ -2477,7 +2470,7 @@ begin
           TcxSpinEditProperties(vCol.Properties).ValueType := vtFloat;
 
         if Length(AFieldDef.Format) > 0 then
-          TcxSpinEditProperties(vCol.Properties).DisplayFormat := GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
+          TcxSpinEditProperties(vCol.Properties).DisplayFormat := FOwner.GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
 
         if not VarIsNull(TSimpleFieldDef(AFieldDef).MinValue) then
           TcxSpinEditProperties(vCol.Properties).MinValue := TSimpleFieldDef(AFieldDef).MinValue;
@@ -2534,7 +2527,7 @@ begin
     begin
       vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
       vComboItem := TcxImageComboBoxProperties(vCol.Properties).Items.Add;
-      vImageID := GetImageID(vDefinition._ImageID);
+      vImageID := FOwner.GetImageID(vDefinition._ImageID);
       vComboItem.Value := vImageID;
       vComboItem.ImageIndex := vImageID;
     end;
@@ -2568,7 +2561,7 @@ begin
         vWidth := TPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
         { TODO -cUI refactoring : Перенести описание аггрегаций в слой описания UI }
         vAggType := vMainDefinition.Reductions.ReductionForField(vFieldDef.Name);
-        CreateColumn(vFieldDef, vFieldDef.Name, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
+        CreateColumn(vFieldDef, vFieldDef.Name, FOwner.GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
       end;
 
       //if FAllData.ContentDefinitions.Count > 1 then
@@ -2584,10 +2577,10 @@ begin
           if not Assigned(vFieldDef) then
             Continue;
 
-          vWidth := TPresenter(Presenter).GetWidthByType(100, vFieldDef);
+          vWidth := TPresenter(FPresenter).GetWidthByType(100, vFieldDef);
           vAggType := TDefinition(vFieldDef.Definition).Reductions.ReductionForField(vFieldName);
 
-          CreateColumn(vFieldDef, vFieldName, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
+          CreateColumn(vFieldDef, vFieldName, FOwner.GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
         end;
       finally
         vFields.Free;
@@ -2597,12 +2590,6 @@ begin
     FMasterTableView.EndUpdate;
     EnableColumnParamsChangeHandlers(True);
   end;
-end;
-
-destructor TColumnListEditor.Destroy;
-begin
-  FreeAndNil(FEditRepository);
-  inherited;
 end;
 
 procedure TColumnListEditor.DoBeforeFreeControl;
@@ -2622,6 +2609,8 @@ begin
   FreeAndNil(FHeaderStyle);
   FreeAndNil(FContentStyle);
   FreeAndNil(FSelectionStyle);
+
+  FreeAndNil(FEditRepository);
 end;
 
 function TColumnListEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -2633,7 +2622,7 @@ begin
   FHeaderStyle := TcxStyle.Create(nil);
   FContentStyle := TcxStyle.Create(nil);
   FSelectionStyle := TcxStyle.Create(nil);
-  FMasterDS := TUserDataSource.Create(Self);
+  FMasterDS := TUserDataSource.Create(FOwner);
 
   FMasterTableView := TcxGridTableView.Create(nil);
   FMasterTableView.DataController.OnCompare := DoOnCompare;
@@ -2694,9 +2683,9 @@ begin
   FGrid.Levels.Add.GridView := FMasterTableView;
   FGrid.Font.Size := 12;
 
-  cxSetResourceString(@scxGridGroupByBoxCaption, TInteractor(Interactor).Translate('txtMoveColumnForGrouping',
+  cxSetResourceString(@scxGridGroupByBoxCaption, TInteractor(FInteractor).Translate('txtMoveColumnForGrouping',
     'Перетащите сюда колонку для группировки'));
-  FMasterTableView.OptionsView.NoDataToDisplayInfoText := TInteractor(Interactor).Translate('@Grid@NoDataText', '<Нет данных>');
+  FMasterTableView.OptionsView.NoDataToDisplayInfoText := TInteractor(FInteractor).Translate('@Grid@NoDataText', '<Нет данных>');
   FAllData := TEntityList(FView.DomainObject);
 
   FBGStyle.Color := GetBGColor(FAllData.MainDefinition, clWindow);
@@ -2725,7 +2714,7 @@ procedure TColumnListEditor.DoOnCellDblClick(Sender: TcxCustomGridTableView; ACe
   AShift: TShiftState; var AHandled: Boolean);
 begin
   if AButton = mbLeft then
-    OnTableViewDblClick(FView, Self);
+    OnTableViewDblClick(FView, FOwner);
 end;
 
 procedure TColumnListEditor.DoOnColumnPosChanged(Sender: TcxGridTableView; AColumn: TcxGridColumn);
@@ -2858,7 +2847,7 @@ begin
         // Для того, чтобы откатить изменения, сделанные через UpDown
         FMasterTableView.Controller.EditingController.HideEdit(False);
         // Для того, чтобы откатить изменения, сделанные прямым набором текста
-        vEntity._RestoreFieldValue(Holder, vBinding.FieldDef.Name);
+        vEntity._RestoreFieldValue(FOwner.Holder, vBinding.FieldDef.Name);
       end;
       Exit;
     end;
@@ -2870,7 +2859,7 @@ end;
 procedure TColumnListEditor.OnGetContentStyle(Sender: TcxCustomGridTableView; ARecord: TcxCustomGridRecord;
   AItem: TcxCustomGridTableItem; var AStyle: TcxStyle);
 begin
-  GetContentStyle(Self, FAllData, FAllData.MainDefinition.ColorFieldName, FMasterDS.Data, Sender, ARecord, AItem, AStyle);
+  GetContentStyle(FOwner, FAllData, FAllData.MainDefinition.ColorFieldName, FMasterDS.Data, Sender, ARecord, AItem, AStyle);
 end;
 
 type
@@ -2888,13 +2877,17 @@ begin
   SaveGridColumnWidths(TInteractor(FView.Interactor).Domain, FMasterTableView, FFieldDef.FullName);
 end;
 
-procedure TColumnListEditor.SetPopupArea(const APopupArea: TUIArea);
+procedure TColumnListEditor.SetLinkedControl(const ATargetName: string;
+  const ALinkedControl: TNativeControl);
 var
   vPopupMenu: TPopupMenu;
 begin
-  vPopupMenu := TPopupMenu(APopupArea.InnerControl);
-  vPopupMenu.OnPopup := BeforeContextMenuShow;
-  FMasterTableView.PopupMenu := vPopupMenu;
+  if ATargetName = 'popup' then
+  begin
+    vPopupMenu := TPopupMenu(ALinkedControl.Control);
+    vPopupMenu.OnPopup := BeforeContextMenuShow;
+    FMasterTableView.PopupMenu := vPopupMenu;
+  end;
 end;
 
 procedure TColumnListEditor.ShowFooter(const AColumn: TcxGridColumn; const AAgg: TAggregationKind);
@@ -2935,11 +2928,11 @@ begin
   //  FMasterTableView.DataController.CustomDataSource.DataChanged
   else if AKind = dckListAdded then
   begin
-    TUserDataSource(FMasterTableView.DataController.CustomDataSource).Add(AParameter, not TDomain(Domain).LoadingChanges);
+    TUserDataSource(FMasterTableView.DataController.CustomDataSource).Add(AParameter, not TDomain(TInteractor(FInteractor).Domain).LoadingChanges);
   end
   else if AKind = dckListRemoved then
   begin
-    TUserDataSource(FMasterTableView.DataController.CustomDataSource).Remove(AParameter, not TDomain(Domain).LoadingChanges);
+    TUserDataSource(FMasterTableView.DataController.CustomDataSource).Remove(AParameter, not TDomain(TInteractor(FInteractor).Domain).LoadingChanges);
   end
   else if (AKind = dckSelectionChanged) or (AKind = dckListScrollUpdate)  then
   begin
@@ -3077,7 +3070,7 @@ begin
     end;
 
     vRow.Properties.Value := vValue;
-    FParams[vIndex]._SetFieldValue(Holder, 'Value', vValue)
+    FParams[vIndex]._SetFieldValue(FOwner.Holder, 'Value', vValue)
   end
   else
     ShowMessage('Wrong index');
@@ -3191,14 +3184,32 @@ begin
   end;
 
   vMenuItem := vMenu.Items[vMenu.Items.Count - 1];
-  vMenuItem.Caption := TInteractor(Interactor).Translate('txtRecordCount', 'Записей') + ': ' + IntToStr(FAllData.Count);
+  vMenuItem.Caption := TInteractor(FInteractor).Translate('txtRecordCount', 'Записей') + ': ' + IntToStr(FAllData.Count);
 end;
 
-constructor TPivotGrid.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-  const AId: string; const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = '');
+procedure TPivotGrid.DoBeforeFreeControl;
+begin
+  if Assigned(FPivot.PopupMenu) then
+  begin
+    TPopupMenu(FPivot.PopupMenu).OnPopup := nil;
+    FPivot.PopupMenu := nil;
+  end;
+
+  FPivot.OnDblClick := nil;
+
+  FCube := nil;
+  FAllData := nil;
+
+  FPivot.DataController.CustomDataSource := nil;
+  FreeAndNil(FMasterDS);
+end;
+
+function TPivotGrid.DoCreateControl(const AParent: TUIArea;
+  const ALayout: TLayout): TObject;
 begin
   FPivot := TcxPivotGrid.Create(nil);
-  FId := 'Pivot';
+  Result := FPivot;
+  FOwner.Id := 'Pivot';
 
   if ALayout.Kind = lkPanel then
     FPivot.Align := TAlign(ALayout.Align)
@@ -3267,9 +3278,7 @@ begin
   cxSetResourceString(@scxPrefilterIsEmpty, '<Фильтр не задан>');
   cxSetResourceString(@scxPrefilterCustomizeButtonCaption, 'Фильтрация...');
 
-  inherited Create(AParent, AView, ALayout, AId, AIsService, FPivot, AParams);
-
-  FAllData := TEntityList(AView.DomainObject);
+  FAllData := TEntityList(FView.DomainObject);
   FMasterDS := TPivotDataSource.Create;
 
   FCube := FAllData.MainDefinition.DataCubes.Cube[AParent.QueryParameter('Cube', '')];
@@ -3278,24 +3287,6 @@ begin
   FPivot.DataController.CustomDataSource := FMasterDS;
   FPivot.OnDblClick := DoOnGridDblClick;
   FPivot.ApplyBestFit;
-end;
-
-destructor TPivotGrid.Destroy;
-begin
-  if Assigned(FPivot.PopupMenu) then
-  begin
-    TPopupMenu(FPivot.PopupMenu).OnPopup := nil;
-    FPivot.PopupMenu := nil;
-  end;
-
-  FPivot.OnDblClick := nil;
-
-  FCube := nil;
-  FAllData := nil;
-
-  FPivot.DataController.CustomDataSource := nil;
-  FreeAndNil(FMasterDS);
-  inherited Destroy;
 end;
 
 procedure TPivotGrid.DoExecuteUIAction(const AView: TView);
@@ -3365,8 +3356,8 @@ begin
 
   cxExportPivotGridDataToExcel(vFileName, FPivot);
 
-  if FileExists(vFileName) and (TPresenter(Presenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
-    TPresenter(Presenter).OpenFile(vFileName);
+  if FileExists(vFileName) and (TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
+    TPresenter(FPresenter).OpenFile(vFileName);
 end;
 
 procedure TPivotGrid.FillGrid;
@@ -3426,13 +3417,17 @@ begin
   end;
 end;
 
-procedure TPivotGrid.SetPopupArea(const APopupArea: TUIArea);
+procedure TPivotGrid.SetLinkedControl(const ATargetName: string;
+  const ALinkedControl: TNativeControl);
 var
   vPopupMenu: TPopupMenu;
 begin
-  vPopupMenu := TPopupMenu(APopupArea.InnerControl);
-  vPopupMenu.OnPopup := BeforeContextMenuShow;
-  FPivot.PopupMenu := vPopupMenu;
+  if ATargetName = 'popup' then
+  begin
+    vPopupMenu := TPopupMenu(ALinkedControl.Control);
+    vPopupMenu.OnPopup := BeforeContextMenuShow;
+    FPivot.PopupMenu := vPopupMenu;
+  end;
 end;
 
 { TPivotDataSource }
@@ -3499,72 +3494,6 @@ begin
   end;
 end;
 
-constructor TTreeCollectionEditor.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-  const AId: string; const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = '');
-var
-  vFields: string;
-begin
-  FDomain := TInteractor(AView.Interactor).Domain;
-
-  FBGStyle := TcxStyle.Create(nil);
-  FHeaderStyle := TcxStyle.Create(nil);
-
-  FTreeList := TcxVirtualTreeList.Create(nil);
-  FTreeList.OptionsData.Editing := False;
-  FTreeList.OptionsData.Deleting := False;
-  FTreeList.OptionsData.Inserting := False;
-  FTreeList.OptionsCustomizing.ColumnsQuickCustomization := True;
-  FTreeList.OptionsCustomizing.NodeSizing := False;
-  FTreeList.OptionsCustomizing.RowSizing := False;
-  FTreeList.OptionsCustomizing.BandVertSizing := False;
-  FTreeList.OptionsCustomizing.BandHorzSizing := False;
-  FTreeList.OptionsCustomizing.ColumnVertSizing := False;
-  FTreeList.OptionsSelection.CellSelect := False;
-  FTreeList.OptionsSelection.HideSelection := True;
-  FTreeList.OptionsSelection.MultiSelect := False;
-
-  if StrToBoolDef(TDomain(FDomain).UserSettings.GetValue('Core', 'ShowHorzLines'), True) then
-    FTreeList.OptionsView.GridLines := tlglBoth
-  else
-    FTreeList.OptionsView.GridLines := tlglVert;
-
-  FTreeList.OptionsBehavior.CellHints := True;
-  FTreeList.OnDblClick := DoOnTableViewDblClick;
-  FTreeList.OnSelectionChanged := DoOnSelectionChanged;
-  FTreeList.OnGetChildCount := TreeListGetChildCount;
-  FTreeList.OnGetNodeValue := TreeListGetNodeValue;
-//  FList.OnCanSelectRecord := DoCanSelectRecord;
-
-  FTreeList.Styles.Background := FBGStyle;
-  FTreeList.Styles.ColumnHeader := FHeaderStyle;
-  FTreeList.LookAndFeel.NativeStyle := False;
-  FTreeList.LookAndFeel.Kind := lfFlat;
-
-  if ALayout.Kind = lkPanel then
-    FTreeList.Align := TAlign(ALayout.Align)
-  else
-    FTreeList.Align := alClient;
-
-  FTreeList.Font.Size := 12;
-
-  inherited Create(AParent, AView, ALayout, AId, AIsService, FTreeList, AParams);
-
-  FAllData := TEntityList(FView.DomainObject);
-
-  FBGStyle.Color := GetBGColor(FAllData.MainDefinition, clWindow);
-  FHeaderStyle.Font.Size := 10;
-  FHeaderStyle.TextColor := clGray;
-
-  EnableColumnParamsChangeHandlers(False);
-
-  vFields := AParent.QueryParameter('fields');
-  CreateColumnsFromModel(vFields);
-  LoadColumnWidths;
-  CreateLevels(ALayout);
-
-  EnableColumnParamsChangeHandlers(True);
-end;
-
 procedure TTreeCollectionEditor.CreateColumn(const AFieldDef: TFieldDef; const AFieldName, AOverriddenCaption: string; const AWidth: Integer;
   const ASortOrder: TSortOrder; const AAgg: TAggregationKind);
 var
@@ -3606,7 +3535,7 @@ begin
     begin
       vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
       vComboItem := TcxImageComboBoxProperties(vCol.Properties).Items.Add;
-      vImageID := GetImageID(vDefinition._ImageID);
+      vImageID := FOwner.GetImageID(vDefinition._ImageID);
       vComboItem.Value := vImageID;
       vComboItem.ImageIndex := vImageID;
     end;
@@ -3640,7 +3569,7 @@ begin
         vWidth := TPresenter(TInteractor(FView.Interactor).Presenter).GetWidthByType(100, vFieldDef);
         { TODO -cUI refactoring : Перенести описание аггрегаций в слой описания UI }
         vAggType := vMainDefinition.Reductions.ReductionForField(vFieldDef.Name);
-        CreateColumn(vFieldDef, vFieldDef.Name, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
+        CreateColumn(vFieldDef, vFieldDef.Name, FOwner.GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
       end;
 
       //if FAllData.ContentDefinitions.Count > 1 then
@@ -3656,10 +3585,10 @@ begin
           if not Assigned(vFieldDef) then
             Continue;
 
-          vWidth := TPresenter(Presenter).GetWidthByType(100, vFieldDef);
+          vWidth := TPresenter(FPresenter).GetWidthByType(100, vFieldDef);
           vAggType := TDefinition(vFieldDef.Definition).Reductions.ReductionForField(vFieldName);
 
-          CreateColumn(vFieldDef, vFieldName, GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
+          CreateColumn(vFieldDef, vFieldName, FOwner.GetFieldTranslation(vFieldDef), vWidth, uConsts.soNone, vAggType);
         end;
       finally
         vFields.Free;
@@ -3705,7 +3634,8 @@ begin
 
 end;
 
-destructor TTreeCollectionEditor.Destroy;
+
+procedure TTreeCollectionEditor.DoBeforeFreeControl;
 begin
   if Assigned(FTreeList.PopupMenu) then
   begin
@@ -3718,8 +3648,70 @@ begin
   FreeAndNil(FBGStyle);
   FreeAndNil(FHeaderStyle);
   FreeAndNil(FLevels);
+end;
 
-  inherited Destroy;
+function TTreeCollectionEditor.DoCreateControl(const AParent: TUIArea;
+  const ALayout: TLayout): TObject;
+var
+  vFields: string;
+begin
+  FBGStyle := TcxStyle.Create(nil);
+  FHeaderStyle := TcxStyle.Create(nil);
+
+  FTreeList := TcxVirtualTreeList.Create(nil);
+  Result := FTreeList;
+
+  FTreeList.OptionsData.Editing := False;
+  FTreeList.OptionsData.Deleting := False;
+  FTreeList.OptionsData.Inserting := False;
+  FTreeList.OptionsCustomizing.ColumnsQuickCustomization := True;
+  FTreeList.OptionsCustomizing.NodeSizing := False;
+  FTreeList.OptionsCustomizing.RowSizing := False;
+  FTreeList.OptionsCustomizing.BandVertSizing := False;
+  FTreeList.OptionsCustomizing.BandHorzSizing := False;
+  FTreeList.OptionsCustomizing.ColumnVertSizing := False;
+  FTreeList.OptionsSelection.CellSelect := False;
+  FTreeList.OptionsSelection.HideSelection := True;
+  FTreeList.OptionsSelection.MultiSelect := False;
+
+  if StrToBoolDef(TDomain(FDomain).UserSettings.GetValue('Core', 'ShowHorzLines'), True) then
+    FTreeList.OptionsView.GridLines := tlglBoth
+  else
+    FTreeList.OptionsView.GridLines := tlglVert;
+
+  FTreeList.OptionsBehavior.CellHints := True;
+  FTreeList.OnDblClick := DoOnTableViewDblClick;
+  FTreeList.OnSelectionChanged := DoOnSelectionChanged;
+  FTreeList.OnGetChildCount := TreeListGetChildCount;
+  FTreeList.OnGetNodeValue := TreeListGetNodeValue;
+//  FList.OnCanSelectRecord := DoCanSelectRecord;
+
+  FTreeList.Styles.Background := FBGStyle;
+  FTreeList.Styles.ColumnHeader := FHeaderStyle;
+  FTreeList.LookAndFeel.NativeStyle := False;
+  FTreeList.LookAndFeel.Kind := lfFlat;
+
+  if ALayout.Kind = lkPanel then
+    FTreeList.Align := TAlign(ALayout.Align)
+  else
+    FTreeList.Align := alClient;
+
+  FTreeList.Font.Size := 12;
+
+  FAllData := TEntityList(FView.DomainObject);
+
+  FBGStyle.Color := GetBGColor(FAllData.MainDefinition, clWindow);
+  FHeaderStyle.Font.Size := 10;
+  FHeaderStyle.TextColor := clGray;
+
+  EnableColumnParamsChangeHandlers(False);
+
+  vFields := AParent.QueryParameter('fields');
+  CreateColumnsFromModel(vFields);
+  LoadColumnWidths;
+  CreateLevels(ALayout);
+
+  EnableColumnParamsChangeHandlers(True);
 end;
 
 procedure TTreeCollectionEditor.DoExecuteUIAction(const AView: TView);
@@ -3738,7 +3730,6 @@ begin
   SaveColumnWidths;
 end;
 
-
 procedure TTreeCollectionEditor.DoOnSorted(Sender: TObject);
 begin
 
@@ -3746,7 +3737,7 @@ end;
 
 procedure TTreeCollectionEditor.DoOnTableViewDblClick(Sender: TObject);
 begin
-  OnTableViewDblClick(FView, Self);
+  OnTableViewDblClick(FView, FOwner);
 end;
 
 procedure TTreeCollectionEditor.EnableColumnParamsChangeHandlers(const AEnable: Boolean);
@@ -3826,13 +3817,17 @@ begin
   SaveTreeColumnWidths(FDomain, FTreeList, TDefinition(FView.Definition).Name);
 end;
 
-procedure TTreeCollectionEditor.SetPopupArea(const APopupArea: TUIArea);
+procedure TTreeCollectionEditor.SetLinkedControl(const ATargetName: string;
+  const ALinkedControl: TNativeControl);
 var
   vPopupMenu: TPopupMenu;
 begin
-  vPopupMenu := TPopupMenu(APopupArea.InnerControl);
-  vPopupMenu.OnPopup := BeforeContextMenuShow;
-  FTreeList.PopupMenu := vPopupMenu;
+  if ATargetName = 'popup' then
+  begin
+    vPopupMenu := TPopupMenu(ALinkedControl.Control);
+    vPopupMenu.OnPopup := BeforeContextMenuShow;
+    FTreeList.PopupMenu := vPopupMenu;
+  end;
 end;
 
 procedure TTreeCollectionEditor.TreeListGetChildCount(Sender: TcxCustomTreeList; AParentNode: TcxTreeListNode; var ACount: Integer);
@@ -3874,9 +3869,7 @@ begin
       AValue := vEnumeration.Items[Integer(vEntity.FieldByName(vFieldDef.Name).Value)].DisplayText
     else
       AValue := vEntity.GetStateCaption(vFieldDef.Name);
-  end
-  else
-
+  end;
 end;
 
 procedure TTreeCollectionEditor.UpdateArea(const AKind: Word; const AParameter: TEntity);
@@ -4012,7 +4005,7 @@ begin
       vParentEntity := TEntity(FView.ParentDomainObject);
       try
         vTransitDefinitionName := vParentEntity[vTransitContentType];
-        FTransitDefinition := TDomain(Domain).Configuration.DefinitionByName[vTransitDefinitionName];
+        FTransitDefinition := FDomain.Configuration.DefinitionByName[vTransitDefinitionName];
       except
         Assert(False, 'Неверно указан тип для транзитного поля: ' + vTransitDefinitionName);
       end;
@@ -4047,7 +4040,7 @@ var
   vSelectedIndex: Integer;
   vEntity, vParentParameter: TEntity;
 begin
-  TDomain(Domain).GetEntityList(FView.Session, FTransitDefinition, FEntityList, '');
+  FDomain.GetEntityList(FView.Session, FTransitDefinition, FEntityList, '');
 
   vSelectedList := TEntityList(FView.DomainObject);
   vList := TList<TEntity>.Create;
@@ -4114,7 +4107,7 @@ begin
         //vTransitEntity._SetFieldEntity(AHolder, FTransitField.Name, vEntity);
         FListBox.Items[AIndex].ItemObject := vTransitEntity;
         Result := True;
-      end, TChangeHolder(Holder));
+      end, TChangeHolder(FOwner.Holder));
   end
   else begin
     Assert(vEntity.Definition.IsDescendantOf(TEntityList(FView.DomainObject).MainDefinition.Name), 'К записи привязан объект неправильного типа');
@@ -4123,7 +4116,7 @@ begin
       begin
         TEntityList(FView.DomainObject).RemoveEntity(AHolder, vEntity);
         Result := True;
-      end, TChangeHolder(Holder));
+      end, TChangeHolder(FOwner.Holder));
   end;
 end;
 
@@ -4242,15 +4235,15 @@ begin
 
   vSelectedList := TEntityList(FView.DomainObject);
 
-  if vSelectedList.Count = Count then Exit;
+  if vSelectedList.Count = FOwner.Count then Exit;
 
   FPages.Properties.BeginUpdate;
   FInUpdate := True;
   try
-    while Count > 0 do
+    while FOwner.Count > 0 do
     begin
-      vArea := Areas[0];
-      RemoveArea(vArea);
+      vArea := FOwner.Areas[0];
+      FOwner.RemoveArea(vArea);
     end;
 
     for i := 0 to vSelectedList.Count - 1 do
@@ -4264,8 +4257,8 @@ begin
       vView := FView.BuildView(IntToStr(i));
       vView.AddListener(Self);
       FCreatedViews.Add(vView);
-      vTabArea := CreateChildArea(vView, vLayout, '');
-      TInteractor(Interactor).UIBuilder.ApplyLayout(vTabArea, vView, FCreateParams.Values['layout'], '');
+      vTabArea := FOwner.CreateChildArea(vView, vLayout, '');
+      TInteractor(FInteractor).UIBuilder.ApplyLayout(vTabArea, vView, FCreateParams.Values['layout'], '');
     end;
 //    FPages.Properties.HideTabs := FPages.PageCount < 2;
   finally
@@ -4303,7 +4296,7 @@ var
 begin
   inherited;
 
-  vCollection := TDomain(Domain)[FLookupCollection];
+  vCollection := FDomain[FLookupCollection];
 
   if not IsChanged then Exit;
 
@@ -4377,7 +4370,7 @@ var
   vHolder: TObject;
   vMasterItem, vLookupItem: TEntity;
 begin
-  vHolder := Holder;
+  vHolder := FOwner.Holder;
 
   vLookupItem := TEntity(FListBox.Items[AIndex].ItemObject);
   vMasterItem := FindMasterItem(vLookupItem);
@@ -4406,18 +4399,18 @@ end;
 
 initialization
 
-TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, '', TColumnListEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'simple', TListEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'selector', TEntityListSelector); //deprecated
-TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'multiselect', TEntityListSelector2);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'multiselect3', TEntityListSelector3);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'mtm', TEntityListSelectorMTM);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'parameters', TParametersEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiListEdit, 'paged', TPagedEntityListSelector);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, '', TColumnListEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'simple', TListEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'selector', TEntityListSelector); //deprecated
+TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'multiselect', TEntityListSelector2);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'multiselect3', TEntityListSelector3);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'mtm', TEntityListSelectorMTM);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'parameters', TParametersEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiListEdit, 'paged', TPagedEntityListSelector);
 
-TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, '', TCollectionEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, 'Pivot', TPivotGrid);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiCollection, 'Tree', TTreeCollectionEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiCollection, '', TCollectionEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiCollection, 'Pivot', TPivotGrid);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiCollection, 'Tree', TTreeCollectionEditor);
 
 end.
 

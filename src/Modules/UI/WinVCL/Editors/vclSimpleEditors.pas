@@ -38,7 +38,7 @@ interface
 uses
   Classes, Types, Graphics, ExtCtrls, StdCtrls, Dialogs, ActnList, StdActns, ComCtrls,
 
-  vclArea, uDefinition, uEnumeration, uUIBuilder, uView, uLayout, Controls,
+  vclArea, uDefinition, uEnumeration, uUIBuilder, uView, uEntity, uLayout, Controls,
 
   //DevExpress
   cxSpinEdit, cxEdit, cxCalendar, cxDateUtils, cxTextEdit, cxRadioGroup, cxPC,
@@ -48,22 +48,13 @@ uses
   dxGaugeCustomScale, dxGaugeQuantitativeScale, dxGaugeCircularScale, dxGaugeControl;
 
 type
-  TVCLField = class(TVCLControl)
-  protected
-    [Weak] FFieldArea: TFieldArea;
-    [Weak] FFieldDef: TFieldDef;
-  public
-    constructor Create(const AOwner: TUIArea; const AControl: TObject; const AParams: string = ''); override;
-    destructor Destroy; override;
-  end;
-
-  TTextInfo = class (TFieldArea)
+  TTextInfo = class(TVCLField)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
   end;
 
-  TDEEditor = class (TFieldArea)
+  TDEEditor = class(TVCLField)
   protected
     function GetDisabledBorderStyle: TcxEditBorderStyle;
     function GetBoxDisabledBorderStyle: TcxContainerBorderStyle;
@@ -133,7 +124,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TDEIntegerFieldEditor = class (TDEEditor)
+  TDEIntegerFieldEditor = class(TDEEditor)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -142,7 +133,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TDEFloatFieldEditor = class (TDEEditor)
+  TDEFloatFieldEditor = class(TDEEditor)
   private
 //    FAfterPoint: Integer; // знаков после запятой
   protected
@@ -152,7 +143,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TDECurrencyFieldEditor = class (TDEEditor)
+  TDECurrencyFieldEditor = class(TDEEditor)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -160,7 +151,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TDEDateFieldEditor = class (TDEEditor)
+  TDEDateFieldEditor = class(TDEEditor)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -169,7 +160,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TDETimeFieldEditor = class (TDEEditor)
+  TDETimeFieldEditor = class(TDEEditor)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -178,7 +169,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TDEDateTimeFieldEditor = class (TDEEditor)
+  TDEDateTimeFieldEditor = class(TDEEditor)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -187,7 +178,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TDETextFieldEditor = class (TDEEditor)
+  TDETextFieldEditor = class(TDEEditor)
   private
     procedure OnPhoneKeyPress(Sender: TObject; var Key: Char);
   protected
@@ -197,7 +188,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TTextSelector = class (TDEEditor)
+  TTextSelector = class(TDEEditor)
   private
     procedure FillList;
     procedure CBOnInitPopup(Sender: TObject);
@@ -208,7 +199,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TSelectFolderFieldEditor = class (TDEEditor)
+  TSelectFolderFieldEditor = class(TDEEditor)
   private
     FText: TcxTextEdit;
     FBtn: TcxButton;
@@ -223,7 +214,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TFilenameFieldEditor = class (TDEEditor)
+  TFilenameFieldEditor = class(TDEEditor)
   private
     FBtn: TcxButton;
     FAction: TFileOpen;
@@ -240,7 +231,7 @@ type
     property TextEdit: TcxTextEdit read FText;
   end;
 
-  TDEMaskFieldEditor = class (TDEEditor)
+  TDEMaskFieldEditor = class(TDEEditor)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -248,7 +239,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TMRUFieldEditor = class (TDEEditor)
+  TMRUFieldEditor = class(TDEEditor)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -256,7 +247,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TDEMemoFieldEditor = class (TDEEditor)
+  TDEMemoFieldEditor = class(TDEEditor)
   private
     procedure OnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   protected
@@ -266,7 +257,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TDELogFieldEditor = class (TDEMemoFieldEditor)
+  TDELogFieldEditor = class(TDEMemoFieldEditor)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
   end;
@@ -323,7 +314,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TDEImageEditor = class (TDEEditor)
+  TDEImageEditor = class(TDEEditor)
   private
     procedure DoOnAssignPicture(Sender: TObject;
       const Picture: TPicture);
@@ -342,13 +333,13 @@ type
     procedure FillEditor; override;
   end;
 
-  TImageByString = class (TFieldArea)
+  TImageByString = class(TVCLField)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
   end;
 
-  TBoolImages = class (TFieldArea)
+  TBoolImages = class(TVCLField)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -374,7 +365,7 @@ type
     //procedure FillEditor; override;
   end;
 
-  TColorEditor = class (TFieldArea)
+  TColorEditor = class(TVCLField)
   private
     FBasePanel: TPanel;
     FColorDialog: TColorDialog;
@@ -390,21 +381,20 @@ type
   end;
 
   // неопределённый по времени процесс
-  TSpinner = class (TFieldArea)
+  TSpinner = class(TVCLField)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
-    procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); override;
   end;
 
   // определённый по времени процесс
-  TProgress = class (TFieldArea)
+  TProgress = class(TVCLField)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
   end;
 
-  TGauge = class (TFieldArea)
+  TGauge = class(TVCLField)
   private
     FGaugeControl: TdxGaugeControl;
     FGaugeControl1CircularHalfScale: TdxGaugeCircularHalfScale;
@@ -414,7 +404,7 @@ type
     procedure FillEditor; override;
   end;
 
-  TEntityBreadcrumb = class (TFieldArea)
+  TEntityBreadcrumb = class(TVCLField)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -422,7 +412,7 @@ type
     procedure SetValidateDefinition(const ADefinition: TDefinition);
   end;
 
-  TLogEditor = class(TFieldArea)
+  TLogEditor = class(TVCLField)
   private
     FListView: TListView;
     FData: TStringList;
@@ -442,24 +432,8 @@ uses
   dxActivityIndicator, cxLookAndFeels, cxProgressBar, dxBreadcrumbEdit, cxCustomListBox, cxCheckListBox,
   dxColorEdit, dxColorGallery, dxCoreGraphics, {CPort,}
 
-  uConfiguration, uDomain, uInteractor, uPresenter, uWinVCLPresenter, uCollection, uEntity, uConsts,
+  uConfiguration, uDomain, uInteractor, uPresenter, uWinVCLPresenter, uCollection, uConsts,
   uUtils, UITypes;
-  
-{ TVCLField }
-
-constructor TVCLField.Create(const AOwner: TUIArea; const AControl: TObject;
-  const AParams: string);
-begin
-  FFieldArea := TFieldArea(AOwner);
-  FFieldDef := FFieldArea.FieldDef;
-  inherited Create(AOwner, AControl, AParams);
-end;
-
-destructor TVCLField.Destroy;
-begin
-
-  inherited;
-end;
 
 { TTextInfo }
 
@@ -608,7 +582,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
     end;
   end;
 
@@ -748,7 +722,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtAlways;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
       vEdit.Properties.SpinButtons.Visible := False; // пока скрываем, чтобы не переделывать лэйауты
     end;
   end;
@@ -890,7 +864,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
     end;
   end;
 
@@ -970,7 +944,7 @@ begin
     end
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
       vEdit.Style.Color := clWindow;
     end;
   end;
@@ -1095,7 +1069,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
     end;
   end;
 end;
@@ -1111,7 +1085,7 @@ end;
 
 function TDEBoolFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FNeedCreateCaption := False;
+  FOwner.NeedCreateCaption := False;
 
   Result := TcxCheckBox.Create(nil);
   TcxCheckBox(Result).Properties.FullFocusRect := True;
@@ -1131,15 +1105,15 @@ begin
 
 //  TcxCheckBox(Result).OnKeyDown := OnWinControlKeyDown;
 
-  if Assigned(CreateParams) and (CreateParams.IndexOfName('Caption') >= 0) then
-    TcxCheckBox(Result).Caption := CreateParams.Values['Caption']
+  if Assigned(FCreateParams) and (FCreateParams.IndexOfName('Caption') >= 0) then
+    TcxCheckBox(Result).Caption := FCreateParams.Values['Caption']
   else
-    TcxCheckBox(Result).Caption := GetFieldTranslation(FFieldDef);
+    TcxCheckBox(Result).Caption := FOwner.GetFieldTranslation(FFieldDef);
 
-  if Assigned(CreateParams) and (CreateParams.IndexOfName('Hint') >= 0) then
-    TcxCheckBox(Result).Hint := CreateParams.Values['Hint']
+  if Assigned(FCreateParams) and (FCreateParams.IndexOfName('Hint') >= 0) then
+    TcxCheckBox(Result).Hint := FCreateParams.Values['Hint']
   else
-    TcxCheckBox(Result).Hint := GetFieldTranslation(FFieldDef, tpHint);
+    TcxCheckBox(Result).Hint := FOwner.GetFieldTranslation(FFieldDef, tpHint);
 end;
 
 procedure TDEBoolFieldEditor.DoOnChange;
@@ -1157,7 +1131,7 @@ begin
   TcxCheckBox(FControl).Enabled := FView.State = vsFullAccess;
   TcxCheckBox(FControl).Properties.ReadOnly := FView.State < vsFullAccess;
   if TcxCheckBox(FControl).Enabled then
-    TcxCheckBox(FControl).TabStop := TabStop
+    TcxCheckBox(FControl).TabStop := FOwner.TabStop
   else
     TcxCheckBox(FControl).TabStop := False;
 end;
@@ -1292,7 +1266,7 @@ begin
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
     end;
   end;
 end;
@@ -1368,7 +1342,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
     end;
   end;
 
@@ -1455,7 +1429,7 @@ begin
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
     end;
   end;
 end;
@@ -1528,7 +1502,7 @@ begin
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
     end;
   end;
 end;
@@ -1692,7 +1666,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
     end;
   end;
 
@@ -1745,7 +1719,7 @@ begin
   FBtn.Align := alRight;
   FBtn.Parent := vBase;
   FBtn.Width := 40;
-  FBtn.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[16]);
+  FBtn.OptionsImage.Images := TDragImageList(TInteractor(FInteractor).Images[16]);
   FBtn.Action := FAction;
 
   FText := TcxTextEdit.Create(nil);
@@ -1785,7 +1759,7 @@ begin
     end
     else begin
       FText.Style.BorderStyle := ebsUltraFlat;
-      FText.TabStop := TabStop;
+      FText.TabStop := FOwner.TabStop;
       FText.Style.Color := clWindow;
     end;
   end;
@@ -1844,7 +1818,7 @@ begin
   FBtn.Align := alRight;
   FBtn.Parent := vBase;
   FBtn.Width := 40;
-  FBtn.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[16]);
+  FBtn.OptionsImage.Images := TDragImageList(TInteractor(FInteractor).Images[16]);
   FBtn.Action := FAction;
 
   FText := TcxTextEdit.Create(nil);
@@ -1884,7 +1858,7 @@ begin
     end
     else begin
       FText.Style.BorderStyle := ebsUltraFlat;
-      FText.TabStop := TabStop;
+      FText.TabStop := FOwner.TabStop;
       FText.Style.Color := clWindow;
     end;
   end;
@@ -1904,28 +1878,9 @@ type
 
 { TSpinner }
 
-procedure TSpinner.AssignFromLayout(const ALayout: TLayout; const AParams: string);
+function TSpinner.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vColor: Cardinal;
-begin
-  inherited;
-
-  if ALayout.Kind in [lkPanel, lkMemo] then
-  begin
-    if (FControl is TdxActivityIndicator) and (AlphaColorToColor(ALayout.Font.Color) <> clWindowText) then
-    begin
-      vColor := ALayout.Font.Color;
-      if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorHorizontalDotsProperties then
-        TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(FControl).Properties).DotColor := vColor
-      else if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorGravityDotsProperties then
-        TdxActivityIndicatorGravityDotsProperties(TdxActivityIndicator(FControl).Properties).DotColor := vColor
-      else if TdxActivityIndicator(FControl).Properties is TdxActivityIndicatorElasticCircleProperties then
-        TdxActivityIndicatorElasticCircleProperties(TdxActivityIndicator(FControl).Properties).ArcColor := vColor;
-    end;
-  end;
-end;
-
-function TSpinner.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   Result := TdxActivityIndicator.Create(nil);
   TdxActivityIndicator(Result).Transparent := True;
@@ -1942,6 +1897,20 @@ begin
     else
     begin
       TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(Result).Properties).DotSize := StrToIntDef(FCreateParams.Values['DotSize'], 5);
+    end;
+  end;
+
+  if ALayout.Kind in [lkPanel, lkMemo] then
+  begin
+    if (Result is TdxActivityIndicator) and (AlphaColorToColor(ALayout.Font.Color) <> clWindowText) then
+    begin
+      vColor := ALayout.Font.Color;
+      if TdxActivityIndicator(Result).Properties is TdxActivityIndicatorHorizontalDotsProperties then
+        TdxActivityIndicatorHorizontalDotsProperties(TdxActivityIndicator(Result).Properties).DotColor := vColor
+      else if TdxActivityIndicator(Result).Properties is TdxActivityIndicatorGravityDotsProperties then
+        TdxActivityIndicatorGravityDotsProperties(TdxActivityIndicator(Result).Properties).DotColor := vColor
+      else if TdxActivityIndicator(Result).Properties is TdxActivityIndicatorElasticCircleProperties then
+        TdxActivityIndicatorElasticCircleProperties(TdxActivityIndicator(Result).Properties).ArcColor := vColor;
     end;
   end;
 end;
@@ -1968,7 +1937,11 @@ var
   vStream: TStream;
 begin
   inherited;
-  i := FCreateParams.IndexOfName(FView.FieldValue);
+
+  if Assigned(FCreateParams) then
+    i := FCreateParams.IndexOfName(FView.FieldValue)
+  else
+    i := -1;
 
   if i < 0 then Exit;
 
@@ -2035,7 +2008,7 @@ begin
     end
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
       if FView.State = vsSelectOnly then
         vEdit.Style.Color := clBtnFace
       else
@@ -2210,7 +2183,7 @@ begin
     TcxRadioGroup(Result).Style.BorderStyle := ebsNone;
     TcxRadioGroup(Result).Name := 'radio';
     TcxRadioGroup(Result).Caption := '';
-    FNeedCreateCaption := False;
+    FOwner.NeedCreateCaption := False;
   end
   else
   begin
@@ -2277,7 +2250,7 @@ begin
       end
       else begin
 //        vRadioEdit.Style.BorderStyle := ebsUltraFlat;
-        vRadioEdit.TabStop := TabStop;
+        vRadioEdit.TabStop := FOwner.TabStop;
       end;
     end;
   end
@@ -2309,7 +2282,7 @@ begin
       end
       else begin
         vEdit.Style.BorderStyle := ebsUltraFlat;
-        vEdit.TabStop := TabStop;
+        vEdit.TabStop := FOwner.TabStop;
       end;
     end;
 
@@ -2446,7 +2419,7 @@ begin
     end
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
     end;
   end;
 
@@ -2509,7 +2482,7 @@ var
   vChildArea: TUIArea;
   i: Integer;
 begin
-  FNeedCreateCaption := False;
+  FOwner.NeedCreateCaption := False;
 
   inherited;
 
@@ -2550,12 +2523,12 @@ begin
     vTabLayout := ALayout.Items[i];
     vPage := TcxTabSheet.Create(vPC);
     vPage.Caption := vTabLayout.Caption;
-    vPage.ImageIndex := GetImageID(vTabLayout.ImageID);
+    vPage.ImageIndex := FOwner.GetImageID(vTabLayout.ImageID);
     vPage.Parent := vPC;
 
-    vChildArea := TUIArea(TPresenter(Presenter).CreateFilledArea(Self, FView.Parent, vTabLayout,
+    vChildArea := TUIArea(TPresenter(FPresenter).CreateFilledArea(FOwner, FView.Parent, vTabLayout,
       vTabLayout.Name, False, vPage));
-    AddArea(vChildArea);
+    FOwner.AddArea(vChildArea);
 
     TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vChildArea.View, vTabLayout, '');
   end;
@@ -2624,7 +2597,7 @@ begin
   TcxProgressBar(Result).AutoSize := ALayout.ShowCaption;
   TcxProgressBar(Result).Properties.SolidTextColor := True;
   TcxProgressBar(Result).Properties.ShowText := ALayout.ShowCaption;
-  FNeedCreateCaption := False;
+  FOwner.NeedCreateCaption := False;
   if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
     TcxProgressBar(Result).Properties.Max := TSimpleFieldDef(FFieldDef).MaxValue;
 end;
@@ -2707,7 +2680,7 @@ end;
 
 procedure TDEFlagsEditor.CLBOnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
 begin
-  OnChange(Sender);
+  FOwner.OnChange(Sender);
 end;
 
 function TDEFlagsEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -2751,7 +2724,7 @@ begin
   end
   else begin
     vList.Style.BorderStyle := cbsUltraFlat;
-    vList.TabStop := TabStop;
+    vList.TabStop := FOwner.TabStop;
   end;
 end;
 
@@ -2817,16 +2790,16 @@ begin
   begin
     vActionName := FCreateParams.Values['action'];
     vImageSize := StrToIntDef(FCreateParams.Values['ImageSize'], 16);
-    FFalseImageID := GetImageID(StrToIntDef(FCreateParams.Values['false'], -1));
-    FTrueImageID := GetImageID(StrToIntDef(FCreateParams.Values['true'], -1));
+    FFalseImageID := FOwner.GetImageID(StrToIntDef(FCreateParams.Values['false'], -1));
+    FTrueImageID := FOwner.GetImageID(StrToIntDef(FCreateParams.Values['true'], -1));
     FTrueHint := FCreateParams.Values['trueHint'];
     FFalseHint := FCreateParams.Values['falseHint'];
   end
   else begin
     vActionName := '';
     vImageSize := 16;
-    FTrueImageID := GetImageID(-1);
-    FFalseImageID := GetImageID(-1);
+    FTrueImageID := FOwner.GetImageID(-1);
+    FFalseImageID := FOwner.GetImageID(-1);
     FTrueHint := TFieldDef(FView.Definition)._Caption;
     FFalseHint := TFieldDef(FView.Definition)._Caption;
   end;
@@ -2845,7 +2818,7 @@ begin
     FActionView := nil;
 
   vButton := TcxButton.Create(nil);
-  vButton.OptionsImage.Images := TDragImageList(TInteractor(Interactor).Images[vImageSize]);
+  vButton.OptionsImage.Images := TDragImageList(TInteractor(FInteractor).Images[vImageSize]);
   vButton.PaintStyle := bpsGlyph;
   vButton.OnClick := OnButtonClick;
 
@@ -2871,7 +2844,7 @@ end;
 procedure TDEImagedAction.OnButtonClick(Sender: TObject);
 begin
   if Assigned(FActionView) then
-    FActionView.ExecuteAction(Holder);
+    FActionView.ExecuteAction(FOwner.Holder);
 end;
 
 procedure TDEImagedAction.SwitchChangeHandlers(const AHandler: TNotifyEvent);
@@ -2959,7 +2932,7 @@ begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.ButtonTransparency := ebtNone;
       vEdit.Style.Color := clWindow;
-      vEdit.TabStop := TabStop;
+      vEdit.TabStop := FOwner.TabStop;
     end;
   end;
 end;
@@ -3027,7 +3000,7 @@ end;
 
 procedure TIntegerFlagsEditor.CLBOnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
 begin
-  OnChange(Sender);
+  FOwner.OnChange(Sender);
 end;
 
 procedure TIntegerFlagsEditor.DoBeforeFreeControl;
@@ -3046,12 +3019,12 @@ begin
   vHorzLayout := False;
   FDisplayFlagCount := 8;
 
-  if Assigned(CreateParams) then
+  if Assigned(FCreateParams) then
   begin
-    FDisplayFlagCount := Min(32, StrToIntDef(CreateParams.Values['DisplayFlagCount'], 8));
-    if CreateParams.IndexOfName('ItemCaptions') > -1 then
-      FCaptions := CreateDelimitedList(CreateParams.Values['ItemCaptions'], ';');
-    vHorzLayout := StrToIntDef(CreateParams.Values['HorzLayout'], 0) = 1;
+    FDisplayFlagCount := Min(32, StrToIntDef(FCreateParams.Values['DisplayFlagCount'], 8));
+    if FCreateParams.IndexOfName('ItemCaptions') > -1 then
+      FCaptions := CreateDelimitedList(FCreateParams.Values['ItemCaptions'], ';');
+    vHorzLayout := StrToIntDef(FCreateParams.Values['HorzLayout'], 0) = 1;
   end;
 
   if vHorzLayout then
@@ -3097,7 +3070,7 @@ begin
   end
   else begin
     vList.Style.BorderStyle := cbsNone;
-    vList.TabStop := TabStop;
+    vList.TabStop := FOwner.TabStop;
   end;
 end;
 
@@ -3186,7 +3159,7 @@ end;
 
 function TSelectedCaptionBoolFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FNeedCreateCaption := False;
+  FOwner.NeedCreateCaption := False;
 
   Result := TLabel.Create(nil);
   TLabel(Result).OnClick := OnClick;
@@ -3247,58 +3220,58 @@ RegisterClasses([TdxBevel, TcxLabel, TcxTreeList, TcxTreeListColumn]);
 cxSetResourceString(@cxSDateThursday, 'Donderdag'); //=Thursday
 cxSetResourceString(@cxSDatePopupToday, 'Vandaag');//= 'Today';}
 
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, '', TDETextFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'phone', TDETextFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'email', TDEMaskFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'url', TDEMaskFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'INN', TDEMaskFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'memo', TDEMemoFieldEditor);
-//TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'log', TDELogFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'log', TLogEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'mru', TMRUFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'dir', TSelectFolderFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'file', TFilenameFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'ImageByString', TImageByString);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'selector', TTextSelector);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'comport', TTextSelector);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiTextEdit, 'fieldpath', TEntityBreadcrumb);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, '', TDEIntegerFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'simple', TDEIntegerFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'spinner', TSpinner);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'progress', TProgress);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'gauge', TGauge);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'pages', TDEPagesFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiIntegerEdit, 'flags', TIntegerFlagsEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, '', TDEEnumEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, 'radio', TDEEnumEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, 'line_style', TDELineStyleSelector);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEnumEdit, 'pages', TDEPagesFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiFlagEdit, '', TDEFlagsEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'enum', TDEEnumFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, '', TDEFloatFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'currency_rate', TDEFloatFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiFloatEdit, 'gauge', TGauge);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiDateEdit, '', TDEDateFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiDateEdit, 'time', TDETimeFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiDateEdit, 'datetime', TDEDateTimeFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiDateEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiCurrencyEdit, '', TDECurrencyFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiCurrencyEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, '', TDEBoolFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'simple', TDEBoolFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'imaged_action', TDEImagedAction);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'images', TBoolImages);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'pages', TDEPagesFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiBoolEdit, 'selected_caption', TSelectedCaptionBoolFieldEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiColorEdit, '', TColorEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiColorEdit, 'simple', TDEColorEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiBLOBEdit, '', TDEBLOBEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiBLOBEdit, 'image', TDEImageEditor);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'info', TTextInfo);
-TPresenter.RegisterUIClass('Windows.DevExpress', uiEntityEdit, 'pages', TDEPagesFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, '', TDETextFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'phone', TDETextFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'email', TDEMaskFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'url', TDEMaskFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'INN', TDEMaskFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'memo', TDEMemoFieldEditor);
+//TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'log', TDELogFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'log', TLogEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'info', TTextInfo);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'mru', TMRUFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'dir', TSelectFolderFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'file', TFilenameFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'ImageByString', TImageByString);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'selector', TTextSelector);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'comport', TTextSelector);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'fieldpath', TEntityBreadcrumb);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, '', TDEIntegerFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'simple', TDEIntegerFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'info', TTextInfo);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'spinner', TSpinner);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'progress', TProgress);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'gauge', TGauge);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'pages', TDEPagesFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'flags', TIntegerFlagsEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEnumEdit, '', TDEEnumEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEnumEdit, 'radio', TDEEnumEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEnumEdit, 'info', TTextInfo);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEnumEdit, 'line_style', TDELineStyleSelector);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEnumEdit, 'pages', TDEPagesFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiFlagEdit, '', TDEFlagsEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'enum', TDEEnumFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiFloatEdit, '', TDEFloatFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiFloatEdit, 'currency_rate', TDEFloatFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiFloatEdit, 'info', TTextInfo);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiFloatEdit, 'gauge', TGauge);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiDateEdit, '', TDEDateFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiDateEdit, 'time', TDETimeFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiDateEdit, 'datetime', TDEDateTimeFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiDateEdit, 'info', TTextInfo);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiCurrencyEdit, '', TDECurrencyFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiCurrencyEdit, 'info', TTextInfo);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiBoolEdit, '', TDEBoolFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiBoolEdit, 'simple', TDEBoolFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiBoolEdit, 'imaged_action', TDEImagedAction);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiBoolEdit, 'images', TBoolImages);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiBoolEdit, 'pages', TDEPagesFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiBoolEdit, 'selected_caption', TSelectedCaptionBoolFieldEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiColorEdit, '', TColorEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiColorEdit, 'simple', TDEColorEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiBLOBEdit, '', TDEBLOBEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiBLOBEdit, 'image', TDEImageEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'info', TTextInfo);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'pages', TDEPagesFieldEditor);
 
 end.

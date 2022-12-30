@@ -37,7 +37,7 @@ interface
 
 uses
   Windows, Classes, Forms, Messages, Generics.Collections, Controls, StdCtrls, ExtCtrls, ComCtrls, Buttons, Menus, UITypes, SysUtils,
-  uConsts, uUIBuilder, uDefinition, uEntity, uView, uLayout;
+  uConsts, uUIBuilder, uDefinition, uDomain, uEntity, uView, uLayout;
 
 //////  1. Привязка сплиттера к контролу
 //////  2. Привязка меню к контролу
@@ -93,6 +93,21 @@ type
     destructor Destroy; override;
   end;
 
+  TVCLField = class(TVCLControl)
+  protected
+    [Weak] FFieldArea: TFieldArea;
+    [Weak] FFieldDef: TFieldDef;
+
+    procedure SetFieldValue(const AValue: Variant);
+    procedure SetFieldEntity(const AEntity: TEntity);
+    procedure SetFieldStream(const AStream: TStream);
+
+    function GetFormat: string;
+  public
+    constructor Create(const AOwner: TUIArea; const AControl: TObject; const AParams: string = ''); override;
+    destructor Destroy; override;
+  end;
+
   TButtonArea = class(TVCLControl)
   private
     FTypeSelectionMenu: TPopupMenu;
@@ -108,7 +123,7 @@ type
     procedure RefillArea(const AKind: Word); override;
   end;
 
-  TMainMenuArea = class(TNavigationArea)
+  TMainMenuArea = class(TVCLControl)
   private
     FMenu: TMainMenu;
     FMenuItem: TMenuItem;
@@ -118,19 +133,19 @@ type
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
-  TToolBarArea = class(TNavigationArea)
+  TToolBarArea = class(TVCLControl)
   private
     FToolBar: TToolBar;
     FToolButton: TToolButton;
     FMenuItem: TMenuItem;
   protected
+    procedure SetParent(const AParent: TUIArea); override;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
-    procedure DoAfterCreate(const AInteractor: TObject); override;
   end;
 
-  TTreeViewArea = class(TNavigationArea)
+  TTreeViewArea = class(TVCLControl)
   private
     FTreeView: TTreeView;
     FDefaultWorkArea: string;
@@ -167,7 +182,7 @@ implementation
 uses
   Types, Graphics, Math, StrUtils, Generics.Defaults, Variants,
 
-  uDomain, uPresenter, uWinVCLPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
+  uPresenter, uWinVCLPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
   vclSimpleEditors, uEntityList, uDomainUtils, uChangeManager;
 
 type
@@ -193,6 +208,43 @@ begin
     RedrawWindow(AWinControl.Handle, nil, 0,
       RDW_ERASE or RDW_FRAME or RDW_INVALIDATE or RDW_ALLCHILDREN);
   end;
+end;
+
+{ TVCLField }
+
+constructor TVCLField.Create(const AOwner: TUIArea; const AControl: TObject;
+  const AParams: string);
+begin
+  FFieldArea := TFieldArea(AOwner);
+  FFieldDef := FFieldArea.FieldDef;
+  inherited Create(AOwner, AControl, AParams);
+end;
+
+destructor TVCLField.Destroy;
+begin
+  FFieldArea := nil;
+  FFieldDef := nil;
+  inherited Destroy;
+end;
+
+function TVCLField.GetFormat: string;
+begin
+  Result := FFieldArea.GetFormat;
+end;
+
+procedure TVCLField.SetFieldEntity(const AEntity: TEntity);
+begin
+  FFieldArea.SetFieldEntity(AEntity);
+end;
+
+procedure TVCLField.SetFieldStream(const AStream: TStream);
+begin
+  FFieldArea.SetFieldStream(AStream);
+end;
+
+procedure TVCLField.SetFieldValue(const AValue: Variant);
+begin
+  FFieldArea.SetFieldValue(AValue);
 end;
 
 { TUIAreaComparer }
@@ -287,7 +339,7 @@ begin
   FMenuItem.Caption := ACaption;
   FMenuItem.Hint := AHint;
   FMenuItem.ImageIndex := AImageIndex;
-  FMenuItem.OnClick := OnAreaClick;
+  FMenuItem.OnClick := FOwner.OnAreaClick;
 
   Result := nil;
   if ALevel = 0 then
@@ -317,22 +369,6 @@ begin
 end;
 
 { TToolBarArea }
-
-procedure TToolBarArea.DoAfterCreate(const AInteractor: TObject);
-var
-  vToolButton: TToolButton;
-  i, vImageSize: Integer;
-begin
-  vImageSize := StrToIntDef(GetUrlParam(FParams, 'ImageSize'), 16);
-  FToolBar.Images := TDragImageList(TInteractor(AInteractor).Images[vImageSize]);
-  FToolBar.AutoSize := True;
-  for i := 0 to FToolBar.ButtonCount - 1 do
-  begin
-    vToolButton := FToolBar.Buttons[i];
-    if Assigned(vToolButton.DropdownMenu) then
-      vToolButton.DropdownMenu.Images := FToolBar.Images;
-  end
-end;
 
 function TToolBarArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
@@ -367,7 +403,7 @@ begin
     FToolButton.Caption := ACaption;
     FToolButton.Hint := AHint;
     FToolButton.ImageIndex := AImageIndex;
-    FToolButton.OnClick := OnAreaClick;
+    FToolButton.OnClick := FOwner.OnAreaClick;
 
     Result := FToolButton;
   end
@@ -380,7 +416,7 @@ begin
       FMenuItem.Caption := ACaption;
       FMenuItem.Hint := AHint;
       FMenuItem.ImageIndex := AImageIndex;
-      FMenuItem.OnClick := OnAreaClick;
+      FMenuItem.OnClick := FOwner.OnAreaClick;
 
       if vParentObj is TToolButton then
       begin
@@ -405,6 +441,27 @@ begin
   end;
 end;
 
+procedure TToolBarArea.SetParent(const AParent: TUIArea);
+var
+  vToolButton: TToolButton;
+  i, vImageSize: Integer;
+begin
+  inherited SetParent(AParent);
+
+  if not Assigned(AParent) then
+    Exit;
+
+  vImageSize := StrToIntDef(GetUrlParam(FParams, 'ImageSize'), 16);
+  FToolBar.Images := TDragImageList(TInteractor(FInteractor).Images[vImageSize]);
+  FToolBar.AutoSize := True;
+  for i := 0 to FToolBar.ButtonCount - 1 do
+  begin
+    vToolButton := FToolBar.Buttons[i];
+    if Assigned(vToolButton.DropdownMenu) then
+      vToolButton.DropdownMenu.Images := FToolBar.Images;
+  end
+end;
+
 { TTreeViewArea }
 
 function TTreeViewArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -417,7 +474,7 @@ begin
   FTreeView.OnClick := OnMouseClick;
   FTreeView.OnKeyPress := OnKeyPress;
   //FTreeView.OnCustomDrawItem := OnCustomDrawItem;
-  FId := 'TreeView';
+  FOwner.Id := 'TreeView';
 
   FDefaultWorkArea := FCreateParams.Values['ContentWorkArea'];
   if FDefaultWorkArea = '' then
@@ -566,9 +623,9 @@ end;
 
 procedure TTreeViewArea.Refill;
 begin
-  Clear;
+  FOwner.Clear;
   FTreeView.Items.Clear;
-  ProcessChilds;
+  TNavigationArea(FOwner).ProcessChilds;
 end;
 
 procedure TTreeViewArea.SelectNode(const ANode: TTreeNode);
@@ -580,7 +637,7 @@ begin
 
   vArea := TUIArea(ANode.Data);
   if Assigned(vArea) then
-    ProcessAreaClick(vArea);
+    FOwner.ProcessAreaClick(vArea);
 end;
 
 { TButtonArea }
@@ -691,7 +748,7 @@ begin
         if Length(vOverriddenCaption) > 0 then
           vMenuItem.Caption := vOverriddenCaption;
         vMenuItem.ImageIndex := FOwner.GetImageID(vDefinition._ImageID);
-        vMenuItem.Tag := NativeInt(Self); //NativeInt(vButton);
+        vMenuItem.Tag := NativeInt(FOwner); //NativeInt(vButton);
         vMenuItem.OnClick := FOwner.OnActionMenuSelected;
         FTypeSelectionMenu.Items.Add(vMenuItem);
       end;
@@ -1207,8 +1264,8 @@ begin
     TLabel(FControl).Alignment := AAlignment
   else if FControl.InheritsFrom(TEdit) then
     TEdit(FControl).Alignment:= AAlignment
-  else if FOwner is TFilenameFieldEditor then
-    TFilenameFieldEditor(FOwner).TextEdit.Properties.Alignment.Horz := AAlignment;
+  else if FControl is TFilenameFieldEditor then
+    TFilenameFieldEditor(FControl).TextEdit.Properties.Alignment.Horz := AAlignment;
 end;
 
 procedure TVCLControl.SetBounds(const Value: TRect);
@@ -1377,20 +1434,10 @@ initialization
 
 RegisterClasses([TLabel, TPanel, TSplitter, TImage, TBevel, TPageControl, TMemo, TTabSheet, TScrollBox, TShape, TPopupMenu]);
 
-TPresenter.RegisterUIClass('Windows.VCL', uiNavigation, '', TTreeViewArea);
-TPresenter.RegisterUIClass('Windows.VCL', uiNavigation, 'TreeView', TTreeViewArea);
-TPresenter.RegisterUIClass('Windows.VCL', uiNavigation, 'MainMenu', TMainMenuArea);
-TPresenter.RegisterUIClass('Windows.VCL', uiNavigation, 'ToolBar', TToolBarArea);
-//TPresenter.RegisterUIClass('Windows.DevExpress', uiNavigation, 'OneButton', TOneButtonArea);
-
-//TPresenter.RegisterUIClass('Windows.VCL', uiAction, '', TButtonArea);
-//TPresenter.RegisterUIClass('Windows.VCL', uiAction, 'link', TLinkArea);
-
-//TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, '', TTreeViewArea);
-//TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'TreeView', TTreeViewArea);
-//TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'MainMenu', TMainMenuArea);
-//TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'ToolBar', TToolBarArea);
-////TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'OneButton', TOneButtonArea);
+TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, '', TTreeViewArea);
+TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'TreeView', TTreeViewArea);
+TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'MainMenu', TMainMenuArea);
+TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'ToolBar', TToolBarArea);
 
 TPresenter.RegisterControlClass('Windows.VCL', uiAction, '', TButtonArea);
 TPresenter.RegisterControlClass('Windows.VCL', uiAction, 'link', TLinkArea);
