@@ -1263,7 +1263,6 @@ begin
 
   if Assigned(FControl) then
   begin
-    TCrackedWinControl(FControl).Tag := 0;
     if FControl is TWinControl then
     begin
       TCrackedWinControl(FControl).OnEnter := nil;
@@ -1275,8 +1274,8 @@ begin
 
   if Assigned(FControl) then
   begin
-    if TCrackedWinControl(FControl).Tag = 0 then
-      TCrackedWinControl(FControl).Tag := NativeInt(FOwner);
+    if TCrackedControl(FControl).Tag = 0 then
+      TCrackedControl(FControl).Tag := NativeInt(FOwner);
     if FControl is TWinControl then
     begin
       TCrackedWinControl(FControl).OnEnter := FOwner.OnEnter;
