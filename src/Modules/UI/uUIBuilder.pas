@@ -141,7 +141,6 @@ type
   end;
 
   TNativeControlClass = class of TNativeControl;
-  //TNativeControlClass = class of TUIArea;
 
   TUIArea = class
   private
@@ -174,7 +173,6 @@ type
   protected
     FCaption: TNativeControl;
     FNativeControl: TNativeControl;
-    FNewNativeControl: TNativeControl;
     FLayout: TLayout;
 
     FInternalParams: string;
@@ -1198,6 +1196,8 @@ end;
 
 constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AId: string;
   const AIsService: Boolean = False; const AControl: TObject = nil; const AParams: string = '');
+var
+  vControl: TObject;
 begin
   inherited Create;
 
@@ -1227,13 +1227,12 @@ begin
     ALayout.Params := AParams;
 
   FParent := AParent;
-  if Assigned(ALayout) and not Assigned(AControl) and not (ALayout is TNavigationItem)
-    and (ALayout.Kind = lkPanel) and (AView.DefinitionKind in [dkAction, dkSimpleField])
-  then
-    FNativeControl := _CreateNativeControl(ALayout, AView, uiUnknown, AParams)
+  if not Assigned(AControl) then
+    vControl := DoCreateControl(AParent, ALayout)
   else
-    FNativeControl := NativeControlClass.Create(Self, AControl, AParams);
-  SetControl(InnerControl);
+    vControl := AControl;
+  FNativeControl := NativeControlClass.Create(Self, vControl); //?? Создать меню здесь?
+  SetControl(vControl);
 end;
 
 function TUIArea.CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TProc = nil): TUIArea;

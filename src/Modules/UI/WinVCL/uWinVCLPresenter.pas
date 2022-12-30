@@ -95,8 +95,6 @@ type
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
 
-    function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AParams: string = ''; const AOnClose: TProc = nil): TObject; override;
     function CreateArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
     function CreateTempControl: TObject; override; // DFM
@@ -597,67 +595,10 @@ end;
 function TWinVCLPresenter.CreateArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
   const AParams: string; const AOnClose: TProc): TUIArea;
 var
-  vControl: TObject;
   vDomain: TDomain;
   vInteractor: TInteractor;
   vStartPageName: string;
   vStartPageStr: string;
-  vParams: TStrings;
-begin
-  Result := nil;
-  if not Assigned(ALayout) then
-    Exit;
-
-  vControl := CreateControl(AParent, AView, ALayout, AParams, AOnClose);
-  if not Assigned(vControl) then
-    Exit;
-
-  vInteractor := TInteractor(AView.Interactor);
-  vDomain := TDomain(vInteractor.Domain);
-
-  if vControl is TForm then
-  begin
-    Result := CreateFilledArea(AParent, AView, ALayout, ALayout.Id, True, vControl);
-    if Assigned(AOnClose) then
-      Result.OnClose := AOnClose;
-  end
-  else begin
-    Result := CreateFilledArea(AParent, AView, ALayout, ALayout.Id, False, vControl);
-    if ALayout.Id = '-popup-' then
-      CopyPopupMenuItems(Result, AParent.View, TNavigationItem(ALayout), Result)
-    else if ALayout.Id = '-pages-' then
-    begin
-      if AParams <> '' then
-        vParams := CreateDelimitedList(AParams, '&')
-      else
-        vParams := nil;
-
-      // Здесь можно подкорректировать параметры
-      if StrToBoolDef(vDomain.UserSettings.GetValue('Core', 'ShowStartPage'), True) then
-      begin
-        vStartPageStr := vDomain.Settings.GetValue('Core', 'StartPage', '');
-
-        vStartPageName := GetUrlCommand(vStartPageStr);
-        if Assigned(vPArams) and (vStartPageName <> '') and FileExists(vDomain.Configuration.FindLayoutFile(vStartPageName, LAYOUT_DFM_EXT)) then
-        begin
-          vParams.Values['Layout'] := vStartPageName;
-          vParams.Values['View'] := '';
-        end;
-      end;
-
-      Result.AddParams(vParams);
-
-      AParent.UIBuilder.PagedArea := Result;
-    end;
-  end;
-end;
-
-function TWinVCLPresenter.CreateControl(const AParent: TUIArea; const AView: TView;
-  const ALayout: TLayout; const AParams: string; const AOnClose: TProc): TObject;
-var
-  vDomain: TDomain;
-  vInteractor: TInteractor;
-  vStartPageName: string;
   vForm: TForm;
   vShape: TShape;
   vLabel: TLabel; //TStaticText;
@@ -671,6 +612,7 @@ var
   vSplitter: TSplitter;
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
+  vId: string;
   i: Integer;
   vArea: TUIArea;
 begin
@@ -696,7 +638,7 @@ begin
     CopyConstraints(vShape, ALayout);
     vShape.Shape := TShapeType(ALayout.Shape_Type);
 
-    Result := vShape;
+    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vShape);
   end
   else if ALayout.Kind = lkLabel then
   begin
@@ -720,7 +662,7 @@ begin
     else
       vLabel.Caption := ALayout.Caption;
 
-    Result := vLabel;
+    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vLabel);
   end
   else if ALayout.Kind = lkImage then
   begin
@@ -739,7 +681,7 @@ begin
     vImage.Proportional := ALayout.Image_Proportional;
     vImage.Center := ALayout.Image_Center;
 
-    Result := vImage;
+    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vImage);
   end
   else if ALayout.Kind = lkPages then
   begin
@@ -756,12 +698,10 @@ begin
     vPC.Visible := ALayout.State > vsHidden;
     vPC.Enabled := ALayout.State > vsDisabled;
 
-    Result := vPC;
+    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vPC);
   end
   else if ALayout.Kind = lkPage then
   begin
-    ALayout.Id := ALayout.Name;
-
     if (TInteractor(AView.Interactor).Layout = 'mdi') and (ALayout.Tag = 11) then
     begin
       vForm := TForm.Create(nil);
@@ -773,7 +713,8 @@ begin
       if AView.DefinitionKind in [dkCollection, dkAction, dkEntity] then
         TDragImageList(TInteractor(AView.Interactor).Images[16]).GetIcon(AParent.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
 
-      Result := vForm;
+      Result := CreateFilledArea(AParent, AView, ALayout, ALayout.Name, False, vForm);
+      Result.OnClose := AOnClose;
     end
     else begin
       vTab := TTabSheet.Create(TComponent(AParent.InnerControl));
@@ -785,7 +726,7 @@ begin
       if AParent.InnerControl is TPageControl then
         vTab.PageControl := TPageControl(AParent.InnerControl);
 
-      Result := vTab;
+      Result := CreateFilledArea(AParent, AView, ALayout, ALayout.Name, False, vTab);
     end;
   end
   else if ALayout.Kind = lkBevel then
@@ -797,8 +738,7 @@ begin
     vBevel.Shape := TBevelShape(ALayout.Bevel_Shape);
     vBevel.Style := TBevelStyle(ALayout.Bevel_Style);
 
-    ALayout.Id := '-bevel-';
-    Result := vBevel;
+    Result := CreateFilledArea(AParent, AView, ALayout, '-bevel-', False, vBevel);
   end
   else if ALayout.Kind = lkSplitter then
   begin
@@ -809,8 +749,7 @@ begin
     vSplitter.Color := AlphaColorToColor(ALayout.Color);
     vSplitter.ParentColor := False;
 
-    ALayout.Id := '-splitter-';
-    Result := vSplitter;
+    Result := CreateFilledArea(AParent, AView, ALayout, '-splitter-', False, vSplitter);
   end
   else if ALayout.Kind = lkPanel then
   begin
@@ -839,9 +778,22 @@ begin
       vPC.Align := TAlign(ALayout.Align);
       vPC.Anchors := ALayout.Anchors;
       CopyFontSettings(vPC.Font, ALayout);
+      Result := CreateFilledArea(AParent, AView, ALayout, Trim(ALayout.Caption), False, vPC);
 
-      ALayout.Id := '-pages-';
-      Result := vPC;
+      // Здесь можно подкорректировать параметры
+      if StrToBoolDef(vDomain.UserSettings.GetValue('Core', 'ShowStartPage'), True) then
+      begin
+        vStartPageStr := vDomain.Settings.GetValue('Core', 'StartPage', '');
+
+        vStartPageName := GetUrlCommand(vStartPageStr);
+        if (vStartPageName <> '') and FileExists(vDomain.Configuration.FindLayoutFile(vStartPageName, LAYOUT_DFM_EXT)) then
+        begin
+          vParams.Values['Layout'] := vStartPageName;
+          vParams.Values['View'] := '';
+        end;
+      end;
+
+      AParent.UIBuilder.PagedArea := Result;
     end
     else
     begin
@@ -865,11 +817,10 @@ begin
       vPanel.ParentColor := False;
       vPanel.ParentBackground := False;
 
-      ALayout.Id := Trim(ALayout.Caption);
-      Result := vPanel;
+      Result := CreateFilledArea(AParent, AView, ALayout, Trim(ALayout.Caption), False, vPanel, AParams);
     end;
 
-    FreeAndNil(vParams);
+    Result.AddParams(vParams);
   end
   else if ALayout.Kind = lkScrollBox then
   begin
@@ -882,7 +833,7 @@ begin
     if ALayout.BorderStyle = lbsNone then
       vBox.BorderStyle := bsNone;
 
-    Result := vBox;
+    Result := CreateFilledArea(AParent, AView, ALayout, '', False, vBox);
   end
   else if ALayout.Kind = lkMemo then
   begin
@@ -906,8 +857,7 @@ begin
     vPanel.ParentColor := False;
     vPanel.ParentBackground := False;
 
-    ALayout.Id := Trim(ALayout.Caption);
-    Result := vPanel;
+    Result := CreateFilledArea(AParent, AView, ALayout, Trim(ALayout.Caption), False, vPanel);
   end
   else if ALayout.Kind = lkFrame then
   begin
@@ -970,8 +920,9 @@ begin
     Assert(not Assigned(vForm.OnShow), 'vForm.OnShow already assigned');
     vForm.OnShow := DoOnFormShow;
     try
-      ALayout.Id := ALayout.StyleName;
-      Result := vForm;
+      Result := CreateFilledArea(AParent, AView, ALayout, ALayout.StyleName, True, vForm);
+      if Assigned(AOnClose) then
+        Result.OnClose := AOnClose;
     finally
       vForm.EnableAlign;
     end;
@@ -982,8 +933,10 @@ begin
     begin
       vMenu := TPopupMenu.Create(TComponent(AParent.InnerControl));
       vMenu.Images := TDragImageList(TInteractor(AParent.Interactor).Images[16]);
-      ALayout.Id := '-popup-';
-      Result := vMenu;
+
+      Result := CreateFilledArea(AParent, AView, nil, '-popup-', False, vMenu);
+
+      CopyPopupMenuItems(Result, AParent.View, TNavigationItem(ALayout), Result);
     end
     else begin
       vMenuItem := TMenuItem.Create(nil);
@@ -1019,11 +972,11 @@ begin
         TMenuItem(AParent.InnerControl).Add(vMenuItem);
 
       if ALayout is TNavigationItem then
-        ALayout.Id := TNavigationItem(ALayout).ViewName
+        vId := TNavigationItem(ALayout).ViewName
       else
-        ALayout.Id := ALayout.Caption;
+        vId := ALayout.Caption;
 
-      Result := vMenuItem;
+      Result := CreateFilledArea(AParent, AView, ALayout, vId, False, vMenuItem);
     end;
   end
   else if ALayout.Kind <> lkNone then
