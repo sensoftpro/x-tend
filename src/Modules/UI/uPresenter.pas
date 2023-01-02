@@ -149,16 +149,6 @@ type
       - путь от корня до этого домена
   }
 
-  TUIClassInfo = class
-  private
-    FName: string;
-    FType: TUIItemType;
-    FItemClass: TUIAreaClass;
-  public
-    constructor Create(const AItemType: TUIItemType;
-      const AViewName: string; const AItemClass: TUIAreaClass);
-  end;
-
   TControlClassInfo = class
   private
     FName: string;
@@ -323,7 +313,7 @@ uses
 type
   TLoginedProc = procedure(const AInteractor: TInteractor) of object;
   TBeforeUIClosingFunc = function(const AInteractor: TInteractor): Boolean of object;
-  TCrackedArea = class(TUIArea) end;
+  //TCrackedArea = class(TUIArea) end;
 
 { TPresenter }
 
@@ -418,7 +408,7 @@ begin
             vChildItem.ImageID := vAction._ImageID;
 
             vChildArea := CreateArea(AParent, vView, vChildItem);
-            TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
+            vChildArea.UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
           end
           else
@@ -454,7 +444,7 @@ begin
             vChildItem.ImageID := 31;
 
             vChildArea := CreateArea(AParent, vView, vChildItem);
-            TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
+            vChildArea.UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
           end
           else
@@ -517,12 +507,12 @@ begin
         end
         else begin
           vChildArea := CreateArea(AParent, vView, vSrcItem);
-          TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
+          vChildArea.UpdateArea(dckViewStateChanged);
         end;
       end
       else begin
         vChildArea := CreateArea(AParent, vView, vSrcItem);
-        TCrackedArea(vChildArea).UpdateArea(dckViewStateChanged);
+        vChildArea.UpdateArea(dckViewStateChanged);
       end;
 
       AParent.AddArea(vChildArea);
@@ -1113,7 +1103,7 @@ begin
     if vCanBeClosed then
     begin
       vCloseProc := vArea.OnClose;
-      vArea.SetControl(nil);
+      vArea.UnbindContent(True);
       vArea.UIBuilder.RootArea.RemoveArea(vArea); // the form will be destroyed here
     end
     else
@@ -1283,16 +1273,6 @@ end;
 procedure TPresenter.Unfreeze;
 begin
   DoUnfreeze;
-end;
-
-{ TUIClassInfo }
-
-constructor TUIClassInfo.Create(const AItemType: TUIItemType; const AViewName: string;
-  const AItemClass: TUIAreaClass);
-begin
-  FName := AViewName;
-  FType := AItemType;
-  FItemClass := AItemClass;
 end;
 
 { TProgressInfo }

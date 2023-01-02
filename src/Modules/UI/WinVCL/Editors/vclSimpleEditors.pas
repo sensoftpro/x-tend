@@ -48,13 +48,13 @@ uses
   dxGaugeCustomScale, dxGaugeQuantitativeScale, dxGaugeCircularScale, dxGaugeControl;
 
 type
-  TTextInfo = class(TVCLField)
+  TTextInfo = class(TVCLControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
   end;
 
-  TDEEditor = class(TVCLField)
+  TDEEditor = class(TVCLControl)
   protected
     function GetDisabledBorderStyle: TcxEditBorderStyle;
     function GetBoxDisabledBorderStyle: TcxContainerBorderStyle;
@@ -333,13 +333,13 @@ type
     procedure FillEditor; override;
   end;
 
-  TImageByString = class(TVCLField)
+  TImageByString = class(TVCLControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
   end;
 
-  TBoolImages = class(TVCLField)
+  TBoolImages = class(TVCLControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -365,7 +365,7 @@ type
     //procedure FillEditor; override;
   end;
 
-  TColorEditor = class(TVCLField)
+  TColorEditor = class(TVCLControl)
   private
     FBasePanel: TPanel;
     FColorDialog: TColorDialog;
@@ -381,20 +381,20 @@ type
   end;
 
   // неопределённый по времени процесс
-  TSpinner = class(TVCLField)
+  TSpinner = class(TVCLControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
   end;
 
   // определённый по времени процесс
-  TProgress = class(TVCLField)
+  TProgress = class(TVCLControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
   end;
 
-  TGauge = class(TVCLField)
+  TGauge = class(TVCLControl)
   private
     FGaugeControl: TdxGaugeControl;
     FGaugeControl1CircularHalfScale: TdxGaugeCircularHalfScale;
@@ -404,7 +404,7 @@ type
     procedure FillEditor; override;
   end;
 
-  TEntityBreadcrumb = class(TVCLField)
+  TEntityBreadcrumb = class(TVCLControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -412,7 +412,7 @@ type
     procedure SetValidateDefinition(const ADefinition: TDefinition);
   end;
 
-  TLogEditor = class(TVCLField)
+  TLogEditor = class(TVCLControl)
   private
     FListView: TListView;
     FData: TStringList;

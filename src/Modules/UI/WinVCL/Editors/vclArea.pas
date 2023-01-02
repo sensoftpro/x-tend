@@ -96,20 +96,6 @@ type
     destructor Destroy; override;
   end;
 
-  TVCLField = class(TVCLControl)
-  protected
-    [Weak] FFieldDef: TFieldDef;
-
-    procedure SetFieldValue(const AValue: Variant);
-    procedure SetFieldEntity(const AEntity: TEntity);
-    procedure SetFieldStream(const AStream: TStream);
-
-    function GetFormat: string;
-  public
-    constructor Create(const AOwner: TUIArea; const AControl: TObject; const AParams: string = ''); override;
-    destructor Destroy; override;
-  end;
-
   TButtonArea = class(TVCLControl)
   private
     FTypeSelectionMenu: TPopupMenu;
@@ -210,41 +196,6 @@ begin
     RedrawWindow(AWinControl.Handle, nil, 0,
       RDW_ERASE or RDW_FRAME or RDW_INVALIDATE or RDW_ALLCHILDREN);
   end;
-end;
-
-{ TVCLField }
-
-constructor TVCLField.Create(const AOwner: TUIArea; const AControl: TObject;
-  const AParams: string);
-begin
-  FFieldDef := AOwner.FieldDef;
-  inherited Create(AOwner, AControl, AParams);
-end;
-
-destructor TVCLField.Destroy;
-begin
-  FFieldDef := nil;
-  inherited Destroy;
-end;
-
-function TVCLField.GetFormat: string;
-begin
-  Result := FOwner.GetFormat;
-end;
-
-procedure TVCLField.SetFieldEntity(const AEntity: TEntity);
-begin
-  FOwner.SetFieldEntity(AEntity);
-end;
-
-procedure TVCLField.SetFieldStream(const AStream: TStream);
-begin
-  FOwner.SetFieldStream(AStream);
-end;
-
-procedure TVCLField.SetFieldValue(const AValue: Variant);
-begin
-  FOwner.SetFieldValue(AValue);
 end;
 
 { TUIAreaComparer }
@@ -679,7 +630,7 @@ begin
 
   vButton := TButton.Create(nil);
   vButton.Images := TDragImageList(TInteractor(FInteractor).Images[vImageSize]);
-  vImageID := FOwner.GetImageID(vImageID);
+  vImageID := GetImageID(vImageID);
 
   //TODO: We need another control or style here
   if (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone) then
@@ -688,7 +639,7 @@ begin
     //vButton.SpeedButtonOptions.CanBeFocused := False;
   end;
 
-  vCaption := FOwner.GetTranslation(vActionDef);
+  vCaption := GetTranslation(vActionDef);
   vButton.Hint := vCaption;
   if Length(vOverriddenCaption) > 0 then
     vCaption := vOverriddenCaption;
@@ -744,10 +695,10 @@ begin
       begin
         vDefinition := TDefinition(vDefinitions[i]);
         vMenuItem := TMenuItem.Create(nil);
-        vMenuItem.Caption := FOwner.GetTranslation(vDefinition);
+        vMenuItem.Caption := GetTranslation(vDefinition);
         if Length(vOverriddenCaption) > 0 then
           vMenuItem.Caption := vOverriddenCaption;
-        vMenuItem.ImageIndex := FOwner.GetImageID(vDefinition._ImageID);
+        vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
         vMenuItem.Tag := NativeInt(FOwner);
         vMenuItem.OnClick := FOwner.OnActionMenuSelected;
         FTypeSelectionMenu.Items.Add(vMenuItem);
@@ -785,12 +736,12 @@ begin
   vButton := TButton(FControl);
 
   vActionDef := TDefinition(FView.Definition);
-  vImageID := FOwner.GetImageID(vActionDef._ImageID);
+  vImageID := GetImageID(vActionDef._ImageID);
 
   if (vButton.Images.Count + 1 >= vImageID) and (vImageID > 0) then
     vButton.ImageIndex := vImageID;
 
-  vButton.Caption := FOwner.GetTranslation(vActionDef);
+  vButton.Caption := GetTranslation(vActionDef);
   vButton.Hint := vButton.Caption;
 end;
 
@@ -848,7 +799,7 @@ begin
   vLabel := TLabel(FControl);
 
   vActionDef := TDefinition(FView.Definition);
-  vLabel.Caption := FOwner.GetTranslation(vActionDef);
+  vLabel.Caption := GetTranslation(vActionDef);
   vLabel.Hint := vLabel.Caption;
 end;
 
@@ -962,13 +913,10 @@ begin
 
     SetAlignment(ALayout.Alignment);
 
-    if not FOwner.IsDefault then
-    begin
-      TCrackedControl(FControl).Color := AlphaColorToColor(ALayout.Color);
-      TCrackedControl(FControl).ParentColor := False;
-      if FControl is TWinControl then
-        TCrackedWinControl(FControl).ParentBackground := False;
-    end;
+    TCrackedControl(FControl).Color := AlphaColorToColor(ALayout.Color);
+    TCrackedControl(FControl).ParentColor := False;
+    if FControl is TWinControl then
+      TCrackedWinControl(FControl).ParentBackground := False;
   end;
 end;
 

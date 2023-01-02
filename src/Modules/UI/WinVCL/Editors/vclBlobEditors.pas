@@ -39,7 +39,7 @@ uses
   uUIBuilder, vclArea, uScene, uSimpleChart, uLayout;
 
 type
-  TFieldSceneArea = class(TVCLField)
+  TFieldSceneArea = class(TVCLControl)
   protected
     FScene: TScene;
     procedure DoActivate(const AAreaState: string = ''); override;

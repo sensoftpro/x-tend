@@ -47,7 +47,7 @@ uses
   cxExportPivotGridLink, cxTLData, cxButtonEdit, cxEditRepositoryItems, cxPC;
 
 type
-  TEntityListSelector = class(TVCLField)
+  TEntityListSelector = class(TVCLControl)
   private
     FListBox: TCheckListBox;
     FEntityList: TEntityList;
@@ -60,7 +60,7 @@ type
     procedure DoOnChange; override;
   end;
 
-  TEntityListSelector2 = class(TVCLField)
+  TEntityListSelector2 = class(TVCLControl)
   private
     FListBox: TcxCheckListBox;
     FEntityList: TEntityList;
@@ -72,7 +72,7 @@ type
     procedure DoOnChange; override;
   end;
 
-  TEntityListSelector3 = class(TVCLField)
+  TEntityListSelector3 = class(TVCLControl)
   private
     FListBox: TcxCheckListBox;
     FLookupCollection: string;
@@ -90,7 +90,7 @@ type
     procedure DoDisableContent; override;
   end;
 
-  TPagedEntityListSelector = class(TVCLField)
+  TPagedEntityListSelector = class(TVCLControl)
   private
     FPages: TcxPageControl;
     FEntityList: TEntityList;
@@ -104,7 +104,7 @@ type
     procedure DoOnChange; override;
   end;
 
-  TEntityListSelectorMTM = class(TVCLField) // many to many link
+  TEntityListSelectorMTM = class(TVCLControl) // many to many link
   private
     FListBox: TcxCheckListBox;
     FEntityList: TEntityList;
@@ -122,7 +122,7 @@ type
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
   end;
 
-  TParametersEditor = class(TVCLField)
+  TParametersEditor = class(TVCLControl)
   private
     FGrid: TcxVerticalGrid;
     FParams: TList<TEntity>;
@@ -235,7 +235,7 @@ type
     procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
   end;
 
-  TColumnListEditor = class(TVCLField)
+  TColumnListEditor = class(TVCLControl)
   private
     FGrid: TcxGrid;
     FMasterTableView: TcxGridTableView;
@@ -279,7 +279,7 @@ type
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
   end;
 
-  TListEditor = class(TVCLField)
+  TListEditor = class(TVCLControl)
   private
     FList: TcxTreeList;
     procedure OnSelectionChanged(Sender: TObject);
@@ -2366,7 +2366,7 @@ var
         TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.ValueType := vtInt;
         TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.Alignment.Horz := taRightJustify;
         if AFieldDef.Format <> '' then
-          TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.DisplayFormat := FOwner.GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
+          TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.DisplayFormat := GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
       end
       else if vFieldKind in [fkFloat, fkCurrency] then
       begin
@@ -2374,7 +2374,7 @@ var
         TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.ValueType := vtFloat;
         TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.Alignment.Horz := taRightJustify;
         if AFieldDef.Format <> '' then
-          TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.DisplayFormat := FOwner.GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
+          TcxEditRepositorySpinItem(vEditRepositoryItem).Properties.DisplayFormat := GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
       end
       else if vFieldKind = fkBoolean then
       begin
@@ -2470,7 +2470,7 @@ begin
           TcxSpinEditProperties(vCol.Properties).ValueType := vtFloat;
 
         if Length(AFieldDef.Format) > 0 then
-          TcxSpinEditProperties(vCol.Properties).DisplayFormat := FOwner.GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
+          TcxSpinEditProperties(vCol.Properties).DisplayFormat := GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity);
 
         if not VarIsNull(TSimpleFieldDef(AFieldDef).MinValue) then
           TcxSpinEditProperties(vCol.Properties).MinValue := TSimpleFieldDef(AFieldDef).MinValue;
