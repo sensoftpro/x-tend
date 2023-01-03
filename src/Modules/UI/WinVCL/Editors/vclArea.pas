@@ -59,7 +59,7 @@ type
   private
     procedure BeforeContextMenuShow(Sender: TObject);
   protected
-    function IndexOfControl(const AControl: TObject): Integer; override;
+    function IndexOfSender(const ASender: TObject): Integer; override;
     function AreaFromSender(const ASender: TObject): TUIArea; override;
 
     procedure DoActivate(const AUrlParams: string); override;
@@ -117,7 +117,7 @@ type
     FMenuItem: TMenuItem;
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
+    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
@@ -129,7 +129,7 @@ type
   protected
     procedure SetParent(const AParent: TUIArea); override;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
+    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
@@ -145,7 +145,7 @@ type
     //procedure DrawButton(ARect: TRect; Node: TTreeNode);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
+    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
     procedure DoExecuteUIAction(const AView: TView); override;
   end;
@@ -158,7 +158,7 @@ type
     procedure OnClick(Sender: TObject);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
+    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
@@ -250,7 +250,7 @@ begin
 end;
 
 function TOneButtonArea.DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
-  const ALevel: Integer; const ACaption, AHint: string; const AImageIndex: Integer): TObject;
+  const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 begin
   FItem := TMenuItem.Create(nil);
   FItem.Caption := ACaption;
@@ -282,7 +282,7 @@ begin
 end;
 
 function TMainMenuArea.DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
-  const ALevel: Integer; const ACaption, AHint: string; const AImageIndex: Integer): TObject;
+  const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
   vForm: TForm;
 begin
@@ -293,7 +293,7 @@ begin
   FMenuItem.OnClick := FOwner.OnAreaClick;
 
   Result := nil;
-  if ALevel = 0 then
+  if ANavItem.Level = 0 then
   begin
     FMenu.Items.Add(FMenuItem);
     Result := FMenuItem;
@@ -328,7 +328,7 @@ begin
   Result := FToolBar;
 end;
 
-function TToolBarArea.DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
+function TToolBarArea.DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
   const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
   vMenu: TPopupMenu;
@@ -338,7 +338,7 @@ var
 begin
   Result := nil;
 
-  if ALevel = 0 then
+  if ANavItem.Level = 0 then
   begin
     if FToolBar.ButtonCount > 0 then
     begin
@@ -434,7 +434,7 @@ begin
 end;
 
 function TTreeViewArea.DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
-  const ALevel: Integer; const ACaption, AHint: string; const AImageIndex: Integer): TObject;
+  const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
   vParentNode: TTreeNode;
   vTreeNode: TTreeNode;
@@ -1160,9 +1160,9 @@ begin
     Result := vsFullAccess;
 end;
 
-function TVCLControl.IndexOfControl(const AControl: TObject): Integer;
+function TVCLControl.IndexOfSender(const ASender: TObject): Integer;
 begin
-  Result := TMenuItem(AControl).MenuIndex;
+  Result := TMenuItem(ASender).MenuIndex;
 end;
 
 procedure TVCLControl.PlaceLabel;

@@ -354,6 +354,7 @@ type
   private
     FOwner: TLayout;
     FId: string;
+    FLevel: Integer;
     //FCaption: string;
     //FHint: string;
     //FImageID: Integer;
@@ -378,6 +379,7 @@ type
     procedure SetUrl(const AUrl: string); override;
 
     property Id: string read FId;
+    property Level: Integer read FLevel;
     //property Caption: string read FCaption;
     //property Hint: string read FHint;
     //property ImageID: Integer read FImageID;
@@ -758,8 +760,12 @@ end;
 constructor TNavigationItem.Create(const AParent: TNavigationItem; const AUrl: string);
 begin
   inherited Create(lkAction);
-  FParent := AParent;
   FOwner := nil;
+  FParent := AParent;
+  if Assigned(AParent) then
+    FLevel := AParent.Level + 1
+  else
+    FLevel := -1;
 
   SetUrl(AUrl);
   FRadioItem := False;
@@ -771,6 +777,11 @@ begin
   inherited Create(lkAction);
   FOwner := nil;
   FParent := AParent;
+  if Assigned(AParent) then
+    FLevel := AParent.Level + 1
+  else
+    FLevel := -1;
+
   InternalLoad(AJSON);
 end;
 

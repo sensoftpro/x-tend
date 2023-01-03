@@ -71,7 +71,7 @@ type
     FTabStop: Boolean;
     FLabelPosition: TLabelPosition;
 
-    function IndexOfControl(const AControl: TObject): Integer; virtual;
+    function IndexOfSender(const ASender: TObject): Integer; virtual;
     function AreaFromSender(const ASender: TObject): TUIArea; virtual;
 
     procedure DoActivate(const AUrlParams: string); virtual;
@@ -81,7 +81,7 @@ type
 
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
     function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; virtual;
-    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
+    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; virtual;
     procedure DoBeforeFreeControl; virtual;
     procedure FillEditor; virtual;
@@ -204,8 +204,7 @@ type
     function DoCreateChildList(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
     function DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
     function DoCreateChildEditor(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
-    function CreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
-      const AView: TView; const ALevel: Integer): TObject;
+    function CreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const AView: TView): TObject;
     function CreateChildLayoutedArea(const ALayout: TLayout; const AView: TView;
       const AChildLayoutName: string; const AParams: string): TUIArea;
 
@@ -1378,8 +1377,8 @@ begin
   FUIBuilder.ApplyLayout(Result, AView, vChildLayoutName, AParams);
 end;
 
-function TUIArea.CreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
-  const AView: TView; const ALevel: Integer): TObject;
+function TUIArea.CreateItem(const AParentObj: TNativeControl;
+  const ANavItem: TNavigationItem; const AView: TView): TObject;
 var
   vDefinition: TDefinition;
   vEntity: TEntity;
@@ -1403,7 +1402,7 @@ begin
     if vImageID < 0 then
       vImageID := vDefinition._ImageID;
 
-    Result := FNativeControl.DoCreateItem(AParentObj, ANavItem, ALevel, vCaption, vHint, GetImageID(vImageID));
+    Result := FNativeControl.DoCreateItem(AParentObj, ANavItem, vCaption, vHint, GetImageID(vImageID));
   end
   else if (AView.DefinitionKind in [dkEntity, dkObjectField]) and (AView.DomainObject is TEntity) then
   begin
@@ -1413,7 +1412,7 @@ begin
     if vHint = '' then
       vHint := vCaption;
 
-    Result := FNativeControl.DoCreateItem(AParentObj, ANavItem, ALevel, vCaption, vCaption, GetImageID(vImageID));
+    Result := FNativeControl.DoCreateItem(AParentObj, ANavItem, vCaption, vCaption, GetImageID(vImageID));
   end
   else
     Result := nil;
@@ -1566,7 +1565,7 @@ var
     vDefinition: TDefinition;
     vDefinitions: TList<TDefinition>;
   begin
-    vControl := FNativeControl.DoCreateItem(vParentObj, ACurrentItem, ALevel, ACurrentItem.Caption, ACurrentItem.Hint,
+    vControl := FNativeControl.DoCreateItem(vParentObj, ACurrentItem, ACurrentItem.Caption, ACurrentItem.Hint,
       GetImageID(ACurrentItem.ImageID));
     if not Assigned(vControl) then
       Exit;
@@ -1612,7 +1611,7 @@ var
     vControl: TObject;
     vNavArea: TUIArea;
   begin
-    vControl := CreateItem(vParentObj, ACurrentItem, ACurrentView, ALevel);
+    vControl := CreateItem(vParentObj, ACurrentItem, ACurrentView);
     if not Assigned(vControl) then
       Exit;
 
@@ -1966,7 +1965,7 @@ begin
     Exit;
 
   vControl := vArea.InnerControl;
-  vSelectedIndex := FNativeControl.IndexOfControl(Sender);
+  vSelectedIndex := FNativeControl.IndexOfSender(Sender);
   Assert(vSelectedIndex >= 0, 'Выбран неизвестный пункт меню');
 
   TEntity(vArea.View.DomainObject)._SetFieldValue(FSession.NullHolder, 'SelectedIndex', vSelectedIndex);
@@ -2363,7 +2362,7 @@ begin
 end;
 
 function TNativeControl.DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
-  const ALevel: Integer; const ACaption, AHint: string; const AImageIndex: Integer): TObject;
+  const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 begin
   Result := nil;
 end;
@@ -2517,7 +2516,7 @@ begin
   Result := vsUndefined;
 end;
 
-function TNativeControl.IndexOfControl(const AControl: TObject): Integer;
+function TNativeControl.IndexOfSender(const ASender: TObject): Integer;
 begin
   Result := -1;
 end;

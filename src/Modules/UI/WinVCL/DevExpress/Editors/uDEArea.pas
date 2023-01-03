@@ -78,7 +78,7 @@ type
     FNavBarItem: TdxNavBarItem;
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem; const ALevel: Integer;
+    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
@@ -134,9 +134,9 @@ begin
 end;
 
 function TNavBarArea.DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
-  const ALevel: Integer; const ACaption, AHint: string; const AImageIndex: Integer): TObject;
+  const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 begin
-  if ALevel = 0 then
+  if ANavItem.Level = 0 then
   begin
     FNavBarGroup := FNavBar.Groups.Add;
     FNavBarGroup.LinksUseSmallImages := False;
