@@ -280,9 +280,9 @@ type
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
     procedure CloseAllPages(const AInteractor: TInteractor);
 
-    function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+    function CreateControl(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''; const AOnClose: TProc = nil): TObject; virtual; abstract;
-    function CreateArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+    function CreateArea(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
     function CreateTempControl: TObject; virtual; abstract;
 
@@ -407,7 +407,7 @@ begin
             vChildItem.Hint := vChildItem.Caption;
             vChildItem.ImageID := vAction._ImageID;
 
-            vChildArea := CreateArea(AParent, vView, vChildItem);
+            vChildArea := CreateArea(AParent, AParent, vView, vChildItem);
             vChildArea.UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
           end
@@ -421,7 +421,7 @@ begin
         vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
         vChildItem.StyleName := 'line';
         vChildItem.Caption := '-';
-        vChildArea := CreateArea(AParent, AParent.UIBuilder.RootView, vChildItem);
+        vChildArea := CreateArea(AParent, AParent, AParent.UIBuilder.RootView, vChildItem);
         AParent.AddArea(vChildArea);
       end;
 
@@ -443,7 +443,7 @@ begin
             vChildItem.Hint := vChildItem.Caption;
             vChildItem.ImageID := 31;
 
-            vChildArea := CreateArea(AParent, vView, vChildItem);
+            vChildArea := CreateArea(AParent, AParent, vView, vChildItem);
             vChildArea.UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
           end
@@ -457,7 +457,7 @@ begin
         vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
         vChildItem.StyleName := 'line';
         vChildItem.Caption := '-';
-        vChildArea := CreateArea(AParent, AParent.UIBuilder.RootView, vChildItem);
+        vChildArea := CreateArea(AParent, AParent, AParent.UIBuilder.RootView, vChildItem);
         AParent.AddArea(vChildArea);
       end;
 
@@ -468,7 +468,7 @@ begin
     else if Pos('@', vCaption) > 0 then
     begin
       vSrcItem.StyleName := 'group';
-      vChildArea := CreateArea(AParent, AParent.View, vSrcItem);
+      vChildArea := CreateArea(AParent, AParent, AParent.View, vSrcItem);
       AParent.AddArea(vChildArea);
 
       CopyPopupMenuItems(vChildArea, AView, vSrcItem, vChildArea);
@@ -492,7 +492,7 @@ begin
         if vDefinitions.Count > 1 then
         begin
           vSrcItem.StyleName := 'group';
-          vChildArea := CreateArea(AParent, vView, vSrcItem);
+          vChildArea := CreateArea(AParent, AParent, vView, vSrcItem);
           for j := 0 to vDefinitions.Count - 1 do
           begin
             vDefinition := TDefinition(vDefinitions[j]);
@@ -501,17 +501,17 @@ begin
             vChildItem.Caption := AParent.GetTranslation(vDefinition);
             vChildItem.Hint := vChildItem.Caption;
             vChildItem.ImageID := vDefinition._ImageID;
-            vDefArea := CreateArea(vChildArea, AParent.UIBuilder.RootView, vChildItem);
+            vDefArea := CreateArea(vChildArea, vChildArea, AParent.UIBuilder.RootView, vChildItem);
             vChildArea.AddArea(vDefArea);
           end;
         end
         else begin
-          vChildArea := CreateArea(AParent, vView, vSrcItem);
+          vChildArea := CreateArea(AParent, AParent, vView, vSrcItem);
           vChildArea.UpdateArea(dckViewStateChanged);
         end;
       end
       else begin
-        vChildArea := CreateArea(AParent, vView, vSrcItem);
+        vChildArea := CreateArea(AParent, AParent, vView, vSrcItem);
         vChildArea.UpdateArea(dckViewStateChanged);
       end;
 
@@ -523,7 +523,7 @@ begin
 
       vSrcItem.StyleName := 'group';
       vSrcItem.Caption := vCaption;
-      vChildArea := CreateArea(AParent, AParent.UIBuilder.RootView, vSrcItem);
+      vChildArea := CreateArea(AParent, AParent, AParent.UIBuilder.RootView, vSrcItem);
       vChildArea.NativeControl.ViewState := vsDisabled;
       AParent.AddArea(vChildArea);
     end;
@@ -567,7 +567,7 @@ begin
   ALayout.BevelInner := lbkRaised;
   ALayout.BevelOuter := lbkLowered;
 
-  vControl := CreateControl(AParentArea, AView, ALayout, AParams);
+  vControl := CreateControl(AParentArea, AParentArea, AView, ALayout, AParams);
 
   Result := GetNativeControlClass.Create(AParentArea, vControl, AParams);
 end;

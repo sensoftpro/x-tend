@@ -40,7 +40,7 @@ uses
 
 type
   TLayoutKind = (lkNone, lkPanel, lkPage, lkPages, lkFrame, lkMemo, lkLabel, lkImage, lkBevel, lkShape,
-    lkSplitter, lkScrollBox, lkAction);
+    lkSplitter, lkScrollBox, lkAction, lkNavItem);
   TAreaKind = (akUnknown, akDecor, akField, akList, akAction, akNavigation);
   TLayoutAlign = (lalNone, lalTop, lalBottom, lalLeft, lalRight, lalClient, lalCustom);
   TPageStyle = (psTabs, psButtons, psFlatButtons);
@@ -151,7 +151,7 @@ type
 
 const
   cLayoutKindNames: array[TLayoutKind] of string = ('', 'panel', 'page', 'pages', 'frame', 'memo', 'label',
-    'image', 'bevel', 'shape', 'splitter', 'scrollbox', 'action');
+    'image', 'bevel', 'shape', 'splitter', 'scrollbox', 'action', 'nav-item');
   cAnchorKindNames: array[TAnchorKind] of string = ('left', 'top', 'right', 'bottom');
   cFontStyleNames: array[TFontStyle] of string = ('bold', 'italic', 'underline', 'strikeout');
   cAlignNames: array[TLayoutAlign] of string = ('', 'top', 'bottom', 'left', 'right', 'client', 'custom');
@@ -249,6 +249,7 @@ type
     // Свойства конкретных типов
     FCaption_AtLeft: Boolean;
     FButton_ShowCaption: Boolean;
+    FButton_Flat: Boolean;
     FShape_Type: TLayoutShapeType;
     FImage_Picture: TStream;
     FImage_Stretch: Boolean;
@@ -330,6 +331,7 @@ type
 
     property Shape_Type: TLayoutShapeType read FShape_Type write FShape_Type;
     property Button_ShowCaption: Boolean read FButton_ShowCaption write FButton_ShowCaption;
+    property Button_Flat: Boolean read FButton_Flat write FButton_Flat;
     property Caption_AtLeft: Boolean read FCaption_AtLeft write FCaption_AtLeft;
     property AutoSize: Boolean read FAutoSize write FAutoSize;
     property WordWrap: Boolean read FWordWrap write FWordWrap;
@@ -1015,6 +1017,7 @@ begin
 
   FCaption_AtLeft := False;
   FButton_ShowCaption := False;
+  FButton_Flat := False;
   FShape_Type := lstRectangle;
   FImage_Picture := nil;
   FImage_Stretch := False;

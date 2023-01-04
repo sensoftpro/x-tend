@@ -59,7 +59,7 @@ type
 implementation
 
 uses
-  uPLatform, uDomain, uDrawStyles, uWinScene, uPresenter, uConfiguration, uConsts;
+  uPlatform, uDomain, uDrawStyles, uWinVCLPresenter, uWinScene, uPresenter, uConfiguration, uConsts;
 
 { TFieldSceneArea }
 
@@ -82,7 +82,7 @@ var
 begin
   vDomain := TDomain(FView.Domain);
   vSceneClass := TSceneClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ChartPainter', 'Painting', vModuleName));
-  FScene := vSceneClass.Create(AParent.InnerControl);
+  FScene := vSceneClass.Create(GetVCLControl(AParent));
   Result := TWinScene(FScene).Panel;
 end;
 

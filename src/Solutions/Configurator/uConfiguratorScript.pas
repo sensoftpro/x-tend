@@ -277,8 +277,11 @@ begin
   vDefinition.AddEntityFieldDef('Street', 'street', 'Улица', '', 'Streets', 0, vsHidden, cRequired);
   vDefinition.AddSimpleFieldDef('Name', 'name', 'Наименование', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);
 
-  AddDefinition('Persons', '_Owners', 'Люди', cNullItemName);
-  AddDefinition('Animals', '_Owners', 'Животные', cNullItemName);
+  vDefinition := AddDefinition('Persons', '_Owners', 'Люди', cNullItemName);
+  vDefinition.AddSimpleFieldDef('Name', 'name', 'Имя человека', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);
+
+  vDefinition := AddDefinition('Animals', '_Owners', 'Животные', cNullItemName);
+  vDefinition.AddSimpleFieldDef('Name', 'name', 'Кличка животного', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);
 
   vDefinition := AddDefinition('Districts', '', 'Районы', cNullItemName);
   vDefinition.AddSimpleFieldDef('Name', 'name', 'Наименование', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);

@@ -133,10 +133,7 @@ type
     FEntities: TEntityList;
     FSelectPopup: TSelectEntityPopup;
     FTypeSelectionMenu: TPopupMenu;
-    FButtonView: TView;
-    FAddArea: TUIArea;
     procedure OnSelectClick(Sender: TObject);
-    procedure OnAddClick(Sender: TObject);
     procedure ShowPopup(const AFilter: string);
     procedure DoOnClose(Sender: TObject);
     procedure ClosePopup;
@@ -235,9 +232,9 @@ end;
 
 function VKeytoWideString(const AKey: Word): WideString;
 var
-  WBuff         : array [0..255] of WideChar;
-  KeyboardState : TKeyboardState;
-  UResult       : Integer;
+  WBuff: array [0..255] of WideChar;
+  KeyboardState: TKeyboardState;
+  UResult: Integer;
 begin
   Result := '';
   GetKeyBoardState (KeyboardState);
@@ -263,10 +260,8 @@ end;
 
 function TVCLEntityFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
-  vDefinitions: TList<TDefinition>;
-  i: Integer;
-  vMenuItem: TMenuItem;
-  vDefinition: TDefinition;
+  vButtonLayout: TLayout;
+  vAddArea: TUIArea;
 begin
   if Assigned(FSelectPopup) then
   begin
@@ -274,7 +269,7 @@ begin
     FSelectPopup := nil;
   end;
   FEntities := nil;
-  FButtonView := nil;
+
   FBasePanel := TPanel.Create(nil);
   FBasePanel.BevelOuter := bvNone;
   FBasePanel.ShowCaption := False;
@@ -307,48 +302,20 @@ begin
 
   Result := FBasePanel;
 
-  FbtnAdd := TcxButton.Create(nil);
+  vButtonLayout := FUIBuilder.CreateSimpleLayout(lkPanel);
+  vButtonLayout.Caption := 'Create?place=embedded';
+  vButtonLayout.Hint := TInteractor(FView.Interactor).Translate('cptAddEntity', 'Добавить');
+  vButtonLayout.ImageID := 1;
+  vButtonLayout.Button_Flat := True;
+  vButtonLayout.Align := lalRight;
+  vButtonLayout.TabOrder := -1;
+  vButtonLayout.Height := ALayout.Height;
+  vButtonLayout.Width := ALayout.Height;
+
+  vAddArea := FOwner.CreateChildArea(FView, vButtonLayout, '');
+
+  FbtnAdd := TcxButton(GetVCLControl(vAddArea));
   FbtnAdd.Parent := FBasePanel;
-  FbtnAdd.Caption := TInteractor(FView.Interactor).Translate('cptAddEntity', 'Добавить');
-  FbtnAdd.Hint := FbtnAdd.Caption;
-  FbtnAdd.PaintStyle := bpsGlyph;
-  FbtnAdd.OptionsImage.Images := TDragImageList(TInteractor(FInteractor).Images[16]);
-  FbtnAdd.OptionsImage.ImageIndex := 1;
-  FbtnAdd.SpeedButtonOptions.CanBeFocused := False;
-  FbtnAdd.SpeedButtonOptions.Flat := True;
-  FbtnAdd.SpeedButtonOptions.Transparent := True;
-  FbtnAdd.Align := alRight;
-  FbtnAdd.TabStop := False;
-  FButtonView := FView.BuildView('Create?place=embedded');
-
-  FAddArea := TUIArea.Create(FOwner, FButtonView, nil, '', False, FbtnAdd);
-  FOwner.AddArea(FAddArea);
-
-  vDefinitions := TEntityFieldDef(FFieldDef).ContentDefinitions;
-  if vDefinitions.Count > 1 then
-  begin
-    FTypeSelectionMenu := TPopupMenu.Create(nil);
-    FTypeSelectionMenu.Images := TDragImageList(TInteractor(FInteractor).Images[16]);
-    for i := 0 to vDefinitions.Count - 1 do
-    begin
-      vDefinition := TDefinition(vDefinitions[i]);
-      vMenuItem := TMenuItem.Create(nil);
-      vMenuItem.Caption := FOwner.GetTranslation(vDefinition);
-      vMenuItem.ImageIndex := FOwner.GetImageID(vDefinition._ImageID);
-      vMenuItem.Tag := NativeInt(FAddArea);
-      vMenuItem.OnClick := FOwner.OnActionMenuSelected;
-      FTypeSelectionMenu.Items.Add(vMenuItem);
-    end;
-    FbtnAdd.DropDownMenu := FTypeSelectionMenu;
-    FbtnAdd.Kind := cxbkOfficeDropDown;
-    FbtnAdd.OptionsImage.Margin := 4;
-    FbtnAdd.Width := FbtnAdd.Height + 16;
-  end
-  else
-  begin
-    FbtnAdd.OnClick := OnAddClick;
-    FbtnAdd.Width := FbtnAdd.Height;
-  end;
 end;
 
 procedure TVCLEntityFieldEditor.DoDeinit;
@@ -356,6 +323,7 @@ begin
   inherited;
   FSelectButton.Text := '';
   FSelectButton.Enabled := False;
+
   FbtnAdd.Visible := True; // todo: create option
 end;
 
@@ -414,19 +382,6 @@ begin
     Result := ebsUltraFlat
   else
     Result := ebsNone;
-end;
-
-procedure TVCLEntityFieldEditor.OnAddClick(Sender: TObject);
-begin
-  SetFocused(True);
-  if Assigned(FButtonView) then
-  begin
-    TEntity(FButtonView.DomainObject)._SetFieldValue(TUserSession(FView.Session).NullHolder, 'SelectedIndex', 0);
-    FUIBuilder.LastArea := FOwner;
-    FOwner.ExecuteUIAction(FButtonView);
-    //if vSaved then
-    //  PostMessage(TWinControl(FControl.Control).Handle, WM_NEXTDLGCTL, 0, 0)
-  end;
 end;
 
 procedure TVCLEntityFieldEditor.OnComboMouseDown(Sender: TObject; Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
@@ -1131,12 +1086,10 @@ var
   vRow: TcxCustomRow;
   vFieldDef: TFieldDef;
   vValue: Variant;
-//  vInteractor: TInteractor;
   vEntity, vLevelEntity: TEntity;
   vIndex, vId: Integer;
 begin
   vEditor := TcxCustomEdit(Sender);
-//  vInteractor := TInteractor(FView.Interactor);
   vRow := TcxCustomVerticalGrid(vEditor.Parent).FocusedRow;
   if vRow is TcxEditorRow then
   begin
@@ -1219,7 +1172,7 @@ begin
   TcxRadioGroup(Result).Style.BorderStyle := ebsNone;
   TcxRadioGroup(Result).Name := 'radio';
   TcxRadioGroup(Result).Caption := '';
-  FOwner.NeedCreateCaption := False;
+  FNeedCreateCaption := False;
 
   FEntities := TEntityList.Create(TInteractor(FView.Interactor).Domain, TInteractor(FView.Interactor).Session);
 end;

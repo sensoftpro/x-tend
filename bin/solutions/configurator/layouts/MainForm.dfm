@@ -66,7 +66,6 @@ object EditForm: TEditForm
     ParentFont = False
     PopupMenu = MainMenu
     TabOrder = 4
-    ExplicitTop = 63
   end
   object MainMenu: TPopupMenu
     Left = 340
@@ -109,6 +108,18 @@ object EditForm: TEditForm
     end
     object ShowAbout1: TMenuItem
       Caption = 'ShowAbout'
+    end
+    object SystemIdSystemCaption1: TMenuItem
+      Caption = '@Parent1?Caption='#1056#1086#1076#1080#1090#1077#1083#1100' 1'
+      object Quit2: TMenuItem
+        Caption = '@Parent2?Caption='#1056#1086#1076#1080#1090#1077#1083#1100' 2'
+        object Parent3Caption31: TMenuItem
+          Caption = '@Parent3?Caption='#1056#1086#1076#1080#1090#1077#1083#1100' 3'
+          object ShowAbout2: TMenuItem
+            Caption = 'ShowAbout'
+          end
+        end
+      end
     end
   end
   object ToolBar: TPopupMenu

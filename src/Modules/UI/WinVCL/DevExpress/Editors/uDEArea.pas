@@ -78,7 +78,7 @@ type
     FNavBarItem: TdxNavBarItem;
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    function DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
+    function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
@@ -133,8 +133,10 @@ begin
   Result := FNavBar;
 end;
 
-function TNavBarArea.DoCreateItem(const AParentObj: TNativeControl; const ANavItem: TNavigationItem;
+function TNavBarArea.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
   const ACaption, AHint: string; const AImageIndex: Integer): TObject;
+var
+  vControl: TObject;
 begin
   if ANavItem.Level = 0 then
   begin
@@ -152,8 +154,9 @@ begin
   else
   begin
     FNavBarItem := FNavBar.Items.Add;
-    if Assigned(AParentObj) and (TVCLControl(AParentObj).Control is TdxNavBarGroup) then
-      TdxNavBarGroup(TVCLControl(AParentObj).Control).CreateLink(FNavBarItem);
+    vControl := GetVCLControl(AParent);
+    if vControl is TdxNavBarGroup then
+      TdxNavBarGroup(vControl).CreateLink(FNavBarItem);
     FNavBarItem.Caption := ACaption;
     FNavBarItem.Hint := AHint;
     FNavBarItem.SmallImageIndex := AImageIndex;
@@ -208,6 +211,7 @@ begin
   begin
     vButton.SpeedButtonOptions.Flat := True;
     vButton.SpeedButtonOptions.CanBeFocused := False;
+    vButton.SpeedButtonOptions.Transparent := True;
   end;
 
   vButton.Caption := FOwner.GetTranslation(vActionDef);
@@ -252,9 +256,15 @@ begin
     vButton.WordWrap := True;
   end;
 
-  if (vActionDef.Name = 'Add') and Assigned(FView.ParentDomainObject) and (FView.ParentDomainObject is TEntityList) then
+  if (vActionDef.Name = 'Add') and (FView.ParentDomainObject is TEntityList) then
+    vDefinitions := TEntityList(FView.ParentDomainObject).ContentDefinitions
+  else if (vActionDef.Name = 'Create') and (FView.Parent.DefinitionKind = dkObjectField) then
+    vDefinitions := TEntityFieldDef(FView.Parent.Definition).ContentDefinitions
+  else
+    vDefinitions := nil;
+
+  if Assigned(vDefinitions) then
   begin
-    vDefinitions := TEntityList(FView.ParentDomainObject).ContentDefinitions;
     if vDefinitions.Count > 1 then
     begin
       FTypeSelectionMenu := TPopupMenu.Create(nil);
@@ -274,6 +284,7 @@ begin
       vButton.DropDownMenu := FTypeSelectionMenu;
       vButton.Kind := cxbkOfficeDropDown;
       vButton.OptionsImage.Margin := 4;
+      ALayout.Width := 42; //Round(ALayout.Height * 1.5);
     end
     else begin
       vButton.OnClick := FOwner.OnAreaClick;

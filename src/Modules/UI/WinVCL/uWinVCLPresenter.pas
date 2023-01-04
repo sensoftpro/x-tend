@@ -95,9 +95,9 @@ type
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
 
-    function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+    function CreateControl(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''; const AOnClose: TProc = nil): TObject; override;
-    function CreateArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+    function CreateArea(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
     function CreateTempControl: TObject; override; // DFM
 
@@ -107,6 +107,8 @@ type
 
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
   end;
+
+function GetVCLControl(const AArea: TUIArea): TObject;
 
 procedure CopyFontSettings(const AFont: TFont; const ALayout: TLayout);
 procedure CopyMargins(const AControl: TControl; const ALayout: TLayout);
@@ -143,6 +145,20 @@ type
       1: (Words: array[0..1] of Word);
       2: (Value: Cardinal);
   end;
+
+function GetVCLControl(const AArea: TUIArea): TObject;
+var
+  vVCLControl: TVCLControl;
+begin
+  if not Assigned(AArea) then
+    Exit(nil);
+
+  vVCLControl := TVCLControl(AArea.NativeControl);
+  if not Assigned(vVCLControl) then
+    Result := nil
+  else
+    Result := vVCLControl.Control;
+end;
 
 procedure CopyFontSettings(const AFont: TFont; const ALayout: TLayout);
 begin
@@ -299,7 +315,7 @@ begin
   if AInteractor.Layout <> 'mdi'  then
     Exit;
 
-  vForm := TForm(AInteractor.UIBuilder.RootArea.InnerControl);
+  vForm := TForm(GetVCLControl(AInteractor.UIBuilder.RootArea));
   case AArrangeKind of
     waCascade:
       vForm.Cascade;
@@ -597,7 +613,7 @@ begin
   inherited Create(AName, ASettings);
 end;
 
-function TWinVCLPresenter.CreateArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+function TWinVCLPresenter.CreateArea(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
   const AParams: string; const AOnClose: TProc): TUIArea;
 var
   vControl: TObject;
@@ -611,7 +627,7 @@ begin
   if not Assigned(ALayout) then
     Exit;
 
-  vControl := CreateControl(AParent, AView, ALayout, AParams, AOnClose);
+  vControl := CreateControl(AOwner, AParent, AView, ALayout, AParams, AOnClose);
   if not Assigned(vControl) then
     Exit;
 
@@ -655,7 +671,7 @@ begin
   end;
 end;
 
-function TWinVCLPresenter.CreateControl(const AParent: TUIArea; const AView: TView;
+function TWinVCLPresenter.CreateControl(const AOwner, AParent: TUIArea; const AView: TView;
   const ALayout: TLayout; const AParams: string; const AOnClose: TProc): TObject;
 var
   vDomain: TDomain;
@@ -676,6 +692,8 @@ var
   vMenuItem: TMenuItem;
   i: Integer;
   vArea: TUIArea;
+  vParentControl: TObject;
+  vNavItem: TNavigationItem;
 begin
   Result := nil;
 
@@ -684,6 +702,7 @@ begin
 
   vInteractor := TInteractor(AView.Interactor);
   vDomain := TDomain(vInteractor.Domain);
+  vParentControl := GetVCLControl(AParent);
 
   if ALayout.Kind = lkShape then
   begin
@@ -779,14 +798,14 @@ begin
       Result := vForm;
     end
     else begin
-      vTab := TTabSheet.Create(TComponent(AParent.InnerControl));
+      vTab := TTabSheet.Create(TComponent(GetVCLControl(AParent)));
       vTab.Caption := ALayout.Caption;
       vTab.ImageIndex := AParent.GetImageID(ALayout.ImageID);
 
       vStartPageName := vDomain.Settings.GetValue('Core', 'StartPage', '');
       vTab.TabVisible := ALayout.ShowCaption;
-      if AParent.InnerControl is TPageControl then
-        vTab.PageControl := TPageControl(AParent.InnerControl);
+      if vParentControl is TPageControl then
+        vTab.PageControl := TPageControl(vParentControl);
 
       Result := vTab;
     end;
@@ -939,7 +958,7 @@ begin
       for i := 0 to AParent.Count - 1 do
       begin
         vArea := AParent.Areas[i];
-        if (vArea.View = AView) and (vArea.InnerControl is TForm) then
+        if (vArea.View = AView) and (GetVCLControl(vArea) is TForm) then
           Exit(vArea);
       end;
 
@@ -984,7 +1003,7 @@ begin
   begin
     if (ALayout.StyleName = '') or (ALayout.StyleName = 'menu') then
     begin
-      vMenu := TPopupMenu.Create(TComponent(AParent.InnerControl));
+      vMenu := TPopupMenu.Create(TComponent(vParentControl));
       vMenu.Images := TDragImageList(TInteractor(AParent.Interactor).Images[16]);
       ALayout.Name := '-popup-';
       Result := vMenu;
@@ -1017,10 +1036,10 @@ begin
       else
         vMenuItem.Caption := ALayout.Caption;
 
-      if AParent.InnerControl is TPopupMenu then
-        TPopupMenu(AParent.InnerControl).Items.Add(vMenuItem)
+      if vParentControl is TPopupMenu then
+        TPopupMenu(vParentControl).Items.Add(vMenuItem)
       else
-        TMenuItem(AParent.InnerControl).Add(vMenuItem);
+        TMenuItem(vParentControl).Add(vMenuItem);
 
       if ALayout is TNavigationItem then
         ALayout.Id := TNavigationItem(ALayout).ViewName
@@ -1029,6 +1048,11 @@ begin
 
       Result := vMenuItem;
     end;
+  end
+  else if ALayout.Kind in [lkNavGroup, lkNavItem] then
+  begin
+    vNavItem := TNavigationItem(ALayout);
+    Result := AOwner.NativeControl.CreateItem(AParent, vNavItem, AView);
   end
   else if ALayout.Kind <> lkNone then
     Assert(False, 'Класс не поддерживается для создания лэйаутов')
@@ -1266,7 +1290,7 @@ end;
 procedure TWinVCLPresenter.DoLogout(const AInteractor: TInteractor);
 begin
   inherited DoLogout(AInteractor);
-  StoreUILayout(AInteractor, TForm(AInteractor.UIBuilder.RootArea.InnerControl));
+  StoreUILayout(AInteractor, TForm(GetVCLControl(AInteractor.UIBuilder.RootArea)));
   if Assigned(FDebugForm) then
     FDebugForm.RemoveInteractor(AInteractor);
 end;
@@ -1375,12 +1399,12 @@ begin
   Result := drNone;
   if (AAreaName = '') or (AAreaName = 'float') then
   begin
-    vForm := TForm(AArea.InnerControl);
+    vForm := TForm(GetVCLControl(AArea));
     vForm.Show;
   end
   else if (AAreaName = 'child') or (AAreaName = 'modal') then
   begin
-    vForm := TForm(AArea.InnerControl);
+    vForm := TForm(GetVCLControl(AArea));
     vForm.ShowHint := True;
     vView := AArea.View;
 
@@ -1467,7 +1491,7 @@ var
 begin
   if AInteractor.Layout = 'mdi' then
   begin
-    vMainForm := TForm(AInteractor.UIBuilder.RootArea.InnerControl);
+    vMainForm := TForm(GetVCLControl(AInteractor.UIBuilder.RootArea));
     if Assigned(vMainForm) and (vMainForm.FormStyle = fsMDIForm) then
       for i := vMainForm.MDIChildCount - 1 downto 0 do
         vMainForm.MDIChildren[i].Close;

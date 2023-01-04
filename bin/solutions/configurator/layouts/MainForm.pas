@@ -28,6 +28,10 @@ type
     ConfigurationsCaption1: TMenuItem;
     Configurations1: TMenuItem;
     DistrictsWorkAreaWorkAreaLayoutCollection2: TMenuItem;
+    SystemIdSystemCaption1: TMenuItem;
+    Quit2: TMenuItem;
+    Parent3Caption31: TMenuItem;
+    ShowAbout2: TMenuItem;
   end;
 
 implementation

@@ -1085,7 +1085,7 @@ end;
 
 function TDEBoolFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FOwner.NeedCreateCaption := False;
+  FNeedCreateCaption := False;
 
   Result := TcxCheckBox.Create(nil);
   TcxCheckBox(Result).Properties.FullFocusRect := True;
@@ -2183,7 +2183,7 @@ begin
     TcxRadioGroup(Result).Style.BorderStyle := ebsNone;
     TcxRadioGroup(Result).Name := 'radio';
     TcxRadioGroup(Result).Caption := '';
-    FOwner.NeedCreateCaption := False;
+    FNeedCreateCaption := False;
   end
   else
   begin
@@ -2478,11 +2478,10 @@ function TDEPagesFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayo
 var
   vPC: TcxPageControl;
   vTabLayout: TLayout;
-  vPage: TcxTabSheet;
   vChildArea: TUIArea;
   i: Integer;
 begin
-  FOwner.NeedCreateCaption := False;
+  FNeedCreateCaption := False;
 
   inherited;
 
@@ -2516,17 +2515,15 @@ begin
   end;
 
   // Нужно прописывать родителя, чтобы создавать вложенные сцены
-  vPC.Parent := TWinControl(AParent.InnerControl);
+  vPC.Parent := TWinControl(GetVCLControl(AParent));
 
   for i := 0 to ALayout.Items.Count - 1 do
   begin
     vTabLayout := ALayout.Items[i];
-    vPage := TcxTabSheet.Create(vPC);
-    vPage.Caption := vTabLayout.Caption;
-    vPage.ImageIndex := FOwner.GetImageID(vTabLayout.ImageID);
-    vPage.Parent := vPC;
 
-    vChildArea := TUIArea.Create(FOwner, FView.Parent, vTabLayout, vTabLayout.Name, False, vPage);
+    vChildArea := TPresenter(FPresenter).CreateArea(FOwner, FOwner, FView.Parent, vTabLayout);
+    // It should be set here, because parent area still has no control
+    TWinControl(GetVCLControl(vChildArea)).Parent := vPC;
     FOwner.AddArea(vChildArea);
 
     TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vChildArea.View, vTabLayout, '');
@@ -2596,7 +2593,7 @@ begin
   TcxProgressBar(Result).AutoSize := ALayout.ShowCaption;
   TcxProgressBar(Result).Properties.SolidTextColor := True;
   TcxProgressBar(Result).Properties.ShowText := ALayout.ShowCaption;
-  FOwner.NeedCreateCaption := False;
+  FNeedCreateCaption := False;
   if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
     TcxProgressBar(Result).Properties.Max := TSimpleFieldDef(FFieldDef).MaxValue;
 end;
@@ -2953,13 +2950,15 @@ end;
 
 function TGauge.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
+  vParentControl: TObject;
   vRange: TdxGaugeCircularScaleRange;
   vMax, vMin: Integer;
 begin
   inherited;
   FGaugeControl := TdxGaugeControl.Create(nil);
-  if Assigned(AParent.InnerControl) and (AParent.InnerControl is TWinControl) then
-    FGaugeControl.Parent := TWinControl(AParent.InnerControl);
+  vParentControl := GetVCLControl(AParent);
+  if Assigned(vParentControl) and (vParentControl is TWinControl) then
+    FGaugeControl.Parent := TWinControl(vParentControl);
   FGaugeControl.Transparent := True;
   FGaugeControl.BorderStyle := cxcbsNone;
   FGaugeControl1CircularHalfScale := TdxGaugeCircularHalfScale(FGaugeControl.AddScale(TdxGaugeCircularHalfScale));
@@ -3158,7 +3157,7 @@ end;
 
 function TSelectedCaptionBoolFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FOwner.NeedCreateCaption := False;
+  FNeedCreateCaption := False;
 
   Result := TLabel.Create(nil);
   TLabel(Result).OnClick := OnClick;
