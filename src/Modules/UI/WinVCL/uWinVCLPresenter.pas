@@ -96,7 +96,7 @@ type
     destructor Destroy; override;
 
     function CreateControl(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AParams: string = ''; const AOnClose: TProc = nil): TObject; override;
+      const AParams: string = ''): TObject; override;
     function CreateArea(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
     function CreateTempControl: TObject; override; // DFM
@@ -627,21 +627,19 @@ begin
   if not Assigned(ALayout) then
     Exit;
 
-  vControl := CreateControl(AOwner, AParent, AView, ALayout, AParams, AOnClose);
-  if not Assigned(vControl) then
-    Exit;
-
   vInteractor := TInteractor(AView.Interactor);
   vDomain := TDomain(vInteractor.Domain);
 
-  if vControl is TForm then
+  if ALayout.AreaKind = akForm then
   begin
-    Result := TUIArea.Create(AParent, AView, ALayout, ALayout.Id, True, vControl);
+    Result := TUIArea.Create(AParent, AView, ALayout, ALayout.Id, True, nil);
     if Assigned(AOnClose) then
       Result.OnClose := AOnClose;
   end
   else begin
-    Result := TUIArea.Create(AParent, AView, ALayout, ALayout.Id, False, vControl);
+    vControl := CreateControl(AOwner, AParent, AView, ALayout, AParams);
+
+    Result := TUIArea.Create(AParent, AView, ALayout, ALayout.Id, False, {nil}vControl);
     if ALayout.Name = '-popup-' then
       CopyPopupMenuItems(Result, AParent.View, TNavigationItem(ALayout), Result)
     else if ALayout.Name = '-pages-' then
@@ -672,7 +670,7 @@ begin
 end;
 
 function TWinVCLPresenter.CreateControl(const AOwner, AParent: TUIArea; const AView: TView;
-  const ALayout: TLayout; const AParams: string; const AOnClose: TProc): TObject;
+  const ALayout: TLayout; const AParams: string): TObject;
 var
   vDomain: TDomain;
   vInteractor: TInteractor;

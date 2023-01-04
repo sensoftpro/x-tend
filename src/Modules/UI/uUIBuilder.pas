@@ -754,6 +754,7 @@ begin
     vFormLayout := CreateSimpleLayout(lkFrame);
     vFormLayout.Caption := ACaption;
     vFormLayout.StyleName := vAreaName;
+    vFormLayout.AreaKind := akForm;
     vUIArea := TPresenter(FPresenter).CreateArea(FCurrentArea, FCurrentArea, vView, vFormLayout, '', AOnClose);
   end
   else
@@ -1142,8 +1143,12 @@ begin
 
   FId := AId;
   FUId := AId;
-  FIsService := AIsService;
+  //FIsService := AIsService;
   FLayout := ALayout;
+  if Assigned(ALayout) then
+    FIsService := ALayout.AreaKind = akForm
+  else
+    FIsService := False;
   FInitialMenu := nil;
   FUpdateCount := 0;
 
@@ -1182,16 +1187,19 @@ begin
   end;
 
   FParent := AParent;
-  if Assigned(ALayout) and not Assigned(AControl) and not (ALayout is TNavigationItem)
-    and (ALayout.Kind in [lkPanel, lkPages])
-    and ((AView.DefinitionKind in [dkAction, dkSimpleField, dkObjectField, dkComplexField, dkListField])
-      or (AId = 'Navigation') or (AId = 'List') or (AId = 'Pivot'))
-  then
-    FNativeControl := _CreateNativeControl(ALayout, AView, uiUnknown, AParams)
-  else if Assigned(AControl) then
+//  if Assigned(ALayout) and not Assigned(AControl) and not (ALayout is TNavigationItem)
+//    and (ALayout.Kind in [lkPanel, lkPages])
+//    and ((AView.DefinitionKind in [dkAction, dkSimpleField, dkObjectField, dkComplexField, dkListField])
+//      or (AId = 'Navigation') or (AId = 'List') or (AId = 'Pivot'))
+//  then
+//    FNativeControl := _CreateNativeControl(ALayout, AView, uiUnknown, AParams)
+//  else
+  if Assigned(AControl) then
     FNativeControl := NativeControlClass.Create(Self, AControl, AParams)
   else
-    FNativeControl := NativeControlClass.Create(Self, AControl, AParams);
+    FNativeControl := _CreateNativeControl(ALayout, AView, uiUnknown, AParams);
+//  else
+//    FNativeControl := NativeControlClass.Create(Self, AControl, AParams);
 
   FNativeControl.SetControl(FNativeControl.FControl);
   SetParent(FParent);
@@ -1205,6 +1213,7 @@ begin
     begin
       if Assigned(FLayout.Menu) then
       begin
+        FLayout.Menu.AreaKind := akNavItem;
         vPopupArea := TPresenter(Presenter).CreateArea(Self, Self, FUIBuilder.RootView, FLayout.Menu);
         FNativeControl.SetLinkedControl('popup', vPopupArea.NativeControl);
         FAreas.Add(vPopupArea);
@@ -1399,7 +1408,9 @@ begin
   begin
     if FId = 'Navigation' then
       vControlType := uiNavigation
-    else if FIsService or (AView.DefinitionKind in [dkUndefined, dkDomain]) then
+    else if FIsService or (AView.DefinitionKind in [dkUndefined, dkDomain])
+      or (FLayout.AreaKind = akNavItem)
+    then
       vControlType := uiDecor
     else if AView.DefinitionKind = dkEntity then
       vControlType := uiEntityEdit
@@ -1519,6 +1530,7 @@ var
     vDefinition: TDefinition;
     vDefinitions: TList<TDefinition>;
   begin
+    ACurrentItem.AreaKind := akNavItem;
     ACurrentItem.Kind := lkNavItem;
     vGroupArea := TPresenter(Presenter).CreateArea(Self, AParent, ACurrentView, ACurrentItem);
     if not Assigned(vGroupArea) then
@@ -1563,6 +1575,7 @@ var
   var
     vNavArea: TUIArea;
   begin
+    ACurrentItem.AreaKind := akNavItem;
     ACurrentItem.Kind := lkNavItem;
     vNavArea := TPresenter(Presenter).CreateArea(Self, AParent, ACurrentView, ACurrentItem);
     if not Assigned(vNavArea) then

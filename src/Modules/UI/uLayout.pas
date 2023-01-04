@@ -41,7 +41,7 @@ uses
 type
   TLayoutKind = (lkNone, lkPanel, lkPage, lkPages, lkFrame, lkMemo, lkLabel, lkImage, lkBevel, lkShape,
     lkSplitter, lkScrollBox, lkAction, lkNavItem);
-  TAreaKind = (akUnknown, akDecor, akField, akList, akAction, akNavigation);
+  TAreaKind = (akUnknown, akDecor, akForm, akField, akList, akAction, akNavigation, akNavItem);
   TLayoutAlign = (lalNone, lalTop, lalBottom, lalLeft, lalRight, lalClient, lalCustom);
   TPageStyle = (psTabs, psButtons, psFlatButtons);
   TPagePosition = (ppTop, ppBottom, ppLeft, ppRight);

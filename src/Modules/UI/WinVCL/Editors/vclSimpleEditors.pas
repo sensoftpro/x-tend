@@ -2521,6 +2521,7 @@ begin
   begin
     vTabLayout := ALayout.Items[i];
 
+    vTabLayout.AreaKind := akDecor;
     vChildArea := TPresenter(FPresenter).CreateArea(FOwner, FOwner, FView.Parent, vTabLayout);
     // It should be set here, because parent area still has no control
     TWinControl(GetVCLControl(vChildArea)).Parent := vPC;

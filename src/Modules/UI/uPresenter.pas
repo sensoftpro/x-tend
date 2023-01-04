@@ -281,7 +281,7 @@ type
     procedure CloseAllPages(const AInteractor: TInteractor);
 
     function CreateControl(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AParams: string = ''; const AOnClose: TProc = nil): TObject; virtual; abstract;
+      const AParams: string = ''): TObject; virtual; abstract;
     function CreateArea(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
     function CreateTempControl: TObject; virtual; abstract;
@@ -402,6 +402,7 @@ begin
           if vView.DefinitionKind = dkAction then
           begin
             vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+            vChildItem.AreaKind := akNavItem;
             vChildItem.StyleName := 'action';
             vChildItem.Caption := AParent.GetTranslation(vAction);
             vChildItem.Hint := vChildItem.Caption;
@@ -419,6 +420,7 @@ begin
       if vActions.Count > 0 then
       begin
         vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+        vChildItem.AreaKind := akNavItem;
         vChildItem.StyleName := 'line';
         vChildItem.Caption := '-';
         vChildArea := CreateArea(AParent, AParent, AParent.UIBuilder.RootView, vChildItem);
@@ -438,6 +440,7 @@ begin
           if vView.DefinitionKind = dkAction then
           begin
             vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+            vChildItem.AreaKind := akNavItem;
             vChildItem.StyleName := 'action';
             vChildItem.Caption := AParent.GetTranslation(vReport);
             vChildItem.Hint := vChildItem.Caption;
@@ -455,6 +458,7 @@ begin
       if vReports.Count > 0 then
       begin
         vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+        vChildItem.AreaKind := akNavItem;
         vChildItem.StyleName := 'line';
         vChildItem.Caption := '-';
         vChildArea := CreateArea(AParent, AParent, AParent.UIBuilder.RootView, vChildItem);
@@ -467,6 +471,7 @@ begin
     end
     else if Pos('@', vCaption) > 0 then
     begin
+      vSrcItem.AreaKind := akNavItem;
       vSrcItem.StyleName := 'group';
       vChildArea := CreateArea(AParent, AParent, AParent.View, vSrcItem);
       AParent.AddArea(vChildArea);
@@ -481,6 +486,7 @@ begin
     if Assigned(vView) and (vView.DefinitionKind = dkAction) then
     begin
       vAction := TActionDef(vView.Definition);
+      vSrcItem.AreaKind := akNavItem;
       vSrcItem.StyleName := 'action';
       vSrcItem.Caption := AParent.GetTranslation(vAction);
       vSrcItem.Hint := vSrcItem.Caption;
@@ -491,12 +497,14 @@ begin
         vDefinitions := TEntityList(vView.ParentDomainObject).ContentDefinitions;
         if vDefinitions.Count > 1 then
         begin
+          vSrcItem.AreaKind := akNavItem;
           vSrcItem.StyleName := 'group';
           vChildArea := CreateArea(AParent, AParent, vView, vSrcItem);
           for j := 0 to vDefinitions.Count - 1 do
           begin
             vDefinition := TDefinition(vDefinitions[j]);
             vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+            vChildItem.AreaKind := akNavItem;
             vChildItem.StyleName := 'select';
             vChildItem.Caption := AParent.GetTranslation(vDefinition);
             vChildItem.Hint := vChildItem.Caption;
@@ -521,6 +529,7 @@ begin
       if Assigned(vView) and (vView.DefinitionKind = dkUndefined) then
         vView.CleanView;
 
+      vSrcItem.AreaKind := akNavItem;
       vSrcItem.StyleName := 'group';
       vSrcItem.Caption := vCaption;
       vChildArea := CreateArea(AParent, AParent, AParent.UIBuilder.RootView, vSrcItem);
@@ -617,7 +626,9 @@ function TPresenter.CreateNativeControl(const AArea: TUIArea; const AView: TView
 var
   vParams: string;
   vStyleName: string;
+  vOwner: TUIArea;
   vControlClass: TNativeControlClass;
+  vControl: TObject;
 begin
   if ALayout.Kind = lkPages then
     vStyleName := 'pages'
@@ -632,6 +643,15 @@ begin
   vControlClass := TNativeControlClass(GetControlClass(FName, AControlType, vStyleName));
   if Assigned(vControlClass) then
     Result := vControlClass.Create(AArea, nil, vParams)
+  else if AControlType = uiDecor then
+  begin
+    vOwner := AArea.Parent;
+    while Assigned(vOwner) and (vOwner.Layout.Kind = lkNavItem) do
+      vOwner := vOwner.Parent;
+
+    vControl := CreateControl(vOwner, AArea.Parent, AView, ALayout, vParams);
+    Result := NativeControlClass.Create(AArea, vControl, vParams);
+  end
   else
     Result := CreateDefaultControl(AArea, AView, ALayout, vParams);
 end;
