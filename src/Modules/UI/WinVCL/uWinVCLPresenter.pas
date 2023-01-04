@@ -1049,7 +1049,7 @@ begin
       Result := vMenuItem;
     end;
   end
-  else if ALayout.Kind in [lkNavGroup, lkNavItem] then
+  else if ALayout.Kind = lkNavItem then
   begin
     vNavItem := TNavigationItem(ALayout);
     Result := AOwner.NativeControl.CreateItem(AParent, vNavItem, AView);

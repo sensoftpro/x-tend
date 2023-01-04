@@ -7,7 +7,6 @@
   vclEntityEditors in '..\..\Modules\UI\WinVCL\Editors\vclEntityEditors.pas',
   vclListEditors in '..\..\Modules\UI\WinVCL\Editors\vclListEditors.pas',
   vclBlobEditors in '..\..\Modules\UI\WinVCL\Editors\vclBlobEditors.pas',
-  vclPopupForm in '..\..\Modules\UI\WinVCL\Editors\vclPopupForm.pas',
 
   uManagedForm in '..\..\Modules\UI\WinVCL\Forms\uManagedForm.pas',
   SplashForm in '..\..\Modules\UI\WinVCL\Forms\SplashForm.pas' {SplashFm},

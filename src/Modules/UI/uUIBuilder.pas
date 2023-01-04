@@ -1519,7 +1519,7 @@ var
     vDefinition: TDefinition;
     vDefinitions: TList<TDefinition>;
   begin
-    ACurrentItem.Kind := lkNavGroup;
+    ACurrentItem.Kind := lkNavItem;
     vGroupArea := TPresenter(Presenter).CreateArea(Self, AParent, ACurrentView, ACurrentItem);
     if not Assigned(vGroupArea) then
       Exit;
@@ -1702,7 +1702,8 @@ begin
     end;
   end
   else begin
-    vIsSlave := (AView.Name = 'Save') or SameText(QueryParameter('place'), 'embedded');
+    vIsSlave := (AView.Name = 'Save') or SameText(QueryParameter('place'), 'embedded')
+      or (Assigned(FCreateParams) and SameText(FCreateParams.Values['place'], 'embedded'));
     if not vIsSlave then
     begin
       vParentObject := AView.ParentDomainObject;
@@ -2038,8 +2039,6 @@ begin
   vName := Trim(AName);
   if Assigned(FParams) and (FParams.IndexOfName(vName) >= 0) then
     Result := FParams.Values[vName]
-  else if Assigned(FCreateParams) and (FCreateParams.IndexOfName(vName) >= 0) then
-    Result := FCreateParams.Values[vName]
   else
     Result := ADefaultValue;
 end;

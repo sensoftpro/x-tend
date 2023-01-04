@@ -1760,7 +1760,7 @@ var
 begin
   if ATargetName = 'popup' then
   begin
-    vPopupMenu := TPopupMenu(ALinkedControl.Control);
+    vPopupMenu := TPopupMenu(TVCLControl(ALinkedControl).Control);
     vPopupMenu.OnPopup := BeforeContextMenuShow;
     FPivot.PopupMenu := vPopupMenu;
   end;
@@ -2161,7 +2161,7 @@ var
 begin
   if ATargetName = 'popup' then
   begin
-    vPopupMenu := TPopupMenu(ALinkedControl.Control);
+    vPopupMenu := TPopupMenu(TVCLControl(ALinkedControl).Control);
     vPopupMenu.OnPopup := BeforeContextMenuShow;
     FTreeList.PopupMenu := vPopupMenu;
   end;
@@ -3589,7 +3589,7 @@ var
 begin
   if ATargetName = 'popup' then
   begin
-    vPopupMenu := TPopupMenu(ALinkedControl.Control);
+    vPopupMenu := TPopupMenu(TVCLControl(ALinkedControl).Control);
     vPopupMenu.OnPopup := BeforeContextMenuShow;
     FMasterTableView.PopupMenu := vPopupMenu;
   end;
