@@ -205,7 +205,6 @@
         <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclEntityEditors.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclListEditors.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclBlobEditors.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclPopupForm.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\uManagedForm.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\StartForm.pas">
             <Form>StartFm</Form>

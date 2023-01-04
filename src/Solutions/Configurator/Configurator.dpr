@@ -70,7 +70,6 @@ uses
   vclEntityEditors in '..\..\Modules\UI\WinVCL\Editors\vclEntityEditors.pas',
   vclListEditors in '..\..\Modules\UI\WinVCL\Editors\vclListEditors.pas',
   vclBlobEditors in '..\..\Modules\UI\WinVCL\Editors\vclBlobEditors.pas',
-  vclPopupForm in '..\..\Modules\UI\WinVCL\Editors\vclPopupForm.pas',
   // ... and forms
   uManagedForm in '..\..\Modules\UI\WinVCL\Forms\uManagedForm.pas',
   StartForm in '..\..\Modules\UI\WinVCL\Forms\StartForm.pas' {StartFm},
