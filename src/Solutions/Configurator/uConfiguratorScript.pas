@@ -325,7 +325,7 @@ begin
   vDefinition.AddSimpleFieldDef('Bool', 'bool', 'Bool', True, Null, Null, fkBoolean, '', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('Boolsimple', 'boolsimple', 'Boolsimple', True, Null, Null, fkBoolean, 'simple', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('Boolimagedaction', 'boolimagedaction', 'Boolimagedaction', True, Null, Null, fkBoolean, 'imaged_action', '', vsFullAccess, cRequired);
- // vDefinition.AddSimpleFieldDef('Boolimages', 'boolimages', 'Boolimages', True, Null, Null, fkBoolean, 'images', '', vsFullAccess, cRequired);
+//  vDefinition.AddSimpleFieldDef('Boolimages', 'boolimages', 'Boolimages', True, Null, Null, fkBoolean, 'images', '', vsFullAccess, cRequired);
 //  vDefinition.AddSimpleFieldDef('Boolpages', 'boolpages', 'Boolpages', True, Null, Null, fkBoolean, 'pages', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('Boolselectedcaption', 'boolselectedcaption', 'Boolselectedcaption', True, Null, Null, fkBoolean, 'selected_caption', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('Color', 'color', 'Color', 1, Null, Null, fkColor, '', '', vsFullAccess, 0);
@@ -336,8 +336,7 @@ begin
 //  uiEntityEdit, 'info', TTextInfo);
 //  uiEntityEdit, 'pages', TDEPagesFieldEditor);
 
-
-  vDefinition := AddDefinition('StreetDistrictRelations', '', '', cNullItemName, ccHideInMenu);
+  vDefinition := AddDefinition('StreetDistrictRelations', '', 'Улицы-районы', cNullItemName, ccHideInMenu);
   vDefinition.AddEntityFieldDef('District', 'district', 'Район', '', 'Districts', 0, vsSelectOnly, cRequired);
   vDefinition.AddEntityFieldDef('Street', 'street', 'Улица', '', 'Streets', 0, vsSelectOnly, cRequired);
   vDefinition.AddUniqueIndex('District,Street');

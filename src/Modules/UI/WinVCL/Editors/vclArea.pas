@@ -47,19 +47,21 @@ uses
 //////  6. Перенести AssignFromLayout в общий код создания
 //////  7. Сделать TCollectionArea, перенести код в DoCreateControl
 //////  8. Разбраться с надписью для полей
-///  9. Внутри у TNativeControl может не быть нативного контрола, а, например, html-текст
+//////  9. Внутри у TNativeControl может не быть нативного контрола, а, например, html-текст
 ///  10. Работа с FParams
 //////  11. Перенести общее поведение и обработчики в TPresenter
-///  12. Рефакторинг связки TUIArea + TNativeControl, распределение ответственности
+//////  12. Рефакторинг связки TUIArea + TNativeControl, распределение ответственности
 ///  13. Рефакторинг TLayout, добавление нужных полей и удаление лишних
 ///  14. Разделение TUIBuilder и отстроенных объектов
+///  15. Рефакторинг работы с заголовками полей
 
 type
   TVCLControl = class(TNativeControl)
   private
     procedure BeforeContextMenuShow(Sender: TObject);
+    procedure SetControl(const AControl: TObject);
   protected
-    //[Weak] FControl: TObject;
+    [Weak] FControl: TObject;
 
     function IndexOfSender(const ASender: TObject): Integer; override;
     function AreaFromSender(const ASender: TObject): TUIArea; override;
@@ -71,7 +73,6 @@ type
 
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); override;
 
-    procedure SetControl(const AControl: TObject); override;
     function GetControlInfo: string; override;
     procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
     procedure SetParent(const AParent: TUIArea); override;
@@ -89,13 +90,22 @@ type
     procedure SetModalResult(const AModalResult: TModalResult); override;
     procedure SetAlignment(const AAlignment: TAlignment); override;
 
+    procedure UnbindContent(const AForceUnbind: Boolean = False); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
+    function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
+      const ACaption, AHint: string; const AImageIndex: Integer): TObject; virtual;
+
     function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; override;
     procedure PlaceLabel; override;
     procedure SetCaptionProperty(const ALayout: TLayout); virtual;
     procedure UpdateCaptionVisibility; override;
   public
-    constructor Create(const AOwner: TUIArea; const AControl: TObject; const AParams: string = ''); override;
+    constructor Create(const AOwner: TUIArea; const AParams: string = ''); override;
     destructor Destroy; override;
+
+    procedure CreateContent(const AContent: TObject); override;
+    function CreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
+      const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 
     property Control: TObject read FControl;
   end;
@@ -959,12 +969,24 @@ begin
     CheckMenuItems(vMenuItem);
 end;
 
-constructor TVCLControl.Create(const AOwner: TUIArea; const AControl: TObject; const AParams: string);
+constructor TVCLControl.Create(const AOwner: TUIArea; const AParams: string);
 begin
-  inherited Create(AOwner, AControl, AParams);
+  inherited Create(AOwner, AParams);
+end;
 
-  FIsForm := AControl is TForm;
-  FIsAutoReleased := AControl is TMenuItem;
+function TVCLControl.CreateItem(const AParent: TUIArea;
+  const ANavItem: TNavigationItem; const ACaption, AHint: string;
+  const AImageIndex: Integer): TObject;
+begin
+  Result := DoCreateItem(AParent, ANavItem, ACaption, AHint, AImageIndex);
+end;
+
+procedure TVCLControl.CreateContent(const AContent: TObject);
+begin
+  if Assigned(AContent) then
+    SetControl(AContent)
+  else
+    SetControl(DoCreateControl(FParent, FLayout));
 end;
 
 destructor TVCLControl.Destroy;
@@ -1091,6 +1113,19 @@ begin
     vLabel.Font.Size := vFontSize;
     vLabel.Font.Color := clGray;
   end;
+end;
+
+function TVCLControl.DoCreateControl(const AParent: TUIArea;
+  const ALayout: TLayout): TObject;
+begin
+  Result := nil;
+end;
+
+function TVCLControl.DoCreateItem(const AParent: TUIArea;
+  const ANavItem: TNavigationItem; const ACaption, AHint: string;
+  const AImageIndex: Integer): TObject;
+begin
+  Result := nil;
 end;
 
 procedure TVCLControl.DoEndUpdate;
@@ -1228,7 +1263,7 @@ end;
 
 procedure TVCLControl.SetCaptionProperty(const ALayout: TLayout);
 begin
-  if not Assigned(FCaption) or not Assigned(ALayout) then
+  if not Assigned(FCaption) then
     Exit;
 
   if ALayout.Kind in [lkMemo, lkPanel] then
@@ -1257,7 +1292,7 @@ begin
       if Assigned(FControl) then
         TTreeNode(FControl).Data := nil;
 
-      inherited SetControl(AControl);
+      FControl := AControl;
 
       if Assigned(FControl) then
         TTreeNode(FControl).Data := FOwner;
@@ -1277,7 +1312,7 @@ begin
     end;
   end;
 
-  inherited SetControl(AControl);
+  FControl := AControl;
 
   if Assigned(FControl) then
   begin
@@ -1289,9 +1324,6 @@ begin
       TCrackedWinControl(FControl).OnExit := FOwner.OnExit;
     end;
   end;
-
-  FIsForm := FControl is TForm;
-  FIsAutoReleased := FControl is TMenuItem;
 end;
 
 procedure TVCLControl.SetFocused(const Value: Boolean);
@@ -1372,6 +1404,12 @@ begin
   begin
     TTreeNode(FControl).Enabled := AViewState > vsDisabled;
   end;
+end;
+
+procedure TVCLControl.UnbindContent(const AForceUnbind: Boolean);
+begin
+  if (AForceUnbind or FIsAutoReleased) and not FIsForm then
+    FControl := nil;
 end;
 
 procedure TVCLControl.UpdateCaptionVisibility;

@@ -692,8 +692,7 @@ begin
   TcxComboBox(Result).Properties.DropDownListStyle := lsFixedList;
   TcxComboBox(Result).Properties.OnInitPopup := CBOnInitPopup;
 
-  if Assigned(ALayout) then
-    FFlat := (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone);
+  FFlat := (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone);
 end;
 
 procedure TVCLEntitySelector.DoOnChange;

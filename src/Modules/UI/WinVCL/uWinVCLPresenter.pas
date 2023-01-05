@@ -86,26 +86,29 @@ type
     function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; override;
     procedure DoSetCursor(const ACursorType: TCursorType); override;
     procedure DoCloseAllPages(const AInteractor: TInteractor); override;
+    function CreateAreaContent(const AArea: TUIArea; const AView: TView;
+      const ALayout: TLayout; const AParams: string = ''): TNativeControl; override;
+    function CreateAreaContentItem(const AOwner, AArea: TUIArea; const ANavItem: TNavigationItem;
+      const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl; override;
 
     function GetImagePlaceholder(const ASize: Integer): TStream; override;
     function DoCreateImages(const AInteractor: TInteractor; const AImages: TImages; const ASize: Integer): TObject; override;
 
     procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); override; // DFM
+
+    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
+  protected
+    function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AParams: string = ''): TObject; virtual;
   public
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
 
-    function CreateControl(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AParams: string = ''): TObject; override;
-    function CreateArea(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; override;
     function CreateTempControl: TObject; override; // DFM
 
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
-
-    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
   end;
 
 function GetVCLControl(const AArea: TUIArea): TObject;
@@ -613,63 +616,27 @@ begin
   inherited Create(AName, ASettings);
 end;
 
-function TWinVCLPresenter.CreateArea(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-  const AParams: string; const AOnClose: TProc): TUIArea;
+function TWinVCLPresenter.CreateAreaContent(const AArea: TUIArea;
+  const AView: TView; const ALayout: TLayout; const AParams: string): TNativeControl;
 var
   vControl: TObject;
-  vDomain: TDomain;
-  vInteractor: TInteractor;
-  vStartPageName: string;
-  vStartPageStr: string;
-  vParams: TStrings;
 begin
-  Result := nil;
-  if not Assigned(ALayout) then
-    Exit;
-
-  vInteractor := TInteractor(AView.Interactor);
-  vDomain := TDomain(vInteractor.Domain);
-
-  if ALayout.AreaKind = akForm then
-  begin
-    Result := TUIArea.Create(AParent, AView, ALayout, ALayout.Id, True, nil);
-    if Assigned(AOnClose) then
-      Result.OnClose := AOnClose;
-  end
-  else begin
-    vControl := CreateControl(AOwner, AParent, AView, ALayout, AParams);
-
-    Result := TUIArea.Create(AParent, AView, ALayout, ALayout.Id, False, {nil}vControl);
-    if ALayout.Name = '-popup-' then
-      CopyPopupMenuItems(Result, AParent.View, TNavigationItem(ALayout), Result)
-    else if ALayout.Name = '-pages-' then
-    begin
-      if AParams <> '' then
-        vParams := CreateDelimitedList(AParams, '&')
-      else
-        vParams := nil;
-
-      // Здесь можно подкорректировать параметры
-      if StrToBoolDef(vDomain.UserSettings.GetValue('Core', 'ShowStartPage'), True) then
-      begin
-        vStartPageStr := vDomain.Settings.GetValue('Core', 'StartPage', '');
-
-        vStartPageName := GetUrlCommand(vStartPageStr);
-        if Assigned(vPArams) and (vStartPageName <> '') and FileExists(vDomain.Configuration.FindLayoutFile(vStartPageName, LAYOUT_DFM_EXT)) then
-        begin
-          vParams.Values['Layout'] := vStartPageName;
-          vParams.Values['View'] := '';
-        end;
-      end;
-
-      Result.AddParams(vParams);
-
-      AParent.UIBuilder.PagedArea := Result;
-    end;
-  end;
+  Result := GetNativeControlClass.Create(AArea, AParams);
+  vControl := CreateControl(AArea.Parent, AView, ALayout, AParams);
+  Result.CreateContent(vControl);
 end;
 
-function TWinVCLPresenter.CreateControl(const AOwner, AParent: TUIArea; const AView: TView;
+function TWinVCLPresenter.CreateAreaContentItem(const AOwner, AArea: TUIArea;
+  const ANavItem: TNavigationItem; const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl;
+var
+  vControl: TObject;
+begin
+  Result := GetNativeControlClass.Create(AArea, '');
+  vControl := TVCLControl(AOwner.NativeControl).CreateItem(AArea.Parent, ANavItem, ACaption, AHint, AImageIndex);
+  Result.CreateContent(vControl);
+end;
+
+function TWinVCLPresenter.CreateControl(const AParent: TUIArea; const AView: TView;
   const ALayout: TLayout; const AParams: string): TObject;
 var
   vDomain: TDomain;
@@ -691,12 +658,8 @@ var
   i: Integer;
   vArea: TUIArea;
   vParentControl: TObject;
-  vNavItem: TNavigationItem;
 begin
   Result := nil;
-
-  if not Assigned(ALayout) then
-    Exit;
 
   vInteractor := TInteractor(AView.Interactor);
   vDomain := TDomain(vInteractor.Domain);
@@ -1046,11 +1009,6 @@ begin
 
       Result := vMenuItem;
     end;
-  end
-  else if ALayout.Kind = lkNavItem then
-  begin
-    vNavItem := TNavigationItem(ALayout);
-    Result := AOwner.NativeControl.CreateItem(AParent, vNavItem, AView);
   end
   else if ALayout.Kind <> lkNone then
     Assert(False, 'Класс не поддерживается для создания лэйаутов')

@@ -2984,7 +2984,7 @@ begin
   FMasterTableView.Styles.Selection := FSelectionStyle;
   FMasterTableView.Styles.Inactive := FSelectionStyle;
 
-  if Assigned(ALayout) and (ALayout.Kind = lkPanel) then
+  if ALayout.Kind = lkPanel then
   begin
     FContentStyle.TextColor := AlphaColorToColor(ALayout.Font.Color);
     FSelectionStyle.TextColor := clHighlightText;

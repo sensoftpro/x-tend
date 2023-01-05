@@ -209,6 +209,9 @@ type
       const AStyleName: string): TNativeControlClass;
   private
     FNativeControlClass: TNativeControlClass;
+
+    function CreateItem(const AOwner, AArea: TUIArea; const ANavItem: TNavigationItem;
+      const AView: TView): TNativeControl;
   protected
     procedure OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
     procedure OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
@@ -244,12 +247,17 @@ type
     function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; virtual;
     procedure DoSetCursor(const ACursorType: TCursorType); virtual;
     procedure DoCloseAllPages(const AInteractor: TInteractor); virtual; abstract;
+    function CreateAreaContent(const AArea: TUIArea; const AView: TView;
+      const ALayout: TLayout; const AParams: string = ''): TNativeControl; virtual;
+    function CreateAreaContentItem(const AOwner, AArea: TUIArea; const ANavItem: TNavigationItem;
+      const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl; virtual;
 
     procedure CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
       const ASrcItem: TNavigationItem; const ADestArea: TUIArea);
 
     function GetImagePlaceholder(const ASize: Integer): TStream; virtual; abstract;
-    function DoCreateImages(const AInteractor: TInteractor; const AImages: TImages; const ASize: Integer): TObject; virtual; abstract;
+    function DoCreateImages(const AInteractor: TInteractor; const AImages: TImages;
+      const ASize: Integer): TObject; virtual; abstract;
 
     procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
     procedure OnDomainError(const ACaption, AText: string);
@@ -268,11 +276,6 @@ type
     function Login(const ADomain: TObject): TInteractor;
     procedure Logout(const AInteractor: TInteractor);
 
-    function CreateNativeControl(const AArea: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
-    function CreateDefaultControl(const AParentArea: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AParams: string): TNativeControl;
-
     procedure EnumerateControls(const ALayout: TLayout; const AControl: TObject);
 
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; virtual;
@@ -280,10 +283,11 @@ type
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
     procedure CloseAllPages(const AInteractor: TInteractor);
 
-    function CreateControl(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AParams: string = ''): TObject; virtual; abstract;
-    function CreateArea(const AOwner, AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AParams: string = ''; const AOnClose: TProc = nil): TUIArea; virtual; abstract;
+    function CreateNativeControl(const AArea: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
+    function CreateArea(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AParams: string = ''; const AOnClose: TProc = nil): TUIArea;
+
     function CreateTempControl: TObject; virtual; abstract;
 
     function SetCursor(const ACursorType: TCursorType): TCursorType;
@@ -299,7 +303,6 @@ type
 
     function CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
     property Name: string read FName;
-    property NativeControlClass: TNativeControlClass read FNativeControlClass;
   end;
 
   TPresenterClass = class of TPresenter;
@@ -402,13 +405,12 @@ begin
           if vView.DefinitionKind = dkAction then
           begin
             vChildItem := AParent.UIBuilder.Layouts.CreateSimpleLayout(lkAction);
-            vChildItem.AreaKind := akNavItem;
             vChildItem.StyleName := 'action';
             vChildItem.Caption := AParent.GetTranslation(vAction);
             vChildItem.Hint := vChildItem.Caption;
             vChildItem.ImageID := vAction._ImageID;
 
-            vChildArea := CreateArea(AParent, AParent, vView, vChildItem);
+            vChildArea := CreateArea(AParent, vView, vChildItem);
             vChildArea.UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
           end
@@ -420,10 +422,9 @@ begin
       if vActions.Count > 0 then
       begin
         vChildItem := AParent.UIBuilder.Layouts.CreateSimpleLayout(lkAction);
-        vChildItem.AreaKind := akNavItem;
         vChildItem.StyleName := 'line';
         vChildItem.Caption := '-';
-        vChildArea := CreateArea(AParent, AParent, AParent.UIBuilder.RootView, vChildItem);
+        vChildArea := CreateArea(AParent, AParent.UIBuilder.RootView, vChildItem);
         AParent.AddArea(vChildArea);
       end;
 
@@ -440,13 +441,12 @@ begin
           if vView.DefinitionKind = dkAction then
           begin
             vChildItem := AParent.UIBuilder.Layouts.CreateSimpleLayout(lkAction);
-            vChildItem.AreaKind := akNavItem;
             vChildItem.StyleName := 'action';
             vChildItem.Caption := AParent.GetTranslation(vReport);
             vChildItem.Hint := vChildItem.Caption;
             vChildItem.ImageID := 31;
 
-            vChildArea := CreateArea(AParent, AParent, vView, vChildItem);
+            vChildArea := CreateArea(AParent, vView, vChildItem);
             vChildArea.UpdateArea(dckViewStateChanged);
             AParent.AddArea(vChildArea);
           end
@@ -458,10 +458,9 @@ begin
       if vReports.Count > 0 then
       begin
         vChildItem := AParent.UIBuilder.Layouts.CreateSimpleLayout(lkAction);
-        vChildItem.AreaKind := akNavItem;
         vChildItem.StyleName := 'line';
         vChildItem.Caption := '-';
-        vChildArea := CreateArea(AParent, AParent, AParent.UIBuilder.RootView, vChildItem);
+        vChildArea := CreateArea(AParent, AParent.UIBuilder.RootView, vChildItem);
         AParent.AddArea(vChildArea);
       end;
 
@@ -471,9 +470,8 @@ begin
     end
     else if Pos('@', vCaption) > 0 then
     begin
-      vSrcItem.AreaKind := akNavItem;
       vSrcItem.StyleName := 'group';
-      vChildArea := CreateArea(AParent, AParent, AParent.View, vSrcItem);
+      vChildArea := CreateArea(AParent, AParent.View, vSrcItem);
       AParent.AddArea(vChildArea);
 
       CopyPopupMenuItems(vChildArea, AView, vSrcItem, vChildArea);
@@ -486,7 +484,6 @@ begin
     if Assigned(vView) and (vView.DefinitionKind = dkAction) then
     begin
       vAction := TActionDef(vView.Definition);
-      vSrcItem.AreaKind := akNavItem;
       vSrcItem.StyleName := 'action';
       vSrcItem.Caption := AParent.GetTranslation(vAction);
       vSrcItem.Hint := vSrcItem.Caption;
@@ -497,29 +494,27 @@ begin
         vDefinitions := TEntityList(vView.ParentDomainObject).ContentDefinitions;
         if vDefinitions.Count > 1 then
         begin
-          vSrcItem.AreaKind := akNavItem;
           vSrcItem.StyleName := 'group';
-          vChildArea := CreateArea(AParent, AParent, vView, vSrcItem);
+          vChildArea := CreateArea(AParent, vView, vSrcItem);
           for j := 0 to vDefinitions.Count - 1 do
           begin
             vDefinition := TDefinition(vDefinitions[j]);
             vChildItem := AParent.UIBuilder.Layouts.CreateSimpleLayout(lkAction);
-            vChildItem.AreaKind := akNavItem;
             vChildItem.StyleName := 'select';
             vChildItem.Caption := AParent.GetTranslation(vDefinition);
             vChildItem.Hint := vChildItem.Caption;
             vChildItem.ImageID := vDefinition._ImageID;
-            vDefArea := CreateArea(vChildArea, vChildArea, AParent.UIBuilder.RootView, vChildItem);
+            vDefArea := CreateArea(vChildArea, AParent.UIBuilder.RootView, vChildItem);
             vChildArea.AddArea(vDefArea);
           end;
         end
         else begin
-          vChildArea := CreateArea(AParent, AParent, vView, vSrcItem);
+          vChildArea := CreateArea(AParent, vView, vSrcItem);
           vChildArea.UpdateArea(dckViewStateChanged);
         end;
       end
       else begin
-        vChildArea := CreateArea(AParent, AParent, vView, vSrcItem);
+        vChildArea := CreateArea(AParent, vView, vSrcItem);
         vChildArea.UpdateArea(dckViewStateChanged);
       end;
 
@@ -529,10 +524,9 @@ begin
       if Assigned(vView) and (vView.DefinitionKind = dkUndefined) then
         vView.CleanView;
 
-      vSrcItem.AreaKind := akNavItem;
       vSrcItem.StyleName := 'group';
       vSrcItem.Caption := vCaption;
-      vChildArea := CreateArea(AParent, AParent, AParent.UIBuilder.RootView, vSrcItem);
+      vChildArea := CreateArea(AParent, AParent.UIBuilder.RootView, vSrcItem);
       vChildArea.NativeControl.ViewState := vsDisabled;
       AParent.AddArea(vChildArea);
     end;
@@ -560,25 +554,68 @@ begin
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
 end;
 
-function TPresenter.CreateDefaultControl(const AParentArea: TUIArea;
-  const AView: TView; const ALayout: TLayout; const AParams: string): TNativeControl;
+function TPresenter.CreateArea(const AParent: TUIArea; const AView: TView;
+  const ALayout: TLayout; const AParams: string; const AOnClose: TProc): TUIArea;
 var
-  vControl: TObject;
+  vDomain: TDomain;
+  vInteractor: TInteractor;
+  vStartPageName: string;
+  vStartPageStr: string;
+  vParams: TStrings;
 begin
-  Randomize;
-  ALayout.Kind := lkPanel;
-  ALayout.Font.Size := 10;
-  ALayout.Font.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
-  ALayout.Font.Family := 'Tahoma';
-  ALayout.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
-  ALayout.ShowCaption := True;
-  ALayout.Caption := ALayout.Caption;
-  ALayout.BevelInner := lbkRaised;
-  ALayout.BevelOuter := lbkLowered;
+  vInteractor := TInteractor(AView.Interactor);
+  vDomain := TDomain(vInteractor.Domain);
 
-  vControl := CreateControl(AParentArea, AParentArea, AView, ALayout, AParams);
+  if ALayout.AreaKind = akForm then
+  begin
+    Result := TUIArea.Create(AParent, AView, ALayout);
+    if Assigned(AOnClose) then
+      Result.OnClose := AOnClose;
+  end
+  else begin
+    Result := TUIArea.Create(AParent, AView, ALayout, AParams);
 
-  Result := GetNativeControlClass.Create(AParentArea, vControl, AParams);
+    if ALayout.Name = '-popup-' then
+      CopyPopupMenuItems(Result, AParent.View, TNavigationItem(ALayout), Result)
+    else if ALayout.Name = '-pages-' then
+    begin
+      if AParams <> '' then
+        vParams := CreateDelimitedList(AParams, '&')
+      else
+        vParams := nil;
+
+      // Здесь можно подкорректировать параметры
+      if StrToBoolDef(vDomain.UserSettings.GetValue('Core', 'ShowStartPage'), True) then
+      begin
+        vStartPageStr := vDomain.Settings.GetValue('Core', 'StartPage', '');
+
+        vStartPageName := GetUrlCommand(vStartPageStr);
+        if Assigned(vParams) and (vStartPageName <> '') and FileExists(vDomain.Configuration.FindLayoutFile(vStartPageName, LAYOUT_DFM_EXT)) then
+        begin
+          vParams.Values['Layout'] := vStartPageName;
+          vParams.Values['View'] := '';
+        end;
+      end;
+
+      Result.AddParams(vParams);
+
+      AParent.UIBuilder.PagedArea := Result;
+    end;
+  end;
+end;
+
+function TPresenter.CreateAreaContent(const AArea: TUIArea;
+  const AView: TView; const ALayout: TLayout; const AParams: string): TNativeControl;
+begin
+  Result := GetNativeControlClass.Create(AArea, AParams);
+  Result.CreateContent(nil);
+end;
+
+function TPresenter.CreateAreaContentItem(const AOwner, AArea: TUIArea; const ANavItem: TNavigationItem;
+  const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl;
+begin
+  Result := GetNativeControlClass.Create(AArea, '');
+  Result.CreateContent(nil);
 end;
 
 function TPresenter.CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
@@ -621,39 +658,129 @@ begin
   end;
 end;
 
+function TPresenter.CreateItem(const AOwner, AArea: TUIArea;
+  const ANavItem: TNavigationItem; const AView: TView): TNativeControl;
+var
+  vDefinition: TDefinition;
+  vEntity: TEntity;
+  vCaption, vHint: string;
+  vImageID: Integer;
+begin
+  if AOwner.Layout.AreaKind <> akNavigation then
+    Exit(nil);
+
+  vCaption := ANavItem.Caption;
+  vHint := ANavItem.Hint;
+  vImageID := ANavItem.ImageID;
+
+  if AView.DefinitionKind = dkDomain then
+    Result := CreateAreaContentItem(AOwner, AArea, ANavItem, vCaption, vHint, AOwner.GetImageID(vImageID))
+  else if AView.DefinitionKind in [dkAction, dkCollection] then
+  begin
+    vDefinition := TDefinition(AView.Definition);
+    if vCaption = '' then
+      vCaption := AOwner.GetTranslation(vDefinition);
+    if vHint = '' then
+      vHint := vCaption;
+    if vImageID < 0 then
+      vImageID := vDefinition._ImageID;
+
+    Result := CreateAreaContentItem(AOwner, AArea, ANavItem, vCaption, vHint, AOwner.GetImageID(vImageID));
+  end
+  else if (AView.DefinitionKind in [dkEntity, dkObjectField]) and (AView.DomainObject is TEntity) then
+  begin
+    vEntity := AView.DomainObject as TEntity;
+    if (vCaption = '') and Assigned(vEntity) then
+      vCaption := SafeDisplayName(vEntity, 'NULL');
+    if vHint = '' then
+      vHint := vCaption;
+
+    Result := CreateAreaContentItem(AOwner, AArea, ANavItem, vCaption, vHint, AOwner.GetImageID(vImageID));
+  end
+  else
+    Result := nil;
+end;
+
 function TPresenter.CreateNativeControl(const AArea: TUIArea; const AView: TView; const ALayout: TLayout;
   const AControlType: TUIItemType; const AStyleName, AParams: string): TNativeControl;
 var
   vParams: string;
   vStyleName: string;
   vOwner: TUIArea;
+  vControlType: TUIItemType;
   vControlClass: TNativeControlClass;
-  vControl: TObject;
 begin
+  vStyleName := GetUrlParam(AParams, 'view');
+  if vStyleName = '' then
+    vStyleName := GetUrlParam(AParams, 'style');
+  if vStyleName = '' then
+    vStyleName := GetUrlParam(AParams, 'ViewStyle');
+  if vStyleName = '' then
+    vStyleName := GetUrlParam(AParams, 'ViewType');
+
+  if (vStyleName = '') and (AView.DefinitionKind in [dkListField..dkComplexField]) then
+    vStyleName := TFieldDef(AView.Definition).StyleName;
+
+  vControlType := AControlType;
+  if vControlType = uiUnknown then
+  begin
+    if AView.DefinitionKind = dkEntity then
+      vControlType := uiEntityEdit
+    else if ALayout.AreaKind = akNavigation then
+      vControlType := uiNavigation
+    else if ALayout.AreaKind in [akAutoDetect, akForm] then
+      vControlType := uiDecor
+    else if ALayout.AreaKind = akList then
+      vControlType := uiCollection
+    else if ALayout.AreaKind = akAction then
+      vControlType := uiAction
+    else
+      vControlType := ItemTypeByFieldType(TFieldDef(AView.Definition).Kind);
+  end;
+
   if ALayout.Kind = lkPages then
     vStyleName := 'pages'
   else
-    vStyleName := GetUrlCommand(AStyleName, AStyleName);
-  vParams := ExtractUrlParams(AStyleName);
+    vStyleName := GetUrlCommand(vStyleName, vStyleName);
+  vParams := ExtractUrlParams(vStyleName);
   if vParams = '' then
     vParams := AParams
   else
     vParams := vParams + '&' + AParams;
 
-  vControlClass := TNativeControlClass(GetControlClass(FName, AControlType, vStyleName));
-  if Assigned(vControlClass) then
-    Result := vControlClass.Create(AArea, nil, vParams)
-  else if AControlType = uiDecor then
+  vControlClass := TNativeControlClass(GetControlClass(FName, vControlType, vStyleName));
+  if ALayout.AreaKind in [akAutoDetect, akForm] then
   begin
-    vOwner := AArea.Parent;
-    while Assigned(vOwner) and (vOwner.Layout.Kind = lkNavItem) do
-      vOwner := vOwner.Parent;
+    if ALayout.Kind = lkNavItem then
+    begin
+      vOwner := AArea.Parent;
+      while Assigned(vOwner) and (vOwner.Layout.Kind = lkNavItem) do
+        vOwner := vOwner.Parent;
 
-    vControl := CreateControl(vOwner, AArea.Parent, AView, ALayout, vParams);
-    Result := NativeControlClass.Create(AArea, vControl, vParams);
+      Result := CreateItem(vOwner, AArea, TNavigationItem(ALayout), AView);
+    end
+    else
+      Result := CreateAreaContent(AArea, AView, ALayout, vParams);
   end
-  else
-    Result := CreateDefaultControl(AArea, AView, ALayout, vParams);
+  else if Assigned(vControlClass) then
+  begin
+    Result := vControlClass.Create(AArea, vParams);
+    Result.CreateContent(nil);
+  end
+  else begin
+    Randomize;
+    ALayout.Kind := lkPanel;
+    ALayout.Font.Size := 10;
+    ALayout.Font.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+    ALayout.Font.Family := 'Tahoma';
+    ALayout.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+    ALayout.ShowCaption := True;
+    ALayout.Caption := ALayout.Caption;
+    ALayout.BevelInner := lbkRaised;
+    ALayout.BevelOuter := lbkLowered;
+
+    Result := CreateAreaContent(AArea, AView, ALayout, vParams);
+  end;
 end;
 
 destructor TPresenter.Destroy;

@@ -55,7 +55,7 @@ type
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
 
-    function CreateControl(const AOwner, AParent: TUIArea; const AView: TView;
+    function CreateControl(const AParent: TUIArea; const AView: TView;
       const ALayout: TLayout; const AParams: string = ''): TObject; override;
 
     property RowStyle: TObject read FRowStyle;
@@ -89,7 +89,7 @@ begin
   FRowStyle := TcxStyle.Create(nil);
 end;
 
-function TDevExpressPresenter.CreateControl(const AOwner, AParent: TUIArea;
+function TDevExpressPresenter.CreateControl(const AParent: TUIArea;
   const AView: TView; const ALayout: TLayout; const AParams: string): TObject;
 var
   vStartPageName: string;
@@ -102,8 +102,6 @@ var
   vSplitter: TcxSplitter;
 begin
   Result := nil;
-  if not Assigned(ALayout) then
-    Exit;
 
   ALayout.Id := '';
 
@@ -121,8 +119,8 @@ begin
     begin
       if AView.DefinitionKind = dkCollection then
         vLabel.Caption := AParent.GetTranslation(TDefinition(AView.Definition))
-      //else if AView.DefinitionKind in [dkListField..dkComplexField] then
-      //  vLabel.Caption := AParent.GetTranslation(TFieldDef(AView.Definition))
+      else if AView.DefinitionKind in [dkListField..dkComplexField] then
+        vLabel.Caption := AParent.GetFieldTranslation(TFieldDef(AView.Definition))
       else
         vLabel.Caption := ALayout.Caption;
     end
@@ -188,7 +186,7 @@ begin
   else if ALayout.Kind = lkPage then
   begin
     if (TInteractor(AView.Interactor).Layout = 'mdi') and (ALayout.Tag = 11) then
-      Result := inherited CreateControl(AOwner, AParent, AView, ALayout, AParams)
+      Result := inherited CreateControl(AParent, AView, ALayout, AParams)
     else begin
       vTab := TcxTabSheet.Create(TComponent(GetVCLControl(AParent)));
       vTab.Caption := ALayout.Caption;
@@ -258,7 +256,7 @@ begin
     end
     else begin
       FreeAndNil(vParams);
-      Result := inherited CreateControl(AOwner, AParent, AView, ALayout, AParams);
+      Result := inherited CreateControl(AParent, AView, ALayout, AParams);
     end;
   end
   else if ALayout.Kind = lkScrollBox then
@@ -276,7 +274,7 @@ begin
     Result := vBox;
   end
   else if ALayout.Kind <> lkNone then
-    Result := inherited CreateControl(AOwner, AParent, AView, ALayout, AParams)
+    Result := inherited CreateControl(AParent, AView, ALayout, AParams)
   else
     Assert(False, 'Пустой класс для лэйаута');
 end;
