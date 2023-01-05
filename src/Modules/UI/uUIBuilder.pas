@@ -291,11 +291,27 @@ type
     function Compare(const ALeft, ARight: TUIArea): Integer; override;
   end;
 
+  TLayouts = class
+  private
+    FItems: TObjectDictionary<string,TLayout>;
+    FNames: TDictionary<string,string>; // алиасы -> одно имя лэйаута
+    [Weak] FInteractor: TObject;
+    function MakeLayoutFromFile(const AFileName: string): TLayout;
+    function MakeDefaultLayout(const AView: TView; const ALayoutName: string): TLayout;
+  public
+    constructor Create(const AInteractor: TObject);
+    destructor Destroy; override;
+
+    function CreateSimpleLayout(const ALayoutKind: TLayoutKind): TLayout;
+    function GetLayout(const ALayoutName: string; const AView: TView): TLayout;
+  end;
+
   TUIBuilder = class
   private
     FRootView: TView;
     FRootArea: TUIArea;
     FDefaultParams: string;
+    FLayouts: TLayouts;
     [Weak] FCurrentArea: TUIArea;
     [Weak] FLastArea: TUIArea;
     [Weak] FActiveArea: TUIArea;
@@ -303,8 +319,6 @@ type
     [Weak] FInteractor: TObject;
     [Weak] FPresenter: TObject;
 
-    function MakeLayoutFromFile(const AFileName: string; const AParams: string): TLayout;
-    function MakeDefaultLayout(const AView: TView; const ALayoutName: string): TLayout;
     procedure SetLastArea(const Value: TUIArea);
     procedure SetPagedArea(const Value: TUIArea);
 
@@ -322,7 +336,6 @@ type
       const AOnClose: TProc = nil): TDialogResult;
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
 
-    function CreateSimpleLayout(const ALayoutKind: TLayoutKind): TLayout;
     procedure CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
     procedure CloseCurrentArea(const AModalResult: Integer);
     procedure PrintHierarchy;
@@ -336,6 +349,7 @@ type
     property LastArea: TUIArea read FLastArea write SetLastArea;
     property ActiveArea: TUIArea read FActiveArea write FActiveArea;
     property Presenter: TObject read FPresenter;
+    property Layouts: TLayouts read FLayouts;
   end;
 
 type
@@ -352,94 +366,36 @@ uses
 const
   cServiceAreaHeight = 44;
 
-{ TUIBuilder }
+{ TLayouts }
 
-procedure TUIBuilder.ApplyLayout(const AArea: TUIArea; const AView: TView; const ALayoutName: string; const AParams: string);
-var
-  vFileName: string;
-  vUser: TEntity;
-  vRoles: TListField;
-  vRole: TEntity;
-  vPostfix, vParams: string;
-  vLayout: TLayout;
+constructor TLayouts.Create(const AInteractor: TObject);
 begin
-  vParams := AParams;
-  if Pos('childLayout=' + ALayoutName, AParams) > 0 then
-    vParams := RemoveUrlParam(vParams, 'childLayout');
-
-  vUser := TUserSession(TInteractor(FInteractor).Session).CurrentUser;
-  vRoles := TListField(vUser.FieldByName('Roles'));
-  if vRoles.Count <> 1 then
-  begin
-    if TUserSession(TInteractor(FInteractor).Session).IsAdmin then
-      vPostfix := '_Administrators'
-    else
-      vPostfix := '';
-  end
-  else begin
-    vRole := TEntity(vRoles[0]).ExtractEntity('Role');
-    if Assigned(vRole) then
-      vPostfix := '_' + vRole['Code']
-  end;
-
-  vFileName := TConfiguration(TInteractor(FInteractor).Configuration).FindLayoutFile(ALayoutName, LAYOUT_DFM_EXT, vPostfix);
-  if FileExists(vFileName) then
-    vLayout := MakeLayoutFromFile(vFileName, vParams)
-  else
-    vLayout := MakeDefaultLayout(AView, ALayoutName);
-
-  AArea.BeginUpdate;
-  try
-    AArea.AssignFromLayout(vLayout, AParams);
-    AArea.SetView(AView);
-    CreateChildAreas(AArea, AView, vLayout, AParams);
-    AArea.SetBounds(
-      StrToIntDef(GetUrlParam(AParams, 'Left', ''), -1),
-      StrToIntDef(GetUrlParam(AParams, 'Top', ''), -1),
-      StrToIntDef(GetUrlParam(AParams, 'Width', ''), -1),
-      StrToIntDef(GetUrlParam(AParams, 'Height', ''), -1)
-    );
-  finally
-    AArea.EndUpdate;
-  end;
-end;
-
-procedure TUIBuilder.CloseCurrentArea(const AModalResult: Integer);
-begin
-  FCurrentArea.Close(AModalResult);
-end;
-
-constructor TUIBuilder.Create(const AInteractor: TObject);
-begin
-  inherited Create;
   FInteractor := AInteractor;
-  FPresenter := TInteractor(FInteractor).Presenter;
-  FRootArea := nil;
-  FCurrentArea := nil;
-  FLastArea := nil;
-  FActiveArea := nil;
-  FPagedArea := nil;
-  FDefaultParams := '';
-  FRootView := TView.Create(TInteractor(FInteractor), nil, '');
+  FItems := TObjectDictionary<string,TLayout>.Create([doOwnsValues]);
+  FNames := TDictionary<string,string>.Create;
 end;
 
-procedure TUIBuilder.CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
+destructor TLayouts.Destroy;
 var
   i: Integer;
+  vArr: TArray<TLayout>;
 begin
-  AArea.Layout := ALayout;
-  for i := 0 to ALayout.Items.Count - 1 do
-    AArea.CreateChildArea(AView, ALayout.Items[i], AParams);
-  AArea.AfterChildAreasCreated;
+  vArr :=  FItems.Values.ToArray;
+  for i := 0 to High(vArr) do
+    vArr[i].ClearChilds;
+  FreeAndNil(FItems);
+  FreeAndNil(FNames);
+
+  inherited;
 end;
 
-function TUIBuilder.CreateSimpleLayout(const ALayoutKind: TLayoutKind): TLayout;
+function TLayouts.CreateSimpleLayout(const ALayoutKind: TLayoutKind): TLayout;
 begin
   if not (ALayoutKind in [lkFrame, lkPanel, lkPage, lkAction]) then
     Exit(nil);
 
   Result := TLayout.Create(ALayoutKind);
-  Result.Presenter := FPresenter;
+  Result.Presenter := TInteractor(FInteractor).Presenter;
   if ALayoutKind = lkPanel then
   begin
     Result.Font.Size := 10;
@@ -457,54 +413,52 @@ begin
   end;
 end;
 
-destructor TUIBuilder.Destroy;
+function TLayouts.GetLayout(const ALayoutName: string; const AView: TView): TLayout;
+var
+  vFileName, vPostfix: string;
+  vUser: TEntity;
+  vRoles: TListField;
+  vRole: TEntity;
 begin
-  SetLastArea(nil);
-  FCurrentArea := nil;
-  FPagedArea := nil;
-  FRootArea.Release;
-  FreeAndNil(FRootView);
-  FPresenter := nil;
-  FInteractor := nil;
-  inherited Destroy;
-end;
+  if FNames.TryGetValue(ALayoutName, vFileName) then
+    Exit(FItems.Items[vFileName].Clone);
 
-function TUIBuilder.GetTranslation(const ADefinition: TDefinition;
-  const ATranslationPart: TTranslationPart = tpCaption): string;
-begin
-  if Assigned(FInteractor) then
-    Result := TDomain(TInteractor(FInteractor).Domain).TranslateDefinition(ADefinition, ATranslationPart)
-  else begin
-    case ATranslationPart of
-      tpCaption: Result := ADefinition._Caption;
-      tpEmptyValue: Result := TDefinition(ADefinition)._EmptyValue;
-      tpPrefix: Result := TDefinition(ADefinition).Prefix;
+  vUser := TUserSession(TInteractor(FInteractor).Session).CurrentUser;
+  vRoles := TListField(vUser.FieldByName('Roles'));
+  if vRoles.Count <> 1 then
+  begin
+    if TUserSession(TInteractor(FInteractor).Session).IsAdmin then
+      vPostfix := '_Administrators'
     else
-      Result := '';
-    end;
-  end;
-end;
-
-function TUIBuilder.GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart): string;
-begin
-  if Assigned(FInteractor) then
-    Result := TDomain(TInteractor(FInteractor).Domain).TranslateFieldDef(AFieldDef, ATranslationPart)
+      vPostfix := '';
+  end
   else begin
-    case ATranslationPart of
-      tpCaption: Result := AFieldDef._Caption;
-      tpHint: Result := AFieldDef._Hint;
-    else
-      Result := '';
-    end;
+    vRole := TEntity(vRoles[0]).ExtractEntity('Role');
+    if Assigned(vRole) then
+      vPostfix := '_' + vRole['Code'];
   end;
+
+  vFileName := TConfiguration(TInteractor(FInteractor).Configuration).FindLayoutFile(ALayoutName, LAYOUT_DFM_EXT, vPostfix);
+
+  if FItems.TryGetValue(vFileName, Result) then
+  begin
+    FNames.Add(ALayoutName, vFileName);
+    Result := Result.Clone;
+    Exit;
+  end;
+
+  if FileExists(vFileName) then
+    Result := MakeLayoutFromFile(vFileName)
+  else
+    Result := MakeDefaultLayout(AView, ALayoutName);
+
+  FNames.Add(ALayoutName, vFileName);
+  FItems.Add(vFileName, Result);
+
+  Result := Result.Clone;
 end;
 
-function TUIBuilder.GetImageID(const AImageID: Integer): Integer;
-begin
-  Result := TInteractor(FInteractor).GetImageIndex(AImageID);
-end;
-
-function TUIBuilder.MakeDefaultLayout(const AView: TView; const ALayoutName: string): TLayout;
+function TLayouts.MakeDefaultLayout(const AView: TView; const ALayoutName: string): TLayout;
 var
   vDefinition: TDefinition;
   vFieldDef: TFieldDef;
@@ -512,6 +466,7 @@ var
   vView: TView;
   vLayout: TLayout;
   vOneRowHeight: Integer;
+
   function CalcLayoutPositionCount(const AFieldKind: TFieldKind; const AViewName: string): Integer;
   begin
     if ((AFieldKind = fkString) and (AViewName = 'memo')) or ((AFieldKind = fkBlob) and (AViewName = 'image'))
@@ -531,6 +486,7 @@ var
     else
       Result := 1;
   end;
+
 begin
   Result := nil;
   if not Assigned(AView) or not (AView.DefinitionKind in [dkEntity, dkAction, dkObjectField]) then
@@ -599,14 +555,14 @@ begin
     Result.SaveToDFM(TPath.Combine(TPath.GetTempPath, ALayoutName + '_auto'));
 end;
 
-function TUIBuilder.MakeLayoutFromFile(const AFileName: string; const AParams: string): TLayout;
+function TLayouts.MakeLayoutFromFile(const AFileName: string): TLayout;
 var
   vFileStream: TStream;
   vMemStream: TStream;
   vFrame: TComponent;
 begin
   Result := CreateSimpleLayout(lkFrame);
-  vFrame := TComponent(TPresenter(FPresenter).CreateTempControl);
+  vFrame := TComponent(TPresenter(TInteractor(FInteractor).Presenter).CreateTempControl);
   try
     vFileStream := TFileStream.Create(AFileName, fmOpenRead or fmShareDenyNone);
     vMemStream := TMemoryStream.Create;
@@ -620,10 +576,112 @@ begin
       FreeAndNil(vMemStream);
     end;
 
-    TPresenter(FPresenter).EnumerateControls(Result, vFrame);
+    TPresenter(TInteractor(FInteractor).Presenter).EnumerateControls(Result, vFrame);
   finally
     FreeAndNil(vFrame);
   end;
+end;
+
+{ TUIBuilder }
+
+procedure TUIBuilder.ApplyLayout(const AArea: TUIArea; const AView: TView; const ALayoutName: string; const AParams: string);
+var
+  vLayout: TLayout;
+begin
+  vLayout := FLayouts.GetLayout(ALayoutName, AView);
+
+  AArea.BeginUpdate;
+  try
+    AArea.AssignFromLayout(vLayout, AParams);
+    AArea.SetView(AView);
+    CreateChildAreas(AArea, AView, vLayout, AParams);
+    AArea.SetBounds(
+      StrToIntDef(GetUrlParam(AParams, 'Left', ''), -1),
+      StrToIntDef(GetUrlParam(AParams, 'Top', ''), -1),
+      StrToIntDef(GetUrlParam(AParams, 'Width', ''), -1),
+      StrToIntDef(GetUrlParam(AParams, 'Height', ''), -1)
+    );
+  finally
+    AArea.EndUpdate;
+  end;
+end;
+
+procedure TUIBuilder.CloseCurrentArea(const AModalResult: Integer);
+begin
+  FCurrentArea.Close(AModalResult);
+end;
+
+constructor TUIBuilder.Create(const AInteractor: TObject);
+begin
+  inherited Create;
+  FInteractor := AInteractor;
+  FPresenter := TInteractor(FInteractor).Presenter;
+  FRootArea := nil;
+  FCurrentArea := nil;
+  FLastArea := nil;
+  FActiveArea := nil;
+  FPagedArea := nil;
+  FDefaultParams := '';
+  FRootView := TView.Create(TInteractor(FInteractor), nil, '');
+  FLayouts := TLayouts.Create(FInteractor);
+end;
+
+procedure TUIBuilder.CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
+var
+  i: Integer;
+begin
+  AArea.Layout := ALayout;
+  for i := 0 to ALayout.Items.Count - 1 do
+    AArea.CreateChildArea(AView, ALayout.Items[i], AParams);
+  AArea.AfterChildAreasCreated;
+end;
+
+destructor TUIBuilder.Destroy;
+begin
+  SetLastArea(nil);
+  FCurrentArea := nil;
+  FPagedArea := nil;
+  FRootArea.Release;
+  FreeAndNil(FRootView);
+  FreeAndNil(FLayouts);
+  FPresenter := nil;
+  FInteractor := nil;
+  inherited Destroy;
+end;
+
+function TUIBuilder.GetTranslation(const ADefinition: TDefinition;
+  const ATranslationPart: TTranslationPart = tpCaption): string;
+begin
+  if Assigned(FInteractor) then
+    Result := TDomain(TInteractor(FInteractor).Domain).TranslateDefinition(ADefinition, ATranslationPart)
+  else begin
+    case ATranslationPart of
+      tpCaption: Result := ADefinition._Caption;
+      tpEmptyValue: Result := TDefinition(ADefinition)._EmptyValue;
+      tpPrefix: Result := TDefinition(ADefinition).Prefix;
+    else
+      Result := '';
+    end;
+  end;
+end;
+
+function TUIBuilder.GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart): string;
+begin
+  if Assigned(FInteractor) then
+    Result := TDomain(TInteractor(FInteractor).Domain).TranslateFieldDef(AFieldDef, ATranslationPart)
+  else begin
+    case ATranslationPart of
+      tpCaption: Result := AFieldDef._Caption;
+      tpHint: Result := AFieldDef._Hint;
+    else
+      Result := '';
+    end;
+  end;
+end;
+
+function TUIBuilder.GetImageID(const AImageID: Integer): Integer;
+begin
+  Result := TInteractor(FInteractor).GetImageIndex(AImageID);
 end;
 
 procedure TUIBuilder.GetLayoutName(const AEntity: TEntity; const AParams: string; var ALayoutName: string);
@@ -751,7 +809,7 @@ begin
 
   if (vAreaName = '') or (vAreaName = 'child') or (vAreaName = 'float') or (vAreaName = 'modal') then
   begin
-    vFormLayout := CreateSimpleLayout(lkFrame);
+    vFormLayout := FLayouts.CreateSimpleLayout(lkFrame);
     vFormLayout.Caption := ACaption;
     vFormLayout.StyleName := vAreaName;
     vFormLayout.AreaKind := akForm;
@@ -785,7 +843,7 @@ begin
         ApplyLayout(vUIArea, vView, vLayoutName, AOptions);
         if vAreaName = 'child' then
         begin
-          vServiceLayout := CreateSimpleLayout(lkPanel);
+          vServiceLayout := FLayouts.CreateSimpleLayout(lkPanel);
           vServiceLayout.Height := cServiceAreaHeight;
           vServiceLayout.Align := lalBottom;
           vServiceArea := vUIArea.DoCreateChildArea(vServiceLayout, FRootView);
@@ -831,7 +889,7 @@ begin
       vTabArea := vUIArea.AreaById(vPageID, False);
       if not Assigned(vTabArea) then
       begin
-        vLayout := CreateSimpleLayout(lkPage);
+        vLayout := FLayouts.CreateSimpleLayout(lkPage);
         vLayout.Name := vPageID;
         vLayout.ImageID := GetImageID(vImageID);
 

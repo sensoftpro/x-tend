@@ -64,6 +64,7 @@ type
 
     procedure Save(const AParent: TJSONObject; const AName: string);
     function IsEmpty: Boolean;
+    procedure CopyTo(const ALayoutEdges: TLayoutEdges);
 
     property Left: Integer read FLeft write FLeft;
     property Top: Integer read FTop write FTop;
@@ -89,6 +90,7 @@ type
       const AStyle: TFontStyles); overload;
 
     procedure Save(const AParent: TJSONObject; const AName: string);
+    procedure CopyTo(const ALayoutFont: TLayoutFont);
 
     property Color: TAlphaColor read FColor write FColor;
     property Family: string read FFamily write FFamily;
@@ -108,6 +110,7 @@ type
     constructor Create(const AColor: TAlphaColor; const AWidth: Integer); overload;
 
     procedure Save(const AParent: TJSONObject; const AName: string);
+    procedure CopyTo(const ALayoutPen: TLayoutPen);
 
     property Color: TAlphaColor read FColor write FColor;
     property Width: Integer read FWidth write FWidth;
@@ -124,6 +127,7 @@ type
     constructor Create(const AColor: TAlphaColor); overload;
 
     procedure Save(const AParent: TJSONObject; const AName: string);
+    procedure CopyTo(const ALayoutBrush: TLayoutBrush);
 
     property Color: TAlphaColor read FColor write FColor;
   end;
@@ -142,6 +146,7 @@ type
     constructor Create(const AMinWidth, AMaxWidth, AMinHeight, AMaxHeight: Integer); overload;
 
     procedure Save(const AParent: TJSONObject; const AName: string);
+    procedure CopyTo(const ALayoutConstraints: TLayoutConstraints);
 
     property MinWidth: Integer read FMinWidth write FMinWidth;
     property MaxWidth: Integer read FMaxWidth write FMaxWidth;
@@ -267,6 +272,7 @@ type
     procedure SetMenu(const Value: TNavigationItem);
     procedure SetPictureStream(const Value: TStream);
     procedure SetParams(const Value: string);
+    procedure CopyTo(const ALayout: TLayout);
   protected
     [Weak] FParent: TLayout;
     FItems: TList<TLayout>;
@@ -289,6 +295,8 @@ type
     procedure SetUrl(const AUrl: string); virtual;
     function ExtractInteger(const AParamName: string; const ADefault: Integer = -1): Integer;
     function ExtractString(const AParamName: string; const ADefault: string = ''): string;
+    procedure ClearChilds;
+    function Clone: TLayout;
 
     property Kind: TLayoutKind read FKind write FKind;
     property StyleName: string read FStyleName write FStyleName;
@@ -371,6 +379,7 @@ type
     procedure InternalLoad(const AJSON: TJSONObject); override;
     function InternalSave: TJSONObject; override;
   public
+    constructor Create(const AParent: TNavigationItem); overload;
     constructor Create(const AParent: TNavigationItem; const AJSON: TJSONObject); overload;
     constructor Create(const AParent: TNavigationItem; const AUrl: string); overload;
     destructor Destroy; override;
@@ -378,6 +387,7 @@ type
     function Add(const ACaption: string): TNavigationItem;
     function Insert(const AIndex: Integer; const ACaption: string): TNavigationItem;
     function IsLine: Boolean;
+    function Clone(const AParent: TNavigationItem): TNavigationItem;
     procedure SetUrl(const AUrl: string); override;
 
     property Id: string read FId;
@@ -593,6 +603,14 @@ begin
   Create(0, 0, 0, 0);
 end;
 
+procedure TLayoutEdges.CopyTo(const ALayoutEdges: TLayoutEdges);
+begin
+  ALayoutEdges.FLeft := FLeft;
+  ALayoutEdges.FTop := FTop;
+  ALayoutEdges.FRight := FRight;
+  ALayoutEdges.FBottom := FBottom;
+end;
+
 constructor TLayoutEdges.Create(const ALeft, ATop, ARight, ABottom: Integer);
 begin
   inherited Create;
@@ -636,6 +654,14 @@ begin
 end;
 
 { TLayoutFont }
+
+procedure TLayoutFont.CopyTo(const ALayoutFont: TLayoutFont);
+begin
+  ALayoutFont.FColor := FColor;
+  ALayoutFont.FFamily := FFamily;
+  ALayoutFont.FSize := FSize;
+  ALayoutFont.FStyle := FStyle;
+end;
 
 constructor TLayoutFont.Create(const AColor: TAlphaColor; const AFamily: string; const ASize: Integer;
   const AStyle: TFontStyles);
@@ -715,6 +741,14 @@ begin
   InternalLoad(AJSON);
 end;
 
+procedure TLayoutConstraints.CopyTo(const ALayoutConstraints: TLayoutConstraints);
+begin
+  ALayoutConstraints.FMinWidth := FMinWidth;
+  ALayoutConstraints.FMaxWidth := FMaxWidth;
+  ALayoutConstraints.FMinHeight := FMinHeight;
+  ALayoutConstraints.FMaxHeight := FMaxHeight;
+end;
+
 constructor TLayoutConstraints.Create(const AMinWidth, AMaxWidth, AMinHeight, AMaxHeight: Integer);
 begin
   inherited Create;
@@ -759,7 +793,28 @@ begin
   FItems.Add(Result);
 end;
 
-constructor TNavigationItem.Create(const AParent: TNavigationItem; const AUrl: string);
+function TNavigationItem.Clone(const AParent: TNavigationItem): TNavigationItem;
+var
+  i: Integer;
+begin
+  Result := TNavigationItem.Create(AParent);
+
+  for i := 0 to FItems.Count - 1 do
+    Result.FItems.Add(TNavigationItem(FItems[i]).Clone(Result));
+
+  CopyTo(Result);
+
+  Result.FId := FId;
+  Result.FLevel := FLevel;
+  Result.FViewName := FViewName;
+  Result.FContentLayout := FContentLayout;
+  Result.FContentWorkArea := FContentWorkArea;
+  Result.FContentCaption := FContentCaption;
+  Result.FGroupIndex := FGroupIndex;
+  Result.FRadioItem := FRadioItem;
+end;
+
+constructor TNavigationItem.Create(const AParent: TNavigationItem);
 begin
   inherited Create(lkAction);
   FOwner := nil;
@@ -769,30 +824,25 @@ begin
   else
     FLevel := -1;
 
-  SetUrl(AUrl);
   FRadioItem := False;
   FGroupIndex := 0;
 end;
 
+constructor TNavigationItem.Create(const AParent: TNavigationItem; const AUrl: string);
+begin
+  Create(AParent);
+  SetUrl(AUrl);
+end;
+
 constructor TNavigationItem.Create(const AParent: TNavigationItem; const AJSON: TJSONObject);
 begin
-  inherited Create(lkAction);
-  FOwner := nil;
-  FParent := AParent;
-  if Assigned(AParent) then
-    FLevel := AParent.Level + 1
-  else
-    FLevel := -1;
-
+  Create(AParent);
   InternalLoad(AJSON);
 end;
 
 destructor TNavigationItem.Destroy;
-var
-  i: Integer;
 begin
-  for i := 0 to FItems.Count - 1 do
-    FItems[i].Free;
+  ClearChilds;
   FParent := nil;
   inherited Destroy;
 end;
@@ -966,6 +1016,98 @@ begin
   FConstraints.MaxWidth := FWidth;
   FConstraints.MinHeight := FHeight;
   FConstraints.MaxHeight := FHeight;
+end;
+
+procedure TLayout.ClearChilds;
+var
+  i: Integer;
+begin
+  if not Assigned(FItems) then Exit;
+
+  for i := 0 to FItems.Count - 1 do
+  begin
+    FItems[i].ClearChilds;
+    FItems[i].Free;
+  end;
+  FItems.Clear;
+end;
+
+function TLayout.Clone: TLayout;
+var
+  i: Integer;
+begin
+  Result := TLayout.Create(FKind);
+
+  CopyTo(Result);
+
+  for i := 0 to FItems.Count - 1 do
+    Result.FItems.Add(FItems[i].Clone);
+end;
+
+procedure TLayout.CopyTo(const ALayout: TLayout);
+begin
+  if Assigned(FMenu) then
+    ALayout.FMenu := FMenu.Clone(nil);
+  if Assigned(FUrlParser) then
+    ALayout.SetUrl(FUrlParser.Path);
+
+  ALayout.FStyleName := FStyleName;
+  ALayout.FLeft := FLeft;
+  ALayout.FTop := FTop;
+  ALayout.FWidth := FWidth;
+  ALayout.FHeight := FHeight;
+  ALayout.FAnchors := FAnchors;
+  ALayout.FAlign := FAlign;
+  FMargins.CopyTo(ALayout.FMargins);
+  FPadding.CopyTo(ALayout.FPadding);
+  FConstraints.CopyTo(ALayout.FConstraints);
+
+  ALayout.FAlignment := FAlignment;
+  ALayout.FAutoSize := FAutoSize;
+  ALayout.FWordWrap := FWordWrap;
+  ALayout.FBevelInner := FBevelInner;
+  ALayout.FBevelOuter := FBevelOuter;
+  ALayout.FBorderStyle := FBorderStyle;
+  ALayout.FColor := FColor;
+  ALayout.FCursor := FCursor;
+  ALayout.FTransparent := FTransparent;
+
+  ALayout.FId := FId;
+  ALayout.FAreaKind := FAreaKind;
+  ALayout.FName := FName;
+  ALayout.FHint := FHint;
+  ALayout.FShowCaption := FShowCaption;
+  ALayout.FCaption := FCaption;
+  ALayout.FUIParams := FUIParams;
+  ALayout.FParams := FParams;
+  ALayout.FTag := FTag;
+  ALayout.FImageID := FImageID;
+  ALayout.FTabOrder := FTabOrder;
+  ALayout.FState := FState;
+
+  FPen.CopyTo(ALayout.FPen);
+  FBrush.CopyTo(ALayout.FBrush);
+  FFont.CopyTo(ALayout.FFont);
+
+  ALayout.FCaption_AtLeft := FCaption_AtLeft;
+  ALayout.FButton_ShowCaption := FButton_ShowCaption;
+  ALayout.FButton_Flat := FButton_Flat;
+  ALayout.FShape_Type := FShape_Type;
+  if Assigned(FImage_Picture) then
+  begin
+    ALayout.FImage_Picture := TMemoryStream.Create;
+    FImage_Picture.Position := 0;
+    ALayout.FImage_Picture.CopyFrom(FImage_Picture, FImage_Picture.Size);
+  end;
+  ALayout.FImage_Stretch := FImage_Stretch;
+  ALayout.FImage_Proportional := FImage_Proportional;
+  ALayout.FImage_Center := FImage_Center;
+  ALayout.FPage_Style := FPage_Style;
+  ALayout.FPage_Position := FPage_Position;
+  ALayout.FPage_Height := FPage_Height;
+  ALayout.FPage_Width := FPage_Width;
+  ALayout.FBevel_Style := FBevel_Style;
+  ALayout.FBevel_Shape := FBevel_Shape;
 end;
 
 constructor TLayout.Create(const AKind: TLayoutKind);
@@ -1489,6 +1631,12 @@ begin
   InternalLoad(AJSON);
 end;
 
+procedure TLayoutPen.CopyTo(const ALayoutPen: TLayoutPen);
+begin
+  ALayoutPen.FColor := FColor;
+  ALayoutPen.FWidth := FWidth;
+end;
+
 constructor TLayoutPen.Create(const AColor: TAlphaColor; const AWidth: Integer);
 begin
   inherited Create;
@@ -1525,6 +1673,11 @@ constructor TLayoutBrush.Create(const AJSON: TJSONObject);
 begin
   inherited Create;
   InternalLoad(AJSON);
+end;
+
+procedure TLayoutBrush.CopyTo(const ALayoutBrush: TLayoutBrush);
+begin
+  ALayoutBrush.FColor := FColor;
 end;
 
 constructor TLayoutBrush.Create(const AColor: TAlphaColor);

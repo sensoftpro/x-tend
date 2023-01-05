@@ -302,7 +302,7 @@ begin
 
   Result := FBasePanel;
 
-  vButtonLayout := FUIBuilder.CreateSimpleLayout(lkPanel);
+  vButtonLayout := FUIBuilder.Layouts.CreateSimpleLayout(lkPanel);
   vButtonLayout.Caption := 'Create?place=embedded';
   vButtonLayout.Hint := TInteractor(FView.Interactor).Translate('cptAddEntity', 'Добавить');
   vButtonLayout.ImageID := 1;

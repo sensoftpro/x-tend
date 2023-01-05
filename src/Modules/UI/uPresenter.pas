@@ -401,7 +401,7 @@ begin
         begin
           if vView.DefinitionKind = dkAction then
           begin
-            vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+            vChildItem := AParent.UIBuilder.Layouts.CreateSimpleLayout(lkAction);
             vChildItem.AreaKind := akNavItem;
             vChildItem.StyleName := 'action';
             vChildItem.Caption := AParent.GetTranslation(vAction);
@@ -419,7 +419,7 @@ begin
 
       if vActions.Count > 0 then
       begin
-        vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+        vChildItem := AParent.UIBuilder.Layouts.CreateSimpleLayout(lkAction);
         vChildItem.AreaKind := akNavItem;
         vChildItem.StyleName := 'line';
         vChildItem.Caption := '-';
@@ -439,7 +439,7 @@ begin
         begin
           if vView.DefinitionKind = dkAction then
           begin
-            vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+            vChildItem := AParent.UIBuilder.Layouts.CreateSimpleLayout(lkAction);
             vChildItem.AreaKind := akNavItem;
             vChildItem.StyleName := 'action';
             vChildItem.Caption := AParent.GetTranslation(vReport);
@@ -457,7 +457,7 @@ begin
 
       if vReports.Count > 0 then
       begin
-        vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+        vChildItem := AParent.UIBuilder.Layouts.CreateSimpleLayout(lkAction);
         vChildItem.AreaKind := akNavItem;
         vChildItem.StyleName := 'line';
         vChildItem.Caption := '-';
@@ -503,7 +503,7 @@ begin
           for j := 0 to vDefinitions.Count - 1 do
           begin
             vDefinition := TDefinition(vDefinitions[j]);
-            vChildItem := AParent.UIBuilder.CreateSimpleLayout(lkAction);
+            vChildItem := AParent.UIBuilder.Layouts.CreateSimpleLayout(lkAction);
             vChildItem.AreaKind := akNavItem;
             vChildItem.StyleName := 'select';
             vChildItem.Caption := AParent.GetTranslation(vDefinition);

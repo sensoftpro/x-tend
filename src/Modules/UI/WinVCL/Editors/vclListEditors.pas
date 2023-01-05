@@ -2479,7 +2479,7 @@ begin
 
     for i := 0 to vSelectedList.Count - 1 do
     begin
-      vLayout := FUIBuilder.CreateSimpleLayout(lkPage);
+      vLayout := FUIBuilder.Layouts.CreateSimpleLayout(lkPage);
       if FCreateParams.Values['DisplayName'] = '' then
         vLayout.Caption := vSelectedList[i].DisplayName
       else
