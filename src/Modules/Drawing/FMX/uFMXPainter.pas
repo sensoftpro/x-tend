@@ -77,15 +77,11 @@ implementation
 procedure TFMXPainter.BeginPaint;
 begin
   ThisCanvas.BeginScene;
-  FPlaceholder.AbsoluteRect;
-
   ThisCanvas.IntersectClipRect(FPlaceholder.AbsoluteRect);
 end;
 
 procedure TFMXPainter.EndPaint;
 begin
-//  FPlaceholder.Canvas.DrawBitmap(TFMXContext(FContext).Bitmap, FPlaceholder.LocalRect, FPlaceholder.LocalRect, 1, True);
-//  ThisCanvas.IntersectClipRect(FPlaceholder.LocalRect);
   ThisCanvas.EndScene;
 end;
 
@@ -199,7 +195,6 @@ end;
 
 procedure TFMXPainter.DoColorizeFont(const AFont: TStyleFont; const AColor: Cardinal);
 begin
-//  TFont(AFont.NativeObject). := AColor;
 end;
 
 procedure TFMXPainter.DoColorizePen(const AStroke: TStylePen; const AColor: Cardinal);
@@ -229,7 +224,6 @@ procedure TFMXPainter.DoDrawContext(const AContext: TDrawContext);
 begin
   ThisCanvas.DrawBitmap(TFMXContext(AContext).Bitmap, TFMXContext(AContext).Bitmap.Bounds,
     FPlaceholder.LocalRect, 1, True);
-
 end;
 
 procedure TFMXPainter.DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF);
@@ -252,8 +246,6 @@ end;
 
 procedure TFMXPainter.DoDrawPath(const AFill: TStyleBrush; const AStroke: TStylePen; const APath: TObject);
 begin
-  inherited;
-
 end;
 
 procedure TFMXPainter.DoDrawPie(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF;
@@ -358,7 +350,6 @@ begin
 
   if Assigned(AFill) then
     ThisCanvas.FillPath(vPathData, 1, TBrush(AFill.NativeObject));
-
 end;
 
 procedure TFMXPainter.DoDrawText(const AFont: TStyleFont; const AText: string; const ARect: TRectF;
@@ -402,7 +393,7 @@ begin
   vNewBitmap.Height := Round(ARect.Height);
   vNewBitmap.CopyFromBitmap(vOldBitmap, ARect.Round, 0,0);
   vNewBitmap.InvertAlpha;
-//
+
   Self.DoDrawImage(vNewBitmap, ARect, 1);
 end;
 

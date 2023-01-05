@@ -12,7 +12,6 @@ type
       FOnPaint: TNotifyEvent;
     protected
       procedure Paint; override;
-//      procedure Paint(Sender: TObject; Canvas: TCanvas); override;
     public
       property OnPaint: TNotifyEvent read FOnPaint write FOnPaint;
   end;
@@ -139,8 +138,8 @@ begin
 //    FPainter.EndPaint;
 //  end;
   FPAinter.BeginPaint;
-  if (ANeedFullRepaint) then
-    FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
+//  if (ANeedFullRepaint) then
+  FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
   FRoot.RenderDynamic(FPainter, GetSceneRect);
   FPainter.EndPaint;
 end;
