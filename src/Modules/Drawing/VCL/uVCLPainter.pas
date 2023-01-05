@@ -234,7 +234,7 @@ begin
   vPen := TPen.Create;
   vPen.Color := CorrectColor(AStroke.Color);
   vPen.Width := Round(AStroke.Width);
-  vPen.Style :=  Graphics.TPenStyle(AStroke.Style);
+  vPen.Style := Graphics.TPenStyle(AStroke.Style);
 
   AStroke.NativeObject := vPen;
 end;

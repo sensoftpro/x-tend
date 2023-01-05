@@ -102,7 +102,9 @@
         <DCCReference Include="..\..\Modules\uModule.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\uDrawStyles.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\uScene.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\uWinScene.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\uWinScene.pas">
+            <Form>$I ..\..\Modules\Drawing\VCL\files.inc</Form>
+        </DCCReference>
         <DCCReference Include="uMainForm.pas">
             <Form>fmMain</Form>
         </DCCReference>
@@ -127,8 +129,10 @@
                     <Source Name="MainSource">Painters.dpr</Source>
                 </Source>
                 <Excluded_Packages>
+                    <Excluded_Packages Name="C:\Program Files (x86)\FastReport 6 VCL Standard\LibD25\dclfrxIntIO25.bpl">FastReport 6.0 Internet transports</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dcloffice2k250.bpl">Microsoft Office 2000 Sample Automation Server Wrapper Components</Excluded_Packages>
                     <Excluded_Packages Name="$(BDSBIN)\dclofficexp250.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
+                    <Excluded_Packages Name="C:\Program Files (x86)\FastReport 6 VCL Standard\LibD25\dclfrxIntIOIndy25.bpl">FastReport 6.0 Internet transports</Excluded_Packages>
                 </Excluded_Packages>
             </Delphi.Personality>
             <Platforms>

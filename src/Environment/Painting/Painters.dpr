@@ -12,11 +12,12 @@ uses
   uScene in '..\..\Modules\Drawing\uScene.pas',
   uWinScene in '..\..\Modules\UI\WinVCL\uWinScene.pas',
 
-{$I ..\..\Modules\Drawing\VCL\files.inc}
-{$I ..\..\Modules\Drawing\GDIPlus\files.inc}
-{$I ..\..\Modules\Drawing\Direct2D\files.inc}
-{$I ..\..\Modules\Drawing\OpenGL\files.inc}
-{$I ..\..\Modules\Drawing\Skia\files.inc}
+  {$I ..\..\Modules\Drawing\Direct2D\files.inc}
+  {$I ..\..\Modules\Drawing\OpenGL\files.inc}
+  {$I ..\..\Modules\Drawing\Skia\files.inc}
+  {$I ..\..\Modules\Drawing\VCL\files.inc}
+  {$I ..\..\Modules\Drawing\GDIPlus\files.inc}
+
 
   uMainForm in 'uMainForm.pas' {fmMain};
 

@@ -264,10 +264,11 @@ var
 begin
   vRect := ARect;
 
-  APainter.DrawRect(FStyle, 'background', '', vRect);
+  APainter.DrawRect(FStyle, 'background', '', ARect);
 //  APainter.ClipRect(RectF(200, 100, 450, 300));
-  APainter.DrawBezier(FStyle, 'peak', PPointF(TArray<TPointF>.Create(PointF(100,0), PointF(120,50),PointF(160,100),
-    PointF(250,50), PointF(160,100), PointF(223,32), PointF(245,132), PointF(609,100), PointF(609,100))), 9 ,TAlphaColorRec.Red);
+  APainter.DrawBezier(FStyle, 'peak', PPointF(TArray<TPointF>.Create(PointF(100,0), PointF(120,50),
+    PointF(160, 100), PointF(250, 50), PointF(160, 100), PointF(223, 32),
+    PointF(245, 132), PointF(609, 100), PointF(609, 100))), 9 ,TAlphaColorRec.Red);
 
   vTextHeight := 0.8 * APainter.TextHeight(FStyle, 'x.title', 'fg');
   InflateRect(vRect, -vTextHeight, -vTextHeight);
@@ -290,10 +291,12 @@ begin
   inherited DoRenderStatic(APainter, ARect, AMode);
 
   APainter.DrawImage(FStyle, 'peak', RectF(200, 100, 450, 300), 0.7);
-  APainter.DrawEllipse(FStyle, '_nuclide', 'peak', RectF(500, 100, 650, 200));
-  APainter.DrawPie(FStyle, '_nuclide', 'peak', RectF(100, 350, 350, 420), 360, 320);
-  APainter.DrawRegion(FStyle, '_nuclide', 'line.values', PPointF(TArray<TPointF>.Create(PointF(0,0), PointF(20,20),PointF(50,50),
-    PointF(80,80), PointF(80,50), PointF(50,20), PointF(0,0))), 7, TAlphaColorRec.Navy);
+  APainter.DrawEllipse(FStyle, '_nuclide', 'peak', RectF(500, ARect.Top + 100, 650, ARect.Top + 200));
+  APainter.DrawPie(FStyle, '_nuclide', 'peak', RectF(100, ARect.Top + 350, 350, ARect.Top + 420), 360, 320);
+  APainter.DrawRegion(FStyle, '_nuclide', 'line.values', PPointF(TArray<TPointF>.Create(PointF(0,ARect.Top +0),
+    PointF(20,ARect.Top +20),PointF(50,ARect.Top +50),
+    PointF(80,ARect.Top +80), PointF(80,ARect.Top +50), PointF(50,ARect.Top +20),
+    PointF(0,ARect.Top +0))), 7, TAlphaColorRec.Navy);
 //  APainter.DrawPath(FStyle, '_nuclide', 'peak', TArray<Integer>.Create(0,0,0),TAlphaColorRec.Red);
 end;
 

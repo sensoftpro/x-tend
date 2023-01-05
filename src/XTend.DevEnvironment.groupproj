@@ -9,6 +9,9 @@
         <Projects Include="Environment\Layouts\Layouts.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Environment\FMXPainting\FMXPainters.dproj">
+            <Dependencies/>
+        </Projects>
     </ItemGroup>
     <ProjectExtensions>
         <Borland.Personality>Default.Personality.12</Borland.Personality>
@@ -35,14 +38,23 @@
     <Target Name="Layouts:Make">
         <MSBuild Projects="Environment\Layouts\Layouts.dproj" Targets="Make"/>
     </Target>
+    <Target Name="FMXPainters">
+        <MSBuild Projects="Environment\FMXPainting\FMXPainters.dproj"/>
+    </Target>
+    <Target Name="FMXPainters:Clean">
+        <MSBuild Projects="Environment\FMXPainting\FMXPainters.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="FMXPainters:Make">
+        <MSBuild Projects="Environment\FMXPainting\FMXPainters.dproj" Targets="Make"/>
+    </Target>
     <Target Name="Build">
-        <CallTarget Targets="Painters;Layouts"/>
+        <CallTarget Targets="Painters;Layouts;FMXPainters"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="Painters:Clean;Layouts:Clean"/>
+        <CallTarget Targets="Painters:Clean;Layouts:Clean;FMXPainters:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="Painters:Make;Layouts:Make"/>
+        <CallTarget Targets="Painters:Make;Layouts:Make;FMXPainters:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
