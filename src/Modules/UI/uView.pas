@@ -423,7 +423,7 @@ begin
       SetDomainObject(AMessage.Parameter);
 
     UpdateUIState;
-    TInteractor(FInteractor).PrintHierarchy;
+    TInteractor(FInteractor).UIBuilder.PrintHierarchy;
 
     NotifyUI(dckFieldChanged, nil);
   end
@@ -443,7 +443,7 @@ begin
       if vActiveView.DomainObject = AMessage.Parameter then
       begin
         vActiveView.UpdateChildViews(dkAction);
-        TInteractor(FInteractor).PrintHierarchy;
+        TInteractor(FInteractor).UIBuilder.PrintHierarchy;
       end;
     end;
   end
@@ -466,7 +466,7 @@ begin
         if (vActiveView.DefinitionKind = dkEntity) {and (vActiveView.DomainObject = AMessage.Parameter)} then
           vActiveView.DoParentChanged(FDomainObject);
       end;
-      TInteractor(FInteractor).PrintHierarchy;
+      TInteractor(FInteractor).UIBuilder.PrintHierarchy;
     end;
 
     NotifyUI(AMessage.Kind, AMessage.Parameter);
@@ -906,7 +906,7 @@ begin
 
   NotifyUI(dckViewStateChanged, nil);
   UpdateChildViews;
-  TInteractor(FInteractor).PrintHierarchy;
+  TInteractor(FInteractor).UIBuilder.PrintHierarchy;
 end;
 
 function TView.IsContextDependent: Boolean;
@@ -1055,7 +1055,7 @@ procedure TView.RefreshView(const AParameter: TObject);
 begin
   UpdateUIState;
   NotifyUI(dckViewStateChanged, AParameter);
-  TInteractor(FInteractor).PrintHierarchy;
+  TInteractor(FInteractor).UIBuilder.PrintHierarchy;
 end;
 
 procedure TView.RemoveListener(const AListener: TObject);

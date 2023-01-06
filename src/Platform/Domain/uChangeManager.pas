@@ -164,7 +164,7 @@ implementation
 
 uses
   SysUtils, Variants, Math, uDomain, uDefinition, uCollection, uSession,
-  uDomainUtils, uInteractor, uSimpleField;
+  uDomainUtils, uPresenter, uInteractor, uSimpleField;
 
 { TChangeHolder }
 
@@ -652,7 +652,7 @@ begin
       end;
     else
       begin
-        if Assigned(AInteractor) and (TInteractor(AInteractor).ShowYesNoDialog(
+        if Assigned(AInteractor) and (TPresenter(TInteractor(AInteractor).Presenter).ShowYesNoDialog(
           TDomain(FDomain).Translate('txtVersionsConflict', 'Конфликт версий'),
           Format(AContext, [vFieldName, vEntityName, vIncomingValue, vThisValue]), False) = drYes)
         then begin

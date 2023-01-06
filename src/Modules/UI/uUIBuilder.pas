@@ -298,6 +298,7 @@ type
     FRootArea: TUIArea;
     FDefaultParams: string;
     FLayouts: TLayouts;
+    [Weak] FDomain: TDomain;
     [Weak] FCurrentArea: TUIArea;
     [Weak] FLastArea: TUIArea;
     [Weak] FActiveArea: TUIArea;
@@ -305,6 +306,7 @@ type
     [Weak] FInteractor: TObject;
     [Weak] FPresenter: TObject;
 
+    FWindowStyle: string;
     FImages: TObjectDictionary<Integer, TObject>;
     FImageMap: TDictionary<Integer, Integer>;
     function GetImages(const AResolution: Integer): TObject;
@@ -314,7 +316,6 @@ type
 
     function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
-    function GetImageID(const AImageID: Integer): Integer;
     procedure GetLayoutName(const AEntity: TEntity; const AParams: string; var ALayoutName: string);
   public
     constructor Create(const AInteractor: TObject);
@@ -343,12 +344,12 @@ type
     property ActiveArea: TUIArea read FActiveArea write FActiveArea;
     property Presenter: TObject read FPresenter;
     property Layouts: TLayouts read FLayouts;
+    property WindowStyle: string read FWindowStyle write FWindowStyle;
     property Images[const AResolution: Integer]: TObject read GetImages;
   end;
 
-  {TUIInstance = class
+  TUIInstance = class
   private
-    FRootView: TView;
     FRootArea: TUIArea;
     FDefaultParams: string;
     [Weak] FUIBuilder: TUIBuilder;
@@ -372,7 +373,6 @@ type
     procedure ProcessAreaDeleting(const AArea: TUIArea);
 
     property UIBuilder: TUIBuilder read FUIBuilder;
-    property RootView: TView read FRootView;
     property RootArea: TUIArea read FRootArea;
     property CurrentArea: TUIArea read FCurrentArea;
     property DefaultParams: string read FDefaultParams write FDefaultParams;
@@ -380,7 +380,7 @@ type
     property LastArea: TUIArea read FLastArea write SetLastArea;
     property ActiveArea: TUIArea read FActiveArea write FActiveArea;
     property Presenter: TObject read FPresenter;
-  end;}
+  end;
 
 type
   TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
@@ -649,6 +649,7 @@ begin
   inherited Create;
   FInteractor := AInteractor;
   FPresenter := TInteractor(FInteractor).Presenter;
+  FDomain := TDomain(TInteractor(FInteractor).Domain);
   FRootArea := nil;
   FCurrentArea := nil;
   FLastArea := nil;
@@ -660,7 +661,8 @@ begin
 
   FImageMap := TDictionary<Integer, Integer>.Create;
   FImages := TObjectDictionary<Integer, TObject>.Create([doOwnsValues]);
-  //GetImages(16);
+
+  FWindowStyle := FDomain.Settings.GetValue('Core', 'Layout');
 end;
 
 procedure TUIBuilder.CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
@@ -684,6 +686,7 @@ begin
   FreeAndNil(FRootView);
   FreeAndNil(FLayouts);
   FPresenter := nil;
+  FDomain := nil;
   FInteractor := nil;
   inherited Destroy;
 end;
@@ -692,7 +695,7 @@ function TUIBuilder.GetTranslation(const ADefinition: TDefinition;
   const ATranslationPart: TTranslationPart = tpCaption): string;
 begin
   if Assigned(FInteractor) then
-    Result := TDomain(TInteractor(FInteractor).Domain).TranslateDefinition(ADefinition, ATranslationPart)
+    Result := FDomain.TranslateDefinition(ADefinition, ATranslationPart)
   else begin
     case ATranslationPart of
       tpCaption: Result := ADefinition._Caption;
@@ -707,7 +710,7 @@ end;
 function TUIBuilder.GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart): string;
 begin
   if Assigned(FInteractor) then
-    Result := TDomain(TInteractor(FInteractor).Domain).TranslateFieldDef(AFieldDef, ATranslationPart)
+    Result := FDomain.TranslateFieldDef(AFieldDef, ATranslationPart)
   else begin
     case ATranslationPart of
       tpCaption: Result := AFieldDef._Caption;
@@ -716,11 +719,6 @@ begin
       Result := '';
     end;
   end;
-end;
-
-function TUIBuilder.GetImageID(const AImageID: Integer): Integer;
-begin
-  Result := GetImageIndex(AImageID);
 end;
 
 function TUIBuilder.GetImageIndex(const AImageID: Integer): Integer;
@@ -796,7 +794,7 @@ begin
     if Length(AEntity.Definition.LayoutMask) > 0 then
       vLayout := GetFromLayoutPath(AEntity.Definition.LayoutMask);
 
-    if (vLayout = '') or (not FileExists(TConfiguration(TInteractor(FInteractor).Configuration).FindLayoutFile(vLayout, LAYOUT_DFM_EXT))) then
+    if (vLayout = '') or (not FileExists(FDomain.Configuration.FindLayoutFile(vLayout, LAYOUT_DFM_EXT))) then
       vLayout := AEntity.Definition.Name + GetPostfix;
   end;
 
@@ -856,7 +854,7 @@ begin
   else
     vView := FRootView;
 
-  if (AAreaName = 'WorkArea') and (TInteractor(FInteractor).Layout <> 'mdi') and not Assigned(FRootArea.AreaById(AAreaName)) then
+  if (AAreaName = 'WorkArea') and (FWindowStyle <> 'mdi') and not Assigned(FRootArea.AreaById(AAreaName)) then
     vAreaName := 'child'
   else
     vAreaName := AAreaName;
@@ -945,7 +943,7 @@ begin
       begin
         vLayout := FLayouts.CreateSimpleLayout(lkPage);
         vLayout.Name := vPageID;
-        vLayout.ImageID := GetImageID(vImageID);
+        vLayout.ImageID := GetImageIndex(vImageID);
 
         if vView.DefinitionKind in [dkAction, dkCollection] then
         begin
@@ -960,14 +958,14 @@ begin
           end;
 
           if vImageID <= 0 then
-            vLayout.ImageID := GetImageID(TDefinition(vView.Definition)._ImageID);
+            vLayout.ImageID := GetImageIndex(TDefinition(vView.Definition)._ImageID);
         end
         else if ACaption <> '' then
           vLayout.Caption := ACaption
         else
           vLayout.Caption := 'Стартовая страница';
 
-        if TInteractor(FInteractor).Layout = 'mdi' then
+        if FWindowStyle = 'mdi' then
           vLayout.AreaKind := akForm;
 
         vTabArea := vUIArea.CreateChildArea(vView, vLayout, AOptions, AOnClose);
@@ -1604,7 +1602,7 @@ var
         FreeAndNil(vDefinitions);
       end;
     end
-    else if (ACurrentItem.Id = 'Windows') and (TInteractor(Interactor).Layout = 'mdi') then
+    else if (ACurrentItem.Id = 'Windows') and (FUIBuilder.WindowStyle = 'mdi') then
     begin
       ACurrentItem.Insert(0, 'ArrangeMozaic');
       ACurrentItem.Insert(1, 'ArrangeCascade');
@@ -1922,7 +1920,7 @@ end;
 
 function TUIArea.GetImageID(const AImageID: Integer): Integer;
 begin
-  Result := FUIBuilder.GetImageID(AImageID);
+  Result := FUIBuilder.GetImageIndex(AImageID);
 end;
 
 function TUIArea.GetInteractor: TObject;
@@ -2408,7 +2406,7 @@ end;
 
 function TNativeControl.GetImageID(const AImageID: Integer): Integer;
 begin
-  Result := FUIBuilder.GetImageID(AImageID);
+  Result := FUIBuilder.GetImageIndex(AImageID);
 end;
 
 function TNativeControl.GetModalResult: TModalResult;
@@ -2620,7 +2618,7 @@ end;
 
 { TUIInstance }
 
-{procedure TUIInstance.ApplyLayout(const AArea: TUIArea; const AView: TView;
+procedure TUIInstance.ApplyLayout(const AArea: TUIArea; const AView: TView;
   const ALayoutName, AParams: string);
 var
   vLayout: TLayout;
@@ -2637,8 +2635,7 @@ begin
       StrToIntDef(GetUrlParam(AParams, 'Left', ''), -1),
       StrToIntDef(GetUrlParam(AParams, 'Top', ''), -1),
       StrToIntDef(GetUrlParam(AParams, 'Width', ''), -1),
-      StrToIntDef(GetUrlParam(AParams, 'Height', ''), -1)
-    );
+      StrToIntDef(GetUrlParam(AParams, 'Height', ''), -1));
   finally
     AArea.EndUpdate;
   end;
@@ -2661,7 +2658,6 @@ begin
   FActiveArea := nil;
   FPagedArea := nil;
   FDefaultParams := '';
-  FRootView := TView.Create(TInteractor(FInteractor), nil, '');
 end;
 
 procedure TUIInstance.CreateChildAreas(const AArea: TUIArea; const AView: TView;
@@ -2679,8 +2675,8 @@ begin
   SetLastArea(nil);
   FCurrentArea := nil;
   FPagedArea := nil;
-  FRootArea.Release;
-  FreeAndNil(FRootView);
+  if Assigned(FRootArea) then
+    FRootArea.Release;
   FPresenter := nil;
   FInteractor := nil;
   inherited Destroy;
@@ -2722,6 +2718,6 @@ procedure TUIInstance.SetPagedArea(const Value: TUIArea);
 begin
   Assert(not Assigned(FPagedArea), 'Область страниц инициализирована дважды!');
   FPagedArea := Value;
-end; }
+end;
 
 end.

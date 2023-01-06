@@ -328,7 +328,7 @@ begin
   if ANavItem.Id = 'Windows' then
   begin
     //FMenuItem.Visible := TInteractor(FView.Interactor).Layout = 'mdi';
-    if (TInteractor(FView.Interactor).Layout = 'mdi') and (Parent.NativeControl.IsForm) then
+    if (FUIBuilder.WindowStyle = 'mdi') and (Parent.NativeControl.IsForm) then
     begin
       vForm := TForm(GetVCLControl(Parent));
       if vForm.FormStyle = fsMDIForm then
@@ -1065,7 +1065,7 @@ begin
   if (not FIsForm) and (FControl is TWinControl) then
     LockControl(TWinControl(FControl), True);
 
-  if FIsForm and (TInteractor(FInteractor).Layout = 'mdi') then
+  if FIsForm and (FUIBuilder.WindowStyle = 'mdi') then
     SendMessage(Application.MainForm.ClientHandle, WM_SETREDRAW, 0, 0);
 end;
 
@@ -1133,7 +1133,7 @@ begin
   if (not FIsForm) and (FControl is TWinControl) then
     LockControl(TWinControl(FControl), False);
 
-  if FIsForm and (TInteractor(FInteractor).Layout = 'mdi') then
+  if FIsForm and (FUIBuilder.WindowStyle = 'mdi') then
   begin
     SendMessage(Application.MainForm.ClientHandle, WM_SETREDRAW, 1, 0);
     RedrawWindow(Application.MainForm.ClientHandle, nil, 0, RDW_ERASE or RDW_FRAME or RDW_INVALIDATE or RDW_ALLCHILDREN);

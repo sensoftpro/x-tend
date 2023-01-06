@@ -48,12 +48,8 @@ type
     [Weak] FConfiguration: TObject;    // Ссылка на конфигурацию
     [Weak] FPresenter: TObject;        // Ссылка на UI
 
-    FSysImagesResolution: Integer;
-    FLayout: string;
-    FAppTitle: string;
-
     FUIBuilder: TUIBuilder;
-    //FUIInstance: TUIInstance;
+    FUIInstance: TUIInstance;
   public
     constructor Create(const APresenter, ASession: TObject);
     destructor Destroy; override;
@@ -72,16 +68,10 @@ type
     function NeedSkipColumn(const ASource: TObject; const AFieldDef: TObject): Boolean;
 
     procedure ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);
-    function ShowYesNoDialog(const ACaption, AText: string; const AWithCancel: Boolean = False): TDialogResult;
-    function ShowOkCancelDialog(const ACaption, AText: string): TDialogResult;
-    procedure PrintHierarchy;
 
     property Presenter: TObject read FPresenter;
     property UIBuilder: TUIBuilder read FUIBuilder;
-    //property UIInstance: TUIInstance read FUIInstance;
-    property SysImagesResolution: Integer read FSysImagesResolution write FSysImagesResolution;
-    property Layout: string read FLayout write FLayout;
-    property AppTitle: string read FAppTitle;
+    property UIInstance: TUIInstance read FUIInstance;
     property Session: TObject read FSession;
     property Domain: TObject read FDomain;
     property Configuration: TObject read FConfiguration;
@@ -157,17 +147,12 @@ begin
   FConfiguration := TDomain(FDomain).Configuration;
 
   FUIBuilder := TUIBuilder.Create(Self);
-  //FUIInstance := TUIInstance.Create(FUIBuilder, Self);
-
-  FAppTitle := Translate('AppTitle', TConfiguration(FConfiguration)._Caption);
-
-  FSysImagesResolution := StrToIntDef(TDomain(FDomain).Settings.GetValue('Core', 'SysImagesResolution'), 16);
-  FLayout := TDomain(FDomain).Settings.GetValue('Core', 'Layout');
+  FUIInstance := TUIInstance.Create(FUIBuilder, Self);
 end;
 
 destructor TInteractor.Destroy;
 begin
-  //FreeAndNil(FUIInstance);
+  FreeAndNil(FUIInstance);
   FreeAndNil(FUIBuilder);
 
   FPresenter := nil;
@@ -237,17 +222,11 @@ begin
       (TListFieldDef(TListField(TEntityList(ASource).Filler).FieldDef).IsFieldHidden(vFieldDef.Name)));
 end;
 
-procedure TInteractor.PrintHierarchy;
-begin
-  if Assigned(FUIBuilder) then
-    FUIBuilder.PrintHierarchy;
-end;
-
 function TInteractor.ShowEntityEditor(const AView: TView; const AHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
 var
   vEntity: TEntity;
 begin
-  TUserSession(FSession).CheckLocking(False);
+  TDomain(FDomain).CheckLocking(False);
   Assert(AView.DefinitionKind in [dkEntity, dkAction, dkObjectField], 'Показываем непонятно что');
 
   vEntity := TEntity(AView.DomainObject);
@@ -262,21 +241,8 @@ end;
 
 procedure TInteractor.ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);
 begin
-  TUserSession(FSession).CheckLocking(False);
-  TPresenter(FPresenter).ShowMessage(FAppTitle, AText, AMessageType);
-end;
-
-function TInteractor.ShowOkCancelDialog(const ACaption, AText: string): TDialogResult;
-begin
-  TUserSession(FSession).CheckLocking(False);
-  Result := TPresenter(FPresenter).ShowOkCancelDialog(ACaption, AText);
-end;
-
-function TInteractor.ShowYesNoDialog(const ACaption, AText: string;
-  const AWithCancel: Boolean): TDialogResult;
-begin
-  TUserSession(FSession).CheckLocking(False);
-  Result := TPresenter(FPresenter).ShowYesNoDialog(ACaption, AText, AWithCancel);
+  TDomain(FDomain).CheckLocking(False);
+  TPresenter(FPresenter).ShowMessage(TDomain(FDomain).AppTitle, AText, AMessageType);
 end;
 
 function TInteractor.Translate(const AKey, ADefault: string): string;

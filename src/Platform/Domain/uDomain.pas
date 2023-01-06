@@ -125,6 +125,7 @@ type
   private
     FCollections: TStringDictionary<TCollection>;
     FRootCollection: TCollection;
+    FAppName: string;
     FAppTitle: string;
     FLoadingChanges: Boolean;
 
@@ -199,11 +200,13 @@ type
       const ATranslationPart: TTranslationPart = tpCaption): string;
 
     procedure UpdateLogID(const ANewLogID: Integer);
+    procedure CheckLocking(const AExpectedResult: Boolean = True);
 
     function Log(const AMessage: string; const AMessageKind: TMessageKind = mkAny): string;
     function LogEnter(const AMessage: string): string;
     function LogExit(const AMessage: string): string;
 
+    property AppName: string read FAppName;
     property AppTitle: string read FAppTitle;
     property CollectionNameIndexed[const AName: string]: TCollection read CollectionByName; default;
     property Collections: TStringDictionary<TCollection> read FCollections;
@@ -375,6 +378,16 @@ begin
   end;
 end;
 
+procedure TDomain.CheckLocking(const AExpectedResult: Boolean);
+begin
+  if FDataLock.Locked <> AExpectedResult then
+  begin
+    FLogger.AddMessage('@@@ Ожидание в блокировке @@@');
+    if AExpectedResult then
+      Assert(False, 'Неожиданное состояние блокировки: ' + BoolToStr(not AExpectedResult));
+  end;
+end;
+
 function TDomain.CollectionByID(const AID: Integer): TCollection;
 begin
   if AID = 0 then
@@ -453,7 +466,8 @@ begin
   FDomainLogger.SetTarget(TPath.Combine(vAppDataDirectory, 'domain_log.txt'));
   FScheduler := TScheduler.Create(Self, 60);
 
-  FAppTitle := Translate('AppTitle', FConfiguration._Caption) + ' - ' + FConfiguration.Version.ToString;
+  FAppName := Translate('AppTitle', FConfiguration._Caption);
+  FAppTitle := FAppName + ' - ' + FConfiguration.Version.ToString;
 
   FSessions := TUserSessions.Create(Self);
   FDomainSession := FSessions.AddSession(nil);

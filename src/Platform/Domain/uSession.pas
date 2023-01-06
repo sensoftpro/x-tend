@@ -90,8 +90,6 @@ type
 
     function GetUIState(const AObjectName: string; const AContextState: TState): TViewState;
 
-    procedure CheckLocking(const AExpectedResult: Boolean = True);
-
     property Holders: TObjectList<TChangeHolder> read FHolders;
     property NullHolder: TChangeHolder read FAnemicHolder;
     property CurrentUser: TEntity read FUser;
@@ -345,16 +343,6 @@ begin
       end);
 end;
 
-procedure TUserSession.CheckLocking(const AExpectedResult: Boolean = True);
-begin
-  if TDomain(FDomain).DataLock.Locked <> AExpectedResult then
-  begin
-    TDomain(FDomain).Logger.AddMessage('@@@ Ожидание в блокировке @@@');
-    if AExpectedResult then
-      Assert(False, 'Неожиданное состояние блокировки: ' + BoolToStr(not AExpectedResult));
-  end;
-end;
-
 constructor TUserSession.Create(const ADomain: TObject; const AUser: TEntity);
 begin
   inherited Create;
@@ -392,7 +380,7 @@ end;
 
 procedure TUserSession.DomainWrite(const AWriteProc: TAtomicWriteProc);
 begin
-  CheckLocking(False);
+  TDomain(FDomain).CheckLocking(False);
   TDomain(FDomain).DataLock.Enter(Self);
   try
     try
@@ -445,7 +433,7 @@ begin
   end;
 
   try
-    CheckLocking;
+    TDomain(FDomain).CheckLocking;
   except
     AHolder.RevertChanges;
     raise Exception.Create('Ошибка сохранения записи. Неверное состояние блокировки');
@@ -490,7 +478,7 @@ begin
       AHolder.DisposeOf;
 
     if Assigned(FInteractor) then
-      TInteractor(FInteractor).PrintHierarchy;
+      TInteractor(FInteractor).UIBuilder.PrintHierarchy;
   end;
 end;
 
@@ -501,7 +489,7 @@ end;
 
 function TUserSession.RetainChangeHolder(const AParentHolder: TChangeHolder): TChangeHolder;
 begin
-  CheckLocking;
+  TDomain(FDomain).CheckLocking;
   //TDomain(FDomain).Logger.AddEnterMessage('$$$ RETAIN HOLDER');
   Result := TChangeHolder.Create(Self, AParentHolder, False);
 
@@ -515,7 +503,7 @@ begin
       InternalReleaseChangeHolder(AHolder, True, False);
     end);
   if Assigned(FInteractor) then
-    TInteractor(FInteractor).PrintHierarchy;
+    TInteractor(FInteractor).UIBuilder.PrintHierarchy;
 end;
 
 procedure TUserSession.SetInteractor(const Value: TObject);

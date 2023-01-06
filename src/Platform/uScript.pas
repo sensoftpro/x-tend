@@ -812,7 +812,8 @@ end;
 
 function TScript.DoBeforeUIClosing(const AInteractor: TInteractor): Boolean;
 begin
-  Result := AInteractor.ShowYesNoDialog('Подтвердите', 'Вы действительно хотите выйти?') = drYes;
+  Result := TPresenter(AInteractor.Presenter).ShowYesNoDialog(
+    'Подтвердите', 'Вы действительно хотите выйти?') = drYes;
 end;
 
 function TScript.DoExecuteDefaultAction(const ASession: TUserSession; const AParams: string): Boolean;
@@ -1321,6 +1322,7 @@ var
   vNewPassword: string;
   vMessage: string;
   AInteractor: TInteractor;
+  vDomain: TDomain;
   vModalResult: Integer;
   vConfig: TEntity;
   jChanges: TJSONObject;
@@ -1421,10 +1423,10 @@ const
       begin
         vHolder := vSession.RetainChangeHolder(TChangeHolder(AParentHolder));
         if not Assigned(AView.Parent.ParentDomainObject) then
-          vNewEntity := TDomain(AView.Domain).CreateNewEntity(vHolder, vDefinitionName, cNewID)
+          vNewEntity := vDomain.CreateNewEntity(vHolder, vDefinitionName, cNewID)
         else begin
           vMasterEntity := TEntity(AView.Parent.ParentDomainObject);
-          vNewEntity := TDomain(AView.Domain)[vDefinitionName]._CreateNewEntity(vHolder, cNewID,
+          vNewEntity := vDomain[vDefinitionName]._CreateNewEntity(vHolder, cNewID,
             '', [], vMasterEntity.FieldByName(vFieldDef.Name));
         end;
       end);
@@ -1480,6 +1482,7 @@ const
 
 begin
   AInteractor := TInteractor(AView.Interactor);
+  vDomain := TDomain(AInteractor.Domain);
 
   if AView.Definition is TRTFReport then
   begin
@@ -1532,8 +1535,8 @@ begin
   end
   else if AActionName = 'ShowSysLog' then
   begin
-    TDomain(AInteractor.Domain).LoadCollection('SysLog');
-    TDomain(AInteractor.Domain).LoadCollection('SysLogActions');
+    vDomain.LoadCollection('SysLog');
+    vDomain.LoadCollection('SysLogActions');
     AInteractor.UIBuilder.Navigate(AInteractor.UIBuilder.RootView.BuildView('SysLog'), 'WorkArea', 'Collection');
     Exit;
   end
@@ -1544,7 +1547,7 @@ begin
   end
   else if AActionName = 'ShowSettings' then
   begin
-    vConfig := TDomain(AInteractor.Domain).FirstEntity('SysConstants');
+    vConfig := vDomain.FirstEntity('SysConstants');
     if Assigned(vConfig) then
       Result := AInteractor.AtomicEditEntity(AInteractor.UIBuilder.RootView.BuildView('SysConstants/Current'), AParentHolder);
     Exit;
@@ -1571,7 +1574,7 @@ begin
   end
   else if AActionName = 'GetAllUpdates' then
   begin
-    jChanges := TDomain(AInteractor.Domain).Storage.GetChanges(0);
+    jChanges := vDomain.Storage.GetChanges(0);
     if Assigned(jChanges) then
       try
         jChanges.SaveToUTF8File('all_changes.txt');
@@ -1586,7 +1589,7 @@ begin
     begin
       jChanges := TJSONObject.LoadFromUTF8File('all_changes.txt');
       try
-        TDomain(AInteractor.Domain).ImportChanges(jChanges);
+        vDomain.ImportChanges(jChanges);
       finally
         FreeAndNil(jChanges);
       end;
@@ -1595,7 +1598,7 @@ begin
   end
   else if AActionName = 'ActualizeData' then
   begin
-    ActualizeData(AInteractor.Domain);
+    ActualizeData(vDomain);
     Exit;
   end
   else if AActionName = 'ArrangeMozaic' then
@@ -1728,7 +1731,7 @@ begin
           Result := True;
         end, AParentHolder);
 
-      AInteractor.ShowMessage(AInteractor.Translate('txtNewPassword', 'Новый пароль') + ': ' + vNewPassword);
+      AInteractor.ShowMessage(vDomain.Translate('txtNewPassword', 'Новый пароль') + ': ' + vNewPassword);
     end
     else if (AActionName = 'CheckEmailConnection') and vEntity.InstanceOf('SysConstants') then
     begin

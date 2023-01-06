@@ -68,7 +68,7 @@ implementation
 {$R *.dfm}
 
 uses
-  uConfiguration, uPresenter;
+  uConfiguration, uDomain, uPresenter;
 
 procedure TAboutFm.Init(const AInteractor: TInteractor);
 begin
@@ -76,7 +76,7 @@ begin
   if not Assigned(FInteractor) then
     Exit;
   Caption := AInteractor.Translate('@' + Self.ClassName + '@Caption', 'О программе');
-  lblName.Caption := AInteractor.AppTitle;
+  lblName.Caption := TDomain(AInteractor.Domain).AppName;
   lblVersion.Caption := AInteractor.Translate('@' + Self.ClassName + '.lblVersion@Caption', 'Версия') + ': ' +
     TConfiguration(AInteractor.Configuration).Version.ToString;
   lblWeb.Caption := AInteractor.Translate('@' + Self.ClassName + '.lblWeb@Caption', 'Сайт') + ': ';

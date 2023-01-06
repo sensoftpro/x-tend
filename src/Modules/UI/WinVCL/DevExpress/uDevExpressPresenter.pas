@@ -187,7 +187,7 @@ begin
   end
   else if ALayout.Kind = lkPage then
   begin
-    if (TInteractor(AView.Interactor).Layout = 'mdi') and (ALayout.Tag = 11) then
+    if (vUIBuilder.WindowStyle = 'mdi') and (ALayout.Tag = 11) then
       Result := inherited CreateControl(AParent, AView, ALayout, AParams)
     else begin
       vTab := TcxTabSheet.Create(TComponent(GetVCLControl(AParent)));
@@ -231,7 +231,7 @@ begin
 
     if Assigned(vParams) and (vParams.Values['ViewType'] = 'Paged') then
     begin
-      if TInteractor(AParent.View.Interactor).Layout = 'mdi' then
+      if vUIBuilder.WindowStyle = 'mdi' then
       begin
         AParent.UIBuilder.DefaultParams := AParams;
         FreeAndNil(vParams);

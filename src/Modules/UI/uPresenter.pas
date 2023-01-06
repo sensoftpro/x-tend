@@ -342,7 +342,7 @@ var
   i: Integer;
   vChildArea: TUIArea;
 begin
-  if AInteractor.Layout = 'mdi' then
+  if AInteractor.UIBuilder.WindowStyle = 'mdi' then
   begin
     DoCloseAllPages(AInteractor);
     Exit;
@@ -978,8 +978,8 @@ begin
       if Assigned(vArea.Parent) then
         vArea.Parent.RemoveArea(vArea);
 
-      vInteractor.PrintHierarchy;
-      //Action := caFree;
+      if Assigned(vInteractor.UIBuilder) then
+        vInteractor.UIBuilder.PrintHierarchy;
     end
     else
       Action := TCloseAction.caNone;
