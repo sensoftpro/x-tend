@@ -92,6 +92,7 @@ end;
 function TDevExpressPresenter.CreateControl(const AParent: TUIArea;
   const AView: TView; const ALayout: TLayout; const AParams: string): TObject;
 var
+  vUIBuilder: TUIBuilder;
   vStartPageName: string;
   vLabel: TcxLabel;
   vImage: TcxImage;
@@ -103,6 +104,7 @@ var
 begin
   Result := nil;
 
+  vUIBuilder := TInteractor(AView.Interactor).UIBuilder;
   ALayout.Id := '';
 
   if ALayout.Kind = lkLabel then
@@ -160,7 +162,7 @@ begin
     if (ALayout.Tag and cPCNavigatorFlag) > 0 then
     begin
       vPC.Properties.Rotate := True;
-      vPC.Properties.Images := TDragImageList(TInteractor(AView.Interactor).Images[32]);
+      vPC.Properties.Images := TDragImageList(vUIBuilder.Images[32]);
       vPC.Properties.TabCaptionAlignment := taLeftJustify;
     end
     else
@@ -239,7 +241,7 @@ begin
       vPC := TcxPageControl.Create(nil);
       vPC.DoubleBuffered := True;
       vPC.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
-      vPC.Properties.Images := TDragImageList(TInteractor(AView.Interactor).Images[16]);
+      vPC.Properties.Images := TDragImageList(vUIBuilder.Images[16]);
       vPC.Properties.TabPosition := tpBottom;
       if vParams.Values['PageLayout'] = 'Top' then
         vPC.Properties.TabPosition := tpTop;
@@ -301,7 +303,7 @@ begin
   Result := vImageList;
 
   for vIndex in AImages.Indices.Keys do
-    AInteractor.StoreImageIndex(vIndex, AImages.Indices[vIndex]);
+    AInteractor.UIBuilder.StoreImageIndex(vIndex, AImages.Indices[vIndex]);
 
   vImage := TdxPNGImage.Create;
   vImageList.BeginUpdate;

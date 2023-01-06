@@ -38,7 +38,7 @@ interface
 uses
   Generics.Collections, uFastClasses, Classes, SyncObjs, uModule, uConsts, uConfiguration, uDefinition,
   uCollection, uEntity, uEntityList, uStorage, uSession, uChangeManager, uSettings, uLogger, uScheduler,
-  uTranslator, uJSON, uUtils;
+  uTranslator, uJSON, uUtils, uView;
 
 type
   TNotifyProgressEvent = procedure (const AProgress: Integer; const AInfo: string) of object;
@@ -61,6 +61,34 @@ type
 
   // в домене должна быть возможность прямого указания на соединение
   // например, домен заказа еды м.б. связан с телеграм-ботами @feed, @eda и т.п.
+
+  {TLayouts = class end;
+
+  TUIBuilder_ = class
+  private
+    FLayouts: TLayouts;
+    [Weak] FPresenter: TObject;
+
+    function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
+    function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
+    function GetImageID(const AImageID: Integer): Integer;
+    procedure GetLayoutName(const AEntity: TEntity; const AParams: string; var ALayoutName: string);
+  public
+    constructor Create(const AInteractor: TObject);
+    destructor Destroy; override;
+
+    procedure ApplyLayout(const AArea: TUIArea; const AView: TView; const ALayoutName: string; const AParams: string);
+
+    function Navigate(const AView: TView; const AAreaName, ALayoutName: string;
+      const AOptions: string = ''; const AChangeHolder: TObject = nil; const ACaption: string = '';
+      const AOnClose: TProc = nil): TDialogResult;
+
+    procedure CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
+    procedure CloseCurrentArea(const AModalResult: Integer);
+
+    property Presenter: TObject read FPresenter;
+    property Layouts: TLayouts read FLayouts;
+  end;  }
 
   TDomain = class
   private
@@ -210,7 +238,7 @@ implementation
 
 uses
   Types, SysUtils, StrUtils, IOUtils, Math, Variants, IniFiles,
-  uPlatform, uQueryDef, uQuery, uView;
+  uPlatform, uQueryDef, uQuery;
 
 type
   TCreateDefaultEntitiesProc = procedure (const ADomain: TObject) of object;

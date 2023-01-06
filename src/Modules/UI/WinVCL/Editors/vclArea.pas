@@ -233,7 +233,7 @@ begin
   CopyFontSettings(FButton.Font, ALayout);
 
   vImageSize := StrToIntDef(GetUrlParam(FParams, 'ImageSize'), 16);
-  FButton.Images := TDragImageList(TInteractor(FView.Interactor).Images[vImageSize]);
+  FButton.Images := TDragImageList(FUIBuilder.Images[vImageSize]);
 
   vActionName := GetUrlParam(FParams, 'Action');
   if Length(vActionName) > 0 then
@@ -256,7 +256,7 @@ begin
   end;
 
   FMenu := TPopupMenu.Create(nil);
-  FMenu.Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
+  FMenu.Images := TDragImageList(FUIBuilder.Images[16]);
   FButton.PopupMenu := FMenu;
   FButton.DropDownMenu := FMenu;
 
@@ -294,7 +294,7 @@ end;
 function TMainMenuArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FMenu := TMainMenu.Create(TComponent(GetVCLControl(AParent)));
-  FMenu.Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
+  FMenu.Images := TDragImageList(FUIBuilder.Images[16]);
   Result := FMenu;
 end;
 
@@ -414,7 +414,7 @@ begin
     Exit;
 
   vImageSize := StrToIntDef(GetUrlParam(FParams, 'ImageSize'), 16);
-  FToolBar.Images := TDragImageList(TInteractor(FInteractor).Images[vImageSize]);
+  FToolBar.Images := TDragImageList(FUIBuilder.Images[vImageSize]);
   FToolBar.AutoSize := True;
   for i := 0 to FToolBar.ButtonCount - 1 do
   begin
@@ -640,7 +640,7 @@ begin
   end;
 
   vButton := TButton.Create(nil);
-  vButton.Images := TDragImageList(TInteractor(FInteractor).Images[vImageSize]);
+  vButton.Images := TDragImageList(FUIBuilder.Images[vImageSize]);
   vImageID := GetImageID(vImageID);
 
   //TODO: We need another control or style here
@@ -701,7 +701,7 @@ begin
     if vDefinitions.Count > 1 then
     begin
       FTypeSelectionMenu := TPopupMenu.Create(nil);
-      FTypeSelectionMenu.Images := TDragImageList(TInteractor(FInteractor).Images[16]);
+      FTypeSelectionMenu.Images := TDragImageList(FUIBuilder.Images[16]);
       for i := 0 to vDefinitions.Count - 1 do
       begin
         vDefinition := TDefinition(vDefinitions[i]);

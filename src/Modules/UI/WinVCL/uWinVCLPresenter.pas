@@ -641,6 +641,7 @@ function TWinVCLPresenter.CreateControl(const AParent: TUIArea; const AView: TVi
 var
   vDomain: TDomain;
   vInteractor: TInteractor;
+  vUIBuilder: TUIBuilder;
   vStartPageName: string;
   vForm: TForm;
   vShape: TShape;
@@ -662,6 +663,7 @@ begin
   Result := nil;
 
   vInteractor := TInteractor(AView.Interactor);
+  vUIBuilder := vInteractor.UIBuilder;
   vDomain := TDomain(vInteractor.Domain);
   vParentControl := GetVCLControl(AParent);
 
@@ -754,7 +756,7 @@ begin
       vForm.OnClose := OnCloseMDIForm;
       vForm.ShowHint := True;
       if AView.DefinitionKind in [dkCollection, dkAction, dkEntity] then
-        TDragImageList(TInteractor(AView.Interactor).Images[16]).GetIcon(AParent.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
+        TDragImageList(vUIBuilder.Images[16]).GetIcon(AParent.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
 
       Result := vForm;
     end
@@ -816,7 +818,7 @@ begin
       vPC := TPageControl.Create(nil);
       vPC.DoubleBuffered := True;
       vPC.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
-      vPC.Images := TDragImageList(TInteractor(AView.Interactor).Images[16]);
+      vPC.Images := TDragImageList(vUIBuilder.Images[16]);
       vPC.TabPosition := tpBottom;
       if vParams.Values['PageLayout'] = 'Top' then
         vPC.TabPosition := tpTop;
@@ -931,7 +933,7 @@ begin
       vForm.Caption := ALayout.Caption;
       vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
       if (AView.DefinitionKind in [dkCollection, dkAction, dkEntity]) then
-        TDragImageList(TInteractor(vInteractor).Images[16]).GetIcon(vArea.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
+        TDragImageList(vUIBuilder.Images[16]).GetIcon(vArea.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
     end
     // дочерняя модальная форма
     else if (ALayout.StyleName = 'child') or (ALayout.StyleName = 'modal') then
@@ -965,7 +967,7 @@ begin
     if (ALayout.StyleName = '') or (ALayout.StyleName = 'menu') then
     begin
       vMenu := TPopupMenu.Create(TComponent(vParentControl));
-      vMenu.Images := TDragImageList(TInteractor(AParent.Interactor).Images[16]);
+      vMenu.Images := TDragImageList(vUIBuilder.Images[16]);
       ALayout.Name := '-popup-';
       Result := vMenu;
     end
@@ -1043,7 +1045,7 @@ begin
   Result := vImageList;
 
   for vIndex in AImages.Indices.Keys do
-    AInteractor.StoreImageIndex(vIndex, AImages.Indices[vIndex]);
+    AInteractor.UIBuilder.StoreImageIndex(vIndex, AImages.Indices[vIndex]);
 
   vImage := TPngImage.Create;
   vBitmap := TBitmap.Create;

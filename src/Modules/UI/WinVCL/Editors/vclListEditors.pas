@@ -1866,7 +1866,7 @@ begin
   else
   begin
     vCol.PropertiesClass := TcxImageComboBoxProperties;
-    TcxImageComboBoxProperties(vCol.Properties).Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
+    TcxImageComboBoxProperties(vCol.Properties).Images := TDragImageList(FUIBuilder.Images[16]);
     for i := 0 to FAllData.ContentDefinitions.Count - 1 do
     begin
       vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
@@ -2681,7 +2681,7 @@ var
     vEditRepositoryButtonItem := TcxEditRepositoryButtonItem(FEditRepository.CreateItem(TcxEditRepositoryButtonItem));
     vEditRepositoryButtonItem.Name := AActionDef.Name + APostfix;
     vEditRepositoryButtonItem.Properties.ViewStyle := vsButtonsAutoWidth;
-    vEditRepositoryButtonItem.Properties.Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
+    vEditRepositoryButtonItem.Properties.Images := TDragImageList(FUIBuilder.Images[16]);
     vBtn := vEditRepositoryButtonItem.Properties.Buttons[0];
     vBtn.Kind := bkGlyph;
     vBtn.ImageIndex := FOwner.GetImageID(AActionDef._ImageID);
@@ -2778,7 +2778,7 @@ begin
       if (AFieldDef.StyleName = 'images') then
       begin
         vCol.PropertiesClass := TcxImageComboBoxProperties;
-        TcxImageComboBoxProperties(vCol.Properties).Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
+        TcxImageComboBoxProperties(vCol.Properties).Images := TDragImageList(FUIBuilder.Images[16]);
         for i := 0 to FAllData.ContentDefinitions.Count - 1 do
         begin
           vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
@@ -2811,7 +2811,7 @@ begin
   else
   begin
     vCol.PropertiesClass := TcxImageComboBoxProperties;
-    TcxImageComboBoxProperties(vCol.Properties).Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
+    TcxImageComboBoxProperties(vCol.Properties).Images := TDragImageList(FUIBuilder.Images[16]);
     for i := 0 to FAllData.ContentDefinitions.Count - 1 do
     begin
       vDefinition := TDefinition(FAllData.ContentDefinitions[i]);

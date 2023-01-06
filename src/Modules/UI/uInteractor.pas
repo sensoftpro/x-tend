@@ -53,9 +53,7 @@ type
     FAppTitle: string;
 
     FUIBuilder: TUIBuilder;
-    FImages: TObjectDictionary<Integer, TObject>;
-    FImageMap: TDictionary<Integer, Integer>;
-    function GetImages(const AResolution: Integer): TObject;
+    //FUIInstance: TUIInstance;
   public
     constructor Create(const APresenter, ASession: TObject);
     destructor Destroy; override;
@@ -78,12 +76,9 @@ type
     function ShowOkCancelDialog(const ACaption, AText: string): TDialogResult;
     procedure PrintHierarchy;
 
-    procedure StoreImageIndex(const AImageID, AImageIndex: Integer);
-    function GetImageIndex(const AImageID: Integer): Integer;
-
-    property Images[const AResolution: Integer]: TObject read GetImages;
     property Presenter: TObject read FPresenter;
     property UIBuilder: TUIBuilder read FUIBuilder;
+    //property UIInstance: TUIInstance read FUIInstance;
     property SysImagesResolution: Integer read FSysImagesResolution write FSysImagesResolution;
     property Layout: string read FLayout write FLayout;
     property AppTitle: string read FAppTitle;
@@ -162,22 +157,18 @@ begin
   FConfiguration := TDomain(FDomain).Configuration;
 
   FUIBuilder := TUIBuilder.Create(Self);
+  //FUIInstance := TUIInstance.Create(FUIBuilder, Self);
 
   FAppTitle := Translate('AppTitle', TConfiguration(FConfiguration)._Caption);
 
   FSysImagesResolution := StrToIntDef(TDomain(FDomain).Settings.GetValue('Core', 'SysImagesResolution'), 16);
   FLayout := TDomain(FDomain).Settings.GetValue('Core', 'Layout');
-
-  FImageMap := TDictionary<Integer, Integer>.Create;
-  FImages := TObjectDictionary<Integer, TObject>.Create([doOwnsValues]);
-  GetImages(16);
 end;
 
 destructor TInteractor.Destroy;
 begin
+  //FreeAndNil(FUIInstance);
   FreeAndNil(FUIBuilder);
-  FreeAndNil(FImageMap);
-  FreeAndNil(FImages);
 
   FPresenter := nil;
 
@@ -192,21 +183,6 @@ end;
 function TInteractor.EditParams(const AEntity: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
 begin
   Result := ShowEntityEditor(GetViewOfEntity(AEntity), nil, ALayoutName, ACaption);
-end;
-
-function TInteractor.GetImageIndex(const AImageID: Integer): Integer;
-begin
-  if not FImageMap.TryGetValue(AImageID, Result) then
-    Result := -1;
-end;
-
-function TInteractor.GetImages(const AResolution: Integer): TObject;
-begin
-  if not FImages.TryGetValue(AResolution, Result) then
-  begin
-    Result := TPresenter(FPresenter).CreateImages(Self, AResolution);
-    FImages.AddOrSetValue(AResolution, Result);
-  end;
 end;
 
 function TInteractor.GetViewOfEntity(const AEntity: TObject): TView;
@@ -301,12 +277,6 @@ function TInteractor.ShowYesNoDialog(const ACaption, AText: string;
 begin
   TUserSession(FSession).CheckLocking(False);
   Result := TPresenter(FPresenter).ShowYesNoDialog(ACaption, AText, AWithCancel);
-end;
-
-procedure TInteractor.StoreImageIndex(const AImageID, AImageIndex: Integer);
-begin
-  if not FImageMap.ContainsKey(AImageID) then
-    FImageMap.Add(AImageID, AImageIndex);
 end;
 
 function TInteractor.Translate(const AKey, ADefault: string): string;

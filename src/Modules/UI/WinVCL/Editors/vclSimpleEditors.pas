@@ -1719,7 +1719,7 @@ begin
   FBtn.Align := alRight;
   FBtn.Parent := vBase;
   FBtn.Width := 40;
-  FBtn.OptionsImage.Images := TDragImageList(TInteractor(FInteractor).Images[16]);
+  FBtn.OptionsImage.Images := TDragImageList(FUIBuilder.Images[16]);
   FBtn.Action := FAction;
 
   FText := TcxTextEdit.Create(nil);
@@ -1818,7 +1818,7 @@ begin
   FBtn.Align := alRight;
   FBtn.Parent := vBase;
   FBtn.Width := 40;
-  FBtn.OptionsImage.Images := TDragImageList(TInteractor(FInteractor).Images[16]);
+  FBtn.OptionsImage.Images := TDragImageList(FUIBuilder.Images[16]);
   FBtn.Action := FAction;
 
   FText := TcxTextEdit.Create(nil);
@@ -2814,7 +2814,7 @@ begin
     FActionView := nil;
 
   vButton := TcxButton.Create(nil);
-  vButton.OptionsImage.Images := TDragImageList(TInteractor(FInteractor).Images[vImageSize]);
+  vButton.OptionsImage.Images := TDragImageList(FUIBuilder.Images[vImageSize]);
   vButton.PaintStyle := bpsGlyph;
   vButton.OnClick := OnButtonClick;
 

@@ -112,8 +112,8 @@ begin
   FNavBar := TdxNavBar.Create(nil);
   FNavBar.DoubleBuffered := True;
   FNavBar.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
-  FNavBar.SmallImages := TDragImageList(TInteractor(FView.Interactor).Images[16]);
-  FNavBar.LargeImages := TDragImageList(TInteractor(FView.Interactor).Images[32]);
+  FNavBar.SmallImages := TDragImageList(FUIBuilder.Images[16]);
+  FNavBar.LargeImages := TDragImageList(FUIBuilder.Images[32]);
   FNavBar.View := StrToIntDef(GetUrlParam(ALayout.Params, 'NavBarKind'), 4);
   CopyFontSettings(FNavBar.OptionsStyle.DefaultStyles.GroupHeader.Font, ALayout);
   FNavBar.OptionsStyle.DefaultStyles.GroupHeader.Font.Size := 12;
@@ -204,7 +204,7 @@ begin
   end;
 
   vButton := TcxButton.Create(nil);
-  vButton.OptionsImage.Images := TDragImageList(TInteractor(FInteractor).Images[vImageSize]);
+  vButton.OptionsImage.Images := TDragImageList(FUIBuilder.Images[vImageSize]);
   vImageID := FOwner.GetImageID(vImageID);
 
   if (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone) then
@@ -268,7 +268,7 @@ begin
     if vDefinitions.Count > 1 then
     begin
       FTypeSelectionMenu := TPopupMenu.Create(nil);
-      FTypeSelectionMenu.Images := TDragImageList(TInteractor(FInteractor).Images[16]);
+      FTypeSelectionMenu.Images := TDragImageList(FUIBuilder.Images[16]);
       for i := 0 to vDefinitions.Count - 1 do
       begin
         vDefinition := TDefinition(vDefinitions[i]);
