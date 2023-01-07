@@ -307,7 +307,7 @@ type
     [Weak] FInteractor: TObject;
     [Weak] FPresenter: TObject;
 
-    FWindowStyle: string;
+    FIsMDIStyle: Boolean;
     FImages: TObjectDictionary<Integer, TObject>;
     FImageMap: TDictionary<Integer, Integer>;
     function GetImages(const AResolution: Integer): TObject;
@@ -345,7 +345,7 @@ type
     property ActiveArea: TUIArea read FActiveArea write FActiveArea;
     property Presenter: TObject read FPresenter;
     property Layouts: TLayouts read FLayouts;
-    property WindowStyle: string read FWindowStyle write FWindowStyle;
+    property IsMDIStyle: Boolean read FIsMDIStyle write FIsMDIStyle;
     property Images[const AResolution: Integer]: TObject read GetImages;
   end;
 
@@ -629,7 +629,7 @@ begin
   FImageMap := TDictionary<Integer, Integer>.Create;
   FImages := TObjectDictionary<Integer, TObject>.Create([doOwnsValues]);
 
-  FWindowStyle := FDomain.Settings.GetValue('Core', 'Layout');
+  FIsMDIStyle := SameText(FDomain.Settings.GetValue('Core', 'Layout'), 'mdi') ;
 end;
 
 procedure TUIBuilder.CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
@@ -802,8 +802,6 @@ begin
   ///  ALayoutName - имя лэйаута, которое будет использовано для заполнения области
 
   /// Нужно учитывать область, которая останется владельцем
-  vIsMainForm := False;
-  vLastCurrentArea := FCurrentArea;
   vLayoutName := ALayoutName;
 
   if Assigned(AView) then
@@ -821,25 +819,23 @@ begin
   else
     vView := FRootView;
 
-  if (AAreaName = 'WorkArea') and (FWindowStyle <> 'mdi') and not Assigned(FRootArea.AreaById(AAreaName)) then
+  if (AAreaName = 'WorkArea') and not FIsMDIStyle and not Assigned(FRootArea.AreaById(AAreaName)) then
     vAreaName := 'child'
   else
     vAreaName := AAreaName;
 
+  // Creation of forms
   if (vAreaName = '') or (vAreaName = 'child') or (vAreaName = 'float') or (vAreaName = 'modal') then
   begin
+    vIsMainForm := False;
+    vLastCurrentArea := FCurrentArea;
+
     vFormLayout := FLayouts.CreateSimpleLayout(lkFrame);
     vFormLayout.Caption := ACaption;
     vFormLayout.StyleName := vAreaName;
     vFormLayout.AreaKind := akForm;
-    vUIArea := TPresenter(FPresenter).CreateArea(FCurrentArea, vView, vFormLayout, '', AOnClose);
-  end
-  else
-    vUIArea := nil;
 
-  // Главная форма и форма редактирования
-  if Assigned(vUIArea) then
-  begin
+    vUIArea := TPresenter(FPresenter).CreateArea(FCurrentArea, vView, vFormLayout, '', AOnClose);
     vUIArea.SetHolder(AChangeHolder);
     vUIArea.BeginUpdate;
     try
@@ -850,8 +846,6 @@ begin
         vIsMainForm := True;
       end
       else begin
-        ///todo Нужна явная область вместо FCurrentArea!!! Записывать ее в UIBuilder перед Navigate
-
         if FCurrentArea.FAreas.IndexOf(vUIArea) >= 0 then
         begin
           Result := TPresenter(FPresenter).ShowUIArea(TInteractor(FInteractor), vAreaName, AOptions, vUIArea);
@@ -879,8 +873,36 @@ begin
     finally
       vUIArea.EndUpdate;
     end;
+
+    vOptions := AOptions;
+    if ACaption <> '' then
+    begin
+      if vOptions <> '' then
+        vOptions := vOptions + '&';
+      vOptions := vOptions + 'Caption=' + ACaption;
+    end;
+
+    Result := TPresenter(FPresenter).ShowUIArea(TInteractor(FInteractor), vAreaName, vOptions, vUIArea);
+    if Result > drNone then
+      FCurrentArea := vLastCurrentArea;
+
+    if vIsMainForm and (FDefaultParams <> '') then
+    begin
+      vParams := CreateDelimitedList(FDefaultParams, '&');
+      try
+        vViewName := ExtractValueFromStrings(vParams, 'View');
+        vLayoutName := ExtractValueFromStrings(vParams, 'Layout');
+        if (vViewName <> '') or (vLayoutName <> '') then
+          Navigate(FRootView.BuildView(vViewName), 'WorkArea', vLayoutName, '', nil, ExtractValueFromStrings(vParams, 'Caption'));
+      finally
+        FreeAndNil(vParams);
+        FDefaultParams := '';
+      end;
+    end;
   end
+  // Creation of an internal area
   else begin
+    Result := drNone;
     vUIArea := FRootArea.AreaById(vAreaName);
     if not Assigned(vUIArea) then
     begin
@@ -890,7 +912,8 @@ begin
         Assert(False, 'Область [' + vAreaName + '] не найдена');
     end;
 
-    if (vUIArea.QueryParameter('ViewType') = 'Paged') or (vUIArea = FRootArea) then
+    // Creation of new page for area content
+    if vUIArea.QueryParameter('ViewType') = 'Paged' then
     begin
       vImageID := StrToIntDef(GetUrlParam(AOptions, 'ImageID'), -1);
       if Assigned(AView) then
@@ -927,12 +950,14 @@ begin
           if vImageID <= 0 then
             vLayout.ImageID := GetImageIndex(TDefinition(vView.Definition)._ImageID);
         end
+        else if (vView.DefinitionKind = dkEntity) and Assigned(vView.DomainObject) then
+          vLayout.Caption := SafeDisplayName(TEntity(vView.DomainObject), ACaption)
         else if ACaption <> '' then
           vLayout.Caption := ACaption
         else
           vLayout.Caption := 'Стартовая страница';
 
-        if FWindowStyle = 'mdi' then
+        if FIsMDIStyle then
           vLayout.AreaKind := akForm;
 
         vTabArea := vUIArea.CreateChildArea(vView, vLayout, AOptions, AOnClose);
@@ -947,6 +972,7 @@ begin
 
       vTabArea.Activate(FDefaultParams + IfThen(FDefaultParams = '', '', '&') + 'TabActivationOption=' + GetUrlParam(AOptions, 'TabActivationOption', 'ChangeTab'));
     end
+    // Overwrite area content
     else begin
       vView.AddListener(FRootArea);
       vUIArea.BeginUpdate;
@@ -958,35 +984,6 @@ begin
         vView.RemoveListener(FRootArea);
         vUIArea.EndUpdate;
       end;
-    end;
-  end;
-
-  PrintHierarchy;
-
-  vOptions := AOptions;
-
-  if ACaption <> '' then
-  begin
-    if vOptions <> '' then
-      vOptions := vOptions + '&';
-    vOptions := vOptions + 'Caption=' + ACaption;
-  end;
-
-  Result := TPresenter(FPresenter).ShowUIArea(TInteractor(FInteractor), vAreaName, vOptions, vUIArea);
-  if Result > drNone then
-    FCurrentArea := vLastCurrentArea;
-
-  if vIsMainForm and (FDefaultParams <> '') then
-  begin
-    vParams := CreateDelimitedList(FDefaultParams, '&');
-    try
-      vViewName := ExtractValueFromStrings(vParams, 'View');
-      vLayoutName := ExtractValueFromStrings(vParams, 'Layout');
-      if (vViewName <> '') or (vLayoutName <> '') then
-        Navigate(FRootView.BuildView(vViewName), 'WorkArea', vLayoutName, '', nil, ExtractValueFromStrings(vParams, 'Caption'));
-    finally
-      FreeAndNil(vParams);
-      FDefaultParams := '';
     end;
   end;
 
@@ -1569,7 +1566,7 @@ var
         FreeAndNil(vDefinitions);
       end;
     end
-    else if (ACurrentItem.Id = 'Windows') and (FUIBuilder.WindowStyle = 'mdi') then
+    else if (ACurrentItem.Id = 'Windows') and FUIBuilder.IsMDIStyle then
     begin
       ACurrentItem.Insert(0, 'ArrangeMozaic');
       ACurrentItem.Insert(1, 'ArrangeCascade');

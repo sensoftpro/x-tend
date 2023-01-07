@@ -315,7 +315,7 @@ procedure TWinVCLPresenter.ArrangePages(const AInteractor: TInteractor; const AA
 var
   vForm: TForm;
 begin
-  if AInteractor.UIBuilder.WindowStyle <> 'mdi'  then
+  if not AInteractor.UIBuilder.IsMDIStyle then
     Exit;
 
   vForm := TForm(GetVCLControl(AInteractor.UIBuilder.RootArea));
@@ -747,7 +747,7 @@ begin
   begin
     ALayout.Id := ALayout.Name;
 
-    if (vUIBuilder.WindowStyle = 'mdi') and (ALayout.Tag = 11) then
+    if vUIBuilder.IsMDIStyle and (ALayout.Tag = 11) then
     begin
       vForm := TForm.Create(nil);
       vForm.Caption := ALayout.Caption;
@@ -808,7 +808,7 @@ begin
 
     if Assigned(vParams) and (vParams.Values['ViewType'] = 'Paged') then
     begin
-      if vUIBuilder.WindowStyle = 'mdi' then
+      if vUIBuilder.IsMDIStyle then
       begin
         AParent.UIBuilder.DefaultParams := AParams;
         FreeAndNil(vParams);
@@ -903,7 +903,7 @@ begin
     begin
       Application.CreateForm(TForm, vForm);
 
-      if vUIBuilder.WindowStyle = 'mdi' then
+      if vUIBuilder.IsMDIStyle then
         vForm.FormStyle := fsMDIForm;
 
       vForm.OnClose := DoMainFormClose;
@@ -1447,7 +1447,7 @@ var
   i: Integer;
   vMainForm: TForm;
 begin
-  if AInteractor.UIBuilder.WindowStyle = 'mdi' then
+  if AInteractor.UIBuilder.IsMDIStyle then
   begin
     vMainForm := TForm(GetVCLControl(AInteractor.UIBuilder.RootArea));
     if Assigned(vMainForm) and (vMainForm.FormStyle = fsMDIForm) then

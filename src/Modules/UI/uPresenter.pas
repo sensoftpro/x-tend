@@ -342,7 +342,7 @@ var
   i: Integer;
   vChildArea: TUIArea;
 begin
-  if AInteractor.UIBuilder.WindowStyle = 'mdi' then
+  if AInteractor.UIBuilder.IsMDIStyle then
   begin
     DoCloseAllPages(AInteractor);
     Exit;
