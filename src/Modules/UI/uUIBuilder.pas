@@ -177,10 +177,7 @@ type
     function GetHolder: TObject;
     procedure TrySubscribeView;
     procedure TryUnsubscribeView;
-    procedure SetView(const Value: TView);
-    procedure SetLayout(const Value: TLayout);
     procedure DisableContent;
-    procedure AfterChildAreasCreated;
     function ParentInUpdate: Boolean;
     function GetTabOrder: Integer;
     function GetTabStop: Boolean;
@@ -199,11 +196,7 @@ type
     procedure DoExecuteUIAction(const AView: TView);
     procedure SetParent(const Value: TUIArea);
 
-    procedure AssignFromLayout(const ALayout: TLayout; const AParams: string);
-
     function CanChangeArea: Boolean;
-    procedure BeginUpdate;
-    procedure EndUpdate;
     function GetAreaByView(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
     procedure ClearContent;
   protected
@@ -231,6 +224,14 @@ type
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
     function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
     function GetImageID(const AImageID: Integer): Integer;
+
+    // For interactor
+    procedure BeginUpdate;
+    procedure EndUpdate;
+    procedure AssignFromLayout(const ALayout: TLayout; const AParams: string);
+    procedure SetView(const Value: TView);
+    procedure SetLayout(const Value: TLayout);
+    procedure AfterChildAreasCreated;
 
     procedure Validate;
     procedure Deinit;
@@ -346,40 +347,6 @@ type
     property Layouts: TLayouts read FLayouts;
     property WindowStyle: string read FWindowStyle write FWindowStyle;
     property Images[const AResolution: Integer]: TObject read GetImages;
-  end;
-
-  TUIInstance = class
-  private
-    FRootArea: TUIArea;
-    FDefaultParams: string;
-    [Weak] FUIBuilder: TUIBuilder;
-    [Weak] FCurrentArea: TUIArea;
-    [Weak] FLastArea: TUIArea;
-    [Weak] FActiveArea: TUIArea;
-    [Weak] FPagedArea: TUIArea;
-    [Weak] FInteractor: TObject;
-    [Weak] FPresenter: TObject;
-
-    procedure SetLastArea(const Value: TUIArea);
-    procedure SetPagedArea(const Value: TUIArea);
-  public
-    constructor Create(const AUIBuilder: TUIBuilder; const AInteractor: TObject);
-    destructor Destroy; override;
-
-    procedure ApplyLayout(const AArea: TUIArea; const AView: TView; const ALayoutName: string; const AParams: string);
-    procedure CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
-    procedure CloseCurrentArea(const AModalResult: Integer);
-    procedure PrintHierarchy;
-    procedure ProcessAreaDeleting(const AArea: TUIArea);
-
-    property UIBuilder: TUIBuilder read FUIBuilder;
-    property RootArea: TUIArea read FRootArea;
-    property CurrentArea: TUIArea read FCurrentArea;
-    property DefaultParams: string read FDefaultParams write FDefaultParams;
-    property PagedArea: TUIArea read FPagedArea write SetPagedArea;
-    property LastArea: TUIArea read FLastArea write SetLastArea;
-    property ActiveArea: TUIArea read FActiveArea write FActiveArea;
-    property Presenter: TObject read FPresenter;
   end;
 
 type
@@ -2614,110 +2581,6 @@ end;
 
 procedure TNativeControl.UpdateCaptionVisibility;
 begin
-end;
-
-{ TUIInstance }
-
-procedure TUIInstance.ApplyLayout(const AArea: TUIArea; const AView: TView;
-  const ALayoutName, AParams: string);
-var
-  vLayout: TLayout;
-begin
-  vLayout := FUIBuilder.Layouts.GetLayout(ALayoutName, AView);
-
-  AArea.BeginUpdate;
-  try
-    AArea.AssignFromLayout(vLayout, AParams);
-    AArea.SetView(AView);
-    AArea.SetLayout(vLayout);
-    CreateChildAreas(AArea, AView, vLayout, AParams);
-    AArea.SetBounds(
-      StrToIntDef(GetUrlParam(AParams, 'Left', ''), -1),
-      StrToIntDef(GetUrlParam(AParams, 'Top', ''), -1),
-      StrToIntDef(GetUrlParam(AParams, 'Width', ''), -1),
-      StrToIntDef(GetUrlParam(AParams, 'Height', ''), -1));
-  finally
-    AArea.EndUpdate;
-  end;
-end;
-
-procedure TUIInstance.CloseCurrentArea(const AModalResult: Integer);
-begin
-  FCurrentArea.Close(AModalResult);
-end;
-
-constructor TUIInstance.Create(const AUIBuilder: TUIBuilder; const AInteractor: TObject);
-begin
-  inherited Create;
-  FUIBuilder := AUIBuilder;
-  FInteractor := AInteractor;
-  FPresenter := TInteractor(FInteractor).Presenter;
-  FRootArea := nil;
-  FCurrentArea := nil;
-  FLastArea := nil;
-  FActiveArea := nil;
-  FPagedArea := nil;
-  FDefaultParams := '';
-end;
-
-procedure TUIInstance.CreateChildAreas(const AArea: TUIArea; const AView: TView;
-  const ALayout: TLayout; const AParams: string);
-var
-  i: Integer;
-begin
-  for i := 0 to ALayout.Items.Count - 1 do
-    AArea.CreateChildArea(AView, ALayout.Items[i], AParams);
-  AArea.AfterChildAreasCreated;
-end;
-
-destructor TUIInstance.Destroy;
-begin
-  SetLastArea(nil);
-  FCurrentArea := nil;
-  FPagedArea := nil;
-  if Assigned(FRootArea) then
-    FRootArea.Release;
-  FPresenter := nil;
-  FInteractor := nil;
-  inherited Destroy;
-end;
-
-procedure TUIInstance.PrintHierarchy;
-begin
-  TPresenter(FPresenter).ShowPage(TInteractor(FInteractor), 'debug');
-end;
-
-procedure TUIInstance.ProcessAreaDeleting(const AArea: TUIArea);
-begin
-  if FRootArea = AArea then
-    FRootArea := nil;
-  if FCurrentArea = AArea then
-    FCurrentArea := nil;
-  if FActiveArea = AArea then
-    FActiveArea := nil;
-  if FPagedArea = AArea then
-    FPagedArea := nil;
-  //if FLastArea = AArea then
-  //  FLastArea := nil;
-end;
-
-procedure TUIInstance.SetLastArea(const Value: TUIArea);
-begin
-  if FLastArea = Value then
-    Exit;
-
-  if Assigned(FLastArea) and not Assigned(FLastArea.UIBuilder) then
-  begin
-    FLastArea.UnbindContent;
-    FLastArea.Free;
-  end;
-  FLastArea := Value;
-end;
-
-procedure TUIInstance.SetPagedArea(const Value: TUIArea);
-begin
-  Assert(not Assigned(FPagedArea), 'Область страниц инициализирована дважды!');
-  FPagedArea := Value;
 end;
 
 end.

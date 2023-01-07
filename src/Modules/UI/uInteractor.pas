@@ -36,7 +36,7 @@ unit uInteractor;
 interface
 
 uses
-  Generics.Collections, uConsts, uUIBuilder, uView;
+  Generics.Collections, uConsts, uUIBuilder, uView, uLayout;
 
 type
   TGetViewFunc = reference to function(const AHolder: TObject): TView;
@@ -49,7 +49,16 @@ type
     [Weak] FPresenter: TObject;        // Ссылка на UI
 
     FUIBuilder: TUIBuilder;
-    FUIInstance: TUIInstance;
+
+    FRootArea: TUIArea;
+    FDefaultParams: string;
+    [Weak] FCurrentArea: TUIArea;
+    [Weak] FLastArea: TUIArea;
+    [Weak] FActiveArea: TUIArea;
+    [Weak] FPagedArea: TUIArea;
+
+    procedure SetLastArea(const Value: TUIArea);
+    procedure SetPagedArea(const Value: TUIArea);
   public
     constructor Create(const APresenter, ASession: TObject);
     destructor Destroy; override;
@@ -69,12 +78,24 @@ type
 
     procedure ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);
 
+    procedure ApplyLayout(const AArea: TUIArea; const AView: TView; const ALayoutName: string; const AParams: string);
+    procedure CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
+    procedure CloseCurrentArea(const AModalResult: Integer);
+    procedure PrintHierarchy;
+    procedure ProcessAreaDeleting(const AArea: TUIArea);
+
     property Presenter: TObject read FPresenter;
     property UIBuilder: TUIBuilder read FUIBuilder;
-    property UIInstance: TUIInstance read FUIInstance;
     property Session: TObject read FSession;
     property Domain: TObject read FDomain;
     property Configuration: TObject read FConfiguration;
+
+    property RootArea: TUIArea read FRootArea;
+    property CurrentArea: TUIArea read FCurrentArea;
+    property DefaultParams: string read FDefaultParams write FDefaultParams;
+    property PagedArea: TUIArea read FPagedArea write SetPagedArea;
+    property LastArea: TUIArea read FLastArea write SetLastArea;
+    property ActiveArea: TUIArea read FActiveArea write FActiveArea;
   end;
 
 implementation
@@ -82,7 +103,7 @@ implementation
 uses
   SysUtils,
   uDomain, uEntity, uObjectField, uSession, uPresenter, uEntityList,
-  uConfiguration, uDefinition, uChangeManager;
+  uConfiguration, uDefinition, uChangeManager, uUtils;
 
 { TInteractor }
 
@@ -119,6 +140,29 @@ begin
     end, AParentHolder, ALayoutName, ACaption);
 end;
 
+procedure TInteractor.ApplyLayout(const AArea: TUIArea; const AView: TView;
+  const ALayoutName, AParams: string);
+var
+  vLayout: TLayout;
+begin
+  vLayout := FUIBuilder.Layouts.GetLayout(ALayoutName, AView);
+
+  AArea.BeginUpdate;
+  try
+    AArea.AssignFromLayout(vLayout, AParams);
+    AArea.SetView(AView);
+    AArea.SetLayout(vLayout);
+    CreateChildAreas(AArea, AView, vLayout, AParams);
+    AArea.SetBounds(
+      StrToIntDef(GetUrlParam(AParams, 'Left', ''), -1),
+      StrToIntDef(GetUrlParam(AParams, 'Top', ''), -1),
+      StrToIntDef(GetUrlParam(AParams, 'Width', ''), -1),
+      StrToIntDef(GetUrlParam(AParams, 'Height', ''), -1));
+  finally
+    AArea.EndUpdate;
+  end;
+end;
+
 function TInteractor.AtomicEditEntity(const AEntity, AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
 begin
   if not Assigned(AEntity) then
@@ -135,6 +179,11 @@ begin
   Result := ShowEntityEditor(AView, nil, ALayoutName, ACaption);
 end;
 
+procedure TInteractor.CloseCurrentArea(const AModalResult: Integer);
+begin
+  FCurrentArea.Close(AModalResult);
+end;
+
 constructor TInteractor.Create(const APresenter, ASession: TObject);
 begin
   inherited Create;
@@ -147,12 +196,32 @@ begin
   FConfiguration := TDomain(FDomain).Configuration;
 
   FUIBuilder := TUIBuilder.Create(Self);
-  FUIInstance := TUIInstance.Create(FUIBuilder, Self);
+  FRootArea := nil;
+  FCurrentArea := nil;
+  FLastArea := nil;
+  FActiveArea := nil;
+  FPagedArea := nil;
+  FDefaultParams := '';
+end;
+
+procedure TInteractor.CreateChildAreas(const AArea: TUIArea; const AView: TView;
+  const ALayout: TLayout; const AParams: string);
+var
+  i: Integer;
+begin
+  for i := 0 to ALayout.Items.Count - 1 do
+    AArea.CreateChildArea(AView, ALayout.Items[i], AParams);
+  AArea.AfterChildAreasCreated;
 end;
 
 destructor TInteractor.Destroy;
 begin
-  FreeAndNil(FUIInstance);
+  SetLastArea(nil);
+  FCurrentArea := nil;
+  FPagedArea := nil;
+  if Assigned(FRootArea) then
+    FRootArea.Release;
+
   FreeAndNil(FUIBuilder);
 
   FPresenter := nil;
@@ -220,6 +289,44 @@ begin
     or FieldIsHidden(vFieldDef) or (AAutoCreation and vFieldDef.HasFlag(cHideInEdit))
     or (Assigned(ASource) and (TEntityList(ASource).FillerKind = lfkList) and
       (TListFieldDef(TListField(TEntityList(ASource).Filler).FieldDef).IsFieldHidden(vFieldDef.Name)));
+end;
+
+procedure TInteractor.PrintHierarchy;
+begin
+  TPresenter(FPresenter).ShowPage(Self, 'debug');
+end;
+
+procedure TInteractor.ProcessAreaDeleting(const AArea: TUIArea);
+begin
+  if FRootArea = AArea then
+    FRootArea := nil;
+  if FCurrentArea = AArea then
+    FCurrentArea := nil;
+  if FActiveArea = AArea then
+    FActiveArea := nil;
+  if FPagedArea = AArea then
+    FPagedArea := nil;
+  //if FLastArea = AArea then
+  //  FLastArea := nil;
+end;
+
+procedure TInteractor.SetLastArea(const Value: TUIArea);
+begin
+  if FLastArea = Value then
+    Exit;
+
+  if Assigned(FLastArea) and not Assigned(FLastArea.UIBuilder) then
+  begin
+    FLastArea.UnbindContent;
+    FLastArea.Free;
+  end;
+  FLastArea := Value;
+end;
+
+procedure TInteractor.SetPagedArea(const Value: TUIArea);
+begin
+  Assert(not Assigned(FPagedArea), 'Область страниц инициализирована дважды!');
+  FPagedArea := Value;
 end;
 
 function TInteractor.ShowEntityEditor(const AView: TView; const AHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
