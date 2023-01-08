@@ -478,7 +478,7 @@ begin
       AHolder.DisposeOf;
 
     if Assigned(FInteractor) and Assigned(TInteractor(FInteractor).UIBuilder) then
-      TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+      TInteractor(FInteractor).PrintHierarchy;
   end;
 end;
 
@@ -503,7 +503,7 @@ begin
       InternalReleaseChangeHolder(AHolder, True, False);
     end);
   if Assigned(FInteractor) then
-    TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+    TInteractor(FInteractor).PrintHierarchy;
 end;
 
 procedure TUserSession.SetInteractor(const Value: TObject);

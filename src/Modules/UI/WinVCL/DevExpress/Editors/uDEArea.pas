@@ -60,9 +60,8 @@ type
     FTypeSelectionMenu: TPopupMenu;
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoBeforeFreeControl; override;
     procedure RefillArea(const AKind: Word); override;
-  public
-    destructor Destroy; override;
   end;
 
   TDELinkArea = class(TDEControl)
@@ -168,10 +167,9 @@ end;
 
 { TDEButtonArea }
 
-destructor TDEButtonArea.Destroy;
+procedure TDEButtonArea.DoBeforeFreeControl;
 begin
   FreeAndNil(FTypeSelectionMenu);
-  inherited Destroy;
 end;
 
 function TDEButtonArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;

@@ -92,7 +92,7 @@ type
       const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl; override;
 
     function GetImagePlaceholder(const ASize: Integer): TStream; override;
-    function DoCreateImages(const AInteractor: TInteractor; const AImages: TImages; const ASize: Integer): TObject; override;
+    function DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject; override;
 
     procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); override; // DFM
 
@@ -318,7 +318,7 @@ begin
   if not AInteractor.UIBuilder.IsMDIStyle then
     Exit;
 
-  vForm := TForm(GetVCLControl(AInteractor.UIBuilder.RootArea));
+  vForm := TForm(GetVCLControl(AInteractor.RootArea));
   case AArrangeKind of
     waCascade:
       vForm.Cascade;
@@ -810,7 +810,7 @@ begin
     begin
       if vUIBuilder.IsMDIStyle then
       begin
-        AParent.UIBuilder.DefaultParams := AParams;
+        TInteractor(AParent.Interactor).DefaultParams := AParams;
         FreeAndNil(vParams);
         Exit(nil);
       end;
@@ -1030,7 +1030,7 @@ begin
   inherited Destroy;
 end;
 
-function TWinVCLPresenter.DoCreateImages(const AInteractor: TInteractor; const AImages: TImages; const ASize: Integer): TObject;
+function TWinVCLPresenter.DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject;
 var
   vImageList: TImageList;
   vImage: TPngImage;
@@ -1045,7 +1045,7 @@ begin
   Result := vImageList;
 
   for vIndex in AImages.Indices.Keys do
-    AInteractor.UIBuilder.StoreImageIndex(vIndex, AImages.Indices[vIndex]);
+    TDomain(ADomain).UIBuilder.StoreImageIndex(vIndex, AImages.Indices[vIndex]);
 
   vImage := TPngImage.Create;
   vBitmap := TBitmap.Create;
@@ -1248,7 +1248,7 @@ end;
 procedure TWinVCLPresenter.DoLogout(const AInteractor: TInteractor);
 begin
   inherited DoLogout(AInteractor);
-  StoreUILayout(AInteractor, TForm(GetVCLControl(AInteractor.UIBuilder.RootArea)));
+  StoreUILayout(AInteractor, TForm(GetVCLControl(AInteractor.RootArea)));
   if Assigned(FDebugForm) then
     FDebugForm.RemoveInteractor(AInteractor);
 end;
@@ -1449,7 +1449,7 @@ var
 begin
   if AInteractor.UIBuilder.IsMDIStyle then
   begin
-    vMainForm := TForm(GetVCLControl(AInteractor.UIBuilder.RootArea));
+    vMainForm := TForm(GetVCLControl(AInteractor.RootArea));
     if Assigned(vMainForm) and (vMainForm.FormStyle = fsMDIForm) then
       for i := vMainForm.MDIChildCount - 1 downto 0 do
         vMainForm.MDIChildren[i].Close;

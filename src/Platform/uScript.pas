@@ -1520,7 +1520,7 @@ begin
     else
       vModalResult := mrNone;
 
-    AInteractor.UIBuilder.CloseCurrentArea(vModalResult);
+    AInteractor.CloseCurrentArea(vModalResult);
     Exit;
   end
   else if AActionName = 'ShowAbout' then
@@ -1537,7 +1537,7 @@ begin
   begin
     vDomain.LoadCollection('SysLog');
     vDomain.LoadCollection('SysLogActions');
-    AInteractor.UIBuilder.Navigate(AInteractor.UIBuilder.RootView.BuildView('SysLog'), 'WorkArea', 'Collection');
+    AInteractor.UIBuilder.Navigate(AInteractor.RootView.BuildView('SysLog'), 'WorkArea', 'Collection');
     Exit;
   end
   else if AActionName = 'SetupRTFReports' then
@@ -1549,7 +1549,7 @@ begin
   begin
     vConfig := vDomain.FirstEntity('SysConstants');
     if Assigned(vConfig) then
-      Result := AInteractor.AtomicEditEntity(AInteractor.UIBuilder.RootView.BuildView('SysConstants/Current'), AParentHolder);
+      Result := AInteractor.AtomicEditEntity(AInteractor.RootView.BuildView('SysConstants/Current'), AParentHolder);
     Exit;
   end
   else if AActionName = 'ShowOptions' then
@@ -1624,7 +1624,7 @@ begin
   else if AActionName = 'CloseAllWindows' then
   begin
     TPresenter(AInteractor.Presenter).CloseAllPages(AInteractor);
-    AInteractor.UIBuilder.PrintHierarchy;
+    AInteractor.PrintHierarchy;
     Exit;
   end
   else if AActionName = 'Logout' then

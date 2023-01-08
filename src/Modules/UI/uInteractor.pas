@@ -47,9 +47,8 @@ type
     [Weak] FDomain: TObject;           // Ссылка на исполняемый домен
     [Weak] FConfiguration: TObject;    // Ссылка на конфигурацию
     [Weak] FPresenter: TObject;        // Ссылка на UI
-
     FUIBuilder: TUIBuilder;
-
+    FRootView: TView;
     FRootArea: TUIArea;
     FDefaultParams: string;
     [Weak] FCurrentArea: TUIArea;
@@ -78,8 +77,6 @@ type
 
     procedure ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);
 
-    procedure ApplyLayout(const AArea: TUIArea; const AView: TView; const ALayoutName: string; const AParams: string);
-    procedure CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
     procedure CloseCurrentArea(const AModalResult: Integer);
     procedure PrintHierarchy;
     procedure ProcessAreaDeleting(const AArea: TUIArea);
@@ -90,8 +87,9 @@ type
     property Domain: TObject read FDomain;
     property Configuration: TObject read FConfiguration;
 
-    property RootArea: TUIArea read FRootArea;
-    property CurrentArea: TUIArea read FCurrentArea;
+    property RootView: TView read FRootView;
+    property RootArea: TUIArea read FRootArea write FRootArea;
+    property CurrentArea: TUIArea read FCurrentArea write FCurrentArea;
     property DefaultParams: string read FDefaultParams write FDefaultParams;
     property PagedArea: TUIArea read FPagedArea write SetPagedArea;
     property LastArea: TUIArea read FLastArea write SetLastArea;
@@ -140,29 +138,6 @@ begin
     end, AParentHolder, ALayoutName, ACaption);
 end;
 
-procedure TInteractor.ApplyLayout(const AArea: TUIArea; const AView: TView;
-  const ALayoutName, AParams: string);
-var
-  vLayout: TLayout;
-begin
-  vLayout := FUIBuilder.Layouts.GetLayout(ALayoutName, AView);
-
-  AArea.BeginUpdate;
-  try
-    AArea.AssignFromLayout(vLayout, AParams);
-    AArea.SetView(AView);
-    AArea.SetLayout(vLayout);
-    CreateChildAreas(AArea, AView, vLayout, AParams);
-    AArea.SetBounds(
-      StrToIntDef(GetUrlParam(AParams, 'Left', ''), -1),
-      StrToIntDef(GetUrlParam(AParams, 'Top', ''), -1),
-      StrToIntDef(GetUrlParam(AParams, 'Width', ''), -1),
-      StrToIntDef(GetUrlParam(AParams, 'Height', ''), -1));
-  finally
-    AArea.EndUpdate;
-  end;
-end;
-
 function TInteractor.AtomicEditEntity(const AEntity, AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
 begin
   if not Assigned(AEntity) then
@@ -194,24 +169,16 @@ begin
   TUserSession(FSession).Interactor := Self;
   FDomain := TUserSession(ASession).Domain;
   FConfiguration := TDomain(FDomain).Configuration;
+  FUIBuilder := TDomain(FDomain).UIBuilder;
+  FUIBuilder.Presenter := APresenter;
 
-  FUIBuilder := TUIBuilder.Create(Self);
   FRootArea := nil;
   FCurrentArea := nil;
   FLastArea := nil;
   FActiveArea := nil;
   FPagedArea := nil;
   FDefaultParams := '';
-end;
-
-procedure TInteractor.CreateChildAreas(const AArea: TUIArea; const AView: TView;
-  const ALayout: TLayout; const AParams: string);
-var
-  i: Integer;
-begin
-  for i := 0 to ALayout.Items.Count - 1 do
-    AArea.CreateChildArea(AView, ALayout.Items[i], AParams);
-  AArea.AfterChildAreasCreated;
+  FRootView := TView.Create(Self, nil, '');
 end;
 
 destructor TInteractor.Destroy;
@@ -221,11 +188,10 @@ begin
   FPagedArea := nil;
   if Assigned(FRootArea) then
     FRootArea.Release;
+  FreeAndNil(FRootView);
 
-  FreeAndNil(FUIBuilder);
-
+  FUIBuilder := nil;
   FPresenter := nil;
-
   TUserSession(FSession).Interactor := nil;
   FSession := nil;
   FDomain := nil;
@@ -247,11 +213,11 @@ begin
     Exit(nil);
 
   if vEntity.ID > 0 then
-    Result := FUIBuilder.RootView.BuildView(vEntity.Definition.Name + '/' + IntToStr(vEntity.ID))
+    Result := FRootView.BuildView(vEntity.Definition.Name + '/' + IntToStr(vEntity.ID))
   else if vEntity.ID < 0 then
-    Result := FUIBuilder.RootView.BuildView(vEntity.Definition.Name + '/New' + IntToStr(-vEntity.ID))
+    Result := FRootView.BuildView(vEntity.Definition.Name + '/New' + IntToStr(-vEntity.ID))
   else if (vEntity.ID = 0) and not vEntity.IsNew then
-    Result := FUIBuilder.RootView.BuildView(vEntity.Definition.Name + '/Auto')
+    Result := FRootView.BuildView(vEntity.Definition.Name + '/Auto')
   else
     Result := nil;
 end;
@@ -315,7 +281,7 @@ begin
   if FLastArea = Value then
     Exit;
 
-  if Assigned(FLastArea) and not Assigned(FLastArea.UIBuilder) then
+  if Assigned(FLastArea) and not Assigned(FLastArea.Interactor) then
   begin
     FLastArea.UnbindContent;
     FLastArea.Free;

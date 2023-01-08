@@ -256,7 +256,7 @@ type
       const ASrcItem: TNavigationItem; const ADestArea: TUIArea);
 
     function GetImagePlaceholder(const ASize: Integer): TStream; virtual; abstract;
-    function DoCreateImages(const AInteractor: TInteractor; const AImages: TImages;
+    function DoCreateImages(const ADomain: TObject; const AImages: TImages;
       const ASize: Integer): TObject; virtual; abstract;
 
     procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
@@ -301,7 +301,7 @@ type
     function ShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean;
     function ShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean;
 
-    function CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
+    function CreateImages(const ADomain: TObject; const ASize: Integer): TObject;
     property Name: string read FName;
   end;
 
@@ -348,13 +348,13 @@ begin
     Exit;
   end;
 
-  if not Assigned(AInteractor.UIBuilder.PagedArea) then
+  if not Assigned(AInteractor.PagedArea) then
     Exit;
 
-  for i := AInteractor.UIBuilder.PagedArea.Count - 1 downto 0 do
+  for i := AInteractor.PagedArea.Count - 1 downto 0 do
   begin
-    vChildArea := AInteractor.UIBuilder.PagedArea.Areas[i];
-    AInteractor.UIBuilder.PagedArea.RemoveArea(vChildArea);
+    vChildArea := AInteractor.PagedArea.Areas[i];
+    AInteractor.PagedArea.RemoveArea(vChildArea);
   end;
 end;
 
@@ -395,10 +395,10 @@ begin
 
         if vAction.HasFlag(ccContextAction) then
         begin
-          vView := AParent.UIBuilder.RootView.BuildView(AView.Name + '/Selected/' + vAction.Name);
+          vView := AParent.RootView.BuildView(AView.Name + '/Selected/' + vAction.Name);
         end
         else
-          vView := AParent.UIBuilder.RootView.BuildView(AView.Name + '/' + vAction.Name);
+          vView := AParent.RootView.BuildView(AView.Name + '/' + vAction.Name);
 
         if Assigned(vView) then
         begin
@@ -424,7 +424,7 @@ begin
         vChildItem := AParent.UIBuilder.Layouts.CreateSimpleLayout(lkAction);
         vChildItem.StyleName := 'line';
         vChildItem.Caption := '-';
-        vChildArea := CreateArea(AParent, AParent.UIBuilder.RootView, vChildItem);
+        vChildArea := CreateArea(AParent, AParent.RootView, vChildItem);
         AParent.AddArea(vChildArea);
       end;
 
@@ -434,7 +434,7 @@ begin
       vDefinition.GetAllReports(vReports);
       for vReport in vReports do
       begin
-        vView := AParent.UIBuilder.RootView.BuildView(AView.Name + '/Selected/' + vReport.Name);
+        vView := AParent.RootView.BuildView(AView.Name + '/Selected/' + vReport.Name);
 
         if Assigned(vView) then
         begin
@@ -460,7 +460,7 @@ begin
         vChildItem := AParent.UIBuilder.Layouts.CreateSimpleLayout(lkAction);
         vChildItem.StyleName := 'line';
         vChildItem.Caption := '-';
-        vChildArea := CreateArea(AParent, AParent.UIBuilder.RootView, vChildItem);
+        vChildArea := CreateArea(AParent, AParent.RootView, vChildItem);
         AParent.AddArea(vChildArea);
       end;
 
@@ -504,7 +504,7 @@ begin
             vChildItem.Caption := AParent.GetTranslation(vDefinition);
             vChildItem.Hint := vChildItem.Caption;
             vChildItem.ImageID := vDefinition._ImageID;
-            vDefArea := CreateArea(vChildArea, AParent.UIBuilder.RootView, vChildItem);
+            vDefArea := CreateArea(vChildArea, AParent.RootView, vChildItem);
             vChildArea.AddArea(vDefArea);
           end;
         end
@@ -526,7 +526,7 @@ begin
 
       vSrcItem.StyleName := 'group';
       vSrcItem.Caption := vCaption;
-      vChildArea := CreateArea(AParent, AParent.UIBuilder.RootView, vSrcItem);
+      vChildArea := CreateArea(AParent, AParent.RootView, vSrcItem);
       vChildArea.NativeControl.ViewState := vsDisabled;
       AParent.AddArea(vChildArea);
     end;
@@ -599,7 +599,7 @@ begin
 
       Result.AddParams(vParams);
 
-      AParent.UIBuilder.PagedArea := Result;
+      TInteractor(AParent.Interactor).PagedArea := Result;
     end;
   end;
 end;
@@ -618,7 +618,7 @@ begin
   Result.CreateContent(nil);
 end;
 
-function TPresenter.CreateImages(const AInteractor: TInteractor; const ASize: Integer): TObject;
+function TPresenter.CreateImages(const ADomain: TObject; const ASize: Integer): TObject;
 var
   vConfiguration: TConfiguration;
   vImages: TImages;
@@ -638,9 +638,8 @@ var
 begin
   vImages := TImages.Create(ASize);
   try
+    vConfiguration := TDomain(ADomain).Configuration;
     AppendIconsToImages(FCommonIcons, vImages);
-
-    vConfiguration := TConfiguration(AInteractor.Configuration);
     AppendIconsToImages(vConfiguration.Icons, vImages);
 
     vPlaceholder := vImages.Placeholder;
@@ -650,7 +649,7 @@ begin
     if Assigned(vPlaceholder) then
       vImages.FillWithPlaceholder(vPlaceholder);
 
-    Result := DoCreateImages(AInteractor, vImages, ASize);
+    Result := DoCreateImages(ADomain, vImages, ASize);
   finally
     if not Assigned(vImages.Placeholder) then
       FreeAndNil(vPlaceholder);
@@ -932,7 +931,7 @@ begin
     vFormArea.Close(mrOk)
   else if AKey = vkEscape then
   begin
-    vFormArea.UIBuilder.LastArea := nil;
+    TInteractor(vFormArea.Interactor).LastArea := nil;
     vView := vFormArea.View.ViewByName('Close');
     if not Assigned(vView) then
       vView := vFormArea.View.ViewByName('Cancel');
@@ -979,7 +978,7 @@ begin
         vArea.Parent.RemoveArea(vArea);
 
       if Assigned(vInteractor.UIBuilder) then
-        vInteractor.UIBuilder.PrintHierarchy;
+        vInteractor.PrintHierarchy;
     end
     else
       Action := TCloseAction.caNone;
@@ -1048,7 +1047,7 @@ begin
   vMainFormName := vDomain.Settings.GetValue('Core', 'MainForm', '');
   if Trim(vMainFormName) = '' then
     vMainFormName := 'MainForm';
-  Result.UIBuilder.Navigate(nil, '', vMainFormName, '', vSession.NullHolder);
+  vDomain.UIBuilder.Navigate(Result.RootView, '', vMainFormName, '', vSession.NullHolder);
 
   TLoginedProc(vDomain.Configuration.LoginedProc)(Result);
 end;
@@ -1101,9 +1100,9 @@ begin
     if AKey = vkE then
     begin
       AHandled := True;
-      if not Assigned(vActiveInteractor.UIBuilder.ActiveArea) then
+      if not Assigned(vActiveInteractor.ActiveArea) then
         Exit;
-      vView := vActiveInteractor.UIBuilder.ActiveArea.View;
+      vView := vActiveInteractor.ActiveArea.View;
       if not (vView.DefinitionKind in [dkAction, dkListField, dkObjectField, dkSimpleField]) then
         Exit;
       if not TUserSession(vActiveInteractor.Session).IsAdmin then
@@ -1251,7 +1250,7 @@ begin
     begin
       vCloseProc := vArea.OnClose;
       vArea.UnbindContent(True);
-      vArea.UIBuilder.RootArea.RemoveArea(vArea); // the form will be destroyed here
+      vArea.RootArea.RemoveArea(vArea); // the form will be destroyed here
     end
     else
       Action := TCloseAction.caNone;
@@ -1299,11 +1298,11 @@ begin
   if not Assigned(vTabArea) then
     Exit;
 
-  vPCArea.UIBuilder.LastArea := nil;
+  TInteractor(vPCArea.Interactor).LastArea := nil;
 
   vPCArea.RemoveArea(vTabArea);
 
-  vPCArea.UIBuilder.PrintHierarchy;
+  TInteractor(vPCArea.Interactor).PrintHierarchy;
 end;
 
 procedure TPresenter.OpenFile(const AFileName: string; const ADefaultApp: string = ''; const Await: Boolean = False);

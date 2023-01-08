@@ -108,10 +108,10 @@ begin
     begin
       vInteractor := TInteractor(FInteractors.Objects[i]);
       memArea.Lines.Text := memArea.Lines.Text + AnsiUpperCase(FInteractors[i]) + #13#10#13#10 +
-        vInteractor.UIBuilder.RootArea.TextHierarchy('') + #13#10#13#10;
+        vInteractor.RootArea.TextHierarchy('') + #13#10#13#10;
 
       memView.Lines.Text := memView.Lines.Text + AnsiUpperCase(FInteractors[i]) + #13#10#13#10 +
-        vInteractor.UIBuilder.RootView.TextHierarchy('') + #13#10#13#10;
+        vInteractor.RootView.TextHierarchy('') + #13#10#13#10;
 
       memHolders.Lines.Text := memHolders.Lines.Text + AnsiUpperCase(FInteractors[i]) + #13#10#13#10 +
         HoldersInfo(vInteractor) + #13#10#13#10;

@@ -38,7 +38,7 @@ interface
 uses
   Generics.Collections, uFastClasses, Classes, SyncObjs, uModule, uConsts, uConfiguration, uDefinition,
   uCollection, uEntity, uEntityList, uStorage, uSession, uChangeManager, uSettings, uLogger, uScheduler,
-  uTranslator, uJSON, uUtils, uView;
+  uTranslator, uJSON, uUtils, uView, uUIBuilder;
 
 type
   TNotifyProgressEvent = procedure (const AProgress: Integer; const AInfo: string) of object;
@@ -111,6 +111,7 @@ type
     // Модули
     FStorage: TStorage;
 
+    FUIBuilder: TUIBuilder;
     FActualLogID: Integer;
     FSessions: TUserSessions;
     FDomainSession: TUserSession;
@@ -222,6 +223,7 @@ type
     property Language: string read GetLanguage write SetLanguage;
     property Constant[const AName: string]: Variant read GetConstant;
 
+    property UIBuilder: TUIBuilder read FUIBuilder;
     property Sessions: TUserSessions read FSessions;
     property DomainSession: TUserSession read FDomainSession;
     property DomainHolder: TChangeHolder read FDomainHolder;
@@ -449,6 +451,7 @@ begin
   // Использовать ASettings для нахождения путей к рабочим папкам
   FSettings := TIniSettings.Create(TPath.Combine(FConfiguration.ConfigurationDir, 'settings.ini'));
 
+  FUIBuilder := TUIBuilder.Create(Self);
   FTranslator := TTranslator.Create(AConfiguration.Localizator, TPlatform(APlatform).Language);
   FModules := TDictionary<string, TBaseModule>.Create;
   FModuleInstances := TObjectList<TBaseModule>.Create;
@@ -497,6 +500,8 @@ var
 begin
   FScheduler.CancelAll;
   FreeAndNil(FScheduler);
+
+  FreeAndNil(FUIBuilder);
 
   // Модули должны очищаться в обратном порядке
   FreeAndNil(FModules);

@@ -2292,7 +2292,7 @@ begin
       vParentEntity := TEntity(FView.ParentDomainObject);
       try
         vTransitDefinitionName := vParentEntity[vTransitContentType];
-        FTransitDefinition := FDomain.Configuration.DefinitionByName[vTransitDefinitionName];
+        FTransitDefinition := TDomain(FDomain).Configuration.DefinitionByName[vTransitDefinitionName];
       except
         Assert(False, 'Неверно указан тип для транзитного поля: ' + vTransitDefinitionName);
       end;
@@ -2327,7 +2327,7 @@ var
   vSelectedIndex: Integer;
   vEntity, vParentParameter: TEntity;
 begin
-  FDomain.GetEntityList(FView.Session, FTransitDefinition, FEntityList, '');
+  TDomain(FDomain).GetEntityList(FView.Session, FTransitDefinition, FEntityList, '');
 
   vSelectedList := TEntityList(FView.DomainObject);
   vList := TList<TEntity>.Create;
@@ -2530,7 +2530,7 @@ var
 begin
   inherited;
 
-  vCollection := FDomain[FLookupCollection];
+  vCollection := TDomain(FDomain)[FLookupCollection];
 
   if not IsChanged then
     Exit;
@@ -2953,7 +2953,7 @@ begin
   FMasterTableView.OptionsSelection.MultiSelect := True;
   FMasterTableView.OptionsSelection.HideSelection := True;
 
-  if StrToBoolDef(FDomain.UserSettings.GetValue('Core', 'MouseMultiSelectInGrids'), False) then
+  if StrToBoolDef(TDomain(FDomain).UserSettings.GetValue('Core', 'MouseMultiSelectInGrids'), False) then
   begin
     FMasterTableView.OptionsSelection.CheckBoxVisibility := [cbvDataRow, cbvColumnHeader];
     FMasterTableView.OptionsSelection.ShowCheckBoxesDynamically := True;
@@ -3542,7 +3542,7 @@ begin
   if not Assigned(vView) then
     Exit;
 
-  vView.AddListener(FUIBuilder.RootArea);
+  vView.AddListener(FOwner.RootArea);
   try
     if not TCanChangeFieldFunc(TDomain(FView.Domain).Configuration.CanChangeFieldFunc)(vView, vEntity, vBinding.FieldDef.Name,
       StrToIntDef(TcxCustomInnerTextEdit(Sender).Text, 0)) then
@@ -3557,7 +3557,7 @@ begin
       Exit;
     end;
   finally
-    vView.RemoveListener(FUIBuilder.RootArea);
+    vView.RemoveListener(FOwner.RootArea);
   end;
 end;
 
@@ -3640,11 +3640,11 @@ begin
   end
   else if AKind = dckListAdded then
   begin
-    FMasterDS.Add(AParameter, not FDomain.LoadingChanges);
+    FMasterDS.Add(AParameter, not TDomain(FDomain).LoadingChanges);
   end
   else if AKind = dckListRemoved then
   begin
-    FMasterDS.Remove(AParameter, not FDomain.LoadingChanges);
+    FMasterDS.Remove(AParameter, not TDomain(FDomain).LoadingChanges);
   end
   else if (AKind = dckSelectionChanged) or (AKind = dckListScrollUpdate) then
   begin

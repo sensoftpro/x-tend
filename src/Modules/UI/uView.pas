@@ -191,7 +191,7 @@ begin
         Continue
       else if vViewName = '~' then
       begin
-        Result := TInteractor(FInteractor).UIBuilder.RootView;
+        Result := TInteractor(FInteractor).RootView;
         Continue;
       end;
 
@@ -204,7 +204,7 @@ begin
         if (vView.DefinitionKind = dkUndefined) and (i = 0) then
         begin
           FreeAndNil(vView);
-          vRootView := TInteractor(FInteractor).UIBuilder.RootView;
+          vRootView := TInteractor(FInteractor).RootView;
           vView := vRootView.ViewByName(vViewName);
           if not Assigned(vView) then
           begin
@@ -423,7 +423,7 @@ begin
       SetDomainObject(AMessage.Parameter);
 
     UpdateUIState;
-    TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+    TInteractor(FInteractor).PrintHierarchy;
 
     NotifyUI(dckFieldChanged, nil);
   end
@@ -443,7 +443,7 @@ begin
       if vActiveView.DomainObject = AMessage.Parameter then
       begin
         vActiveView.UpdateChildViews(dkAction);
-        TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+        TInteractor(FInteractor).PrintHierarchy;
       end;
     end;
   end
@@ -466,7 +466,7 @@ begin
         if (vActiveView.DefinitionKind = dkEntity) {and (vActiveView.DomainObject = AMessage.Parameter)} then
           vActiveView.DoParentChanged(FDomainObject);
       end;
-      TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+      TInteractor(FInteractor).PrintHierarchy;
     end;
 
     NotifyUI(AMessage.Kind, AMessage.Parameter);
@@ -906,7 +906,7 @@ begin
 
   NotifyUI(dckViewStateChanged, nil);
   UpdateChildViews;
-  TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+  TInteractor(FInteractor).PrintHierarchy;
 end;
 
 function TView.IsContextDependent: Boolean;
@@ -1055,7 +1055,7 @@ procedure TView.RefreshView(const AParameter: TObject);
 begin
   UpdateUIState;
   NotifyUI(dckViewStateChanged, AParameter);
-  TInteractor(FInteractor).UIBuilder.PrintHierarchy;
+  TInteractor(FInteractor).PrintHierarchy;
 end;
 
 procedure TView.RemoveListener(const AListener: TObject);

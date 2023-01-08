@@ -2802,7 +2802,7 @@ begin
 
   if vActionName <> '' then
   begin
-    FActionView := FUIBuilder.RootView.BuildView(vActionName);
+    FActionView := FOwner.RootView.BuildView(vActionName);
     FActionView.AddListener(Self);
     if FActionView.DefinitionKind = dkUndefined then
     begin

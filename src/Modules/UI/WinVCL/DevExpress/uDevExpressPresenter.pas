@@ -50,7 +50,7 @@ type
     FRowStyle: TObject;
   protected
     function GetNativeControlClass: TNativeControlClass; override;
-    function DoCreateImages(const AInteractor: TInteractor; const AImages: TImages; const ASize: Integer): TObject; override;
+    function DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject; override;
   public
     constructor Create(const AName: string; const ASettings: TSettings); override;
     destructor Destroy; override;
@@ -233,7 +233,7 @@ begin
     begin
       if vUIBuilder.IsMDIStyle then
       begin
-        AParent.UIBuilder.DefaultParams := AParams;
+        TInteractor(AParent.Interactor).DefaultParams := AParams;
         FreeAndNil(vParams);
         Exit(nil);
       end;
@@ -289,7 +289,7 @@ begin
   inherited Destroy;
 end;
 
-function TDevExpressPresenter.DoCreateImages(const AInteractor: TInteractor; const AImages: TImages; const ASize: Integer): TObject;
+function TDevExpressPresenter.DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject;
 var
   vImageList: TcxImageList;
   vImage: TdxPNGImage;
@@ -303,7 +303,7 @@ begin
   Result := vImageList;
 
   for vIndex in AImages.Indices.Keys do
-    AInteractor.UIBuilder.StoreImageIndex(vIndex, AImages.Indices[vIndex]);
+    TDomain(ADomain).UIBuilder.StoreImageIndex(vIndex, AImages.Indices[vIndex]);
 
   vImage := TdxPNGImage.Create;
   vImageList.BeginUpdate;
