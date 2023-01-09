@@ -1012,9 +1012,9 @@ type
   private const
     {$IF defined(MSWINDOWS)}
     {$IFDEF WIN64}
-    LibName = 'x64\sk4d.dll';
+    LibName = 'Win64\sk4d.dll';
     {$ELSE}
-    LibName = 'x86\sk4d.dll';
+    LibName = 'Win32\sk4d.dll';
     {$ENDIF}
     {$ELSEIF defined(IOS)}
     LibName = 'sk4d.a';

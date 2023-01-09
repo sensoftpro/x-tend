@@ -211,12 +211,14 @@ type
     procedure OnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure OnKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure Render;
+    procedure Redraw;
     procedure Invalidate(const AState: TSceneState = ssDirty);
   protected
     function DoCreateScene(const APlaceholder: TObject): TPainter; virtual; abstract;
     procedure DoDestroyScene; virtual; abstract;
     procedure DoActivate; virtual;
     procedure DoRender(const ANeedFullRepaint: Boolean); virtual;
+    procedure DoRedraw; virtual;
     procedure SetEnabled(const AValue: Boolean); virtual;
     function GetSceneRect: TRectF; virtual; abstract;
     function GetClientPos: TPointF; virtual; abstract;
@@ -621,6 +623,11 @@ procedure TScene.DoActivate;
 begin
 end;
 
+procedure TScene.DoRedraw;
+begin
+  OnPaint(nil);
+end;
+
 procedure TScene.DoRender(const ANeedFullRepaint: Boolean);
 begin
 end;
@@ -797,10 +804,20 @@ begin
 end;
 
 procedure TScene.OnPaint(Sender: TObject);
+var
+  vNeedFullRepaint: Boolean;
 begin
-  Invalidate(ssUsed);
-  if FLockCount = 0 then
-    Render;
+  if FLockCount > 0 then
+    Exit;
+
+  if FState = ssNormal then
+    Invalidate(ssUsed);
+
+  vNeedFullRepaint := FState = ssDirty;
+
+  FState := ssNormal;
+
+  DoRender(vNeedFullRepaint);
 end;
 
 procedure TScene.OnResize(Sender: TObject);
@@ -825,18 +842,20 @@ begin
   end;
 end;
 
-procedure TScene.Render;
-var
-  vNeedFullRepaint: Boolean;
+procedure TScene.Redraw;
 begin
   if not (FState in [ssUsed, ssDirty]) then
     Exit;
 
-  vNeedFullRepaint := FState = ssDirty;
+  DoRedraw;
+end;
 
-  FState := ssNormal;
+procedure TScene.Render;
+begin
+  if not (FState in [ssUsed, ssDirty]) then
+    Exit;
 
-  DoRender(vNeedFullRepaint);
+  DoRedraw;
 end;
 
 procedure TScene.Repaint;

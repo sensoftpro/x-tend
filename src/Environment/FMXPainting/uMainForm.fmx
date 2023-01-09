@@ -1,0 +1,78 @@
+object fmMain: TfmMain
+  Left = 0
+  Top = 0
+  Caption = 'Form11'
+  ClientHeight = 561
+  ClientWidth = 873
+  Quality = HighQuality
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop, iPhone, iPad]
+  DesignerMasterStyle = 0
+  object pnlTop: TPanel
+    Align = Top
+    Size.Width = 873.000000000000000000
+    Size.Height = 89.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 0
+    object btnCreate: TButton
+      Position.X = 552.000000000000000000
+      Position.Y = 40.000000000000000000
+      TabOrder = 0
+      Text = 'btnCreate'
+      OnClick = btnCreateClick
+    end
+    object grpPainters: TGroupBox
+      Position.X = 72.000000000000000000
+      Position.Y = 16.000000000000000000
+      Size.Width = 449.000000000000000000
+      Size.Height = 57.000000000000000000
+      Size.PlatformDefault = False
+      Text = 'grpPainters'
+      TabOrder = 1
+      object rbGDI: TRadioButton
+        GroupName = 'Painter'
+        Position.X = 32.000000000000000000
+        Position.Y = 24.000000000000000000
+        TabOrder = 0
+        Text = 'rbGDI'
+      end
+      object rbOpenGL: TRadioButton
+        GroupName = 'Painter'
+        Position.X = 304.000000000000000000
+        Position.Y = 24.000000000000000000
+        TabOrder = 1
+        Text = 'rbOpenGL'
+      end
+      object rbSkia: TRadioButton
+        GroupName = 'Painter'
+        Position.X = 176.000000000000000000
+        Position.Y = 24.000000000000000000
+        TabOrder = 2
+        Text = 'rbSkia'
+      end
+    end
+    object btnMeasure: TButton
+      Position.X = 784.000000000000000000
+      Position.Y = 40.000000000000000000
+      TabOrder = 2
+      Text = 'btnMeasure'
+      OnClick = btnMeasureClick
+    end
+    object lblFps: TLabel
+      Position.X = 640.000000000000000000
+      Position.Y = 24.000000000000000000
+      Size.Width = 129.000000000000000000
+      Size.Height = 49.000000000000000000
+      Size.PlatformDefault = False
+      Text = 'lblFps'
+      TabOrder = 3
+    end
+  end
+  object pbxCanvas: TPaintBox
+    Align = Client
+    Size.Width = 873.000000000000000000
+    Size.Height = 472.000000000000000000
+    Size.PlatformDefault = False
+  end
+end
