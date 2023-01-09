@@ -38,7 +38,7 @@ interface
 uses
   Classes, Types, Graphics, ExtCtrls, StdCtrls, Dialogs, ActnList, StdActns, ComCtrls,
 
-  vclArea, uDefinition, uEnumeration, uUIBuilder, uView, uEntity, uLayout, Controls,
+  vclArea, uDEArea, uDefinition, uEnumeration, uUIBuilder, uView, uEntity, uLayout, Controls,
 
   //DevExpress
   cxSpinEdit, cxEdit, cxCalendar, cxDateUtils, cxTextEdit, cxRadioGroup, cxPC,
@@ -48,7 +48,7 @@ uses
   dxGaugeCustomScale, dxGaugeQuantitativeScale, dxGaugeCircularScale, dxGaugeControl;
 
 type
-  TTextInfo = class(TVCLControl)
+  TTextInfo = class(TDEControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;

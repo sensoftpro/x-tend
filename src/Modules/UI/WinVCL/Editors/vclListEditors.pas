@@ -3474,8 +3474,14 @@ begin
 end;
 
 procedure TGridEditor.LoadColumnWidths;
+var
+  vName: string;
 begin
-  FLayoutExists := LoadGridColumnWidths(TInteractor(FView.Interactor).Domain, FMasterTableView, FView.InitialName);
+  if Assigned(FFieldDef) then
+    vName := FFieldDef.FullName
+  else
+    vName := FView.InitialName;
+  FLayoutExists := LoadGridColumnWidths(TInteractor(FView.Interactor).Domain, FMasterTableView, vName);
 end;
 
 procedure TGridEditor.OnActionGetProperties(Sender: TcxCustomGridTableItem; ARecord: TcxCustomGridRecord; var AProperties: TcxCustomEditProperties);

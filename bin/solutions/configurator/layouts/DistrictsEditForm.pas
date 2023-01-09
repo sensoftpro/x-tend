@@ -73,6 +73,7 @@ type
     Label6: TLabel;
     Panel5: TPanel;
     Panel6: TPanel;
+    Panel15: TPanel;
   end;
 
 implementation
