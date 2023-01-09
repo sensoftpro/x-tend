@@ -20,7 +20,13 @@ Interface
 Uses SysUtils{$IFNDEF VER230}, AnsiStrings{$ENDIF};
 
 Const
-   FreeTypeDLL = 'freetype.dll';
+{$IF defined(MSWINDOWS)}
+{$IFDEF WIN64}
+  FreeTypeDLL = 'Win64\freetype.dll';
+{$ELSE}
+  FreeTypeDLL = 'Win32\freetype.dll';
+{$ENDIF}
+{$ENDIF}
 
 Type
    EFreeType = Class(Exception)

@@ -109,6 +109,7 @@ type
     function DoCreateScene(const APlaceholder: TObject): TPainter; override;
     procedure DoDestroyScene; override;
     procedure DoActivate; override;
+    procedure DoRedraw; override;
     procedure SetEnabled(const AValue: Boolean); override;
 
     function GetSceneRect: TRectF; override;
@@ -336,6 +337,11 @@ begin
   FPanel.OnMouseMove := nil;
   FPanel.OnMouseLeave := nil;
   FPanel := nil;
+end;
+
+procedure TWinScene.DoRedraw;
+begin
+  FPanel.Repaint;
 end;
 
 { TWinCanvasScene }

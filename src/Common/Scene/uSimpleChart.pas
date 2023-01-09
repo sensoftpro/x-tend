@@ -204,7 +204,7 @@ begin
     FStyle.AddFillParams('spot.values', TAlphaColorRec.Red); // values
     FStyle.AddFillParams('back.values', TAlphaColorRec.Red and $7FFFFFFF); // стиль фонового спектра
     FStyle.AddFontParams('x.title', 'Tahoma', 10, TAlphaColorRec.Black); // заголовок оси X
-    FStyle.AddFontParams('y.title', 'Tahoma', 10, TAlphaColorRec.Black, 0, 270); // заголовок оси Y
+    FStyle.AddFontParams('y.title', 'Tahoma', 10, TAlphaColorRec.Black, FontStyleStrikeout or FontStyleUnderline, 270, rqHigh); // заголовок оси Y
     FStyle.AddStrokeParams('tick.line', TAlphaColorRec.Gray, 1); // линия-указатель текущего значения X
     FStyle.AddFillParams('tick.selected', MakeColor(TAlphaColorRec.Black, 0.5)); // область вывода текущего значения X
     FStyle.AddFillParams('extra.tick.selected', MakeColor(TAlphaColorRec.Navy, 0.5)); // область вывода доп. значения X
@@ -265,6 +265,9 @@ begin
   vRect := ARect;
 
   APainter.DrawRect(FStyle, 'background', '', vRect);
+  APainter.DrawBezier(FStyle, 'peak', PPointF(TArray<TPointF>.Create(PointF(100,0), PointF(120,50),
+    PointF(160, 100), PointF(250, 50), PointF(160, 100), PointF(223, 32),
+    PointF(245, 132), PointF(609, 100), PointF(609, 100))), 9 ,TAlphaColorRec.Red);
 
   vTextHeight := 0.8 * APainter.TextHeight(FStyle, 'x.title', 'fg');
   InflateRect(vRect, -vTextHeight, -vTextHeight);
@@ -290,6 +293,9 @@ begin
   APainter.DrawImage(FStyle, 'peak', RectF(200, 100, 450, 300), 0.7);
   APainter.DrawEllipse(FStyle, '_nuclide', 'peak', RectF(500, 100, 650, 200));
   APainter.DrawPie(FStyle, '_nuclide', 'peak', RectF(100, 350, 350, 420), 360, 320);
+  APainter.DrawRegion(FStyle, '_nuclide', 'line.values', PPointF(TArray<TPointF>.Create(
+    PointF(0, 0), PointF(80, 20), PointF(50, 50), PointF(80, 80),
+    PointF(50, 100), PointF(40, 20), PointF(0, 0))), 7, TAlphaColorRec.Navy);
 end;
 
 procedure TSimpleChart.DoRenderDynamic(const APainter: TPainter; const ARect: TRectF);
