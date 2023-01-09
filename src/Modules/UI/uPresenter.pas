@@ -774,7 +774,6 @@ begin
     ALayout.Font.Family := 'Tahoma';
     ALayout.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
     ALayout.ShowCaption := True;
-    ALayout.Caption := ALayout.Caption;
     ALayout.BevelInner := lbkRaised;
     ALayout.BevelOuter := lbkLowered;
 

@@ -67,6 +67,21 @@ object Form: TForm
         Caption = 'ShowAbout?ViewStyle=link'
         TabOrder = 3
       end
+      object Panel15: TPanel
+        AlignWithMargins = True
+        Left = 840
+        Top = 15
+        Width = 144
+        Height = 114
+        Margins.Top = 14
+        Margins.Right = 16
+        Margins.Bottom = 14
+        Align = alRight
+        Alignment = taRightJustify
+        Caption = '$/State?view=info'
+        ShowCaption = False
+        TabOrder = 4
+      end
     end
     object pgc1: TPageControl
       AlignWithMargins = True
@@ -787,7 +802,7 @@ object Form: TForm
           object lbl2: TLabel
             Left = 400
             Top = 16
-            Width = 447
+            Width = 446
             Height = 25
             Caption = 'TLabel (Segoe UI,14,[B],RUSSIAN_CHARSET,clRed)'
             Font.Charset = RUSSIAN_CHARSET
