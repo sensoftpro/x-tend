@@ -62,34 +62,6 @@ type
   // в домене должна быть возможность прямого указания на соединение
   // например, домен заказа еды м.б. связан с телеграм-ботами @feed, @eda и т.п.
 
-  {TLayouts = class end;
-
-  TUIBuilder_ = class
-  private
-    FLayouts: TLayouts;
-    [Weak] FPresenter: TObject;
-
-    function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
-    function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
-    function GetImageID(const AImageID: Integer): Integer;
-    procedure GetLayoutName(const AEntity: TEntity; const AParams: string; var ALayoutName: string);
-  public
-    constructor Create(const AInteractor: TObject);
-    destructor Destroy; override;
-
-    procedure ApplyLayout(const AArea: TUIArea; const AView: TView; const ALayoutName: string; const AParams: string);
-
-    function Navigate(const AView: TView; const AAreaName, ALayoutName: string;
-      const AOptions: string = ''; const AChangeHolder: TObject = nil; const ACaption: string = '';
-      const AOnClose: TProc = nil): TDialogResult;
-
-    procedure CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
-    procedure CloseCurrentArea(const AModalResult: Integer);
-
-    property Presenter: TObject read FPresenter;
-    property Layouts: TLayouts read FLayouts;
-  end;  }
-
   TDomain = class
   private
     [Weak] FConfiguration: TConfiguration;
@@ -130,9 +102,7 @@ type
     FAppTitle: string;
     FLoadingChanges: Boolean;
 
-    {$IFDEF DEBUG}
     procedure SyncFieldsWithStorage(const ADefinition: TDefinition; const AStorage: TStorage);
-    {$ENDIF}
     function VerifyStorageStructure: Boolean;
     //procedure UpdateDomainStructures;
     function GetLanguage: string;
@@ -1244,7 +1214,6 @@ begin
   TDomainStoppedProc(FConfiguration.DomainStoppedProc)(Self);
 end;
 
-{$IFDEF DEBUG}
 procedure TDomain.SyncFieldsWithStorage(const ADefinition: TDefinition; const AStorage: TStorage);
 var
   vField: TFieldDef;
@@ -1288,21 +1257,21 @@ begin
   for vField in ADefinition.ServiceFields.Objects do
     InternalSyncronize(vField);
 end;
-{$ENDIF}
 
 function TDomain.SyncWithStorage(const ADefinition: TDefinition; const AStorage: TStorage): Boolean;
 begin
-{$IFDEF DEBUG}
-  if (ADefinition.Kind = clkMixin) or ADefinition.HasFlag(ccNotSave) then
-    Result := True
+  if (FConfiguration.Version > FStoredVersion) or (FStorage.Version = '') or (_Platform.DeploymentType = 'dev') then
+  begin
+    if (ADefinition.Kind = clkMixin) or ADefinition.HasFlag(ccNotSave) then
+      Result := True
+    else
+      Result := AStorage.SyncGroupDef(ADefinition.StorageName, procedure(const AStorage: TStorage)
+        begin
+          SyncFieldsWithStorage(ADefinition, AStorage);
+        end);
+  end
   else
-    Result := AStorage.SyncGroupDef(ADefinition.StorageName, procedure(const AStorage: TStorage)
-      begin
-        SyncFieldsWithStorage(ADefinition, AStorage);
-      end);
-{$ELSE}
-  Result := True;
-{$ENDIF}
+    Result := True;
 end;
 
 function TDomain.Translate(const AKey, ADefault: string): string;

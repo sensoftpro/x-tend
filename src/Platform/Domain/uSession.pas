@@ -477,7 +477,7 @@ begin
     if FHolders.Remove(AHolder) < 0 then
       AHolder.DisposeOf;
 
-    if Assigned(FInteractor) and Assigned(TInteractor(FInteractor).UIBuilder) then
+    if Assigned(FInteractor) then
       TInteractor(FInteractor).PrintHierarchy;
   end;
 end;

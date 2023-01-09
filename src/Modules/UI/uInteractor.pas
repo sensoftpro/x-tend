@@ -76,6 +76,7 @@ type
     function NeedSkipColumn(const ASource: TObject; const AFieldDef: TObject): Boolean;
 
     procedure ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);
+    function ShowYesNoDialog(const ACaption, AText: string; const AWithCancel: Boolean = False): TDialogResult;
 
     procedure CloseCurrentArea(const AModalResult: Integer);
     procedure PrintHierarchy;
@@ -316,6 +317,13 @@ procedure TInteractor.ShowMessage(const AText: string; const AMessageType: TMess
 begin
   TDomain(FDomain).CheckLocking(False);
   TPresenter(FPresenter).ShowMessage(TDomain(FDomain).AppTitle, AText, AMessageType);
+end;
+
+function TInteractor.ShowYesNoDialog(const ACaption, AText: string;
+  const AWithCancel: Boolean): TDialogResult;
+begin
+  TDomain(FDomain).CheckLocking(False);
+  Result := TPresenter(FPresenter).ShowYesNoDialog(ACaption, AText, AWithCancel);
 end;
 
 function TInteractor.Translate(const AKey, ADefault: string): string;

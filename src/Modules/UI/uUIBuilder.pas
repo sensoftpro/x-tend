@@ -133,6 +133,7 @@ type
 
     property Owner: TUIArea read FOwner;
     property Parent: TUIArea read FParent write SetParent;
+    property View: TView read FView;
     property Focused: Boolean read GetFocused write SetFocused;
     property Bounds: TRect read GetBounds write SetBounds;
     property ViewState: TViewState read GetViewState write SetViewState;
@@ -1163,7 +1164,7 @@ begin
 
   ALayout.Params := AParams;
 
-  if ALayout.AreaKind = akField then
+  if (ALayout.AreaKind = akField) and (AView.DefinitionKind <> dkEntity) then
   begin
     FFieldDef := TFieldDef(AView.Definition);
     FDefinitionName := FFieldDef.Name;

@@ -211,7 +211,6 @@ type
     procedure OnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure OnKeyUp(Sender: TObject; var Key: Word; Shift: TShiftState);
     procedure Render;
-    procedure Redraw;
     procedure Invalidate(const AState: TSceneState = ssDirty);
   protected
     function DoCreateScene(const APlaceholder: TObject): TPainter; virtual; abstract;
@@ -840,14 +839,6 @@ begin
   finally
     EndUpdate;
   end;
-end;
-
-procedure TScene.Redraw;
-begin
-  if not (FState in [ssUsed, ssDirty]) then
-    Exit;
-
-  DoRedraw;
 end;
 
 procedure TScene.Render;

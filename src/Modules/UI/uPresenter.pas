@@ -895,7 +895,7 @@ begin
       begin
         if Assigned(vHolder) and vHolder.IsVisibleModified then
         begin
-          vRes := TPresenter(vInteractor.Presenter).ShowYesNoDialog('Подтвердите', //vForm.Caption,
+          vRes := ShowYesNoDialog('Подтвердите', //vForm.Caption,
             vInteractor.Translate('msgPromtSaveChanges', 'Сохранить изменения перед закрытием формы?'), True);
           if vRes = drYes then
           begin

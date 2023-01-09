@@ -1093,14 +1093,9 @@ begin
 
   if ALayout.Kind = lkPanel then
   begin
-    if ALayout.Alignment <> taCenter then
-    begin
+    if ALayout.Alignment = taCenter then
       TcxCheckBox(Result).AutoSize := False;
-      if ALayout.Alignment = taLeftJustify then
-        TcxCheckBox(Result).Properties.Alignment := taCenter
-      else
-        TcxCheckBox(Result).Properties.Alignment := ALayout.Alignment;
-    end;
+    TcxCheckBox(Result).Properties.Alignment := ALayout.Alignment;
   end;
 
 //  TcxCheckBox(Result).OnKeyDown := OnWinControlKeyDown;

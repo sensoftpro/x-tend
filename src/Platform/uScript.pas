@@ -812,8 +812,7 @@ end;
 
 function TScript.DoBeforeUIClosing(const AInteractor: TInteractor): Boolean;
 begin
-  Result := TPresenter(AInteractor.Presenter).ShowYesNoDialog(
-    'Подтвердите', 'Вы действительно хотите выйти?') = drYes;
+  Result := AInteractor.ShowYesNoDialog('Подтвердите', 'Вы действительно хотите выйти?') = drYes;
 end;
 
 function TScript.DoExecuteDefaultAction(const ASession: TUserSession; const AParams: string): Boolean;
@@ -966,13 +965,13 @@ begin
             vRecordsText := 'записей';
           end;
 
-          if TPresenter(vInteractor.Presenter).ShowYesNoDialog(vInteractor.Translate('cptPrompt', 'Подтвердите'),
+          if vInteractor.ShowYesNoDialog(vInteractor.Translate('cptPrompt', 'Подтвердите'),
             Format(vInteractor.Translate('msgWantDeleteNRecords', 'Вы действительно хотите удалить %d %s?'),
             [vSelectionCount, vRecordsText])) = drNo
           then
             Exit;
         end
-        else if (vSelectionCount = 1) and (TPresenter(vInteractor.Presenter).ShowYesNoDialog(
+        else if (vSelectionCount = 1) and (vInteractor.ShowYesNoDialog(
           vInteractor.Translate('cptPrompt', 'Подтвердите'), vInteractor.Translate('msgWantDeleteRecord',
           'Вы действительно хотите удалить запись') + ' [' + SafeDisplayName(vListObject.Selection[0]) +']?') = drNo)
         then
@@ -1568,7 +1567,7 @@ begin
     if (vStartPageName <> '')
       and FileExists(TDomain(AInteractor.Domain).Configuration.FindLayoutFile(vStartPageName, LAYOUT_DFM_EXT))
     then
-      AInteractor.UIBuilder.Navigate(nil, 'WorkArea', vStartPageName, '', TUserSession(AInteractor.Session).NullHolder);
+      AInteractor.UIBuilder.Navigate(AInteractor.RootView, 'WorkArea', vStartPageName, '', TUserSession(AInteractor.Session).NullHolder);
 
     Exit;
   end

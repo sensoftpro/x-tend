@@ -1047,7 +1047,8 @@ end;
 procedure TLayout.CopyTo(const ALayout: TLayout);
 begin
   if Assigned(FMenu) then
-    ALayout.FMenu := FMenu.Clone(nil);
+    ALayout.Menu := FMenu.Clone(nil);
+
   if Assigned(FUrlParser) then
     ALayout.SetUrl(FUrlParser.Path);
 

@@ -652,7 +652,7 @@ begin
       end;
     else
       begin
-        if Assigned(AInteractor) and (TPresenter(TInteractor(AInteractor).Presenter).ShowYesNoDialog(
+        if Assigned(AInteractor) and (TInteractor(AInteractor).ShowYesNoDialog(
           TDomain(FDomain).Translate('txtVersionsConflict', 'Конфликт версий'),
           Format(AContext, [vFieldName, vEntityName, vIncomingValue, vThisValue]), False) = drYes)
         then begin
