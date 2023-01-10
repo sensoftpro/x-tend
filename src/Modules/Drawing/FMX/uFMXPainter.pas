@@ -356,32 +356,52 @@ end;
 procedure TFMXPainter.DoDrawText(const AFont: TStyleFont; const AText: string; const ARect: TRectF;
   const AOptions: Cardinal; const AAngle: Single);
 var
-  vW: Single;
-  vH: Single;
+  vSize: TSizeF;
   vR: TRectF;
+  vHorzAlign: TTextAlign;
+  vVertAlign: TTextAlign;
+  vCanvas: TCanvas;
   vSaveMatrix: TMatrix;
   vMatrix: TMatrix;
 begin
-  ThisCanvas.Font.Family := TFont(AFont.NativeObject).Family;
-  ThisCanvas.Font.Size := TFont(AFont.NativeObject).Size;
-  ThisCanvas.Font.Style := TFont(AFont.NativeObject).Style;
-  ThisCanvas.Fill.Color := AFont.Color;
-  vW := ThisCanvas.TextWidth(AText);
-  vH := ThisCanvas.TextHeight(AText);
-  vR.Left := 0;
+  vCanvas := ThisCanvas;
+  vCanvas.Font.Family := TFont(AFont.NativeObject).Family;
+  vCanvas.Font.Size := TFont(AFont.NativeObject).Size;
+  vCanvas.Font.Style := TFont(AFont.NativeObject).Style;
+  vCanvas.Fill.Color := AFont.Color;
 
-  vR.Width := vW;
-  vR.Top := -vH / 2;
+  if (DT_CENTER and AOptions) > 0 then
+    vHorzAlign := TTextAlign.Center
+  else if (DT_RIGHT and AOptions) > 0 then
+    vHorzAlign := TTextAlign.Trailing
+  else
+    vHorzAlign := TTextAlign.Leading;
 
-  vR.Height := vH;
-  vSaveMatrix := ThisCanvas.Matrix;
-  vMatrix := TMatrix.CreateRotation(DegToRad(AAngle));
-  vMatrix.m31 := ARect.Left;
-  vMatrix.m32 := ARect.Bottom;
-  ThisCanvas.MultiplyMatrix(vMatrix);
+  if (DT_VCENTER and AOptions) > 0 then
+    vVertAlign := TTextAlign.Center
+  else if (DT_BOTTOM and AOptions) > 0 then
+    vVertAlign := TTextAlign.Trailing
+  else
+    vVertAlign := TTextAlign.Leading;
 
-  ThisCanvas.FillText(vR, AText, True, 1, [], TTextAlign.Center, TTextAlign.Center);
-  ThisCanvas.SetMatrix(vSaveMatrix);
+  if IsZero(AAngle) then
+    vCanvas.FillText(ARect, AText, False, 1, [], vHorzAlign, vVertAlign)
+  else begin
+    vSize := GetTextExtents(AFont, AText);
+
+    vR := RectF(0, -vSize.cy / 2, vSize.cx, vSize.cy / 2);
+    vSaveMatrix := vCanvas.Matrix;
+    try
+      vMatrix := TMatrix.CreateRotation(DegToRad(AAngle));
+      vMatrix.m31 := ARect.Left;
+      vMatrix.m32 := ARect.Bottom;
+      vCanvas.MultiplyMatrix(vMatrix);
+
+      vCanvas.FillText(vR, AText, False, 1, [], vHorzAlign, vVertAlign);
+    finally
+      vCanvas.SetMatrix(vSaveMatrix);
+    end;
+  end;
 end;
 
 procedure TFMXPainter.DoInvertRect(const ARect: TRectF);
@@ -399,9 +419,17 @@ begin
 end;
 
 function TFMXPainter.GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF;
+var
+  R: TRectF;
 begin
-  Result.Width := ThisCanvas.TextWidth(AText);
-  Result.Height := ThisCanvas.TextHeight(AText);
+  ThisCanvas.Font.Family := TFont(AFont.NativeObject).Family;
+  ThisCanvas.Font.Size := TFont(AFont.NativeObject).Size;
+  ThisCanvas.Font.Style := TFont(AFont.NativeObject).Style;
+
+  R := RectF(0, 0, 10000, 10000);
+  ThisCanvas.MeasureText(R, AText, False, [], TTextAlign.Leading, TTextAlign.Leading);
+  Result.cx := R.Right;
+  Result.cy := R.Bottom;
 end;
 
 function TFMXPainter.SetContext(const AContext: TDrawContext): TDrawContext;
