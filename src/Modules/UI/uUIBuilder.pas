@@ -1606,17 +1606,23 @@ var
 begin
   if (AView.UIContext <> '') {or (Pos('#', AView.Name) = 1)} then
   begin
-    if not (FLayout is TNavigationItem) then
-      Exit;
-
     vRefArea := nil;
     vCurArea := Parent;
-    repeat
-      if vCurArea.Layout = TNavigationItem(FLayout).Owner then
-        vRefArea := vCurArea
-      else
+    if FLayout is TNavigationItem then
+    begin
+      repeat
+        if vCurArea.Layout = TNavigationItem(FLayout).Owner then
+          vRefArea := vCurArea
+        else
+          vCurArea := vCurArea.Parent;
+      until Assigned(vRefArea) or not Assigned(vCurArea);
+    end
+    else begin
+      repeat
+        vRefArea := vCurArea.AreaById(AView.UIContext);
         vCurArea := vCurArea.Parent;
-    until Assigned(vRefArea) or not Assigned(vCurArea);
+      until Assigned(vRefArea) or not Assigned(vCurArea);
+    end;
 
     if Assigned(vRefArea) then
     begin

@@ -436,7 +436,7 @@ begin
   FTreeView.OnClick := OnMouseClick;
   FTreeView.OnKeyPress := OnKeyPress;
   //FTreeView.OnCustomDrawItem := OnCustomDrawItem;
-  FOwner.Id := 'TreeView';
+  ALayout.Id := 'TreeView';
 
   FDefaultWorkArea := FCreateParams.Values['ContentWorkArea'];
   if FDefaultWorkArea = '' then
@@ -1039,7 +1039,7 @@ begin
     vForm := TForm(FControl);
     if (vForm.FormStyle = fsMDIForm) and (vForm.ClientHandle > 0) and
      (GetWindowLong(vForm.ClientHandle, GWL_USERDATA ) = 0 {cannot subclass client window, userdata already in use}) then
-    SetWindowLong(vForm.ClientHandle, GWL_USERDATA, SetWindowLong(vForm.ClientHandle, GWL_WNDPROC, Integer(@ClientWindowProc)));
+    SetWindowLong(vForm.ClientHandle, GWL_USERDATA, SetWindowLong(vForm.ClientHandle, GWL_WNDPROC, NativeInt(@ClientWindowProc)));
 
     if vForm.FormStyle = fsMDIChild then
     begin

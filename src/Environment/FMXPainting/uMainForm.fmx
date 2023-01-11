@@ -8,6 +8,7 @@ object fmMain: TfmMain
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop, iPhone, iPad]
+  OnDestroy = FormDestroy
   DesignerMasterStyle = 0
   object pnlTop: TPanel
     Align = Top

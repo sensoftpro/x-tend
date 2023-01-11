@@ -66,10 +66,6 @@ object DebugFm: TDebugFm
     object TabSheet2: TTabSheet
       Caption = 'TabSheet2'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object memHolders: TMemo
         AlignWithMargins = True
         Left = 6

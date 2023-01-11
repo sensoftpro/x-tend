@@ -175,9 +175,9 @@ begin
   try
     for vHolder in vSession.Holders do
     begin
-      Result := Result + #13#10#13#10 + 'HOLDER: $' + IntToHex(Integer(vHolder));
+      Result := Result + #13#10#13#10 + 'HOLDER: $' + IntToHex(NativeInt(vHolder));
       if Assigned(vHolder.ParentHolder) then
-        Result := Result + ', parent: $' + IntToHex(Integer(vHolder.ParentHolder));
+        Result := Result + ', parent: $' + IntToHex(NativeInt(vHolder.ParentHolder));
       Result := Result + vHolder.GetDebugInfo;
     end;
   except

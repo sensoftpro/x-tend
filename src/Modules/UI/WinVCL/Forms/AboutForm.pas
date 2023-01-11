@@ -39,7 +39,7 @@ uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
   cxGraphics, Menus, StdCtrls, ImgList, CheckLst, cxLookAndFeels, cxLookAndFeelPainters,
   cxControls, cxContainer, cxEdit, cxLabel, uInteractor, dxGDIPlusClasses,
-  Vcl.ExtCtrls, System.ImageList, Vcl.Buttons;
+  Vcl.ExtCtrls;
 
 type
   TAboutFm = class(TForm)

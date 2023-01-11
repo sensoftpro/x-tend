@@ -32,6 +32,7 @@ type
     Quit2: TMenuItem;
     Parent3Caption31: TMenuItem;
     ShowAbout2: TMenuItem;
+    Panel5: TPanel;
   end;
 
 implementation

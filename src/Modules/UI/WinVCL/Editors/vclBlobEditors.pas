@@ -110,13 +110,11 @@ end;
 function TFieldChartArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   Result := inherited DoCreateControl(AParent, ALayout);
-  FOwner.Id := 'Chart';
+  ALayout.Id := 'Chart';
   FChart := TDataChart.Create(FScene, nil);
 end;
 
 initialization
-
-//TPresenter.RegisterUIClass('Windows.DevExpress', uiComplexEdit, 'chart', TFieldChartArea);
 
 TPresenter.RegisterControlClass('Windows.DevExpress', uiComplexEdit, 'chart', TFieldChartArea);
 

@@ -267,7 +267,7 @@ begin
   APainter.DrawRect(FStyle, 'background', '', vRect);
   APainter.DrawBezier(FStyle, 'peak', PPointF(TArray<TPointF>.Create(PointF(100,0), PointF(120,50),
     PointF(160, 100), PointF(250, 50), PointF(160, 100), PointF(223, 32),
-    PointF(245, 132), PointF(609, 100), PointF(609, 100))), 9 ,TAlphaColorRec.Red);
+    PointF(245, 132), PointF(609, 100), PointF(609, 100))), 9, TAlphaColorRec.Green);
 
   vTextHeight := 0.8 * APainter.TextHeight(FStyle, 'x.title', 'fg');
   InflateRect(vRect, -vTextHeight, -vTextHeight);

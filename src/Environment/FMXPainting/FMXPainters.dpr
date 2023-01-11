@@ -19,7 +19,9 @@ uses
 {$R *.res}
 
 begin
-  GlobalUseDirect2D := True;
+  ReportMemoryLeaksOnShutdown := True;
+
+  GlobalUseDirect2D := False;
   Application.Initialize;
   Application.CreateForm(TfmMain, fmMain);
   Application.Run;

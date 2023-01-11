@@ -177,7 +177,7 @@ begin
       TPngImage(FImage).Canvas.Handle, ALeft, ATop, SRCCOPY);
     for i := 0 to AHeight - 1 do
       CopyMemory(TPngImage(Result).AlphaScanline[i],
-        PByte(Integer(TPngImage(FImage).AlphaScanline[i + ATop]) + ALeft), AWidth);
+        PByte(NativeInt(TPngImage(FImage).AlphaScanline[i + ATop]) + ALeft), AWidth);
   end
   else if FImage is TBitmap then
   begin

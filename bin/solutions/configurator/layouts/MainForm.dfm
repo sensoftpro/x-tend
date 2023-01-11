@@ -4,6 +4,9 @@ object EditForm: TEditForm
   Width = 945
   Height = 579
   TabOrder = 0
+  DesignSize = (
+    945
+    579)
   object WorkArea: TPanel
     Left = 274
     Top = 66
@@ -18,6 +21,8 @@ object EditForm: TEditForm
     Font.Style = []
     ParentFont = False
     TabOrder = 0
+    ExplicitLeft = 280
+    ExplicitTop = 72
   end
   object Panel1: TPanel
     Left = 0
@@ -66,6 +71,15 @@ object EditForm: TEditForm
     ParentFont = False
     PopupMenu = MainMenu
     TabOrder = 4
+  end
+  object Panel5: TPanel
+    Left = 18
+    Top = 528
+    Width = 103
+    Height = 33
+    Anchors = [akLeft, akTop, akBottom]
+    Caption = '#Refill#TreeView'
+    TabOrder = 5
   end
   object MainMenu: TPopupMenu
     Left = 340

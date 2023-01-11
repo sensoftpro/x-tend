@@ -20,6 +20,7 @@ type
     pbxCanvas: TPaintBox;
     procedure btnCreateClick(Sender: TObject);
     procedure btnMeasureClick(Sender: TObject);
+    procedure FormDestroy(Sender: TObject);
   private
     FScene: TScene;
     FChart: TSimpleChart;
@@ -39,8 +40,7 @@ begin
   if Assigned(FScene) then
     FreeAndNil(FScene);
 
-  if rbGDI.IsChecked then
-    FScene := TFMXScene.Create(pbxCanvas);
+  FScene := TFMXScene.Create(pbxCanvas);
 
   if Assigned(FScene) then
     FChart := TDataChart.Create(FScene, nil);
@@ -48,24 +48,30 @@ end;
 
 procedure TfmMain.btnMeasureClick(Sender: TObject);
 var
-  vStop: Int64;
-  vStopWatch: TStopwatch;
+  vStartWatch, vStopWatch: TStopwatch;
   i: Integer;
 const
   cRefreshCount = 200;
 begin
   if Assigned(FScene) then
   begin
-    vStopWatch.StartNew;
+    vStartWatch.StartNew;
 
     for i := 1 to cRefreshCount do
       FScene.FullRefresh;
 
-    vStop := vStopWatch.ElapsedMilliseconds;
-    lblFPS.Text := FormatFloat('###,##0.###', vStop / cRefreshCount) + ' мcек';
+    vStopWatch.StartNew;
+    lblFPS.Text := FormatFloat('###,##0.###', (vStartWatch.ElapsedMilliseconds - vStopWatch.ElapsedMilliseconds) / cRefreshCount) + ' мcек';
+    vStartWatch.Reset;
+    vStopWatch.Reset;
   end
   else
     lblFPS.Text := '< нет данных >';
+end;
+
+procedure TfmMain.FormDestroy(Sender: TObject);
+begin
+  FreeAndNil(FScene);
 end;
 
 end.

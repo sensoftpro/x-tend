@@ -164,7 +164,7 @@ implementation
 
 uses
   SysUtils, Variants, Math, uDomain, uDefinition, uCollection, uSession,
-  uDomainUtils, uPresenter, uInteractor, uSimpleField;
+  uDomainUtils, uInteractor, uSimpleField;
 
 { TChangeHolder }
 

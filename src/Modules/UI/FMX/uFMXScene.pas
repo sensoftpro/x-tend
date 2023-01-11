@@ -106,6 +106,7 @@ end;
 
 procedure TFMXScene.DoDestroyScene;
 begin
+  FPlaceholder := nil;
 end;
 
 procedure TFMXScene.DoRedraw;
@@ -114,9 +115,39 @@ begin
 end;
 
 procedure TFMXScene.DoRender(const ANeedFullRepaint: Boolean);
+var
+  vContext: TDrawContext;
 begin
-  FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
-  FRoot.RenderDynamic(FPainter, GetSceneRect);
+  FPainter.BeginPaint;
+  try
+    if ANeedFullRepaint then
+    begin
+      vContext := FPainter.SetContext(FCachedDrawContext);
+      try
+        FPainter.BeginPaint;
+        FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
+        //FCachedDrawContext.SaveToFile('static.bmp');
+      finally
+        FPainter.EndPaint;
+        FPainter.SetContext(vContext);
+      end;
+    end;
+
+    vContext := FPainter.SetContext(FDrawContext);
+    try
+      FPainter.BeginPaint;
+      FPainter.DrawContext(FCachedDrawContext);
+      FRoot.RenderDynamic(FPainter, GetSceneRect);
+      //FDrawContext.SaveToFile('dynamic.bmp');
+    finally
+      FPainter.EndPaint;
+      FPainter.SetContext(vContext);
+    end;
+  finally
+    FPainter.EndPaint;
+  end;
+
+  FPainter.DrawContext(FDrawContext);
 end;
 
 function TFMXScene.GetClientPos: TPointF;

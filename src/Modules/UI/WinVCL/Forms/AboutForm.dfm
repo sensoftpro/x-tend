@@ -259,7 +259,7 @@ object AboutFm: TAboutFm
     Font.Name = 'Tahoma'
     Font.Style = []
     ParentFont = False
-    ExplicitWidth = 272
+    WordWrap = True
   end
   object lblEmail: TLabel
     Left = 144

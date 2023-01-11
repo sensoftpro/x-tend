@@ -1557,7 +1557,7 @@ function TPivotGrid.DoCreateControl(const AParent: TUIArea; const ALayout: TLayo
 begin
   FPivot := TcxPivotGrid.Create(nil);
   Result := FPivot;
-  FOwner.ID := 'Pivot';
+  ALayout.Id := 'Pivot';
 
   if ALayout.Kind = lkPanel then
     FPivot.Align := TAlign(ALayout.Align)
