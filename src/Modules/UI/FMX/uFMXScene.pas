@@ -8,22 +8,16 @@ uses
 
 type
   TFMXContainer = class
-  private
-    FPlaceholder: TPaintBox;
-    FCanvas: TCanvas;
   public
-    constructor Create(const APlaceholder: TPaintBox);
-    destructor Destroy; override;
-
-    property Placeholder: TPaintBox read FPlaceholder;
-    property Canvas: TCanvas read FCanvas write FCanvas;
+    Scene: TScene;
+    Control: TControl;
+    constructor Create(const AScene: TScene; const AControl: TControl);
   end;
 
   TFMXScene = class(TScene)
   private
     FPlaceholder: TPaintBox;
     FCachedDrawContext: TDrawContext;
-    FDrawContext: TDrawContext;
     procedure OnFMXScenePaint(Sender: TObject; Canvas: TCanvas);
     procedure OnFMXSceneMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
     procedure OnFMXSceneKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
@@ -45,20 +39,9 @@ type
     function GetSceneRect: TRectF; override;
     function GetClientPos: TPointF; override;
     function GetScaleFactor: Single; override;
-
-    function CreatePainter(const AContainer: TObject): TPainter; override;
   end;
 
 implementation
-
-function TFMXScene.CreatePainter(const AContainer: TObject): TPainter;
-var
-  vContainer: TPaintBox absolute AContainer;
-begin
-  Result := TFMXPainter.Create(AContainer);
-  FCachedDrawContext := Result.CreateDrawContext(vContainer.Width, vContainer.Height);
-  FDrawContext := Result.CreateDrawContext(vContainer.Width, vContainer.Height);
-end;
 
 procedure TFMXScene.DoActivate;
   function AllParentsVisible(const AControl: TControl): Boolean;
@@ -83,10 +66,8 @@ begin
 end;
 
 function TFMXScene.DoCreateScene(const APlaceholder: TObject): TPainter;
-var
-  vPlaceholder: TControl absolute APlaceholder;
 begin
-  FPlaceholder := TPaintBox(vPlaceholder);
+  FPlaceholder := TPaintBox(APlaceholder);
 
   FPlaceholder.OnMouseWheel := OnFMXSceneMouseWheel;
   FPlaceholder.OnKeyDown := OnFMXSceneKeyDown;
@@ -101,11 +82,24 @@ begin
   FPlaceholder.CanFocus := True;
   FPlaceholder.TabStop := True;
 
-  Result := CreatePainter(FPlaceholder);
+  Result := TFMXPainter.Create(Self, FPlaceholder);
+  FCachedDrawContext := Result.CreateDrawContext(FPlaceholder.Width, FPlaceholder.Height);
 end;
 
 procedure TFMXScene.DoDestroyScene;
 begin
+  FreeAndNil(FCachedDrawContext);
+
+  FPlaceholder.OnMouseWheel := nil;
+  FPlaceholder.OnKeyDown := nil;
+  FPlaceholder.OnKeyUp := nil;
+
+  FPlaceholder.OnMouseDown := nil;
+  FPlaceholder.OnMouseUp := nil;
+  FPlaceholder.OnDblClick := nil;
+  FPlaceholder.OnMouseMove := nil;
+  FPlaceholder.OnMouseLeave := nil;
+
   FPlaceholder := nil;
 end;
 
@@ -118,36 +112,20 @@ procedure TFMXScene.DoRender(const ANeedFullRepaint: Boolean);
 var
   vContext: TDrawContext;
 begin
-  FPainter.BeginPaint;
-  try
-    if ANeedFullRepaint then
-    begin
-      vContext := FPainter.SetContext(FCachedDrawContext);
-      try
-        FPainter.BeginPaint;
-        FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
-        //FCachedDrawContext.SaveToFile('static.bmp');
-      finally
-        FPainter.EndPaint;
-        FPainter.SetContext(vContext);
-      end;
-    end;
-
-    vContext := FPainter.SetContext(FDrawContext);
+  if ANeedFullRepaint then
+  begin
+    vContext := FPainter.SetContext(FCachedDrawContext);
+    FPainter.BeginPaint;
     try
-      FPainter.BeginPaint;
-      FPainter.DrawContext(FCachedDrawContext);
-      FRoot.RenderDynamic(FPainter, GetSceneRect);
-      //FDrawContext.SaveToFile('dynamic.bmp');
+      FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
     finally
       FPainter.EndPaint;
       FPainter.SetContext(vContext);
     end;
-  finally
-    FPainter.EndPaint;
   end;
 
-  FPainter.DrawContext(FDrawContext);
+  FPainter.DrawContext(FCachedDrawContext);
+  FRoot.RenderDynamic(FPainter, GetSceneRect);
 end;
 
 function TFMXScene.GetClientPos: TPointF;
@@ -233,23 +211,17 @@ end;
 procedure TFMXScene.UpdateContexts(const AWidth, AHeight: Single);
 begin
   FCachedDrawContext.SetSize(AWidth, AHeight);
-  FDrawContext.SetSize(AWidth, AHeight);
 end;
 
 { TFMXContainer }
 
-constructor TFMXContainer.Create(const APlaceholder: TPaintBox);
+constructor TFMXContainer.Create(const AScene: TScene;
+  const AControl: TControl);
 begin
   inherited Create;
-  FPlaceholder := APlaceholder;
-  FCanvas := nil;
-end;
 
-destructor TFMXContainer.Destroy;
-begin
-  FPlaceholder := nil;
-  FCanvas := nil;
-  inherited Destroy;
+  Scene := AScene;
+  Control := AControl;
 end;
 
 end.

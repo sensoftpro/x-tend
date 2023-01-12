@@ -16,7 +16,7 @@ type
   public
     procedure SaveToFile(const AFileName: string); override;
   public
-    constructor Create(const APainter: TPainter; const ACanvas: TCanvas; const AWidth, AHeight: Single);
+    constructor Create(const ACanvas: TCanvas; const AWidth, AHeight: Single);
     destructor Destroy; override;
 
     property Bitmap: TBitmap read FBitmap;
@@ -32,7 +32,8 @@ type
 
   TFMXPainter = class(TPainter)
   private
-    FPlaceholder: TControl;
+    FInvertEffect: TInvertEffect;
+    FInvertBitmap: TBitmap;
     function ThisCanvas: TCanvas;
   protected
     procedure DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF); override;
@@ -56,7 +57,7 @@ type
     procedure DoColorizePen(const AStroke: TStylePen; const AColor: Cardinal); override;
     procedure DoColorizeFont(const AFont: TStyleFont; const AColor: Cardinal); override;
   public
-    constructor Create(const AContainer: TObject); override;
+    constructor Create(const AScene: TObject; const AContainer: TObject); override;
     destructor Destroy; override;
 
     procedure CreateBrush(const AFill: TStyleBrush); override;
@@ -67,7 +68,6 @@ type
 
     procedure BeginPaint; override;
     procedure EndPaint; override;
-    function SetContext(const AContext: TDrawContext): TDrawContext; override;
   end;
 
 implementation
@@ -87,36 +87,34 @@ begin
   ThisCanvas.EndScene;
 end;
 
-constructor TFMXPainter.Create(const AContainer: TObject);
+constructor TFMXPainter.Create(const AScene: TObject; const AContainer: TObject);
+var
+  vContainer: TControl absolute AContainer;
 begin
-  FPlaceholder := TControl(AContainer);
-  FContext := TFMXContext.Create(Self, FPlaceholder.Canvas,
-    FPlaceholder.Width, FPlaceholder.Height);
-  FDrawStyles := TDrawStyles.Create;
+  inherited Create(AScene, AContainer);
+  FContext := TFMXContext.Create(vContainer.Canvas, vContainer.Width, vContainer.Height);
+  FInvertEffect := nil;
+  FInvertBitmap := nil;
 end;
 
 function TFMXPainter.CreateDrawContext(const AWidth, AHeight: Single): TDrawContext;
 begin
-  Result := TFMXContext.Create(Self, nil, AWidth, AHeight);
+  Result := TFMXContext.Create(nil, AWidth, AHeight);
 end;
 
 procedure TFMXPainter.CreateBrush(const AFill: TStyleBrush);
 var
   vBrush: TBrush;
-  vGradient: TGradient;
 begin
   if (AFill.GradientKind <> gkNone) then
   begin
     vBrush := TBrush.Create(TBrushKind.Gradient, AFill.Color);
-    vGradient := TGradient.Create;
-    vGradient.Color := AFill.Color;
-    vGradient.Color1 := AFill.BackColor;
+    vBrush.Gradient.Color := AFill.Color;
+    vBrush.Gradient.Color1 := AFill.BackColor;
     case AFill.GradientKind of
-      gkVertical: vGradient.Style := TGradientStyle.Linear;
-      gkHorizontal: vGradient.Style := TGradientStyle.Radial;
+      gkVertical: vBrush.Gradient.Style := TGradientStyle.Linear;
+      gkHorizontal: vBrush.Gradient.Style := TGradientStyle.Radial;
     end;
-    vBrush.Gradient := vGradient;
-    vGradient.Free;
   end else
     vBrush := TBrush.Create(TBrushKind.Solid, AFill.Color);
   AFill.NativeObject := vBrush;
@@ -182,6 +180,8 @@ end;
 
 destructor TFMXPainter.Destroy;
 begin
+  FreeAndNil(FInvertEffect);
+  FreeAndNil(FInvertBitmap);
   inherited Destroy;
 end;
 
@@ -226,8 +226,9 @@ end;
 
 procedure TFMXPainter.DoDrawContext(const AContext: TDrawContext);
 begin
-  ThisCanvas.DrawBitmap(TFMXContext(AContext).Bitmap, TFMXContext(AContext).Bitmap.BoundsF,
-    FPlaceholder.LocalRect, 1, True);
+  if Assigned(TFMXContext(AContext).Bitmap) then
+    ThisCanvas.DrawBitmap(TFMXContext(AContext).Bitmap, AContext.ClientRect,
+      FContext.ClientRect, 1, True);
 end;
 
 procedure TFMXPainter.DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF);
@@ -412,20 +413,23 @@ end;
 
 procedure TFMXPainter.DoInvertRect(const ARect: TRectF);
 var
-  vNewBitmap: TBitmap;
-  vInvertEffect: TInvertEffect;
+  vImageContext: TDrawContext;
 begin
-  vNewBitmap := TBitmap.Create;
-  vNewBitmap.Width := Round(ARect.Width);
-  vNewBitmap.Height := Round(ARect.Height);
-  vNewBitmap.CopyFromBitmap(TFMXContext(FContext).Bitmap, ARect.Round, 0,0);
-  vInvertEffect := TInvertEffect.Create(nil);
-  vInvertEffect.ProcessEffect(ThisCanvas, vNewBitmap, 0);
+  vImageContext := TFMXScene(FScene).ImageContext;
+  if not Assigned(vImageContext) then
+    Exit;
 
-  ThisCanvas.DrawBitmap(vNewBitmap, vNewBitmap.BoundsF, ARect, 1, True);
+  if not Assigned(FInvertEffect) then
+    FInvertEffect := TInvertEffect.Create(nil);
+  if not Assigned(FInvertBitmap) then
+    FInvertBitmap := TBitmap.Create;
 
-  vNewBitmap.Destroy;
-  vInvertEffect.Destroy;
+  FInvertBitmap.SetSize(Round(ARect.Width), Round(ARect.Height));
+  FInvertBitmap.CopyFromBitmap(TFMXContext(vImageContext).Bitmap, ARect.Round, 0, 0);
+
+  FInvertEffect.ProcessEffect(ThisCanvas, FInvertBitmap, 0);
+
+  ThisCanvas.DrawBitmap(FInvertBitmap, FInvertBitmap.BoundsF, ARect, 1, True);
 end;
 
 function TFMXPainter.GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF;
@@ -440,12 +444,6 @@ begin
   ThisCanvas.MeasureText(R, AText, False, [], TTextAlign.Leading, TTextAlign.Leading);
   Result.cx := R.Right;
   Result.cy := R.Bottom;
-end;
-
-function TFMXPainter.SetContext(const AContext: TDrawContext): TDrawContext;
-begin
-  Result := FContext;
-  FContext := AContext;
 end;
 
 function TFMXPainter.ThisCanvas: TCanvas;
@@ -479,43 +477,40 @@ end;
 
 { TFMXContext }
 
-constructor TFMXContext.Create(const APainter: TPainter; const ACanvas: TCanvas; const AWidth, AHeight: Single);
+constructor TFMXContext.Create(const ACanvas: TCanvas; const AWidth, AHeight: Single);
 begin
+  inherited Create(AWidth, AHeight);
+
   if not Assigned(ACanvas) then
   begin
     FBitmap := TBitmap.Create(Round(AWidth), Round(AHeight));
     FCanvas := FBitmap.Canvas;
-  end else
-  begin
-    FBitmap := TBitmap.Create(Round(AWidth), Round(AHeight));
+  end
+  else begin
     FCanvas := ACanvas;
+    FBitmap := nil;
   end;
 end;
 
 destructor TFMXContext.Destroy;
 begin
+  FCanvas := nil;
   FreeAndNil(FBitmap);
-  FreeAndNil(FCanvas);
 end;
 
 procedure TFMXContext.DoSetSize(const AWidth, AHeight: Single);
-var
-  vBitmap: TBitmap;
 begin
+  inherited DoSetSize(AWidth, AHeight);
   if Assigned(FBitmap) then
   begin
-    vBitmap := Tbitmap.Create(Round(AWidth), Round(AHeight));
-    vBitmap.Canvas.BeginScene;
-    vBitmap.Canvas.DrawBitmap(FBitmap, FBitmap.BoundsF, vBitmap.BoundsF, 1, True);
-    vBitmap.Canvas.EndScene;
-    FBitmap := vBitmap;
-    FCanvas := vBitmap.Canvas;
+    FBitmap.SetSize(Round(AWidth), Round(AHeight));
+    FCanvas := FBitmap.Canvas;
   end;
 end;
 
 procedure TFMXContext.SaveToFile(const AFileName: string);
 begin
-  FBitmap.SaveToFile(AFilename, nil);
+  FBitmap.SaveToFile(AFileName, nil);
 end;
 
 end.

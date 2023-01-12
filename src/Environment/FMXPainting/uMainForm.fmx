@@ -3,7 +3,7 @@ object fmMain: TfmMain
   Top = 0
   Caption = 'Form11'
   ClientHeight = 561
-  ClientWidth = 873
+  ClientWidth = 881
   Quality = HighQuality
   FormFactor.Width = 320
   FormFactor.Height = 480
@@ -12,7 +12,7 @@ object fmMain: TfmMain
   DesignerMasterStyle = 0
   object pnlTop: TPanel
     Align = Top
-    Size.Width = 873.000000000000000000
+    Size.Width = 881.000000000000000000
     Size.Height = 89.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 0
@@ -72,7 +72,7 @@ object fmMain: TfmMain
   end
   object pbxCanvas: TPaintBox
     Align = Client
-    Size.Width = 873.000000000000000000
+    Size.Width = 881.000000000000000000
     Size.Height = 472.000000000000000000
     Size.PlatformDefault = False
   end

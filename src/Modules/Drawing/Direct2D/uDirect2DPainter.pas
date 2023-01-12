@@ -157,7 +157,7 @@ type
     procedure DoColorizePen(const AStroke: TStylePen; const AColor: Cardinal); override;
     procedure DoColorizeFont(const AFont: TStyleFont; const AColor: Cardinal); override;
   public
-    constructor Create(const AContainer: TObject); override;
+    constructor Create(const AScene: TObject; const AContainer: TObject); override;
     destructor Destroy; override;
 
     procedure CreateBrush(const AFill: TStyleBrush); override;
@@ -226,14 +226,14 @@ begin
   end;
 end;
 
-constructor TDirect2DPainter.Create(const AContainer: TObject);
+constructor TDirect2DPainter.Create(const AScene: TObject; const AContainer: TObject);
 var
   vContainer: TDrawContainer absolute AContainer;
 begin
   if (Win32MajorVersion < 6) or (Win32Platform <> VER_PLATFORM_WIN32_NT) then
     raise Exception.Create('Your Windows version do not support Direct2D');
 
-  inherited Create(AContainer);
+  inherited Create(AScene, AContainer);
 
   FD2DFactory := D2DFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, nil);
   CoCreateInstance(CLSID_WICImagingFactory, nil, CLSCTX_INPROC_SERVER, IID_IWICImagingFactory, FImageFactory);
@@ -929,7 +929,7 @@ function TDirect2DScene.CreatePainter(const AContainer: TObject): TPainter;
 var
   vContainer: TDrawContainer absolute AContainer;
 begin
-  Result := TDirect2DPainter.Create(AContainer);
+  Result := TDirect2DPainter.Create(Self, AContainer);
   FStaticContext := TD2DDrawContext(Result.CreateDrawContext(vContainer.Width, vContainer.Height));
 end;
 

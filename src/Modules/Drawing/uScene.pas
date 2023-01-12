@@ -221,7 +221,7 @@ type
     procedure SetEnabled(const AValue: Boolean); virtual;
     function GetSceneRect: TRectF; virtual; abstract;
     function GetClientPos: TPointF; virtual; abstract;
-    function CreatePainter(const AContainer: TObject): TPainter; virtual; abstract;
+    function CreatePainter(const AContainer: TObject): TPainter; virtual;
     function GetImageContext: TDrawContext; virtual;
     procedure UpdateContexts(const AWidth, AHeight: Single); virtual;
     function GetScaleFactor: Single; virtual;
@@ -237,6 +237,7 @@ type
     procedure SaveToFile(const AFileName: string; const AWaterMark: string = ''); virtual;
 
     property Painter: TPainter read FPainter;
+    property ImageContext: TDrawContext read GetImageContext;
     property FocusedObject: TSceneObject read FFocusedObject write SetFocusedObject;
     property HoveredObject: TSceneObject read FHoveredObject write SetHoveredObject;
     property Enabled: Boolean read FEnabled write SetEnabled;
@@ -575,6 +576,11 @@ begin
   FState := ssDirty;
 end;
 
+function TScene.CreatePainter(const AContainer: TObject): TPainter;
+begin
+  Result := nil;
+end;
+
 destructor TScene.Destroy;
 begin
   FState := ssDestroying;
@@ -598,8 +604,12 @@ end;
 
 procedure TScene.FullRefresh;
 begin
-  Invalidate(ssDirty);
-  Repaint;
+  BeginUpdate;
+  try
+    DoRender(False);
+  finally
+    EndUpdate;
+  end;
 end;
 
 function TScene.GetImageContext: TDrawContext;
@@ -831,14 +841,9 @@ begin
   FPainter.Context.SetSize(vSceneRect.Width, vSceneRect.Height);
   UpdateContexts(vSceneRect.Width, vSceneRect.Height);
 
-  BeginUpdate;
-  try
-    FMousePos := PointF(-1, -1);
-    FRoot.SetRect(RectF(0, 0, vSceneRect.Width, vSceneRect.Height));
-    Invalidate;
-  finally
-    EndUpdate;
-  end;
+  FMousePos := PointF(-1, -1);
+  FRoot.SetRect(RectF(0, 0, vSceneRect.Width, vSceneRect.Height));
+  Repaint;
 end;
 
 procedure TScene.Render;

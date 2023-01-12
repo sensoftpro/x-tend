@@ -113,7 +113,7 @@ type
     procedure DoColorizePen(const AStroke: TStylePen; const AColor: Cardinal); override;
     procedure DoColorizeFont(const AFont: TStyleFont; const AColor: Cardinal); override;
   public
-    constructor Create(const AContainer: TObject); override;
+    constructor Create(const AScene: TObject; const AContainer: TObject); override;
     destructor Destroy; override;
 
     procedure CreateBrush(const AFill: TStyleBrush); override;
@@ -174,11 +174,11 @@ begin
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
 end;
 
-constructor TOpenGLPainter.Create(const AContainer: TObject);
+constructor TOpenGLPainter.Create(const AScene: TObject; const AContainer: TObject);
 var
   vContainer: TDrawContainer absolute AContainer;
 begin
-  inherited Create(AContainer);
+  inherited Create(AScene, AContainer);
   InitOpenGL;
   FDC := GetDC(vContainer.HWND);
   SetDCPixelFormat;
@@ -810,7 +810,7 @@ end;
 
 function TOpenGLScene.CreatePainter(const AContainer: TObject): TPainter;
 begin
-  Result := TOpenGLPainter.Create(AContainer);
+  Result := TOpenGLPainter.Create(Self, AContainer);
 end;
 
 procedure TOpenGLScene.DoActivate;

@@ -33,6 +33,9 @@ var
 
 implementation
 
+uses
+  Windows;
+
 {$R *.fmx}
 
 procedure TfmMain.btnCreateClick(Sender: TObject);
@@ -48,22 +51,21 @@ end;
 
 procedure TfmMain.btnMeasureClick(Sender: TObject);
 var
-  vStartWatch, vStopWatch: TStopwatch;
+  vStart, vStop, vFreq: Int64;
   i: Integer;
 const
   cRefreshCount = 200;
 begin
   if Assigned(FScene) then
   begin
-    vStartWatch.StartNew;
+    QueryPerformanceFrequency(vFreq);
+    QueryPerformanceCounter(vStart);
 
     for i := 1 to cRefreshCount do
       FScene.FullRefresh;
 
-    vStopWatch.StartNew;
-    lblFPS.Text := FormatFloat('###,##0.###', (vStartWatch.ElapsedMilliseconds - vStopWatch.ElapsedMilliseconds) / cRefreshCount) + ' мcек';
-    vStartWatch.Reset;
-    vStopWatch.Reset;
+    QueryPerformanceCounter(vStop);
+    lblFPS.Text := FormatFloat('###,##0.###', 1000 * (vStop - vStart) / vFreq / cRefreshCount) + ' мcек';
   end
   else
     lblFPS.Text := '< нет данных >';
@@ -71,7 +73,8 @@ end;
 
 procedure TfmMain.FormDestroy(Sender: TObject);
 begin
-  FreeAndNil(FScene);
+  if Assigned(FScene) then
+    FreeAndNil(FScene);
 end;
 
 end.

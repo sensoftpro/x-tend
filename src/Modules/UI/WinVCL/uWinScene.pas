@@ -104,7 +104,6 @@ type
   TWinScene = class(TScene)
   private
     FPanel: TMyPanel;
-    FContainer: TDrawContainer;
   protected
     function DoCreateScene(const APlaceholder: TObject): TPainter; override;
     procedure DoDestroyScene; override;
@@ -324,8 +323,6 @@ end;
 
 procedure TWinScene.DoDestroyScene;
 begin
-  FreeAndNil(FContainer);
-
   FPanel.OnResize := nil;
   FPanel.OnMouseWheel := nil;
   FPanel.OnKeyUp := nil;
@@ -336,6 +333,7 @@ begin
   FPanel.OnDblClick := nil;
   FPanel.OnMouseMove := nil;
   FPanel.OnMouseLeave := nil;
+
   FPanel := nil;
 end;
 
@@ -424,6 +422,7 @@ end;
 
 procedure TWinDrawContext.DoSetSize(const AWidth, AHeight: Single);
 begin
+  inherited DoSetSize(AWidth, AHeight);
   if Assigned(FBitmap) then
     FBitmap.SetSize(Round(AWidth), Round(AHeight));
 end;

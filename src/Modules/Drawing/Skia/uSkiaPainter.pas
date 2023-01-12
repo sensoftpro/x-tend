@@ -126,7 +126,7 @@ type
     procedure DoColorizePen(const AStroke: TStylePen; const AColor: Cardinal); override;
     procedure DoColorizeFont(const AFont: TStyleFont; const AColor: Cardinal); override;
   public
-    constructor Create(const AContainer: TObject); override;
+    constructor Create(const AScene: TObject; const AContainer: TObject); override;
     destructor Destroy; override;
 
     procedure CreateBrush(const AFill: TStyleBrush); override;
@@ -172,11 +172,11 @@ uses
 
 { TSkiaPainter }
 
-constructor TSkiaPainter.Create(const AContainer: TObject);
+constructor TSkiaPainter.Create(const AScene: TObject; const AContainer: TObject);
 var
   vContainer: TDrawContainer absolute AContainer;
 begin
-  inherited Create(AContainer);
+  inherited Create(AScene, AContainer);
   FContext := TDrawContext.Create(0, 0);
 end;
 
@@ -643,7 +643,7 @@ end;
 
 function TSkiaScene.CreatePainter(const AContainer: TObject): TPainter;
 begin
-  Result := TSkiaPainter.Create(AContainer);
+  Result := TSkiaPainter.Create(Self, AContainer);
 end;
 
 procedure TSkiaScene.DeleteBuffers;

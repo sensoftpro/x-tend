@@ -270,6 +270,7 @@ type
     procedure DrawNinePatchImage(const AImage: TObject; const ARect: TRectF; const AOpacity: Single);
     function Colorize(const AStyleObject: TColoredStyleObject; const AColor: Cardinal): Cardinal;
   protected
+    FScene: TObject;
     FDrawStyles: TDrawStyles;
     FContext: TDrawContext;
     procedure DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF); virtual; abstract;
@@ -293,7 +294,7 @@ type
     procedure DoColorizePen(const AStroke: TStylePen; const AColor: Cardinal); virtual; abstract;
     procedure DoColorizeFont(const AFont: TStyleFont; const AColor: Cardinal); virtual; abstract;
   public
-    constructor Create(const AContainer: TObject); virtual;
+    constructor Create(const AScene: TObject; const AContainer: TObject); virtual;
     destructor Destroy; override;
 
     procedure CreateBrush(const AFill: TStyleBrush); virtual; abstract;
@@ -946,9 +947,10 @@ begin
   end;
 end;
 
-constructor TPainter.Create(const AContainer: TObject);
+constructor TPainter.Create(const AScene: TObject; const AContainer: TObject);
 begin
   inherited Create;
+  FScene := AScene;
   FDrawStyles := TDrawStyles.Create;
 end;
 
@@ -1478,11 +1480,12 @@ end;
 constructor TDrawContext.Create(const AWidth, AHeight: Single);
 begin
   inherited Create;
-  FClientRect := RectF(0, 0, AWidth, AHeight);
+  DoSetSize(AWidth, AHeight);
 end;
 
 procedure TDrawContext.DoSetSize(const AWidth, AHeight: Single);
 begin
+  FClientRect := RectF(0, 0, AWidth, AHeight);
 end;
 
 function TDrawContext.GetHeight: Integer;
@@ -1503,10 +1506,7 @@ end;
 procedure TDrawContext.SetSize(const AWidth, AHeight: Single);
 begin
   if not SameValue(AWidth, FClientRect.Width) or not SameValue(AHeight, FClientRect.Height) then
-  begin
     DoSetSize(AWidth, AHeight);
-    FClientRect := RectF(0, 0, AWidth, AHeight);
-  end;
 end;
 
 end.

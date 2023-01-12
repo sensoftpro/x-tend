@@ -74,7 +74,7 @@ type
     procedure DoColorizePen(const AStroke: TStylePen; const AColor: Cardinal); override;
     procedure DoColorizeFont(const AFont: TStyleFont; const AColor: Cardinal); override;
   public
-    constructor Create(const AContainer: TObject); override;
+    constructor Create(const AScene: TObject; const AContainer: TObject); override;
     destructor Destroy; override;
 
     procedure CreateBrush(const AFill: TStyleBrush); override;
@@ -133,11 +133,11 @@ begin
   Result := TColor(RGB(GetBValue(AColor), GetGValue(AColor), GetRValue(AColor)));
 end;
 
-constructor TVCLPainter.Create(const AContainer: TObject);
+constructor TVCLPainter.Create(const AScene: TObject; const AContainer: TObject);
 var
   vContainer: TDrawContainer absolute AContainer;
 begin
-  inherited Create(AContainer);
+  inherited Create(AScene, AContainer);
 
   FContext := TWinDrawContext.Create(Self, vContainer.Canvas, vContainer.Width, vContainer.Height);
   FClippedRegion := 0;
@@ -720,7 +720,7 @@ function TVCLScene.CreatePainter(const AContainer: TObject): TPainter;
 var
   vContainer: TDrawContainer absolute AContainer;
 begin
-  Result := TVCLPainter.Create(AContainer);
+  Result := TVCLPainter.Create(Self, AContainer);
   FCachedDrawContext := TWinDrawContext(Result.CreateDrawContext(vContainer.Width, vContainer.Height));
   FDrawContext := TWinDrawContext(Result.CreateDrawContext(vContainer.Width, vContainer.Height));
 end;

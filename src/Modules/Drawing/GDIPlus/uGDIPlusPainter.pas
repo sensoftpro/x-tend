@@ -102,7 +102,7 @@ type
     procedure DoColorizePen(const AStroke: TStylePen; const AColor: Cardinal); override;
     procedure DoColorizeFont(const AFont: TStyleFont; const AColor: Cardinal); override;
   public
-    constructor Create(const AContainer: TObject); override;
+    constructor Create(const AScene: TObject; const AContainer: TObject); override;
     destructor Destroy; override;
 
     procedure CreateBrush(const AFill: TStyleBrush); override;
@@ -153,11 +153,11 @@ begin
   TGPPen(AStroke.NativeObject).SetColor(AColor);
 end;
 
-constructor TGDIPlusPainter.Create(const AContainer: TObject);
+constructor TGDIPlusPainter.Create(const AScene: TObject; const AContainer: TObject);
 var
   vContainer: TDrawContainer absolute AContainer;
 begin
-  inherited Create(AContainer);
+  inherited Create(AScene, AContainer);
 
   FContext := TGDIPlusDrawContext.Create(Self, vContainer, vContainer.Width, vContainer.Height);
 end;
@@ -559,6 +559,8 @@ procedure TGDIPlusDrawContext.DoSetSize(const AWidth, AHeight: Single);
 var
   vDC: HDC;
 begin
+  inherited DoSetSize(AWidth, AHeight);
+
   if Assigned(FGPBitmap) then
   begin
     FGPBitmap := TGPBitmap.Create(Round(AWidth), Round(AHeight), PixelFormat32bppARGB);
@@ -566,6 +568,8 @@ begin
   end else
   begin
     FGPBitmap := nil;
+    if not Assigned(FGPCanvas) then
+      Exit;
     vDC := FGPCanvas.GetHDC;
     FGPCanvas := TGPGraphics.Create(vDC);
     FGPCanvas.ReleaseHDC(vDC);
@@ -594,7 +598,7 @@ function TGDIPlusScene.CreatePainter(const AContainer: TObject): TPainter;
 var
   vContainer: TDrawContainer absolute AContainer;
 begin
-  Result := TGDIPlusPainter.Create(AContainer);
+  Result := TGDIPlusPainter.Create(Self, AContainer);
   FCachedDrawContext := TGDIPlusDrawContext(Result.CreateDrawContext(vContainer.Width, vContainer.Height));
   FDrawContext := TGDIPlusDrawContext(Result.CreateDrawContext(vContainer.Width, vContainer.Height));
 end;

@@ -52,7 +52,7 @@ object fmMain: TfmMain
     end
     object btnCreate: TButton
       Left = 464
-      Top = 21
+      Top = 19
       Width = 93
       Height = 25
       Caption = 'Create'
