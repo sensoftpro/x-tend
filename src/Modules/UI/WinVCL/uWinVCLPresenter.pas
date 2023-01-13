@@ -1278,7 +1278,6 @@ function TWinVCLPresenter.ShowPage(const AInteractor: TInteractor; const APageTy
   const AParams: TObject = nil): TDialogResult;
 var
   vForm: TReportConfigureFm;
-  vProgressInfo: TProgressInfo;
   vPageClass: TManagedFormClass;
 begin
   Result := drNone;
@@ -1317,7 +1316,7 @@ begin
   end
   else if APageType = 'splash' then
   begin
-    vProgressInfo := TProgressInfo(AParams);
+    {vProgressInfo := TProgressInfo(AParams);
     if not Assigned(vProgressInfo) then
       Exit;
 
@@ -1326,7 +1325,7 @@ begin
     else if vProgressInfo.Progress = 100 then
       FreeAndNil(FSplashForm)
     else
-      FSplashForm.UpdateProgress(vProgressInfo.Progress, vProgressInfo.Info);
+      FSplashForm.UpdateProgress(vProgressInfo.Progress, vProgressInfo.Info); }
   end
   else begin
     vPageClass := TManagedFormClass(GetPageClass(FName, APageType));
@@ -1402,7 +1401,9 @@ begin
     finally
       AArea.SetHolder(nil);
       if Assigned(AArea.Parent) then
-        AArea.Parent.RemoveArea(AArea);
+        AArea.Parent.RemoveArea(AArea)
+      else
+        AArea.Release;
       vForm.Free;
     end;
   end;

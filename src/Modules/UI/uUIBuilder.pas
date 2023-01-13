@@ -411,16 +411,19 @@ begin
     vInteractor := TInteractor(AView.Interactor);
 
     vUser := TUserSession(vInteractor.Session).CurrentUser;
-    vRoles := TListField(vUser.FieldByName('Roles'));
-    if vRoles.Count <> 1 then
+    if Assigned(vUser) then
     begin
-      if TUserSession(vInteractor.Session).IsAdmin then
-        vPostfix := '_Administrators';
-    end
-    else begin
-      vRole := TEntity(vRoles[0]).ExtractEntity('Role');
-      if Assigned(vRole) then
-        vPostfix := '_' + vRole['Code'];
+      vRoles := TListField(vUser.FieldByName('Roles'));
+      if vRoles.Count <> 1 then
+      begin
+        if TUserSession(vInteractor.Session).IsAdmin then
+          vPostfix := '_Administrators';
+      end
+      else begin
+        vRole := TEntity(vRoles[0]).ExtractEntity('Role');
+        if Assigned(vRole) then
+          vPostfix := '_' + vRole['Code'];
+      end;
     end;
   end;
 
@@ -793,32 +796,39 @@ begin
     vUIArea.SetHolder(AChangeHolder);
     vUIArea.BeginUpdate;
     try
-      if vAreaName = '' then
+      if {not Assigned(vInteractor.CurrentArea) or} (vAreaName = '') then
       begin
         vInteractor.RootArea := vUIArea;
         ApplyLayout(vUIArea, AView, vLayoutName, AOptions);
         vIsMainForm := True;
       end
       else begin
-        if vInteractor.CurrentArea.FAreas.IndexOf(vUIArea) >= 0 then
+        if Assigned(vInteractor.CurrentArea) then
         begin
-          Result := TPresenter(FPresenter).ShowUIArea(vInteractor, vAreaName, AOptions, vUIArea);
-          Exit;
-        end;
+          if vInteractor.CurrentArea.FAreas.IndexOf(vUIArea) >= 0 then
+          begin
+            Result := TPresenter(FPresenter).ShowUIArea(vInteractor, vAreaName, AOptions, vUIArea);
+            Exit;
+          end;
 
-        vInteractor.CurrentArea.AddArea(vUIArea);
-        ApplyLayout(vUIArea, AView, vLayoutName, AOptions);
-        if vAreaName = 'child' then
-        begin
-          vServiceLayout := FLayouts.CreateSimpleLayout(lkPanel);
-          vServiceLayout.Height := cServiceAreaHeight;
-          vServiceLayout.Align := lalBottom;
-          vServiceArea := vUIArea.DoCreateChildArea(vServiceLayout, vInteractor.RootView);
-          vUIArea.AddArea(vServiceArea);
-          if AView.State >= vsSelectOnly {and Assigned(AChangeHolder) - у параметров нет холдера} then
-            ApplyLayout(vServiceArea, vUIArea.View, 'OkCancel', '')
-          else
-            ApplyLayout(vServiceArea, vUIArea.View, 'Close', '');
+          vInteractor.CurrentArea.AddArea(vUIArea);
+          ApplyLayout(vUIArea, AView, vLayoutName, AOptions);
+          if vAreaName = 'child' then
+          begin
+            vServiceLayout := FLayouts.CreateSimpleLayout(lkPanel);
+            vServiceLayout.Height := cServiceAreaHeight;
+            vServiceLayout.Align := lalBottom;
+            vServiceArea := vUIArea.DoCreateChildArea(vServiceLayout, vInteractor.RootView);
+            vUIArea.AddArea(vServiceArea);
+            if AView.State >= vsSelectOnly {and Assigned(AChangeHolder) - у параметров нет холдера} then
+              ApplyLayout(vServiceArea, vUIArea.View, 'OkCancel', '')
+            else
+              ApplyLayout(vServiceArea, vUIArea.View, 'Close', '');
+          end;
+        end
+        else begin
+          vInteractor.RootArea := vUIArea;
+          ApplyLayout(vUIArea, AView, vLayoutName, AOptions);
         end;
       end;
 
@@ -838,7 +848,10 @@ begin
 
     Result := TPresenter(FPresenter).ShowUIArea(vInteractor, vAreaName, vOptions, vUIArea);
     if Result > drNone then
+    begin
+      vInteractor.LastArea := nil;
       vInteractor.CurrentArea := vLastCurrentArea;
+    end;
 
     if vIsMainForm and (vInteractor.DefaultParams <> '') then
     begin
@@ -1805,6 +1818,9 @@ begin
     Result := FParent.GetHolder
   else
     Result := FHolder;
+
+  if not Assigned(Result) then
+    Result := TDomain(FView.Domain).DomainHolder;
 end;
 
 function TUIArea.GetImageID(const AImageID: Integer): Integer;

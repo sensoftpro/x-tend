@@ -418,7 +418,10 @@ end;
 
 function TUserSession.GetUIState(const AObjectName: string; const AContextState: TState): TViewState;
 begin
-  Result := GetAccessFlags(FUser, AObjectName, AContextState);
+  if not Assigned(FUser) then
+    Result := vsFullAccess
+  else
+    Result := GetAccessFlags(FUser, AObjectName, AContextState);
 end;
 
 procedure TUserSession.InternalReleaseChangeHolder(const AHolder: TChangeHolder; const AResult, ASkipLogging: Boolean);

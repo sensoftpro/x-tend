@@ -254,10 +254,13 @@ procedure TPlatform.Init;
 var
   vScripts: TStrings;
   vName: string;
+  vConfigurationDir: string;
   vConfiguration: TConfiguration;
   vDomain: TDomain;
+  vSettings: TIniSettings;
 begin
   FWereErrors := False;
+  vConfigurationDir := '';
 
   vScripts := TScript.GetRegisteredScripts;
   try
@@ -265,28 +268,26 @@ begin
     begin
       vConfiguration := TCodeConfiguration.Create(Self, vName);
       vConfiguration.Init;
+      if vConfigurationDir = '' then
+        vConfigurationDir := vConfiguration.ConfigurationDir;
       FConfigurations.AddObject(vName, vConfiguration);
-
-      vDomain := TDomain.Create(Self, vConfiguration, vName, FSettings);
-      FDomains.AddObject(vName, vDomain);
     end;
   finally
     FreeAndNil(vScripts);
   end;
 
-  if FDomains.Count = 1 then
+  vSettings := TIniSettings.Create(TPath.Combine(vConfigurationDir, 'settings.ini'));
+  try
+    FPresenter := CreatePresenter(vSettings);
+  finally
+    FreeAndNil(vSettings);
+  end;
+
+  for vConfiguration in FConfigurations do
   begin
-    FPresenter := CreatePresenter(FDomains[0].Settings);
-    // Ugly hack, rethink later
-    if Assigned(FPresenter) then
-    begin
-      FDomains[0].OnError := TPresenterCrack(FPresenter).OnDomainError;
-      FDomains[0].OnProgress := TPresenterCrack(FPresenter).OnDomainLoadProgress;
-      TPresenterCrack(FPresenter).FProgressInfo.Domain := FDomains[0];
-    end;
-  end
-  else
-    FPresenter := CreatePresenter(FSettings);
+    vDomain := TDomain.Create(Self, vConfiguration, vName, FSettings);
+    FDomains.AddObject(vName, vDomain);
+  end;
 
   for vDomain in FDomains do
   begin

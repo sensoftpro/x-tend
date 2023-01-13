@@ -138,7 +138,7 @@ begin
     vImage.ControlStyle := vImage.ControlStyle + [csOpaque];
     vImage.Properties.ShowFocusRect := False;
     vImage.Properties.PopupMenuLayout.MenuItems := [];
-    vImage.Properties.FitMode := ifmNormal;
+    vImage.Properties.FitMode := ifmFill;
     vImage.DoubleBuffered := True;
     vImage.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vImage.Anchors := ALayout.Anchors;

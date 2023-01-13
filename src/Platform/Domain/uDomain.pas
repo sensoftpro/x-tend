@@ -88,10 +88,10 @@ type
     FSessions: TUserSessions;
     FDomainSession: TUserSession;
     FDomainHolder: TChangeHolder;
+    FDomainInteractor: TObject;
 
     FDataLock: TDomainLock;
 
-    FOnError: TNotifyErrorEvent;
     FOnProgress: TNotifyProgressEvent;
 
     procedure ApplyChanges(const AHolder: TObject; const AChanges: TJSONObject);
@@ -197,6 +197,7 @@ type
     property Sessions: TUserSessions read FSessions;
     property DomainSession: TUserSession read FDomainSession;
     property DomainHolder: TChangeHolder read FDomainHolder;
+    property DomainInteractor: TObject read FDomainInteractor;
     property Storage: TStorage read FStorage;
     property StoredVersion: TVersion read FStoredVersion;
     property Configuration: TConfiguration read FConfiguration;
@@ -205,7 +206,6 @@ type
     function IsModuleLoaded(const AName: string): Boolean;
     property DataLock: TDomainLock read FDataLock;
     property LoadingChanges: Boolean read FLoadingChanges;
-    property OnError: TNotifyErrorEvent read FOnError write FOnError;
     property OnProgress: TNotifyProgressEvent read FOnProgress write FOnProgress;
   end;
 
@@ -213,7 +213,7 @@ implementation
 
 uses
   Types, SysUtils, StrUtils, IOUtils, Math, Variants, IniFiles,
-  uPlatform, uQueryDef, uQuery;
+  uPlatform, uPresenter, uInteractor, uQueryDef, uQuery;
 
 type
   TCreateDefaultEntitiesProc = procedure (const ADomain: TObject) of object;
@@ -426,8 +426,6 @@ begin
   FModules := TDictionary<string, TBaseModule>.Create;
   FModuleInstances := TObjectList<TBaseModule>.Create;
 
-  NotifyLoadingProgress(0, 'Создание домена');
-
   vAppDataDirectory := FConfiguration.CacheDir;
   FUserSettings := TIniSettings.Create(TPath.Combine(vAppDataDirectory, 'settings.ini'));
   vLogsDir := TPath.Combine(vAppDataDirectory, 'logs');
@@ -444,7 +442,10 @@ begin
 
   FSessions := TUserSessions.Create(Self);
   FDomainSession := FSessions.AddSession(nil);
+  FDomainInteractor := TInteractor.Create(_Platform.Presenter, FDomainSession);
   FDomainHolder := FDomainSession.NullHolder;
+
+  //NotifyLoadingProgress(0, 'Создание домена');
 
   FCollections := TStringDictionary<TCollection>.Create;
   FRootCollection := TCollection.Create(Self, FConfiguration.RootDefinition);
@@ -471,6 +472,7 @@ begin
   FScheduler.CancelAll;
   FreeAndNil(FScheduler);
 
+  FreeAndNil(FDomainInteractor);
   FreeAndNil(FUIBuilder);
 
   // Модули должны очищаться в обратном порядке
@@ -1045,14 +1047,19 @@ end;
 procedure TDomain.NotifyError(const ACaption, AText: string);
 begin
   FLogger.AddMessage(AText, mkError);
-  if Assigned(FOnError) then
-    FOnError(ACaption, AText);
+  TPresenter(TInteractor(FDomainInteractor).Presenter).ShowMessage(ACaption, AText, msError);
 end;
 
 procedure TDomain.NotifyLoadingProgress(const AProgress: Integer; const AInfo: string);
+var
+  vProgressData: TEntity;
 begin
-  if Assigned(FOnProgress) then
-    FOnProgress(AProgress, AInfo);
+  vProgressData := FirstEntity('SysTemporaries');
+  if not Assigned(vProgressData) then
+    Exit;
+
+  vProgressData._SetFieldValue(FDomainHolder, 'Progress', AProgress);
+  vProgressData._SetFieldValue(FDomainHolder, 'ProgressInfo', AInfo);
 end;
 
 function TDomain.Now: TDateTime;

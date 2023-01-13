@@ -253,7 +253,9 @@ begin
     NativeInt(vDomain.EntityByID('SysUsers', 1)), NativeInt(vDomain.EntityByID('SysRoles', 1))], True);
 
   vCollection := vDomain['SysConstants'];
-  vCollection.CreateDefaultEntity(AHolder, 1, 'Code;MailLogin;MailPassword', ['debug', 'noname@mail.ru', '']);
+  vCollection.CreateDefaultEntity(AHolder, 1, 'Code;AppName;Version;CompanyName;CompanyWebsite;' +
+    'CompanyEmail;StartYear;MailLogin;MailPassword', ['debug', vDomain.AppName, vDomain.Configuration.VersionName,
+    'Sensoft', 'https://sensoft.pro', 'info@sensoft.pro', 2021, 'noname@mail.ru', '']);
 end;
 
 procedure TConfiguratorScript.DoCreateDefinitions;

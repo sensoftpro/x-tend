@@ -519,7 +519,7 @@ begin
     begin
       if TDefinition(FDefinition).IsDescendantOf('SysUsers') then
         SetDomainEntity(TUserSession(vInteractor.Session).CurrentUser)
-      else if (TDefinition(FDefinition).Name = 'SysConstants') or (TDefinition(FDefinition).Name = 'Settings3')
+      else if (TDefinition(FDefinition).Name = 'SysConstants') or (TDefinition(FDefinition).Name = 'SysTemporaries')
           or (TDefinition(FDefinition).Name = 'Settings') or TDefinition(FDefinition).HasFlag(ccLocalOnly)
           or TDefinition(FDefinition).HasFlag(ccNotSave)
       then

@@ -159,22 +159,6 @@ type
       const AControlClass: TNativeControlClass);
   end;
 
-  TProgressInfo = class
-  private
-    FProgress: Integer;
-    FInfo: string;
-    FStartTime: TDateTime;
-  public
-    Domain: TObject;
-
-    constructor Create;
-
-    procedure SetProgress(const AProgress: Integer; const AInfo: string = '');
-
-    property Progress: Integer read FProgress;
-    property Info: string read FInfo;
-  end;
-
   TImages = class
   private
     FSize: Integer;
@@ -224,7 +208,6 @@ type
   protected
     FName: string;
     FCursorType: TCursorType;
-    FProgressInfo: TProgressInfo;
     FInteractors: TObjectList<TInteractor>;
     FCommonIcons: TIcons;
     FNeedShowSplash: Boolean;
@@ -546,7 +529,6 @@ begin
   FCommonIcons := TIcons.Create;
   FCommonIcons.Load(TPath.Combine(GetPlatformDir, 'res' + PathDelim + 'Styles' + PathDelim + vStyleName));
   FInteractors := TObjectList<TInteractor>.Create;
-  FProgressInfo := TProgressInfo.Create;
 
   if ASettings.KeyExists(AName, 'ShowSplash') then
     FNeedShowSplash := StrToBoolDef(ASettings.GetValue(AName, 'ShowSplash'), False)
@@ -784,7 +766,6 @@ end;
 
 destructor TPresenter.Destroy;
 begin
-  FreeAndNil(FProgressInfo);
   FreeAndNil(FInteractors);
   FreeAndNil(FCommonIcons);
   inherited Destroy;
@@ -990,13 +971,12 @@ end;
 function TPresenter.DoLogin(const ADomain: TObject): TInteractor;
 var
   vDomain: TDomain absolute ADomain;
-  vLogin, vPassword: string;
-  //vRFID: string;
   vSession: TUserSession;
   vResult: Boolean;
   vMainFormName: string;
   vLayout: string;
   vUsers: TEntityList;
+  vLoginData: TEntity;
 begin
   Result := nil;
 
@@ -1012,15 +992,21 @@ begin
       if (vUsers.Count = 1) and (vDomain.Settings.GetValue('Core', 'AutoLogin', '') = '1') then
         vSession := vDomain.Sessions.AddSession(vUsers[0])
       else begin
-        vLogin := vDomain.UserSettings.GetValue('Core', 'LastLogin', '');
-        vPassword := '';
+        vLoginData := vDomain.FirstEntity('SysTemporaries');
+        Assert(Assigned(vLoginData), '');
+
+        vLoginData.Populate('Login;Password', [
+          vDomain.UserSettings.GetValue('Core', 'LastLogin', ''), '']);
+
         vSession := nil;
         repeat
-          vResult := ShowLoginForm(vDomain.AppTitle, vLogin, vPassword{, vRFID});
+          vResult := vDomain.UIBuilder.Navigate(TInteractor(vDomain.DomainInteractor).RootView,
+            'modal', 'LoginForm', '', nil, vDomain.AppTitle) = drOk;
+
           if not vResult then
             Break;
 
-          vSession := vDomain.Login(vLogin, vPassword);
+          vSession := vDomain.Login(vLoginData['Login'], vLoginData['Password']);
           if not Assigned(vSession) and (ShowYesNoDialog(_Platform.Translate('cptError', 'Ошибка'),
             _Platform.Translate('txtWrongLoginOrPassword', 'Введены некорректные имя пользователя или пароль')
             + #13#10 + _Platform.Translate('txtPromptTryAgain', 'Попробовать ещё раз?')) <> drYes) then Break;
@@ -1032,7 +1018,9 @@ begin
           Exit;
         end;
 
-        vDomain.UserSettings.SetValue('Core', 'LastLogin', vLogin);
+        vLoginData._SetFieldValue(vDomain.DomainHolder, 'Password', '~');
+
+        vDomain.UserSettings.SetValue('Core', 'LastLogin', vLoginData['Login']);
       end;
     end
     else
@@ -1280,8 +1268,8 @@ procedure TPresenter.OnDomainLoadProgress(const AProgress: Integer; const AInfo:
 begin
   if FNeedShowSplash then
   begin
-    FProgressInfo.SetProgress(AProgress, AInfo);
-    ShowPage(nil, 'splash', FProgressInfo);
+    //FProgressInfo.SetProgress(AProgress, AInfo);
+    //ShowPage(nil, 'splash', FProgressInfo);
   end;
 end;
 
@@ -1421,7 +1409,7 @@ begin
   DoUnfreeze;
 end;
 
-{ TProgressInfo }
+{ TProgressInfo
 
 constructor TProgressInfo.Create;
 begin
@@ -1438,7 +1426,7 @@ begin
   FProgress := AProgress;
   vElapsedTime := Max((Now - FStartTime) * SecsPerDay, 0);
   FInfo := '[' + FormatFloat('0.##', vElapsedTime) + '] ' + AInfo + '...';
-end;
+end; }
 
 { TControlClassInfo }
 

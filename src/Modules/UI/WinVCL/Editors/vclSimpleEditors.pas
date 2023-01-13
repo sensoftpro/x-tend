@@ -232,6 +232,8 @@ type
   end;
 
   TDEMaskFieldEditor = class(TDEEditor)
+  private
+    procedure OnEditorClick(Sender: TObject);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -901,8 +903,15 @@ begin
 
   if SameText('phone', FFieldDef.StyleName) then
     TcxTextEdit(Result).OnKeyPress := OnPhoneKeyPress
-  else
+  else begin
+    if SameText('mask', FFieldDef.StyleName) then
+    begin
+      TcxTextEdit(Result).Properties.EchoMode := eemPassword;
+      TcxTextEdit(Result).Properties.PasswordChar := '*';
+    end;
+
     TcxTextEdit(Result).OnKeyPress := nil;
+  end;
 end;
 
 procedure TDETextFieldEditor.DoOnChange;
@@ -1367,7 +1376,6 @@ var
   vMask: string;
 begin
   Result := TcxMaskEdit.Create(nil);
-//  TcxMaskEdit(FControl).OnKeyDown := OnWinControlKeyDown;
   TcxMaskEdit(Result).Properties.ValidationOptions := [evoShowErrorIcon, evoAllowLoseFocus];
 
   vMask := '';
@@ -1407,7 +1415,9 @@ begin
   begin
     vEdit.EditValue := '';
     vEdit.Enabled := False;
-    vEdit.Style.BorderStyle := GetDisabledBorderStyle;
+    vEdit.Style.BorderStyle := ebsNone;
+    vEdit.Cursor := crHandPoint;
+    vEdit.OnClick := OnEditorClick;
   end
   else
   begin
@@ -1417,16 +1427,28 @@ begin
 
     if vEdit.Properties.ReadOnly then
     begin
-      vEdit.Style.BorderStyle := GetDisabledBorderStyle;
+      vEdit.Style.BorderStyle := ebsNone;
       vEdit.Style.Color := clBtnFace;
       vEdit.TabStop := False;
+      vEdit.Cursor := crHandPoint;
+      vEdit.OnClick := OnEditorClick;
     end
     else begin
       vEdit.Style.BorderStyle := ebsUltraFlat;
       vEdit.Style.Color := clWindow;
       vEdit.TabStop := FOwner.TabStop;
+      vEdit.Cursor := crDefault;
+      vEdit.OnClick := nil;
     end;
   end;
+end;
+
+procedure TDEMaskFieldEditor.OnEditorClick(Sender: TObject);
+begin
+  if SameText('email', FFieldDef.StyleName) then
+    TPresenter(FPresenter).OpenFile('mailto:' + FView.FieldValue)
+  else if SameText('url', FFieldDef.StyleName) then
+    TPresenter(FPresenter).OpenFile(FView.FieldValue);
 end;
 
 procedure TDEMaskFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);

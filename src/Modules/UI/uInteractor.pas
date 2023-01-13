@@ -260,7 +260,8 @@ end;
 
 procedure TInteractor.PrintHierarchy;
 begin
-  TPresenter(FPresenter).ShowPage(Self, 'debug');
+  if Assigned(TUserSession(FSession).CurrentUser) then
+    TPresenter(FPresenter).ShowPage(Self, 'debug');
 end;
 
 procedure TInteractor.ProcessAreaDeleting(const AArea: TUIArea);

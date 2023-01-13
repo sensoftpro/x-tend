@@ -190,7 +190,7 @@ procedure RegisterInclusion(const AInclusionName: string; const AClass: TInclusi
 implementation
 
 uses
-  Variants, IOUtils, Math, uConfiguration, uDomain, uObjectField, uEntityList, uJSON, uUtils,
+  Variants, IOUtils, DateUtils, Math, uConfiguration, uDomain, uObjectField, uEntityList, uJSON, uUtils,
   uDomainUtils, uReaction, uPresenter, idUri;
 
 procedure RegisterScript(const AConfigurationName: string; const AClass: TScriptClass; const AIncludes: string = '');
@@ -438,8 +438,8 @@ var
 begin
   RegisterComplexClass('Tensor', TTensorData);
 
-  AddAction('Quit', 'Выход', -1);
   AddAction('Logout', 'Сменить пользователя', -1);
+  AddAction('Quit', 'Выход', -1);
 
   vAction := AddAction('Add', 'Добавить', 1);
   vAction.AddSimpleFieldDef('SelectedIndex', '', '', 0, Null, Null, fkInteger, '', '', vsFullAccess, cNotSave);
@@ -502,6 +502,7 @@ begin
   AddAction('SetupRTFReports', 'Настройки RTF отчётов', -1);
   AddAction('ShowSettings', 'Настройки', 29);
   AddAction('ShowOptions', 'Опции', -1);
+  AddAction('Feedback', 'Обратная связь', -1);
   AddAction('LoadChanges', 'Загрузить изменения', -1);
   AddAction('ArrangeMozaic', 'Мозаикой', 33);
   AddAction('ArrangeCascade', 'Каскадом', 15);
@@ -517,6 +518,12 @@ begin
 
   // Любая сущность, которая будет определена позже
   AddDefinition('~', '', 'Неизвестная', cNullItemName, ccSystem or ccHideInMenu or ccNotSave);
+
+  vDefinition := AddDefinition('SysTemporaries', '', 'Системные настройки', cNullItemName, ccNotSave);
+  vDefinition.AddSimpleFieldDef('Login', 'login', 'Логин', Null, Null, 50, fkString, '', '', vsFullAccess, cNotSave);
+  vDefinition.AddSimpleFieldDef('Password', 'password', 'Пароль', Null, Null, 50, fkString, 'mask', '', vsFullAccess, cNotSave);
+  vDefinition.AddSimpleFieldDef('Progress', 'progress', 'Прогресс', Null, Null, Null, fkInteger, '', '', vsReadOnly);
+  vDefinition.AddSimpleFieldDef('ProgressInfo', 'progress_info', 'Текущие действия', Null, Null, 255, fkString, '', '', vsReadOnly);
 
   // Управление идентификацией
   vDefinition := AddDefinition('Numerators', '', 'Нумератор', cNullItemName, ccSystem or ccHideInMenu or ccLazyLoad);
@@ -669,7 +676,13 @@ begin
   vDefinition := AddDefinition('SysConstants', '', 'Системные настройки', cNullItemName, ccHideInMenu);
   vDefinition.AddSimpleFieldDef('Code', 'code', 'Код окружения', Null, Null, 10);
   vDefinition.AddSimpleFieldDef('Description', 'description', 'Описание', Null, Null, 255, fkString, '', '', vsFullAccess, cLocalizable);
+  vDefinition.AddSimpleFieldDef('AppName', 'app_name', 'Название', Null, Null, 150, fkString, '', '', vsReadOnly, cRequired);
   vDefinition.AddSimpleFieldDef('Version', 'version', 'Версия', Null, Null, 50, fkString, '', '', vsReadOnly);
+  vDefinition.AddSimpleFieldDef('CompanyName', 'company_name', 'Компания', 'Sensoft', Null, 150, fkString, '', '', vsReadOnly, cRequired);
+  vDefinition.AddSimpleFieldDef('CompanyWebsite', 'company_website', 'Сайт', 'https://sensoft.pro', Null, 150, fkString, 'url', '', vsReadOnly, cRequired);
+  vDefinition.AddSimpleFieldDef('CompanyEmail', 'company_email', 'E-mail', 'info@sensoft.pro', Null, 150, fkString, 'email', '', vsReadOnly, cRequired);
+  vDefinition.AddSimpleFieldDef('StartYear', 'start_year', 'Год приобретения права', Null, 1970, 2100, fkInteger, '', '', vsReadOnly, cRequired);
+  vDefinition.AddSimpleFieldDef('CopyrightInfo', 'copyright_info', 'Права', Null, Null, 150, fkString, 'email', '', vsReadOnly, cAutoCalculatedField);
   vDefinition.AddEntityFieldDef('MailService', 'mail_service', 'Почтовый сервис', '', 'MailServices');
   vDefinition.AddSimpleFieldDef('MailLogin', 'mail_login', 'Адрес служебной почты', Null, Null, 120);
   vDefinition.AddSimpleFieldDef('MailPassword', 'mail_password', 'Пароль служебной почты', Null, Null, 30, fkString, 'mask');
@@ -685,6 +698,30 @@ begin
     begin
       if AEntity['IsMailVerified'] then
         AEntity._SetFieldValue(AHolder, 'IsMailVerified', False);
+    end));
+  vDefinition.RegisterReaction('CopyrightInfo', 'CompanyName;StartYear', {+Today}
+    TProc(procedure(const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParam: TEntity)
+    var
+      vStartYear, vCurYear: Word;
+      vInfo: string;
+    begin
+      vInfo := AEntity['CompanyName'];
+      if Trim(vInfo) = '' then
+        vInfo := '< unknown >';
+
+      vCurYear := YearOf(Now);
+      if AEntity['StartYear'] > 1970 then
+      begin
+        vStartYear := AEntity['StartYear'];
+        if vStartYear < vCurYear then
+          vInfo := Format('%d-%d', [vStartYear, vCurYear]) + ' ' + vInfo
+        else
+          vInfo := Format('%d', [vCurYear]) + ' ' + vInfo;
+      end
+      else
+        vInfo := Format('%d', [vCurYear]) + ' ' + vInfo;
+
+      AEntity._SetFieldValue(AHolder, 'CopyrightInfo', vInfo);
     end));
 
   vDefinition := AddDefinition('_FormLayout', '', 'Размещение UI-формы', cNullItemName, 0, clkMixin);
@@ -761,6 +798,9 @@ begin
       vCollection: TCollection;
       vInclusion: TInclusion;
     begin
+      vCollection := vDomain['SysTemporaries'];
+      vCollection.CreateDefaultEntity(AHolder, 1, '', []);
+
       vCollection := vDomain['MailServices'];
       vCollection.CreateDefaultEntity(AHolder, 1, 'Name;SmtpHost;SmtpPort', ['@mail.ru', 'smtp.mail.ru', 2525]);
       vCollection.CreateDefaultEntity(AHolder, 2, 'Name;SmtpHost;SmtpPort', ['Яндекс', 'smtp.yandex.ru', 587]);
@@ -1524,7 +1564,7 @@ begin
   end
   else if AActionName = 'ShowAbout' then
   begin
-    TPresenter(AInteractor.Presenter).ShowPage(AInteractor, 'about');
+    AInteractor.UIBuilder.Navigate(AInteractor.RootView, 'modal', 'AboutForm', '', nil, 'О программе');
     Exit;
   end
   else if AActionName = 'ChangePassword' then
@@ -1569,6 +1609,10 @@ begin
     then
       AInteractor.UIBuilder.Navigate(AInteractor.RootView, 'WorkArea', vStartPageName, '', TUserSession(AInteractor.Session).NullHolder);
 
+    Exit;
+  end
+  else if AActionName = 'Feedback' then
+  begin
     Exit;
   end
   else if AActionName = 'GetAllUpdates' then
