@@ -125,17 +125,19 @@ var
   vFont: TFont;
 begin
   vFont := TFont.Create;
-  vFont.Size := Round(AFont.Size);
+
+  vFont.Size := AFont.Size * 96 / 72;
+
   vFont.Family := AFont.Family;
   vFont.Style := [];
   if (FontStyleBold and AFont.Style > 0) then
     vFont.Style := [TFontStyle.fsBold];
   if (FontStyleItalic and AFont.Style > 0) then
-    vFont.Style := [TFontStyle.fsItalic];
+    vFont.Style := vFont.Style + [TFontStyle.fsItalic];
   if (FontStyleUnderline and AFont.Style > 0) then
-    vFont.Style := [TFontStyle.fsUnderline];
+    vFont.Style := vFont.Style + [TFontStyle.fsUnderline];
   if (FontStyleStrikeout and AFont.Style > 0) then
-    vFont.Style := [TFontStyle.fsStrikeOut];
+    vFont.Style := vFont.Style + [TFontStyle.fsStrikeOut];
 
   AFont.NativeObject := vFont;
 end;
