@@ -210,7 +210,6 @@ type
     FCursorType: TCursorType;
     FInteractors: TObjectList<TInteractor>;
     FCommonIcons: TIcons;
-    FNeedShowSplash: Boolean;
 
     procedure DoRun(const AParameter: string); virtual;
     procedure DoUnfreeze; virtual;
@@ -218,7 +217,6 @@ type
 
     function AreaFromSender(const ASender: TObject): TUIArea; virtual;
     function DoLogin(const ADomain: TObject): TInteractor; virtual;
-    function ShowLoginForm(const AAppTitle: string; var ALoginName, APass: string): Boolean; virtual;
     procedure DoLogout(const AInteractor: TInteractor); virtual;
 
     function GetNativeControlClass: TNativeControlClass; virtual; abstract;
@@ -241,9 +239,6 @@ type
     function GetImagePlaceholder(const ASize: Integer): TStream; virtual; abstract;
     function DoCreateImages(const ADomain: TObject; const AImages: TImages;
       const ASize: Integer): TObject; virtual; abstract;
-
-    procedure OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
-    procedure OnDomainError(const ACaption, AText: string);
 
     procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); virtual;
 
@@ -529,11 +524,6 @@ begin
   FCommonIcons := TIcons.Create;
   FCommonIcons.Load(TPath.Combine(GetPlatformDir, 'res' + PathDelim + 'Styles' + PathDelim + vStyleName));
   FInteractors := TObjectList<TInteractor>.Create;
-
-  if ASettings.KeyExists(AName, 'ShowSplash') then
-    FNeedShowSplash := StrToBoolDef(ASettings.GetValue(AName, 'ShowSplash'), False)
-  else
-    FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
 end;
 
 function TPresenter.CreateArea(const AParent: TUIArea; const AView: TView;
@@ -974,15 +964,14 @@ var
   vSession: TUserSession;
   vResult: Boolean;
   vMainFormName: string;
-  vLayout: string;
   vUsers: TEntityList;
   vLoginData: TEntity;
 begin
   Result := nil;
 
-  vLayout := vDomain.Settings.GetValue('Core', 'Layout', '');
-
   SetApplicationUI(vDomain.AppTitle, vDomain.Configuration.IconFileName);
+
+  vDomain.NotifyLoadingProgress(100);
 
   vUsers := TEntityList.Create(vDomain, vDomain.DomainSession);
   vDomain.GetEntityList(vDomain.DomainSession, vDomain.Configuration['SysUsers'], vUsers, '');
@@ -992,7 +981,7 @@ begin
       if (vUsers.Count = 1) and (vDomain.Settings.GetValue('Core', 'AutoLogin', '') = '1') then
         vSession := vDomain.Sessions.AddSession(vUsers[0])
       else begin
-        vLoginData := vDomain.FirstEntity('SysTemporaries');
+        vLoginData := vDomain.FirstEntity('SysServices');
         Assert(Assigned(vLoginData), '');
 
         vLoginData.Populate('Login;Password', [
@@ -1259,20 +1248,6 @@ begin
     vCloseProc;
 end;
 
-procedure TPresenter.OnDomainError(const ACaption, AText: string);
-begin
-  ShowMessage(ACaption, AText, msError);
-end;
-
-procedure TPresenter.OnDomainLoadProgress(const AProgress: Integer; const AInfo: string);
-begin
-  if FNeedShowSplash then
-  begin
-    //FProgressInfo.SetProgress(AProgress, AInfo);
-    //ShowPage(nil, 'splash', FProgressInfo);
-  end;
-end;
-
 procedure TPresenter.OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
 var
   vPCArea: TUIArea;
@@ -1352,11 +1327,6 @@ end;
 function TPresenter.ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
 begin
   Result := DoShowDialog(ACaption, AText, ADialogActions);
-end;
-
-function TPresenter.ShowLoginForm(const AAppTitle: string; var ALoginName, APass: string): Boolean;
-begin
-  Result := False;
 end;
 
 procedure TPresenter.ShowMessage(const ACaption, AText: string; const AMessageType: TMessageType = msNone);

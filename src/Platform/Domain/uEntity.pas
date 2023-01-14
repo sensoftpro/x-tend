@@ -1192,7 +1192,7 @@ var
     ASubscribedEntity.NotifyView(AHolder, ANotificationKind, AParameter, ASubscribedFieldName);
   end;
 begin
-  if not TDomain(FDomain).IsAlive or FDeleted then
+  if (not TDomain(FDomain).IsAlive and (FDefinition.Name <> 'SysServices')) or FDeleted then
     Exit;
 
   //TDomain(FDomain).Log('%% Field changed: ' + AFieldName);

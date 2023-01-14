@@ -794,7 +794,7 @@ object EditForm: TEditForm
     Top = 39
     Width = 121
     Height = 24
-    Caption = 'SysTemporaries/Current/Login'
+    Caption = 'SysServices/Current/Login'
     ShowCaption = False
     TabOrder = 0
   end
@@ -803,7 +803,7 @@ object EditForm: TEditForm
     Top = 87
     Width = 121
     Height = 24
-    Caption = 'SysTemporaries/Current/Password'
+    Caption = 'SysServices/Current/Password'
     ShowCaption = False
     TabOrder = 1
   end

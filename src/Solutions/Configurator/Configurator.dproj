@@ -117,6 +117,7 @@
         <VerInfo_MajorVer>0</VerInfo_MajorVer>
         <VerInfo_MinorVer>1</VerInfo_MinorVer>
         <VerInfo_Keys>CompanyName=Sensoft;FileDescription=$(MSBuildProjectName);FileVersion=0.1.0.0;InternalName=;LegalCopyright=© Sensoft, 2023;LegalTrademarks=X-Tend™;OriginalFilename=;ProgramID=pro.sensoft.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=0.1.0.0;Comments=</VerInfo_Keys>
+        <DCC_DebugInfoInExe>false</DCC_DebugInfoInExe>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
         <AppEnableRuntimeThemes>true</AppEnableRuntimeThemes>
@@ -205,33 +206,11 @@
         <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclEntityEditors.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclListEditors.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclBlobEditors.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\uManagedForm.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\StartForm.pas">
-            <Form>StartFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\LoginForm.pas">
-            <Form>LoginFm</Form>
-        </DCCReference>
         <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\OptionsForm.pas">
             <Form>OptionsFm</Form>
         </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\TranslationEditForm.pas">
-            <Form>TranslationEditFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\LangEditForm.pas">
-            <Form>LangEditFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\AboutForm.pas">
-            <Form>AboutFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\ReportConfigureForm.pas">
-            <Form>ReportConfigureFm</Form>
-        </DCCReference>
         <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\DebugInfoForm.pas">
             <Form>DebugFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\SplashForm.pas">
-            <Form>SplashFm</Form>
         </DCCReference>
         <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\FloatForm.pas">
             <Form>FloatFm</Form>

@@ -41,9 +41,6 @@ uses
   uTranslator, uJSON, uUtils, uView, uUIBuilder;
 
 type
-  TNotifyProgressEvent = procedure (const AProgress: Integer; const AInfo: string) of object;
-  TNotifyErrorEvent = procedure (const ACaption, AText: string) of object;
-
   TDomainLock = class
   private
     [Weak] FDomain: TObject;
@@ -92,12 +89,14 @@ type
 
     FDataLock: TDomainLock;
 
-    FOnProgress: TNotifyProgressEvent;
+    FStartTime: TDateTime;
+    FNeedShowSplash: Boolean;
 
     procedure ApplyChanges(const AHolder: TObject; const AChanges: TJSONObject);
   private
     FCollections: TStringDictionary<TCollection>;
     FRootCollection: TCollection;
+    FServiceCollection: TCollection;
     FAppName: string;
     FAppTitle: string;
     FLoadingChanges: Boolean;
@@ -206,7 +205,6 @@ type
     function IsModuleLoaded(const AName: string): Boolean;
     property DataLock: TDomainLock read FDataLock;
     property LoadingChanges: Boolean read FLoadingChanges;
-    property OnProgress: TNotifyProgressEvent read FOnProgress write FOnProgress;
   end;
 
 implementation
@@ -440,16 +438,27 @@ begin
   FAppName := Translate('AppTitle', FConfiguration._Caption);
   FAppTitle := FAppName + ' - ' + FConfiguration.Version.ToString;
 
+  FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
+  FNeedShowSplash := True;
+
   FSessions := TUserSessions.Create(Self);
   FDomainSession := FSessions.AddSession(nil);
   FDomainInteractor := TInteractor.Create(_Platform.Presenter, FDomainSession);
   FDomainHolder := FDomainSession.NullHolder;
 
-  //NotifyLoadingProgress(0, 'Создание домена');
+  FStartTime := Now;
 
   FCollections := TStringDictionary<TCollection>.Create;
   FRootCollection := TCollection.Create(Self, FConfiguration.RootDefinition);
   FRootCollection.SetCollectionAttributes(TCollection, FConfiguration.RootDefinition);
+
+  FServiceCollection := TCollection.Create(Self, FConfiguration['SysServices']);
+  FServiceCollection.SetCollectionAttributes(TCollection, FConfiguration['SysServices']);
+  FServiceCollection.CreateDefaultEntity(FDomainHolder, 1, 'AppName;Version;CompanyName;' +
+    'CompanyWebsite;CompanyEmail;StartYear', [FAppName, FConfiguration.VersionName,
+    'Sensoft', 'https://sensoft.pro', 'info@sensoft.pro', 2019]);
+
+  NotifyLoadingProgress(0, 'Создание домена');
 end;
 
 function TDomain.CreateNewEntity(const AHolder: TObject; const ACollectionName: string; const AID: Integer;
@@ -480,6 +489,8 @@ begin
   for i := FModuleInstances.Count - 1 downto 0 do
     FModuleInstances.Delete(i);
   FreeAndNil(FModuleInstances);
+
+  FreeAndNil(FServiceCollection);
 
   // Удаляем всех слушателей, чтобы уведомления не приходили
   for vCollection in FCollections do
@@ -603,7 +614,10 @@ end;
 
 function TDomain.CollectionByName(const AName: string): TCollection;
 begin
-  Result := FCollections.ObjectByName(AName);
+  if SameText(AName, 'SysServices') then
+    Result := FServiceCollection
+  else
+    Result := FCollections.ObjectByName(AName);
 end;
 
 procedure TDomain.GetCollections(const AList: TList<TCollection>; const ADefinitionKind: TCollectionKind);
@@ -1053,13 +1067,38 @@ end;
 procedure TDomain.NotifyLoadingProgress(const AProgress: Integer; const AInfo: string);
 var
   vProgressData: TEntity;
+  vInfo: string;
+  vElapsedTime: Double;
+  i: Integer;
 begin
-  vProgressData := FirstEntity('SysTemporaries');
+  if not FNeedShowSplash then
+    Exit;
+
+  vProgressData := FirstEntity('SysServices');
   if not Assigned(vProgressData) then
     Exit;
 
+  vElapsedTime := Max((Now - FStartTime) * SecsPerDay, 0);
+  vInfo := '[' + FormatFloat('0.##', vElapsedTime) + '] ' + AInfo + '...';
+
   vProgressData._SetFieldValue(FDomainHolder, 'Progress', AProgress);
-  vProgressData._SetFieldValue(FDomainHolder, 'ProgressInfo', AInfo);
+  vProgressData._SetFieldValue(FDomainHolder, 'ProgressInfo', vInfo);
+
+  if not Assigned(TInteractor(FDomainInteractor).RootArea) then
+    /////TODO Need another kind of form
+    FUIBuilder.Navigate(TInteractor(FDomainInteractor).RootView, 'float', 'SplashForm')
+  else if AProgress = 100 then
+  begin
+    TInteractor(FDomainInteractor).RootArea.Release;
+    TInteractor(FDomainInteractor).RootArea := nil;
+    Exit;
+  end;
+
+  for i := 0 to 10 do
+  begin
+    _Platform.Presenter.Unfreeze;
+    Sleep(10);
+  end;
 end;
 
 function TDomain.Now: TDateTime;

@@ -288,11 +288,11 @@ object EditForm: TEditForm
   end
   object lblVersionName: TPanel
     Left = 196
-    Top = 45
+    Top = 44
     Width = 103
     Height = 19
     BevelOuter = bvNone
-    Caption = 'SysConstants/Current/Version?view=info'
+    Caption = 'SysServices/Current/Version?view=info'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = 4795653
     Font.Height = -13
@@ -308,7 +308,7 @@ object EditForm: TEditForm
     Width = 167
     Height = 19
     BevelOuter = bvNone
-    Caption = 'SysConstants/Current/CopyrightInfo?view=info'
+    Caption = 'SysServices/Current/CopyrightInfo?view=info'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = 4795653
     Font.Height = -13
@@ -325,7 +325,7 @@ object EditForm: TEditForm
     Height = 34
     Anchors = [akLeft, akTop, akRight]
     BevelOuter = bvNone
-    Caption = 'SysConstants/Current/AppName?view=info'
+    Caption = 'SysServices/Current/AppName?view=info'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = 4795653
     Font.Height = -19
@@ -360,7 +360,7 @@ object EditForm: TEditForm
     Height = 16
     AutoSize = True
     BevelOuter = bvNone
-    Caption = 'SysConstants/Current/CompanyWebsite'
+    Caption = 'SysServices/Current/CompanyWebsite'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = 5531897
     Font.Height = -13
@@ -377,7 +377,7 @@ object EditForm: TEditForm
     Height = 16
     AutoSize = True
     BevelOuter = bvNone
-    Caption = 'SysConstants/Current/CompanyEmail'
+    Caption = 'SysServices/Current/CompanyEmail'
     Font.Charset = DEFAULT_CHARSET
     Font.Color = 5531897
     Font.Height = -13

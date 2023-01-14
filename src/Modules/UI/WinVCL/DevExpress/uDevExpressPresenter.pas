@@ -42,7 +42,7 @@ uses
 
   uDefinition, uPresenter, uWinVCLPresenter, uInteractor, uView, uSettings,
 
-  StartForm, DebugInfoForm, SplashForm, uUIBuilder, uLayout;
+  DebugInfoForm, uUIBuilder, uLayout;
 
 type
   TDevExpressPresenter = class(TWinVCLPresenter)
@@ -68,8 +68,8 @@ uses
   cxGraphics, dxGDIPlusClasses, cxImage, cxEdit, cxPC, cxLookAndFeels, cxLookAndFeelPainters, cxStyles, cxMemo,
   cxLabel, cxTextEdit, cxButtons, cxScrollBox, cxControls, cxSplitter,
 
-  uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity, uEntityList, uDEArea, uSession,
-  uManagedForm, AboutForm, ReportConfigureForm, OptionsForm, LoginForm, FloatForm, uCollection;
+  uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity,
+  uEntityList, uDEArea, uSession, uCollection;
 
 const
   cPCNavigatorFlag = 1;
@@ -284,7 +284,6 @@ end;
 destructor TDevExpressPresenter.Destroy;
 begin
   FreeAndNil(FRowStyle);
-  FreeAndNil(FSplashForm);
 
   inherited Destroy;
 end;

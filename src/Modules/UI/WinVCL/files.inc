@@ -8,15 +8,7 @@
   vclListEditors in '..\..\Modules\UI\WinVCL\Editors\vclListEditors.pas',
   vclBlobEditors in '..\..\Modules\UI\WinVCL\Editors\vclBlobEditors.pas',
 
-  uManagedForm in '..\..\Modules\UI\WinVCL\Forms\uManagedForm.pas',
-  SplashForm in '..\..\Modules\UI\WinVCL\Forms\SplashForm.pas' {SplashFm},
-  StartForm in '..\..\Modules\UI\WinVCL\Forms\StartForm.pas' {StartFm},
-  LoginForm in '..\..\Modules\UI\WinVCL\Forms\LoginForm.pas' {LoginFm},
   OptionsForm in '..\..\Modules\UI\WinVCL\Forms\OptionsForm.pas' {OptionsFm},
-  TranslationEditForm in '..\..\Modules\UI\WinVCL\Forms\TranslationEditForm.pas' {TranslationEditFm},
-  LangEditForm in '..\..\Modules\UI\WinVCL\Forms\LangEditForm.pas' {LangEditFm},
-  AboutForm in '..\..\Modules\UI\WinVCL\Forms\AboutForm.pas' {AboutFm},
-  ReportConfigureForm in '..\..\Modules\UI\WinVCL\Forms\ReportConfigureForm.pas' {ReportConfigureFm},
   DebugInfoForm in '..\..\Modules\UI\WinVCL\Forms\DebugInfoForm.pas' {DebugFm},
   FloatForm in '..\..\Modules\UI\WinVCL\Forms\FloatForm.pas' {FloatFm},
   // UI: DevExpress

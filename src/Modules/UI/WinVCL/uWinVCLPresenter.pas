@@ -42,7 +42,7 @@ uses
 
   uDefinition, uPresenter, uInteractor, uView, uSettings,
 
-  StartForm, DebugInfoForm, SplashForm, uUIBuilder, uLayout;
+  DebugInfoForm, uUIBuilder, uLayout;
 
 type
   TImageResolution = (ir16x16, ir24x24, ir32x32);
@@ -63,9 +63,7 @@ type
     function GetLayoutKind(const AControl: TObject): TLayoutKind;
     procedure CopyControlPropertiesToLayout(const ALayout: TLayout; const AControl: TObject);
   protected
-    FStartForm: TStartFm;
     [Weak] FDebugForm: TDebugFm;
-    [Weak] FSplashForm: TSplashFm;
     procedure OnShortCut(var Msg: TWMKey; var Handled: Boolean);
     procedure OnChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
   protected
@@ -75,7 +73,6 @@ type
 
     function AreaFromSender(const ASender: TObject): TUIArea; override;
     function DoLogin(const ADomain: TObject): TInteractor; override;
-    function ShowLoginForm(const AAppTitle: string; var ALoginName, APass: string): Boolean; override;
     procedure DoLogout(const AInteractor: TInteractor); override;
 
     function GetNativeControlClass: TNativeControlClass; override;
@@ -126,7 +123,7 @@ implementation
 uses
   Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX, JPEG, PngImage,
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity, uEntityList, vclArea, uSession,
-  uManagedForm, AboutForm, ReportConfigureForm, OptionsForm, LoginForm, FloatForm, uCollection;
+  OptionsForm, FloatForm, uCollection;
 
 const
   cPCNavigatorFlag = 1;
@@ -918,11 +915,14 @@ begin
     else if ALayout.StyleName = 'float' then
     begin
       vArea := nil;
-      for i := 0 to AParent.Count - 1 do
+      if Assigned(AParent) then
       begin
-        vArea := AParent.Areas[i];
-        if (vArea.View = AView) and (GetVCLControl(vArea) is TForm) then
-          Exit(vArea);
+        for i := 0 to AParent.Count - 1 do
+        begin
+          vArea := AParent.Areas[i];
+          if (vArea.View = AView) and (GetVCLControl(vArea) is TForm) then
+            Exit(vArea);
+        end;
       end;
 
       vForm := TFloatFm.Create(nil);
@@ -1025,8 +1025,6 @@ end;
 
 destructor TWinVCLPresenter.Destroy;
 begin
-  FreeAndNil(FSplashForm);
-
   inherited Destroy;
 end;
 
@@ -1253,40 +1251,12 @@ begin
     FDebugForm.RemoveInteractor(AInteractor);
 end;
 
-function TWinVCLPresenter.ShowLoginForm(const AAppTitle: string; var ALoginName, APass: string): Boolean;
-var
-  vLoginForm: TLoginFm;
-begin
-  vLoginForm := TLoginFm.Create(nil);
-  try
-    vLoginForm.Init(AAppTitle);
-    vLoginForm.LoginName := ALoginName;
-    vLoginForm.Pass := APass;
-    Result := vLoginForm.ShowModal = mrOk;
-
-    if Result then
-    begin
-      ALoginName := vLoginForm.LoginName;
-      APass := vLoginForm.Pass;
-    end;
-  finally
-    FreeAndNil(vLoginForm);
-  end;
-end;
-
 function TWinVCLPresenter.ShowPage(const AInteractor: TInteractor; const APageType: string;
   const AParams: TObject = nil): TDialogResult;
-var
-  vForm: TReportConfigureFm;
-  vPageClass: TManagedFormClass;
 begin
   Result := drNone;
 
-  if APageType = 'about' then
-  begin
-    TAboutFm.ShowAbout(AInteractor);
-  end
-  else if (APageType = 'debug') then
+  if (APageType = 'debug') then
   begin
     if _Platform.DeploymentType = 'dev' then
     begin
@@ -1300,37 +1270,9 @@ begin
       FDebugForm.UpdateDebugInfo;
     end;
   end
-  else if APageType = 'rtf_reports' then
-  begin
-    vForm := TReportConfigureFm.Create(nil);
-    vForm.Init(AInteractor);
-    try
-      vForm.ShowModal;
-    finally
-      vForm.Free;
-    end;
-  end
   else if APageType = 'options' then
   begin
     TOptionsFm.Edit(AInteractor);
-  end
-  else if APageType = 'splash' then
-  begin
-    {vProgressInfo := TProgressInfo(AParams);
-    if not Assigned(vProgressInfo) then
-      Exit;
-
-    if not Assigned(FSplashForm) then
-      FSplashForm := TSplashFm.ShowSplash(Self, TDomain(vProgressInfo.Domain))
-    else if vProgressInfo.Progress = 100 then
-      FreeAndNil(FSplashForm)
-    else
-      FSplashForm.UpdateProgress(vProgressInfo.Progress, vProgressInfo.Info); }
-  end
-  else begin
-    vPageClass := TManagedFormClass(GetPageClass(FName, APageType));
-    if Assigned(vPageClass) then
-      TManagedForm.ShowPage(vPageClass, AInteractor);
   end;
 end;
 
@@ -1520,20 +1462,10 @@ begin
 
   Application.OnShortCut := OnShortCut;
 
-  if _Platform.Domains.Count = 1 then
-  begin
-    vDomain := _Platform.Domains[0];
-    vInteractor := Login(vDomain);
-    if Assigned(vInteractor) and (AParameter <> '') then
-      vDomain.ExecuteDefaultAction(TUserSession(vInteractor.Session), AParameter);
-  end
-  else
-  begin
-    Application.CreateForm(TStartFm, FStartForm);
-    FStartForm.Init(Self);
-  end;
-
-  OnDomainLoadProgress(100, '');
+  vDomain := _Platform.Domains[0];
+  vInteractor := Login(vDomain);
+  if Assigned(vInteractor) and (AParameter <> '') then
+    vDomain.ExecuteDefaultAction(TUserSession(vInteractor.Session), AParameter);
 
   Application.HintHidePause := -1;
   Application.Run;
@@ -1636,10 +1568,6 @@ end;
 procedure TWinVCLPresenter.DoStop;
 begin
   FreeAndNil(FDebugForm);
-
-  if Assigned(FStartForm) then
-    FStartForm.Deinit;
-
   //Application.Terminate;
 end;
 

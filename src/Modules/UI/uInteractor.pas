@@ -274,8 +274,6 @@ begin
     FActiveArea := nil;
   if FPagedArea = AArea then
     FPagedArea := nil;
-  //if FLastArea = AArea then
-  //  FLastArea := nil;
 end;
 
 procedure TInteractor.SetLastArea(const Value: TUIArea);

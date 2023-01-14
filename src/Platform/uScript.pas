@@ -519,11 +519,42 @@ begin
   // Любая сущность, которая будет определена позже
   AddDefinition('~', '', 'Неизвестная', cNullItemName, ccSystem or ccHideInMenu or ccNotSave);
 
-  vDefinition := AddDefinition('SysTemporaries', '', 'Системные настройки', cNullItemName, ccNotSave);
+  vDefinition := AddDefinition('SysServices', '', 'Сервисы системы', cNullItemName, ccNotSave);
+  vDefinition.AddSimpleFieldDef('AppName', 'app_name', 'Название', Null, Null, 150, fkString, '', '', vsReadOnly, cRequired);
+  vDefinition.AddSimpleFieldDef('Version', 'version', 'Версия', Null, Null, 50, fkString, '', '', vsReadOnly);
+  vDefinition.AddSimpleFieldDef('CompanyName', 'company_name', 'Компания', 'Sensoft', Null, 150, fkString, '', '', vsReadOnly, cRequired);
+  vDefinition.AddSimpleFieldDef('CompanyWebsite', 'company_website', 'Сайт', 'https://sensoft.pro', Null, 150, fkString, 'url', '', vsReadOnly, cRequired);
+  vDefinition.AddSimpleFieldDef('CompanyEmail', 'company_email', 'E-mail', 'info@sensoft.pro', Null, 150, fkString, 'email', '', vsReadOnly, cRequired);
+  vDefinition.AddSimpleFieldDef('StartYear', 'start_year', 'Год приобретения права', Null, 1970, 2100, fkInteger, '', '', vsReadOnly, cRequired);
+  vDefinition.AddSimpleFieldDef('CopyrightInfo', 'copyright_info', 'Права', Null, Null, 150, fkString, 'email', '', vsReadOnly, cAutoCalculatedField);
   vDefinition.AddSimpleFieldDef('Login', 'login', 'Логин', Null, Null, 50, fkString, '', '', vsFullAccess, cNotSave);
   vDefinition.AddSimpleFieldDef('Password', 'password', 'Пароль', Null, Null, 50, fkString, 'mask', '', vsFullAccess, cNotSave);
-  vDefinition.AddSimpleFieldDef('Progress', 'progress', 'Прогресс', Null, Null, Null, fkInteger, '', '', vsReadOnly);
+  vDefinition.AddSimpleFieldDef('Progress', 'progress', 'Прогресс', 0, 0, 100, fkInteger, 'progress', '', vsReadOnly);
   vDefinition.AddSimpleFieldDef('ProgressInfo', 'progress_info', 'Текущие действия', Null, Null, 255, fkString, '', '', vsReadOnly);
+  vDefinition.RegisterReaction('CopyrightInfo', 'CompanyName;StartYear', {+Today}
+    TProc(procedure(const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParam: TEntity)
+    var
+      vStartYear, vCurYear: Word;
+      vInfo: string;
+    begin
+      vInfo := AEntity['CompanyName'];
+      if Trim(vInfo) = '' then
+        vInfo := '< unknown >';
+
+      vCurYear := YearOf(Now);
+      if AEntity['StartYear'] > 1970 then
+      begin
+        vStartYear := AEntity['StartYear'];
+        if vStartYear < vCurYear then
+          vInfo := Format('%d-%d', [vStartYear, vCurYear]) + ' ' + vInfo
+        else
+          vInfo := Format('%d', [vCurYear]) + ' ' + vInfo;
+      end
+      else
+        vInfo := Format('%d', [vCurYear]) + ' ' + vInfo;
+
+      AEntity._SetFieldValue(AHolder, 'CopyrightInfo', vInfo);
+    end));
 
   // Управление идентификацией
   vDefinition := AddDefinition('Numerators', '', 'Нумератор', cNullItemName, ccSystem or ccHideInMenu or ccLazyLoad);
@@ -676,13 +707,7 @@ begin
   vDefinition := AddDefinition('SysConstants', '', 'Системные настройки', cNullItemName, ccHideInMenu);
   vDefinition.AddSimpleFieldDef('Code', 'code', 'Код окружения', Null, Null, 10);
   vDefinition.AddSimpleFieldDef('Description', 'description', 'Описание', Null, Null, 255, fkString, '', '', vsFullAccess, cLocalizable);
-  vDefinition.AddSimpleFieldDef('AppName', 'app_name', 'Название', Null, Null, 150, fkString, '', '', vsReadOnly, cRequired);
   vDefinition.AddSimpleFieldDef('Version', 'version', 'Версия', Null, Null, 50, fkString, '', '', vsReadOnly);
-  vDefinition.AddSimpleFieldDef('CompanyName', 'company_name', 'Компания', 'Sensoft', Null, 150, fkString, '', '', vsReadOnly, cRequired);
-  vDefinition.AddSimpleFieldDef('CompanyWebsite', 'company_website', 'Сайт', 'https://sensoft.pro', Null, 150, fkString, 'url', '', vsReadOnly, cRequired);
-  vDefinition.AddSimpleFieldDef('CompanyEmail', 'company_email', 'E-mail', 'info@sensoft.pro', Null, 150, fkString, 'email', '', vsReadOnly, cRequired);
-  vDefinition.AddSimpleFieldDef('StartYear', 'start_year', 'Год приобретения права', Null, 1970, 2100, fkInteger, '', '', vsReadOnly, cRequired);
-  vDefinition.AddSimpleFieldDef('CopyrightInfo', 'copyright_info', 'Права', Null, Null, 150, fkString, 'email', '', vsReadOnly, cAutoCalculatedField);
   vDefinition.AddEntityFieldDef('MailService', 'mail_service', 'Почтовый сервис', '', 'MailServices');
   vDefinition.AddSimpleFieldDef('MailLogin', 'mail_login', 'Адрес служебной почты', Null, Null, 120);
   vDefinition.AddSimpleFieldDef('MailPassword', 'mail_password', 'Пароль служебной почты', Null, Null, 30, fkString, 'mask');
@@ -698,30 +723,6 @@ begin
     begin
       if AEntity['IsMailVerified'] then
         AEntity._SetFieldValue(AHolder, 'IsMailVerified', False);
-    end));
-  vDefinition.RegisterReaction('CopyrightInfo', 'CompanyName;StartYear', {+Today}
-    TProc(procedure(const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParam: TEntity)
-    var
-      vStartYear, vCurYear: Word;
-      vInfo: string;
-    begin
-      vInfo := AEntity['CompanyName'];
-      if Trim(vInfo) = '' then
-        vInfo := '< unknown >';
-
-      vCurYear := YearOf(Now);
-      if AEntity['StartYear'] > 1970 then
-      begin
-        vStartYear := AEntity['StartYear'];
-        if vStartYear < vCurYear then
-          vInfo := Format('%d-%d', [vStartYear, vCurYear]) + ' ' + vInfo
-        else
-          vInfo := Format('%d', [vCurYear]) + ' ' + vInfo;
-      end
-      else
-        vInfo := Format('%d', [vCurYear]) + ' ' + vInfo;
-
-      AEntity._SetFieldValue(AHolder, 'CopyrightInfo', vInfo);
     end));
 
   vDefinition := AddDefinition('_FormLayout', '', 'Размещение UI-формы', cNullItemName, 0, clkMixin);
@@ -798,9 +799,6 @@ begin
       vCollection: TCollection;
       vInclusion: TInclusion;
     begin
-      vCollection := vDomain['SysTemporaries'];
-      vCollection.CreateDefaultEntity(AHolder, 1, '', []);
-
       vCollection := vDomain['MailServices'];
       vCollection.CreateDefaultEntity(AHolder, 1, 'Name;SmtpHost;SmtpPort', ['@mail.ru', 'smtp.mail.ru', 2525]);
       vCollection.CreateDefaultEntity(AHolder, 2, 'Name;SmtpHost;SmtpPort', ['Яндекс', 'smtp.yandex.ru', 587]);
