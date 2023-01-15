@@ -182,20 +182,18 @@ type
 
   TPresenter = class(TBaseModule)
   private
-    class var RegisteredPages: TObjectDictionary<string, TDictionary<string, TClass>>;
+    class var RegisteredCanvasClasses: TObjectDictionary<string, TDictionary<string, TClass>>;
     class var RegisteredControlClasses: TObjectDictionary<string, TObjectDictionary<string, TControlClassInfo>>;
   public
-    class procedure RegisterPage(const APresenterName: string; const APageName: string; const APageClass: TClass);
+    class procedure RegisterCanvasClass(const APresenterName: string; const ACanvasTypeName: string; const ACanvasClass: TClass);
     class procedure RegisterControlClass(const APresenterName: string; const AControlType: TUIItemType;
       const AStyleName: string; const AControlClass: TNativeControlClass);
-    class function GetPageClass(const APresenterName: string; const APageName: string): TClass;
-    class function GetControlClass(const APresenterName: string; const AControlType: TUIItemType;
-      const AStyleName: string): TNativeControlClass;
   private
     FNativeControlClass: TNativeControlClass;
 
     function CreateItem(const AOwner, AArea: TUIArea; const ANavItem: TNavigationItem;
       const AView: TView): TNativeControl;
+    function GetControlClass(const AControlType: TUIItemType; const AStyleName: string): TNativeControlClass;
   protected
     procedure OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
     procedure OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
@@ -270,6 +268,7 @@ type
 
     function SetCursor(const ACursorType: TCursorType): TCursorType;
     function GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
+    function GetCanvasClass(const ACanvasTypeName: string): TClass;
 
     procedure ShowMessage(const ACaption, AText: string; const AMessageType: TMessageType = msNone);
     function ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
@@ -719,7 +718,7 @@ begin
   else
     vParams := vParams + '&' + AParams;
 
-  vControlClass := TNativeControlClass(GetControlClass(FName, vControlType, vStyleName));
+  vControlClass := TNativeControlClass(GetControlClass(vControlType, vStyleName));
   if ALayout.AreaKind in [akAutoDetect, akForm] then
   begin
     if ALayout.Kind = lkNavItem then
@@ -1132,7 +1131,20 @@ begin
   DoEnumerateControls(ALayout, AControl);
 end;
 
-class function TPresenter.GetControlClass(const APresenterName: string; const AControlType: TUIItemType;
+function TPresenter.GetCanvasClass(const ACanvasTypeName: string): TClass;
+var
+  vClassesList: TDictionary<string, TClass>;
+begin
+  Result := nil;
+  if not RegisteredCanvasClasses.TryGetValue(FName, vClassesList) then
+    Exit;
+
+  if not vClassesList.TryGetValue(ACanvasTypeName, Result) then
+    Assert(False, 'Class is not found for canvas type: "' + ACanvasTypeName +
+      '" in presenter: "' + FName + '" classified as: ' + ClassName);
+end;
+
+function TPresenter.GetControlClass(const AControlType: TUIItemType;
   const AStyleName: string): TNativeControlClass;
 var
   vTypeName, vStyleName: string;
@@ -1140,7 +1152,7 @@ var
   vClassInfo: TControlClassInfo;
 begin
   Result := nil;
-  if not RegisteredControlClasses.TryGetValue(APresenterName, vClassesList) then
+  if not RegisteredControlClasses.TryGetValue(FName, vClassesList) then
     Exit;
 
   vTypeName := cControlTypeNames[AControlType];
@@ -1157,19 +1169,6 @@ begin
   //else
   //  Assert(False, 'Control class not found for type: "' + vTypeName +
   //    '", style Name: "' + vStyleName + '" in UI: ' + ClassName);
-end;
-
-class function TPresenter.GetPageClass(const APresenterName, APageName: string): TClass;
-var
-  vClassesList: TDictionary<string, TClass>;
-begin
-  Result := nil;
-  if not RegisteredPages.TryGetValue(APresenterName, vClassesList) then
-    Exit;
-
-  if not vClassesList.TryGetValue(APageName, Result) then
-    Assert(False, 'Page is not found for type: "' + APageName +
-      '" in presenter: "' + APresenterName + '" classified as: ' + ClassName);
 end;
 
 function TPresenter.GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
@@ -1273,6 +1272,21 @@ begin
   DoOpenFile(AFileName, ADefaultApp, Await);
 end;
 
+class procedure TPresenter.RegisterCanvasClass(const APresenterName, ACanvasTypeName: string; const ACanvasClass: TClass);
+var
+  vClassesList: TDictionary<string, TClass>;
+begin
+  if not RegisteredCanvasClasses.TryGetValue(APresenterName, vClassesList) then
+  begin
+    vClassesList := TDictionary<string, TClass>.Create;
+    RegisteredCanvasClasses.Add(APresenterName, vClassesList);
+  end
+  else
+    Assert(not vClassesList.ContainsKey(ACanvasTypeName), 'Canvas already registered for type: "' + ACanvasTypeName + '"');
+
+  vClassesList.Add(ACanvasTypeName, ACanvasClass);
+end;
+
 class procedure TPresenter.RegisterControlClass(const APresenterName: string; const AControlType: TUIItemType;
   const AStyleName: string; const AControlClass: TNativeControlClass);
 var
@@ -1293,21 +1307,6 @@ begin
 
   vClassInfo := TControlClassInfo.Create(AControlType, vStyleName, AControlClass);
   vClassesList.Add(vTypeName + vStyleName, vClassInfo);
-end;
-
-class procedure TPresenter.RegisterPage(const APresenterName, APageName: string; const APageClass: TClass);
-var
-  vClassesList: TDictionary<string, TClass>;
-begin
-  if not RegisteredPages.TryGetValue(APresenterName, vClassesList) then
-  begin
-    vClassesList := TDictionary<string, TClass>.Create;
-    RegisteredPages.Add(APresenterName, vClassesList);
-  end
-  else
-    Assert(not vClassesList.ContainsKey(APageName), 'Page already registered for type: "' + APageName + '"');
-
-  vClassesList.Add(APageName, APageClass);
 end;
 
 procedure TPresenter.Run(const AParameter: string = '');
@@ -1456,12 +1455,12 @@ end;
 
 initialization
 
-TPresenter.RegisteredPages := TObjectDictionary<string, TDictionary<string, TClass>>.Create([doOwnsValues]);
+TPresenter.RegisteredCanvasClasses := TObjectDictionary<string, TDictionary<string, TClass>>.Create([doOwnsValues]);
 TPresenter.RegisteredControlClasses := TObjectDictionary<string, TObjectDictionary<string, TControlClassInfo>>.Create([doOwnsValues]);
 
 finalization
 
-FreeAndNil(TPresenter.RegisteredPages);
+FreeAndNil(TPresenter.RegisteredCanvasClasses);
 FreeAndNil(TPresenter.RegisteredControlClasses);
 
 end.

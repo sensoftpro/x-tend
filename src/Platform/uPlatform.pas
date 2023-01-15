@@ -68,6 +68,7 @@ type
     function Translate(const AKey, ADefault: string): string;
     function ConfigurationByName(const AName: string): TConfiguration;
     function DomainByUId(const AUId: string): TDomain;
+    function ResolveModuleName(const ASettings: TSettings; const AName: string): string;
     function ResolveModuleClass(const ASettings: TSettings; const AName, AType: string; out AModuleName: string): TModuleClass;
     procedure Init;
 
@@ -299,20 +300,14 @@ end;
 function TPlatform.ResolveModuleClass(const ASettings: TSettings; const AName, AType: string;
   out AModuleName: string): TModuleClass;
 var
-  vSectionName: string;
   vAvailableTypes: TStrings;
 begin
   Result := nil;
-  AModuleName := '';
-
-  vSectionName := 'Modules';
-  if (FDeploymentType <> '') and ASettings.KeyExists(vSectionName + '$' + FDeploymentType, AName) then
-    vSectionName := vSectionName + '$' + FDeploymentType;
+  AModuleName := ResolveModuleName(ASettings, AName);
 
   // Пользователь знает о нужной секции
-  if ASettings.KeyExists(vSectionName, AName) then
+  if AModuleName <> '' then
   begin
-    AModuleName := Trim(ASettings.GetValue(vSectionName, AName, ''));
     Result := TBaseModule.GetModuleClass(AType, AModuleName);
     if not Assigned(Result) and (AModuleName <> '') and Assigned(FPresenter) then
       FPresenter.ShowMessage('Ошибка загрузки модуля',
@@ -364,6 +359,21 @@ begin
   end;
 
   FreeAndNil(vAvailableTypes);
+end;
+
+function TPlatform.ResolveModuleName(const ASettings: TSettings; const AName: string): string;
+var
+  vSectionName: string;
+begin
+  vSectionName := 'Modules';
+  if (FDeploymentType <> '') and ASettings.KeyExists(vSectionName + '$' + FDeploymentType, AName) then
+    vSectionName := vSectionName + '$' + FDeploymentType;
+
+  // Пользователь знает о нужной секции
+  if ASettings.KeyExists(vSectionName, AName) then
+    Result := Trim(ASettings.GetValue(vSectionName, AName, ''))
+  else
+    Result := '';
 end;
 
 class procedure TPlatform.Run;
