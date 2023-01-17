@@ -206,7 +206,7 @@ end;
 
 initialization
 
-TBaseModule.RegisterModule('Reporting', 'FastReport', TFRReportData);
+TBaseModule.RegisterModule('Reporting', '', 'FastReport', TFRReportData);
 
 end.
 

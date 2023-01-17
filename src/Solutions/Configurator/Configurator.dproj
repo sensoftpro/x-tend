@@ -200,23 +200,19 @@
         <DCCReference Include="..\..\Modules\Drawing\uScene.pas"/>
         <DCCReference Include="..\..\Modules\Reporting\uReport.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\uWinVCLPresenter.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\uWinScene.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclArea.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclSimpleEditors.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclEntityEditors.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclListEditors.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Editors\vclBlobEditors.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\OptionsForm.pas">
-            <Form>OptionsFm</Form>
-        </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\DebugInfoForm.pas">
+        <DCCReference Include="..\..\Modules\UI\WinVCL\vclScene.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\vclArea.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\vclSimpleEditors.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\vclEntityEditors.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\vclBlobEditors.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\DebugInfoForm.pas">
             <Form>DebugFm</Form>
         </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\Forms\FloatForm.pas">
-            <Form>FloatFm</Form>
-        </DCCReference>
         <DCCReference Include="..\..\Modules\UI\WinVCL\DevExpress\uDevExpressPresenter.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\DevExpress\Editors\uDEArea.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\DevExpress\dexArea.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\DevExpress\dexSimpleEditors.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\DevExpress\dexEntityEditors.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\DevExpress\dexListEditors.pas"/>
         <DCCReference Include="..\..\Modules\Storage\SQLite\uSQLite3.pas"/>
         <DCCReference Include="..\..\Modules\Storage\SQLite\uSQLiteStorage.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\VCL\uVCLPainter.pas"/>

@@ -2676,8 +2676,8 @@ end;
 
 initialization
 
-TBaseModule.RegisterModule('ScriptExecutor', 'Base', TScriptExecutor);
-TBaseModule.RegisterModule('ScriptExecutor', 'ASW', TScriptExecutor);
+TBaseModule.RegisterModule('ScriptExecutor', '', 'Base', TScriptExecutor);
+TBaseModule.RegisterModule('ScriptExecutor', '', 'ASW', TScriptExecutor);
 RegisterInclusion('ScriptExecutor', TScriptInclusion);
 
 end.

@@ -69,7 +69,7 @@ uses
   cxLabel, cxTextEdit, cxButtons, cxScrollBox, cxControls, cxSplitter,
 
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity,
-  uEntityList, uDEArea, uSession, uCollection;
+  uEntityList, dexArea, uSession, uCollection;
 
 const
   cPCNavigatorFlag = 1;
@@ -332,6 +332,6 @@ end;
 
 initialization
 
-TBaseModule.RegisterModule('UI', 'Windows.DevExpress', TDevExpressPresenter);
+TBaseModule.RegisterModule('UI', 'Windows.VCL', 'Windows.DevExpress', TDevExpressPresenter);
 
 end.

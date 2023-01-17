@@ -69,7 +69,7 @@ type
     function ConfigurationByName(const AName: string): TConfiguration;
     function DomainByUId(const AUId: string): TDomain;
     function ResolveModuleName(const ASettings: TSettings; const AName: string): string;
-    function ResolveModuleClass(const ASettings: TSettings; const AName, AType: string; out AModuleName: string): TModuleClass;
+    function ResolveModuleInfo(const ASettings: TSettings; const AName, AType: string): TModuleInfo;
     procedure Init;
 
     property Domains: TObjectStringDictionary<TDomain> read FDomains;
@@ -187,12 +187,11 @@ end;
 
 function TPlatform.CreatePresenter(const ASettings: TSettings): TPresenter;
 var
-  vPresenterClass: TPresenterClass;
-  vModuleName: string;
+  vPresenterInfo: TModuleInfo;
 begin
-  vPresenterClass := TPresenterClass(ResolveModuleClass(ASettings, 'UI', 'UI', vModuleName));
-  if Assigned(vPresenterClass) then
-    Result := vPresenterClass.Create(vModuleName, ASettings)
+  vPresenterInfo := ResolveModuleInfo(ASettings, 'UI', 'UI');
+  if Assigned(vPresenterInfo) then
+    Result := TPresenterClass(vPresenterInfo.ModuleClass).Create(vPresenterInfo.Name, ASettings)
   else
     Result := nil;
 
@@ -297,19 +296,19 @@ begin
   end;
 end;
 
-function TPlatform.ResolveModuleClass(const ASettings: TSettings; const AName, AType: string;
-  out AModuleName: string): TModuleClass;
+function TPlatform.ResolveModuleInfo(const ASettings: TSettings; const AName, AType: string): TModuleInfo;
 var
+  vModuleName: string;
   vAvailableTypes: TStrings;
 begin
   Result := nil;
-  AModuleName := ResolveModuleName(ASettings, AName);
+  vModuleName := ResolveModuleName(ASettings, AName);
 
   // Пользователь знает о нужной секции
-  if AModuleName <> '' then
+  if vModuleName <> '' then
   begin
-    Result := TBaseModule.GetModuleClass(AType, AModuleName);
-    if not Assigned(Result) and (AModuleName <> '') and Assigned(FPresenter) then
+    Result := TBaseModule.GetModuleInfo(AType, vModuleName);
+    if not Assigned(Result) and (vModuleName <> '') and Assigned(FPresenter) then
       FPresenter.ShowMessage('Ошибка загрузки модуля',
         Format('Модуль [%s] типа [%s] не зарегистрирован в системе', [AName, AType]) + #13#10#13#10
         + 'Проверьте, что файл с модулем подключен к проекту и регистрация класса модуля в нём выполнена правильно:'
@@ -324,9 +323,9 @@ begin
     vAvailableTypes := TBaseModule.GetModuleNamesOfType(AType);
     if vAvailableTypes.Count > 0 then
     begin
-      AModuleName := vAvailableTypes[0];
-      Result := TBaseModule.GetModuleClass(AType, AModuleName);
-      ASettings.SetValue('Modules', AName, AModuleName);
+      vModuleName := vAvailableTypes[0];
+      Result := TBaseModule.GetModuleInfo(AType, vModuleName);
+      ASettings.SetValue('Modules', AName, vModuleName);
     end;
     Exit;
   end;
@@ -341,7 +340,7 @@ begin
     FPresenter.ShowMessage('Загрузка модуля',
       Format('В системе не обнаружено ни одного класса типа [%s]', [AType]) + #13#10#13#10
       + 'Для загрузки модуля подключите содержащий его файл к проекту и перезапустите приложение');
-    AModuleName := '';
+    vModuleName := '';
   end
   else while vAvailableTypes.Count > 0 do
   begin
@@ -349,9 +348,9 @@ begin
       Format('В системе найден класс [%s], реализующий тип [%s]', [vAvailableTypes[0], AType]) + #13#10#13#10
       + Format('Хотите использовать его для модуля [%s] того же типа?', [AName])) = drYes
     then begin
-      AModuleName := vAvailableTypes[0];
-      Result := TBaseModule.GetModuleClass(AType, AModuleName);
-      ASettings.SetValue('Modules', AName, AModuleName);
+      vModuleName := vAvailableTypes[0];
+      Result := TBaseModule.GetModuleInfo(AType, vModuleName);
+      ASettings.SetValue('Modules', AName, vModuleName);
       Break;
     end
     else

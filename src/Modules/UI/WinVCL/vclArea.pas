@@ -36,7 +36,8 @@ unit vclArea;
 interface
 
 uses
-  Windows, Classes, Forms, Messages, Generics.Collections, Controls, StdCtrls, ExtCtrls, ComCtrls, Buttons, Menus, UITypes, SysUtils,
+  Windows, Classes, Forms, Messages, Generics.Collections, Controls, StdCtrls,
+  ExtCtrls, ComCtrls, Buttons, Menus, UITypes, SysUtils,
   uConsts, uUIBuilder, uDefinition, uDomain, uEntity, uView, uLayout;
 
 //////  1. Привязка сплиттера к контролу
@@ -176,6 +177,14 @@ type
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
+  TFloatFm = class(TForm)
+  protected
+    procedure CreateParams(var Params: TCreateParams); override;
+  end;
+
+{$R PopupForm.dfm}
+{$R FloatForm.dfm}
+
 type
   TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
 
@@ -210,6 +219,14 @@ begin
     RedrawWindow(AWinControl.Handle, nil, 0,
       RDW_ERASE or RDW_FRAME or RDW_INVALIDATE or RDW_ALLCHILDREN);
   end;
+end;
+
+{ TFloatFm }
+
+procedure TFloatFm.CreateParams(var Params: TCreateParams);
+begin
+  inherited CreateParams(Params);
+  Params.ExStyle := Params.ExStyle or WS_EX_APPWINDOW;
 end;
 
 { TUIAreaComparer }
@@ -998,7 +1015,7 @@ begin
     TLabel(FCaption).Parent := nil;
 
   vControl := FControl;
-  vIsFloat := FOwner.Id = 'float';
+  vIsFloat := (FOwner.Id = 'float') or (FOwner.Id = 'free');
 
   inherited Destroy;
 
@@ -1242,15 +1259,20 @@ begin
   else if FControl.InheritsFrom(TStaticText) then
     TStaticText(FControl).Alignment := AAlignment
   else if FControl.InheritsFrom(TCheckBox) then
-    TCheckBox(FControl).Alignment := AAlignment
+  begin
+    if AAlignment = taRightJustify then
+      TCheckBox(FControl).Alignment := taLeftJustify
+    else
+      TCheckBox(FControl).Alignment := taRightJustify;
+  end
   else if FControl.InheritsFrom(TRadioButton) then
     TRadioButton(FControl).Alignment := AAlignment
   else if FControl.InheritsFrom(TLabel) then
     TLabel(FControl).Alignment := AAlignment
   else if FControl.InheritsFrom(TEdit) then
     TEdit(FControl).Alignment:= AAlignment
-  else if FControl is TFilenameFieldEditor then
-    TFilenameFieldEditor(FControl).TextEdit.Properties.Alignment.Horz := AAlignment;
+  else if FControl is TVCLFileNameFieldEditor then
+    TVCLFileNameFieldEditor(FControl).TextEdit.Alignment := AAlignment;
 end;
 
 procedure TVCLControl.SetBounds(const Value: TRect);

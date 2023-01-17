@@ -910,7 +910,7 @@ end;
 
 initialization
 
-TBaseModule.RegisterModule('Storage', 'SQLite', TSQLiteStorage);
+TBaseModule.RegisterModule('Storage', '', 'SQLite', TSQLiteStorage);
 
 end.
 

@@ -1132,43 +1132,115 @@ begin
 end;
 
 function TPresenter.GetCanvasClass(const ACanvasTypeName: string): TClass;
-var
-  vClassesList: TDictionary<string, TClass>;
-begin
-  Result := nil;
-  if not RegisteredCanvasClasses.TryGetValue(FName, vClassesList) then
-    Exit;
 
-  if not vClassesList.TryGetValue(ACanvasTypeName, Result) then
-    Assert(False, 'Class is not found for canvas type: "' + ACanvasTypeName +
-      '" in presenter: "' + FName + '" classified as: ' + ClassName);
+  function InternalGetCanvasClass(const APresenterName: string): TClass;
+  var
+    vClassesList: TDictionary<string, TClass>;
+  begin
+    Result := nil;
+    if RegisteredCanvasClasses.TryGetValue(APresenterName, vClassesList) then
+      if not vClassesList.TryGetValue(ACanvasTypeName, Result) then
+        Result := nil;
+  end;
+
+  function FindCanvasClass(const APresenterName: string): TClass;
+  var
+    vPresenterName: string;
+    vModuleInfo: TModuleInfo;
+    vAncestors: TStrings;
+    i: Integer;
+  begin
+    vPresenterName := APresenterName.ToLowerInvariant;
+
+    Result := InternalGetCanvasClass(vPresenterName);
+    if Assigned(Result) then
+      Exit;
+
+    vModuleInfo := TBaseModule.GetModuleInfo('UI', APresenterName);
+    if not Assigned(vModuleInfo) then
+      Exit;
+
+    vAncestors := CreateDelimitedList(vModuleInfo.Ancestors);
+    try
+      for i := 0 to vAncestors.Count - 1 do
+      begin
+        Result := FindCanvasClass(Trim(vAncestors[i]));
+        if Assigned(Result) then
+          Exit;
+      end;
+    finally
+      FreeAndNil(vAncestors);
+    end;
+
+    Result := nil;
+  end;
+begin
+  Result := FindCanvasClass(FName);
 end;
 
 function TPresenter.GetControlClass(const AControlType: TUIItemType;
   const AStyleName: string): TNativeControlClass;
-var
-  vTypeName, vStyleName: string;
-  vClassesList: TObjectDictionary<string, TControlClassInfo>;
-  vClassInfo: TControlClassInfo;
-begin
-  Result := nil;
-  if not RegisteredControlClasses.TryGetValue(FName, vClassesList) then
-    Exit;
 
-  vTypeName := cControlTypeNames[AControlType];
-  vStyleName := AnsiLowerCase(AStyleName);
-
-  if not vClassesList.TryGetValue(vTypeName + vStyleName, vClassInfo) and (vStyleName <> '') then
-    if not vClassesList.TryGetValue(vTypeName, vClassInfo) then
-      vClassInfo := nil;
-
-  if Assigned(vClassInfo) then
-    Result := vClassInfo.FControlClass
-  else
+  function InternalGetControlClass(const APresenterName: string): TNativeControlClass;
+  var
+    vTypeName, vStyleName: string;
+    vClassInfo: TControlClassInfo;
+    vClassesList: TObjectDictionary<string, TControlClassInfo>;
+  begin
     Result := nil;
-  //else
-  //  Assert(False, 'Control class not found for type: "' + vTypeName +
-  //    '", style Name: "' + vStyleName + '" in UI: ' + ClassName);
+    if not RegisteredControlClasses.TryGetValue(APresenterName, vClassesList) then
+      Exit;
+
+    vTypeName := cControlTypeNames[AControlType].ToLowerInvariant;
+    vStyleName := AStyleName.ToLowerInvariant;
+
+    if vStyleName = '' then
+    begin
+      if not vClassesList.TryGetValue(vTypeName, vClassInfo) then
+        vClassInfo := nil;
+    end
+    else if not vClassesList.TryGetValue(vTypeName + '_' + vStyleName, vClassInfo) then
+      if not vClassesList.TryGetValue(vTypeName, vClassInfo) then
+        vClassInfo := nil;
+
+    if Assigned(vClassInfo) then
+      Result := vClassInfo.FControlClass
+    else
+      Result := nil;
+  end;
+
+  function FindControlClass(const APresenterName: string): TNativeControlClass;
+  var
+    vPresenterName: string;
+    vModuleInfo: TModuleInfo;
+    vAncestors: TStrings;
+    i: Integer;
+  begin
+    vPresenterName := APresenterName.ToLowerInvariant;
+    Result := InternalGetControlClass(vPresenterName);
+    if Assigned(Result) then
+      Exit;
+
+    vModuleInfo := TBaseModule.GetModuleInfo('UI', APresenterName);
+    if not Assigned(vModuleInfo) then
+      Exit;
+
+    vAncestors := CreateDelimitedList(vModuleInfo.Ancestors);
+    try
+      for i := 0 to vAncestors.Count - 1 do
+      begin
+        Result := FindControlClass(Trim(vAncestors[i]));
+        if Assigned(Result) then
+          Exit;
+      end;
+    finally
+      FreeAndNil(vAncestors);
+    end;
+
+    Result := nil;
+  end;
+begin
+  Result := FindControlClass(FName);
 end;
 
 function TPresenter.GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
@@ -1274,12 +1346,15 @@ end;
 
 class procedure TPresenter.RegisterCanvasClass(const APresenterName, ACanvasTypeName: string; const ACanvasClass: TClass);
 var
+  vPresenterName: string;
   vClassesList: TDictionary<string, TClass>;
 begin
-  if not RegisteredCanvasClasses.TryGetValue(APresenterName, vClassesList) then
+  vPresenterName := APresenterName.ToLowerInvariant;
+
+  if not RegisteredCanvasClasses.TryGetValue(vPresenterName, vClassesList) then
   begin
     vClassesList := TDictionary<string, TClass>.Create;
-    RegisteredCanvasClasses.Add(APresenterName, vClassesList);
+    RegisteredCanvasClasses.Add(vPresenterName, vClassesList);
   end
   else
     Assert(not vClassesList.ContainsKey(ACanvasTypeName), 'Canvas already registered for type: "' + ACanvasTypeName + '"');
@@ -1290,23 +1365,30 @@ end;
 class procedure TPresenter.RegisterControlClass(const APresenterName: string; const AControlType: TUIItemType;
   const AStyleName: string; const AControlClass: TNativeControlClass);
 var
-  vTypeName, vStyleName: string;
+  vPresenterName: string;
+  vTypeName, vStyleName, vClassName: string;
   vClassesList: TObjectDictionary<string, TControlClassInfo>;
   vClassInfo: TControlClassInfo;
 begin
-  vTypeName := cControlTypeNames[AControlType];
-  vStyleName := AnsiLowerCase(AStyleName);
-  if not RegisteredControlClasses.TryGetValue(APresenterName, vClassesList) then
+  vPresenterName := APresenterName.ToLowerInvariant;
+  vTypeName := cControlTypeNames[AControlType].ToLowerInvariant;
+  vStyleName := Trim(AStyleName.ToLowerInvariant);
+  if Trim(AStyleName) <> '' then
+    vClassName := vTypeName + '_' + vStyleName
+  else
+    vClassName := vTypeName;
+
+  if not RegisteredControlClasses.TryGetValue(vPresenterName, vClassesList) then
   begin
     vClassesList := TObjectDictionary<string, TControlClassInfo>.Create([doOwnsValues]);
-    RegisteredControlClasses.Add(APresenterName, vClassesList);
+    RegisteredControlClasses.Add(vPresenterName, vClassesList);
   end
   else
-    Assert(not vClassesList.TryGetValue(vTypeName + vStyleName, vClassInfo),
+    Assert(not vClassesList.TryGetValue(vClassName, vClassInfo),
       'Control class already registered for type: "' + vTypeName + '", style name: "' + vStyleName + '"');
 
   vClassInfo := TControlClassInfo.Create(AControlType, vStyleName, AControlClass);
-  vClassesList.Add(vTypeName + vStyleName, vClassInfo);
+  vClassesList.Add(vClassName, vClassInfo);
 end;
 
 procedure TPresenter.Run(const AParameter: string = '');

@@ -782,7 +782,8 @@ begin
     vAreaName := AAreaName;
 
   // Creation of forms
-  if (vAreaName = '') or (vAreaName = 'child') or (vAreaName = 'float') or (vAreaName = 'modal') then
+  if (vAreaName = '') or (vAreaName = 'float') or (vAreaName = 'free')
+    or (vAreaName = 'child') or (vAreaName = 'modal') then
   begin
     vIsMainForm := False;
     vLastCurrentArea := vInteractor.CurrentArea;
@@ -832,7 +833,7 @@ begin
         end;
       end;
 
-      if vAreaName <> 'float' then
+      if (vAreaName <> 'float') and (vAreaName <> 'free') then
         vInteractor.CurrentArea := vUIArea;
     finally
       vUIArea.EndUpdate;
@@ -1751,7 +1752,8 @@ begin
           end;
         end;
       dkComplexField:
-        Result := CreateChildLayoutedArea(ALayout, AView, TComplexFieldDef(AView.Definition).ObjectKindName, AParams);
+        //Result := CreateChildLayoutedArea(ALayout, AView, TComplexFieldDef(AView.Definition).ObjectKindName, AParams);
+        Result := DoCreateChildEditor(ALayout, AView, AParams);
       dkListField:
         begin
           if vParams.Values['view'] <> '' then

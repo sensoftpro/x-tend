@@ -323,10 +323,10 @@ begin
   vDefinition.AddSimpleFieldDef('Floatcurrencyrate', 'floatcurrencyrate', 'Floatcurrencyrate', 12345.6789, -10.25, 123456789.6, fkFloat, 'currency_rate', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('Floatinfo', 'floatinfo', 'Floatinfo', 12345.6789, -10.25, 123456789.6, fkFloat, 'info', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('Floatgauge', 'floatgauge', 'Floatgauge', 12.6789, 0, 20.6, fkFloat, 'gauge', '', vsFullAccess, cRequired);
-  vDefinition.AddSimpleFieldDef('Date', 'date', 'Date', 1000, 100, 20000000, fkDateTime, '', '', vsFullAccess, cRequired);
-  vDefinition.AddSimpleFieldDef('Time', 'time', 'time', 1000, 100, 20000000, fkDateTime, 'time', '', vsFullAccess, cRequired);
-  vDefinition.AddSimpleFieldDef('Datetime', 'datetime', 'datetime', 1000, 100, 20000000, fkDateTime, 'datetime', '', vsFullAccess, cRequired);
-  vDefinition.AddSimpleFieldDef('Dateinfo', 'dateinfo', 'Dateinfo', 1001, 100, 20000000, fkDateTime, '', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Date', 'date', 'Date', 100000, Null, Null, fkDateTime, '', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Time', 'time', 'time', 0.752, Null, Null, fkDateTime, 'time', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Datetime', 'datetime', 'datetime', 100000.369, Null, Null, fkDateTime, 'datetime', '', vsFullAccess, cRequired);
+  vDefinition.AddSimpleFieldDef('Dateinfo', 'dateinfo', 'Dateinfo', 100000.369, Null, Null, fkDateTime, '', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('Currency', 'currency', 'Currency', 1000.3, 100.2, 20000000.4, fkCurrency, '', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('Currencyinfo', 'currencyinfo', 'Currencyinfo', 1000.3, 100.2, 20000000.4, fkCurrency, 'info', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('Bool', 'bool', 'Bool', True, Null, Null, fkBoolean, '', '', vsFullAccess, cRequired);
@@ -337,6 +337,8 @@ begin
   vDefinition.AddSimpleFieldDef('Boolselectedcaption', 'boolselectedcaption', 'Boolselectedcaption', True, Null, Null, fkBoolean, 'selected_caption', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('Color', 'color', 'Color', 1, Null, Null, fkColor, '', '', vsFullAccess, 0);
   vDefinition.AddSimpleFieldDef('Colorsimple', 'colorsimple', 'Colorsimple', 2, Null, Null, fkColor, 'simple', '', vsFullAccess, 0);
+  vDefinition.AddComplexFieldDef('SimpleChart', 'simple_chart', 'Чарт', 'Tensor', 'chart');
+
 
 //  uiBLOBEdit, '', TDEBLOBEditor);
 //  uiBLOBEdit, 'image', TDEImageEditor);

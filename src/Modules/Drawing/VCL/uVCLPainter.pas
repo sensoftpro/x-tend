@@ -36,7 +36,7 @@ unit uVCLPainter;
 interface
 
 uses
-  Windows, Types, Classes, Graphics, uDrawStyles, uWinScene;
+  Windows, Types, Classes, Graphics, uDrawStyles, vclScene;
 
 type
   TPointArray = array of TPoint;
@@ -727,6 +727,6 @@ end;
 
 initialization
 
-TBaseModule.RegisterModule('Painting', 'VCL', TVCLScene);
+TBaseModule.RegisterModule('Painting', '', 'VCL', TVCLScene);
 
 end.

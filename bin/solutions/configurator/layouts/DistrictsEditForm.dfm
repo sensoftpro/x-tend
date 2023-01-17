@@ -93,7 +93,7 @@ object Form: TForm
       Margins.Top = 16
       Margins.Right = 16
       Margins.Bottom = 16
-      ActivePage = tsDecor
+      ActivePage = tsString
       Align = alClient
       TabOrder = 1
       object tsString: TTabSheet
@@ -802,7 +802,7 @@ object Form: TForm
           object lbl2: TLabel
             Left = 400
             Top = 16
-            Width = 446
+            Width = 447
             Height = 25
             Caption = 'TLabel (Segoe UI,14,[B],RUSSIAN_CHARSET,clRed)'
             Font.Charset = RUSSIAN_CHARSET
@@ -882,6 +882,22 @@ object Form: TForm
             Caption = 'Panel2'
             TabOrder = 0
           end
+        end
+      end
+      object TabSheet7: TTabSheet
+        Caption = 'Scene'
+        ImageIndex = 6
+        DesignSize = (
+          993
+          476)
+        object Panel7: TPanel
+          Left = 3
+          Top = 3
+          Width = 987
+          Height = 470
+          Anchors = [akLeft, akTop, akRight, akBottom]
+          Caption = 'SimpleChart'
+          TabOrder = 0
         end
       end
     end

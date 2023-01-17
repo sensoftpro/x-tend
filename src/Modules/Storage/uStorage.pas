@@ -1019,6 +1019,6 @@ end;
 
 initialization
 
-TBaseModule.RegisterModule('Storage', 'IniFile', TIniStorage);
+TBaseModule.RegisterModule('Storage', '', 'IniFile', TIniStorage);
 
 end.

@@ -74,6 +74,8 @@ type
     Panel5: TPanel;
     Panel6: TPanel;
     Panel15: TPanel;
+    TabSheet7: TTabSheet;
+    Panel7: TPanel;
   end;
 
 implementation

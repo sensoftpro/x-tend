@@ -138,9 +138,8 @@ procedure GeneratePDF(const AInteractor: TInteractor; const AReport: TReportDef;
   const AContextEntity, AInputParams: TEntity; const AFileName: string);
 var
   vDomain: TDomain;
-  vReportDataClass: TReportDataClass;
+  vModuleInfo: TModuleInfo;
   vReportData: TReportData;
-  vModuleName: string;
 begin
   vDomain := TDomain(AInteractor.Domain);
   if not Assigned(AReport.Content) then
@@ -149,11 +148,11 @@ begin
     Exit;
   end;
 
-  vReportDataClass := TReportDataClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ReportEngine', 'Reporting', vModuleName));
-  if not Assigned(vReportDataClass) then
+  vModuleInfo := _Platform.ResolveModuleInfo(vDomain.Settings, 'ReportEngine', 'Reporting');
+  if not Assigned(vModuleInfo) then
     Exit;
 
-  vReportData := vReportDataClass.Create(AInteractor.Session, AReport, AContextEntity, AInputParams);
+  vReportData := TReportDataClass(vModuleInfo.ModuleClass).Create(AInteractor.Session, AReport, AContextEntity, AInputParams);
   try
     AReport.Content.Position := 0;
     vReportData.DoGeneratePDF(AReport.Content, AFileName);
@@ -167,10 +166,9 @@ procedure ShowReport(const AInteractor: TInteractor; const AReport: TReportDef;
 var
   vDomain: TDomain;
   vInputParams: TEntity;
-  vReportDataClass: TReportDataClass;
+  vModuleInfo: TModuleInfo;
   vReportData: TReportData;
   vFileName: string;
-  vModuleName: string;
 begin
   if not Assigned(AContextEntity) then
     Exit;
@@ -182,8 +180,8 @@ begin
     Exit;
   end;
 
-  vReportDataClass := TReportDataClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ReportEngine', 'Reporting', vModuleName));
-  if not Assigned(vReportDataClass) then
+  vModuleInfo := _Platform.ResolveModuleInfo(vDomain.Settings, 'ReportEngine', 'Reporting');
+  if not Assigned(vModuleInfo) then
     Exit;
 
   vInputParams := TEntity.Create(AInteractor.Domain, AReport);
@@ -192,7 +190,8 @@ begin
     if not ((vInputParams.VisibleFieldCount(AInteractor.Session) > 0)
       and not AInteractor.EditParams(vInputParams)) then
     begin
-      vReportData := vReportDataClass.Create(AInteractor.Session, AReport, AContextEntity, vInputParams);
+      vReportData := TReportDataClass(vModuleInfo.ModuleClass).Create(
+        AInteractor.Session, AReport, AContextEntity, vInputParams);
       try
         if AReport.OutputFileMask = '' then
           vFileName := 'Report' + FormatDateTime('ddmmyyyy_hhnnss', Now)
@@ -893,6 +892,6 @@ end;
 
 initialization
 
-TBaseModule.RegisterModule('Reporting', '<null>', TReportData);
+TBaseModule.RegisterModule('Reporting', '', '<null>', TReportData);
 
 end.

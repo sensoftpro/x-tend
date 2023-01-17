@@ -31,14 +31,14 @@
   SOFTWARE.
   --------------------------------------------------------------------------------- }
 
-unit vclListEditors;
+unit dexListEditors;
 
 interface
 
 uses
   Generics.Collections, Graphics, Classes, Controls, Types, CheckLst, ExtCtrls, ComCtrls,
 
-  uEntity, uEntityList, vclArea, uView, uUIBuilder, uLayout, uDefinition, uConsts,
+  uEntity, uEntityList, dexArea, uView, uUIBuilder, uLayout, uDefinition, uConsts,
 
   cxCheckListBox, cxLookAndFeelPainters, dxColorEdit,
   cxTL, cxGrid, cxGridTableView, cxCustomData, cxGridLevel, cxGridCustomTableView, cxGridChartView, cxStyles,
@@ -47,7 +47,7 @@ uses
   cxExportPivotGridLink, cxTLData, cxButtonEdit, cxEditRepositoryItems, cxPC;
 
 type
-  TEntityListSelector2 = class(TVCLControl)
+  TEntityListSelector2 = class(TDEControl)
   private
     FListBox: TcxCheckListBox;
     FEntityList: TEntityList;
@@ -59,7 +59,7 @@ type
     procedure DoOnChange; override;
   end;
 
-  TEntityListSelector3 = class(TVCLControl)
+  TEntityListSelector3 = class(TDEControl)
   private
     FListBox: TcxCheckListBox;
     FLookupCollection: string;
@@ -77,7 +77,7 @@ type
     procedure DoDisableContent; override;
   end;
 
-  TPagedEntityListSelector = class(TVCLControl)
+  TPagedEntityListSelector = class(TDEControl)
   private
     FPages: TcxPageControl;
     FEntityList: TEntityList;
@@ -91,7 +91,7 @@ type
     procedure DoOnChange; override;
   end;
 
-  TEntityListSelectorMTM = class(TVCLControl) // many to many link
+  TEntityListSelectorMTM = class(TDEControl) // many to many link
   private
     FListBox: TcxCheckListBox;
     FEntityList: TEntityList;
@@ -109,7 +109,7 @@ type
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
   end;
 
-  TParametersEditor = class(TVCLControl)
+  TParametersEditor = class(TDEControl)
   private
     FGrid: TcxVerticalGrid;
     FParams: TList<TEntity>;
@@ -172,7 +172,7 @@ type
     property IsLoading: Boolean read FIsLoading;
   end;
 
-  TGridEditor = class(TVCLControl)
+  TGridEditor = class(TDEControl)
   private
     FGrid: TcxGrid;
     FMasterTableView: TcxGridTableView;
@@ -232,7 +232,7 @@ type
     procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
   end;
 
-  TListEditor = class(TVCLControl)
+  TListEditor = class(TDEControl)
   private
     FList: TcxTreeList;
     procedure OnSelectionChanged(Sender: TObject);
@@ -261,7 +261,7 @@ type
     property Data: TList<TEntity> read FEntities;
   end;
 
-  TPivotGrid = class(TVCLControl)
+  TPivotGrid = class(TDEControl)
   private
     FPivot: TcxPivotGrid;
     FCube: TDataCube;
@@ -289,7 +289,7 @@ type
     destructor Destroy; override;
   end;
 
-  TTreeCollectionEditor = class(TVCLControl)
+  TTreeCollectionEditor = class(TDEControl)
   private
     FTreeList: TcxVirtualTreeList;
     FBGStyle: TcxStyle;
@@ -1760,7 +1760,7 @@ var
 begin
   if ATargetName = 'popup' then
   begin
-    vPopupMenu := TPopupMenu(TVCLControl(ALinkedControl).Control);
+    vPopupMenu := TPopupMenu(TDEControl(ALinkedControl).Control);
     vPopupMenu.OnPopup := BeforeContextMenuShow;
     FPivot.PopupMenu := vPopupMenu;
   end;
@@ -2161,7 +2161,7 @@ var
 begin
   if ATargetName = 'popup' then
   begin
-    vPopupMenu := TPopupMenu(TVCLControl(ALinkedControl).Control);
+    vPopupMenu := TPopupMenu(TDEControl(ALinkedControl).Control);
     vPopupMenu.OnPopup := BeforeContextMenuShow;
     FTreeList.PopupMenu := vPopupMenu;
   end;
@@ -3595,7 +3595,7 @@ var
 begin
   if ATargetName = 'popup' then
   begin
-    vPopupMenu := TPopupMenu(TVCLControl(ALinkedControl).Control);
+    vPopupMenu := TPopupMenu(TDEControl(ALinkedControl).Control);
     vPopupMenu.OnPopup := BeforeContextMenuShow;
     FMasterTableView.PopupMenu := vPopupMenu;
   end;

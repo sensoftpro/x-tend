@@ -98,9 +98,6 @@ type
     function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''): TObject; virtual;
   public
-    constructor Create(const AName: string; const ASettings: TSettings); override;
-    destructor Destroy; override;
-
     function CreateTempControl: TObject; override; // DFM
 
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
@@ -122,8 +119,8 @@ implementation
 
 uses
   Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX, JPEG, PngImage,
-  uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity, uEntityList, vclArea, uSession,
-  OptionsForm, FloatForm, uCollection;
+  uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon,
+  uEntity, uEntityList, vclArea, uSession, uCollection;
 
 const
   cPCNavigatorFlag = 1;
@@ -608,11 +605,6 @@ begin
     Assert(False, 'Тип контрола не поддерживается');
 end;
 
-constructor TWinVCLPresenter.Create(const AName: string; const ASettings: TSettings);
-begin
-  inherited Create(AName, ASettings);
-end;
-
 function TWinVCLPresenter.CreateAreaContent(const AArea: TUIArea;
   const AView: TView; const ALayout: TLayout; const AParams: string): TNativeControl;
 var
@@ -935,6 +927,17 @@ begin
       if (AView.DefinitionKind in [dkCollection, dkAction, dkEntity]) then
         TDragImageList(vUIBuilder.Images[16]).GetIcon(vArea.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
     end
+    // автономная форма со свободным отображением
+    else if ALayout.StyleName = 'free' then
+    begin
+      vForm := TForm.Create(nil);
+      vForm.Position := poScreenCenter;
+      vForm.Font.Size := 12;
+      vForm.Caption := ALayout.Caption;
+      vForm.BorderStyle := bsNone;
+      vForm.BorderIcons := [];
+      vForm.FormStyle := fsStayOnTop;
+    end
     // дочерняя модальная форма
     else if (ALayout.StyleName = 'child') or (ALayout.StyleName = 'modal') then
     begin
@@ -1021,11 +1024,6 @@ end;
 function TWinVCLPresenter.CreateTempControl: TObject;
 begin
   Result := TFrame.Create(nil);
-end;
-
-destructor TWinVCLPresenter.Destroy;
-begin
-  inherited Destroy;
 end;
 
 function TWinVCLPresenter.DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject;
@@ -1226,7 +1224,7 @@ begin
       Handled := True;
       if Assigned(FDebugForm) then
         FreeAndNil(FDebugForm);
-      ShowPage(vActiveInteractor, 'debug');
+      vActiveInteractor.PrintHierarchy;
       if Assigned(FDebugForm) then
         SetForegroundWindow(FDebugForm.Handle);
     end
@@ -1269,10 +1267,6 @@ begin
       end;
       FDebugForm.UpdateDebugInfo;
     end;
-  end
-  else if APageType = 'options' then
-  begin
-    TOptionsFm.Edit(AInteractor);
   end;
 end;
 
@@ -1296,7 +1290,7 @@ var
 
 begin
   Result := drNone;
-  if (AAreaName = '') or (AAreaName = 'float') then
+  if (AAreaName = '') or (AAreaName = 'float') or (AAreaName = 'free') then
   begin
     vForm := TForm(GetVCLControl(AArea));
     vForm.Show;
@@ -1593,6 +1587,6 @@ end;
 
 initialization
 
-TBaseModule.RegisterModule('UI', 'Windows.VCL', TWinVCLPresenter);
+TBaseModule.RegisterModule('UI', '', 'Windows.VCL', TWinVCLPresenter);
 
 end.

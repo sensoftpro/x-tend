@@ -718,16 +718,15 @@ end;
 
 function TDomain.GetModuleByName(const AName: string; const AType: string): TBaseModule;
 var
-  vModuleClass: TModuleClass;
-  vModuleName: string;
+  vModuleInfo: TModuleInfo;
 begin
   if FModules.TryGetValue(AName, Result) then
     Exit;
 
-  vModuleClass := _Platform.ResolveModuleClass(FSettings, AName, AType, vModuleName);
-  if Assigned(vModuleClass) then
+  vModuleInfo := _Platform.ResolveModuleInfo(FSettings, AName, AType);
+  if Assigned(vModuleInfo.ModuleClass) then
   begin
-    Result := TDomainModuleClass(vModuleClass).Create(Self, vModuleName);
+    Result := TDomainModuleClass(vModuleInfo.ModuleClass).Create(Self, vModuleInfo.Name);
     FModules.AddOrSetValue(AName, Result);
     FModuleInstances.Add(Result);
   end
@@ -1042,10 +1041,10 @@ end;
 
 function TDomain.NewModule(const AType, AModuleName: string): TBaseModule;
 var
-  vModuleClass: TModuleClass;
+  vModuleInfo: TModuleInfo;
 begin
-  vModuleClass := TBaseModule.GetModuleClass(AType, AModuleName);
-  if not Assigned(vModuleClass) then
+  vModuleInfo := TBaseModule.GetModuleInfo(AType, AModuleName);
+  if not Assigned(vModuleInfo) then
   begin
     NotifyError('Ошибка загрузки модуля',
       Format('Модуль [%s] типа [%s] не зарегистрирован в системе', [AModuleName, AType]) + #13#10#13#10
@@ -1055,7 +1054,7 @@ begin
     Result := nil;
   end
   else
-    Result := TDomainModuleClass(vModuleClass).Create(Self, AModuleName);
+    Result := TDomainModuleClass(vModuleInfo.ModuleClass).Create(Self, AModuleName);
 end;
 
 procedure TDomain.NotifyError(const ACaption, AText: string);
@@ -1086,7 +1085,7 @@ begin
 
   if not Assigned(TInteractor(FDomainInteractor).RootArea) then
     /////TODO Need another kind of form
-    FUIBuilder.Navigate(TInteractor(FDomainInteractor).RootView, 'float', 'SplashForm')
+    FUIBuilder.Navigate(TInteractor(FDomainInteractor).RootView, 'free', 'SplashForm')
   else if AProgress = 100 then
   begin
     TInteractor(FDomainInteractor).RootArea.Release;

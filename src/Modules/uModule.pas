@@ -42,30 +42,37 @@ type
   TBaseModule = class;
   TModuleClass = class of TBaseModule;
 
-  TModuleRec = record
-    Name: string;
-    ModuleClass: TModuleClass;
+  TModuleInfo = class
+  private
+    FName: string;
+    FAncestors: string;
+    FModuleClass: TModuleClass;
+  public
+    constructor Create(const AName, AAncestors: string; const AClass: TModuleClass);
+    destructor Destroy; override;
+
+    property Name: string read FName;
+    property Ancestors: string read FAncestors;
+    property ModuleClass: TModuleClass read FModuleClass;
   end;
 
   TBaseModule = class
   private
-    class var RegisteredModules: TObjectDictionary<string, TList<TModuleRec>>;
+    class var RegisteredModules: TObjectDictionary<string, TObjectDictionary<string, TModuleInfo>>;
   public
-    class procedure RegisterModule(const AType, AName: string; const AClass: TModuleClass);
-    class function GetModuleClass(const AType, AName: string): TModuleClass;
+    class procedure RegisterModule(const AType, AAncestors, AName: string; const AClass: TModuleClass);
+    class function GetModuleInfo(const AType, AName: string): TModuleInfo;
     class function GetModuleNamesOfType(const AType: string): TStrings;
   end;
 
   TDomainModule = class(TBaseModule)
   protected
     [Weak] FDomain: TObject;
-    FName: string;
   public
     constructor Create(const ADomain: TObject; const AName: string); virtual;
     destructor Destroy; override;
 
     property Domain: TObject read FDomain;
-    property Name: string read FName;
   end;
 
   TDomainModuleClass = class of TDomainModule;
@@ -73,54 +80,42 @@ type
 implementation
 
 uses
-  SysUtils;
+  SysUtils, uUtils;
 
-{ TBaseModule }
-
-class function TBaseModule.GetModuleClass(const AType, AName: string): TModuleClass;
+class function TBaseModule.GetModuleInfo(const AType, AName: string): TModuleInfo;
 var
-  vGroup: TList<TModuleRec>;
-  vModuleRec: TModuleRec;
+  vGroup: TObjectDictionary<string, TModuleInfo>;
 begin
   Result := nil;
-  if not RegisteredModules.TryGetValue(AType.ToLowerInvariant, vGroup) then
-    Exit;
-
-  for vModuleRec in vGroup do
-  begin
-    if SameText(vModuleRec.Name, AName) then
-    begin
-      Result := vModuleRec.ModuleClass;
-      Exit;
-    end;
-  end;
+  if RegisteredModules.TryGetValue(AType.ToLowerInvariant, vGroup) then
+    if not vGroup.TryGetValue(AName.ToLowerInvariant, Result) then
+      Result := nil;
 end;
 
 class function TBaseModule.GetModuleNamesOfType(const AType: string): TStrings;
 var
-  vGroup: TList<TModuleRec>;
-  vModuleRec: TModuleRec;
+  vGroup: TObjectDictionary<string, TModuleInfo>;
+  vModuleInfo: TModuleInfo;
 begin
   Result := TStringList.Create;
   if RegisteredModules.TryGetValue(AType.ToLowerInvariant, vGroup) then
-    for vModuleRec in vGroup do
-      Result.Add(vModuleRec.Name);
+    for vModuleInfo in vGroup.Values do
+      Result.Add(vModuleInfo.Name);
 end;
 
-class procedure TBaseModule.RegisterModule(const AType, AName: string; const AClass: TModuleClass);
+class procedure TBaseModule.RegisterModule(const AType, AAncestors, AName: string; const AClass: TModuleClass);
 var
-  vGroup: TList<TModuleRec>;
-  vModuleRec: TModuleRec;
+  vGroup: TObjectDictionary<string, TModuleInfo>;
+  vModuleInfo: TModuleInfo;
 begin
   if not RegisteredModules.TryGetValue(AType.ToLowerInvariant, vGroup) then
   begin
-    vGroup := TList<TModuleRec>.Create;
+    vGroup := TObjectDictionary<string, TModuleInfo>.Create([doOwnsValues]);
     RegisteredModules.Add(AType.ToLowerInvariant, vGroup);
   end;
 
-  vModuleRec.Name := AName.ToLowerInvariant;
-  vModuleRec.ModuleClass := AClass;
-  vGroup.Add(vModuleRec);
+  vModuleInfo := TModuleInfo.Create(AName, AAncestors, AClass);
+  vGroup.Add(AName.ToLowerInvariant, vModuleInfo);
 end;
 
 { TDomainModule }
@@ -129,7 +124,6 @@ constructor TDomainModule.Create(const ADomain: TObject; const AName: string);
 begin
   inherited Create;
   FDomain := ADomain;
-  FName := AName;
 end;
 
 destructor TDomainModule.Destroy;
@@ -138,9 +132,25 @@ begin
   inherited Destroy;
 end;
 
+{ TModuleInfo }
+
+constructor TModuleInfo.Create(const AName, AAncestors: string; const AClass: TModuleClass);
+begin
+  inherited Create;
+  FName := AName;
+  FAncestors := AAncestors;
+  FModuleClass := AClass;
+end;
+
+destructor TModuleInfo.Destroy;
+begin
+  FModuleClass := nil;
+  inherited Destroy;
+end;
+
 initialization
 
-TBaseModule.RegisteredModules := TObjectDictionary<string, TList<TModuleRec>>.Create([doOwnsValues]);
+TBaseModule.RegisteredModules := TObjectDictionary<string, TObjectDictionary<string, TModuleInfo>>.Create([doOwnsValues]);
 
 finalization
 

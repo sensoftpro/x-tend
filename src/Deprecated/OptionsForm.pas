@@ -102,10 +102,7 @@ begin
     if Result then
     begin
       //vSettings.SetValue('Core', 'ShowStartPage', IfThen(chbShowStartPage.Checked, '1', '0'));
-      vSettings.SetValue('Core', 'ShowHorzLines', IfThen(chbShowHorzLinesInGrids.Checked, '1', '0'));
-      vSettings.SetValue('Core', 'ShowBordersForDisabled', IfThen(chbShowBordersForDisabled.Checked, '1', '0'));
-      vSettings.SetValue('Core', 'MouseMultiSelectInGrids', IfThen(chbMouseMultiSelectInGrids.Checked, '1', '0'));
-      vSettings.SetValue('Core', 'MarkRequiredFields', IfThen(chbMarkRequiredFields.Checked, '1', '0'));
+
     end;
   end;
 

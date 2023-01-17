@@ -505,7 +505,7 @@ begin
 end;
 
 initialization
-  TBaseModule.RegisterModule('TaskEngine', 'SimpleEngine', TSimpleTaskEngine);
-  TBaseModule.RegisterModule('TaskEngine', 'Native', TSimpleTaskEngine);
+  TBaseModule.RegisterModule('TaskEngine', '', 'SimpleEngine', TSimpleTaskEngine);
+  TBaseModule.RegisterModule('TaskEngine', '', 'Native', TSimpleTaskEngine);
 
 end.

@@ -190,8 +190,8 @@ procedure RegisterInclusion(const AInclusionName: string; const AClass: TInclusi
 implementation
 
 uses
-  Variants, IOUtils, DateUtils, Math, uConfiguration, uDomain, uObjectField, uEntityList, uJSON, uUtils,
-  uDomainUtils, uReaction, uPresenter, idUri;
+  Variants, IOUtils, DateUtils, StrUtils, Math, idUri, uConfiguration, uDomain, uSettings,
+  uObjectField, uEntityList, uJSON, uUtils, uDomainUtils, uReaction, uPresenter;
 
 procedure RegisterScript(const AConfigurationName: string; const AClass: TScriptClass; const AIncludes: string = '');
 var
@@ -527,6 +527,14 @@ begin
   vDefinition.AddSimpleFieldDef('CompanyEmail', 'company_email', 'E-mail', 'info@sensoft.pro', Null, 150, fkString, 'email', '', vsReadOnly, cRequired);
   vDefinition.AddSimpleFieldDef('StartYear', 'start_year', 'Год приобретения права', Null, 1970, 2100, fkInteger, '', '', vsReadOnly, cRequired);
   vDefinition.AddSimpleFieldDef('CopyrightInfo', 'copyright_info', 'Права', Null, Null, 150, fkString, 'email', '', vsReadOnly, cAutoCalculatedField);
+  vDefinition.AddSimpleFieldDef('ShowHorzLinesInGrids', 'show_horz_lines_in_grids', 'Показывать горизонтальные линии в таблицах', True, Null, Null, fkBoolean, '', '', vsFullAccess);
+  vDefinition.AddSimpleFieldDef('ShowBordersForDisabled', 'show_borders_for_disabled', 'Показывать обводку границ у неактивных полей', True, Null, Null, fkBoolean, '', '', vsFullAccess);
+  vDefinition.AddSimpleFieldDef('MouseMultiselectInGrids', 'mouse_multiselect_in_grids', 'Множественный выбор строк в таблицах мышкой', True, Null, Null, fkBoolean, '', '', vsFullAccess);
+  vDefinition.AddSimpleFieldDef('MarkRequiredFields', 'mark_required_fields', 'Помечать обязательные поля символами **', True, Null, Null, fkBoolean, '', '', vsFullAccess);
+  vDefinition.AddSimpleFieldDef('AreasInfo', 'areas_info', 'Areas', '', Null, -1, fkString, 'memo', '', vsReadOnly);
+  vDefinition.AddSimpleFieldDef('ViewsInfo', 'views_info', 'Views', '', Null, -1, fkString, 'memo', '', vsReadOnly);
+  vDefinition.AddSimpleFieldDef('HoldersInfo', 'holders_info', 'Holders', '', Null, -1, fkString, 'memo', '', vsReadOnly);
+  vDefinition.AddSimpleFieldDef('Log', 'log', 'Log', '', Null, -1, fkString, 'memo', '', vsReadOnly);
   vDefinition.AddSimpleFieldDef('Login', 'login', 'Логин', Null, Null, 50, fkString, '', '', vsFullAccess, cNotSave);
   vDefinition.AddSimpleFieldDef('Password', 'password', 'Пароль', Null, Null, 50, fkString, 'mask', '', vsFullAccess, cNotSave);
   vDefinition.AddSimpleFieldDef('Progress', 'progress', 'Прогресс', 0, 0, 100, fkInteger, 'progress', '', vsReadOnly);
@@ -1364,7 +1372,9 @@ var
   vConfig: TEntity;
   jChanges: TJSONObject;
   vSelectedView: TView;
+  vServiceData: TEntity;
   vEntity: TEntity;
+  vSettings: TSettings;
   vFileName: string;
   vContentStream: TStream;
   vStream: TMemoryStream;
@@ -1563,11 +1573,11 @@ begin
   else if AActionName = 'ShowAbout' then
   begin
     AInteractor.UIBuilder.Navigate(AInteractor.RootView, 'modal', 'AboutForm', '', nil, 'О программе');
+    //AInteractor.UIBuilder.Navigate(AInteractor.RootView, 'float', 'AboutForm', '', nil, 'О программе');
     Exit;
   end
   else if AActionName = 'ChangePassword' then
   begin
-    TPresenter(AInteractor.Presenter).ShowPage(AInteractor, 'about');
     Exit;
   end
   else if AActionName = 'ShowSysLog' then
@@ -1579,7 +1589,6 @@ begin
   end
   else if AActionName = 'SetupRTFReports' then
   begin
-    TPresenter(AInteractor.Presenter).ShowPage(AInteractor, 'rtf_reports');
     Exit;
   end
   else if AActionName = 'ShowSettings' then
@@ -1591,7 +1600,23 @@ begin
   end
   else if AActionName = 'ShowOptions' then
   begin
-    TPresenter(AInteractor.Presenter).ShowPage(AInteractor, 'options');
+    vServiceData := vDomain.FirstEntity('SysServices');
+    Assert(Assigned(vServiceData), '');
+    vSettings := vDomain.UserSettings;
+
+    vServiceData._SetFieldValue(vDomain.DomainHolder, 'ShowHorzLinesInGrids', StrToBoolDef(vSettings.GetValue('Core', 'ShowHorzLines'), True));
+    vServiceData._SetFieldValue(vDomain.DomainHolder, 'ShowBordersForDisabled', StrToBoolDef(vSettings.GetValue('Core', 'ShowBordersForDisabled'), True));
+    vServiceData._SetFieldValue(vDomain.DomainHolder, 'MouseMultiselectInGrids', StrToBoolDef(vSettings.GetValue('Core', 'MouseMultiSelectInGrids'), False));
+    vServiceData._SetFieldValue(vDomain.DomainHolder, 'MarkRequiredFields', StrToBoolDef(vSettings.GetValue('Core', 'MarkRequiredFields'), True));
+
+    if AInteractor.UIBuilder.Navigate(AInteractor.RootView, 'modal', 'OptionsForm', '', nil, 'Опции') = drOk then
+    begin
+      vSettings.SetValue('Core', 'ShowHorzLines', IfThen(Boolean(vServiceData['ShowHorzLinesInGrids']), '1', '0'));
+      vSettings.SetValue('Core', 'ShowBordersForDisabled', IfThen(Boolean(vServiceData['ShowBordersForDisabled']), '1', '0'));
+      vSettings.SetValue('Core', 'MouseMultiselectInGrids', IfThen(Boolean(vServiceData['MouseMultiselectInGrids']), '1', '0'));
+      vSettings.SetValue('Core', 'MarkRequiredFields', IfThen(Boolean(vServiceData['MarkRequiredFields']), '1', '0'));
+    end;
+
     Exit;
   end
   else if AActionName = 'LoadChanges' then

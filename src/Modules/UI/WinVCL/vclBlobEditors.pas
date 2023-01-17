@@ -59,7 +59,7 @@ type
 implementation
 
 uses
-  uPlatform, uDomain, uDrawStyles, uWinVCLPresenter, uWinScene, uPresenter, uConfiguration, uConsts;
+  uPlatform, uModule, uDomain, uDrawStyles, uWinVCLPresenter, vclScene, uPresenter, uConfiguration, uConsts;
 
 { TFieldSceneArea }
 
@@ -77,12 +77,14 @@ end;
 function TFieldSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vDomain: TDomain;
-  vSceneClass: TSceneClass;
-  vModuleName: string;
+  vModuleInfo: TModuleInfo;
 begin
   vDomain := TDomain(FView.Domain);
-  vSceneClass := TSceneClass(_Platform.ResolveModuleClass(vDomain.Settings, 'ChartPainter', 'Painting', vModuleName));
-  FScene := vSceneClass.Create(GetVCLControl(AParent));
+  // Domain oriented code
+  //vModuleName := _Platform.ResolveModulename(vDomain.Settings, 'ChartPainter');
+  //vSceneClass := TSceneClass(TPresenter(FPresenter).GetCanvasClass(vModuleName);
+  vModuleInfo := _Platform.ResolveModuleInfo(vDomain.Settings, 'ChartPainter', 'Painting');
+  FScene := TSceneClass(vModuleInfo.ModuleClass).Create(GetVCLControl(AParent));
   Result := TWinScene(FScene).Panel;
 end;
 
@@ -116,6 +118,6 @@ end;
 
 initialization
 
-TPresenter.RegisterControlClass('Windows.DevExpress', uiComplexEdit, 'chart', TFieldChartArea);
+TPresenter.RegisterControlClass('Windows.VCL', uiComplexEdit, 'chart', TFieldChartArea);
 
 end.
