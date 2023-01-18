@@ -37,8 +37,11 @@ interface
 
 uses
   Messages, Classes, Generics.Collections, Generics.Defaults, ActnList, uConsts, StdCtrls, Buttons,
-  ExtCtrls, TypInfo, Types, ComCtrls, SysUtils, Windows, Graphics,
+  ExtCtrls, Types, ComCtrls, SysUtils, Windows, Graphics,
   Variants, Controls, Forms, Mask, Menus,
+
+  // Remove if you don't have DevExpress controls installed
+  dxGDIPlusClasses,
 
   uDefinition, uPresenter, uInteractor, uView, uSettings,
 
@@ -212,6 +215,8 @@ var
   vGraphic: TGraphic;
 begin
   if not Assigned(ALayout.Image_Picture) then
+    Exit;
+  if ALayout.Image_Picture.Size = 0 then
     Exit;
 
   ALayout.Image_Picture.Position := 0;
@@ -528,9 +533,16 @@ begin
     ALayout.Hint := vSourceImage.Hint;
     ALayout.Transparent := vSourceImage.Transparent;
     ALayout.AutoSize := vSourceImage.AutoSize;
-    vImageStream := TMemoryStream.Create;
-    vSourceImage.Picture.Graphic.SaveToStream(vImageStream);
-    ALayout.Image_Picture := vImageStream;
+
+    if Assigned(vSourceImage.Picture.Graphic) then
+    begin
+      vImageStream := TMemoryStream.Create;
+      vSourceImage.Picture.Graphic.SaveToStream(vImageStream);
+      ALayout.Image_Picture := vImageStream;
+    end
+    else
+      ALayout.Image_Picture := nil;
+
     ALayout.Image_Stretch := vSourceImage.Stretch;
     ALayout.Image_Proportional := vSourceImage.Proportional;
     ALayout.Image_Center := vSourceImage.Center;

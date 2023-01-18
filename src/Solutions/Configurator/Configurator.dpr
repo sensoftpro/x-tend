@@ -1,5 +1,8 @@
 ﻿program Configurator;
 
+{$IFOPT D-}{$WEAKLINKRTTI ON}{$ENDIF}
+{$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}
+
 uses
   Dialogs,
   SysUtils,

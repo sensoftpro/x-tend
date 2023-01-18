@@ -127,8 +127,8 @@ function UnEscapeText(const AText: string): string;
 implementation
 
 uses
-  TypInfo, IOUtils, SysUtils, StrUtils, IniFiles,
-  //Forms, Controls, StdCtrls, ActnList, Menus,
+  IOUtils, SysUtils, StrUtils, IniFiles,
+  //TypInfo, Forms, Controls, StdCtrls, ActnList, Menus,
   uConfiguration, uDefinition, uConsts;
 
 function EscapeText(const AText: string): string;

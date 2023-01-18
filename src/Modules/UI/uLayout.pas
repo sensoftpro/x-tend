@@ -414,7 +414,7 @@ const
 implementation
 
 uses
-  IOUtils, TypInfo, SysUtils, Math, uDefinition, uUtils, uPresenter, StrUtils, uDomainUtils, Types;
+  IOUtils, SysUtils, Math, uDefinition, uUtils, uPresenter, StrUtils, uDomainUtils, Types;
 
 function StrToLayoutKind(const s: string): TLayoutKind;
 var
