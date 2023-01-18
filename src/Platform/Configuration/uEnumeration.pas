@@ -122,7 +122,7 @@ type
 implementation
 
 uses
-  RTTI, SysUtils, IniFiles;
+  SysUtils, IniFiles;
 
 { TEnumeration }
 

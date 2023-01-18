@@ -337,7 +337,7 @@ type
 implementation
 
 uses
-  Generics.Collections, TypInfo, Variants, SysUtils, Windows,
+  Generics.Collections, Variants, SysUtils, Windows,
   Forms, Math, DateUtils, Messages, VCL.Mask,
 
   uConfiguration, uDomain, uInteractor, uPresenter, uWinVCLPresenter, uCollection, uConsts,

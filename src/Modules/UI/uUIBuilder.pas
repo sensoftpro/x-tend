@@ -1410,6 +1410,7 @@ begin
   except
     on E: Exception do raise;
   end;
+
   if FView.DefinitionKind = dkAction then
   begin
     if TDefinition(FView.Definition).HasFlag(ccInstantExecution) then
@@ -1438,6 +1439,7 @@ end;
 function TUIArea.DoCreateChildList(const ALayout: TLayout; const AView: TView; const AParams: string): TUIArea;
 begin
   ALayout.AreaKind := akList;
+  ALayout.Id := 'List';
   Result := TUIArea.Create(Self, AView, ALayout, AParams);
 end;
 

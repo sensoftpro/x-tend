@@ -78,9 +78,6 @@ function SanitizeFileName(const AFileName: string): string;
 function NewGUID: TGUID;
 function GenerateUID: string;
 
-function FindClass(const AClassName: string): TClass;
-function FindAnyClass(const AClassName: string): TClass;
-
 function CreateDelimitedList(const ADelimitedText: string; const ADelimiter: Char = ';'): TStrings;
 function GetFileSize(const AFileName: string): Int64;
 function GetFileCreateTime(const AFileName: string): TDateTime;
@@ -170,7 +167,7 @@ procedure Print(const AText: string; const AParams: array of const);
 implementation
 
 uses
-  Math, Variants, SysUtils, RTTI, RegularExpressions, ZLib, NetEncoding, Hash, XMLDoc, StrUtils, IdURI, Windows, IOUtils;
+  Math, Variants, SysUtils, RegularExpressions, ZLib, NetEncoding, Hash, XMLDoc, StrUtils, IdURI, Windows, IOUtils;
 
 function MakeMethod(const ACode, AData: Pointer): TMethod;
 begin
@@ -447,44 +444,6 @@ begin
   Result.Delimiter := ADelimiter;
   Result.DelimitedText := ADelimitedText;
   Result.QuoteChar := #0;
-end;
-
-function FindClass(const AClassName: string): TClass;
-var
-  vRttiContext: TRttiContext;
-  vRttiType: TRttiType;
-begin
-  vRttiContext := TRttiContext.Create;
-  try
-    vRttiType := vRttiContext.FindType(AClassName);
-    if Assigned(vRttiType) and vRttiType.IsInstance then
-      Result := vRttiType.AsInstance.MetaClassType
-    else
-      Result := nil;
-  finally
-    vRttiContext.Free;
-  end;
-end;
-
-function FindAnyClass(const AClassName: string): TClass;
-var
-  vRttiContext: TRttiContext;
-  vRttiTypes: TArray<TRttiType>;
-  vRttiType: TRttiType;
-begin
-  Result := nil;
-
-  vRttiContext := TRttiContext.Create;
-  vRttiTypes := vRttiContext.GetTypes;
-  for vRttiType in vRttiTypes do
-  begin
-    if vRttiType.IsInstance and (SameText(AClassName, vRttiType.Name)) then
-    begin
-      Result := vRttiType.AsInstance.MetaClassType;
-      Break;
-    end;
-  end;
-  vRttiContext.Free;
 end;
 
 function NewGUID: TGUID;
