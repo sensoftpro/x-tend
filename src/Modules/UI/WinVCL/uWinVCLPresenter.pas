@@ -41,7 +41,7 @@ uses
   Variants, Controls, Forms, Mask, Menus,
 
   // Remove if you don't have DevExpress controls installed
-  dxGDIPlusClasses
+  dxGDIPlusClasses,
 
   uDefinition, uPresenter, uInteractor, uView, uSettings,
 
