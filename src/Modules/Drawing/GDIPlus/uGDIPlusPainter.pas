@@ -36,7 +36,7 @@ unit uGDIPlusPainter;
 interface
 
 uses
-  Windows, Types, Classes, GDIPOBJ, uDrawStyles, uScene, uWinScene, uConsts;
+  Windows, Types, Classes, GDIPOBJ, uDrawStyles, uScene, vclScene, uConsts;
 
 type
   TGDIPlusDrawContext = class(TDrawContext)
@@ -628,6 +628,6 @@ end;
 
 initialization
 
-TBaseModule.RegisterModule('Painting', 'GDIPlus', TGDIPlusScene);
+TBaseModule.RegisterModule('Painting', '', 'GDIPlus', TGDIPlusScene);
 
 end.

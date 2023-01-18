@@ -750,11 +750,12 @@ begin
       Result := vForm;
     end
     else begin
-      vTab := TTabSheet.Create(TComponent(GetVCLControl(AParent)));
+      vTab := TTabSheet.Create(TWinControl(vParentControl));
       vTab.Caption := ALayout.Caption;
       vTab.ImageIndex := AParent.GetImageID(ALayout.ImageID);
 
       vStartPageName := vDomain.Settings.GetValue('Core', 'StartPage', '');
+      vTab.Parent := TWinControl(vParentControl);
       vTab.TabVisible := ALayout.ShowCaption;
       if vParentControl is TPageControl then
         vTab.PageControl := TPageControl(vParentControl);

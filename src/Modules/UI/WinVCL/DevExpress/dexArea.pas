@@ -55,7 +55,7 @@ type
     procedure SetActiveChildArea(const AArea: TUIArea); override;
   end;
 
-  TDEButtonArea = class(TDEControl)
+  TDEButton = class(TDEControl)
   private
     FTypeSelectionMenu: TPopupMenu;
   protected
@@ -64,13 +64,13 @@ type
     procedure RefillArea(const AKind: Word); override;
   end;
 
-  TDELinkArea = class(TDEControl)
+  TDELink = class(TDEControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure RefillArea(const AKind: Word); override;
   end;
 
-  TNavBarArea = class(TDEControl)
+  TDENavBarNavigation = class(TDEControl)
   private
     FNavBar: TdxNavBar;
     FNavBarGroup: TdxNavBarGroup;
@@ -102,9 +102,9 @@ type
 const
   cServiceAreaHeight = 44;
 
-{ TNavBarArea }
+{ TDENavBarNavigation }
 
-function TNavBarArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+function TDENavBarNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vColor: TColor;
 begin
@@ -132,7 +132,7 @@ begin
   Result := FNavBar;
 end;
 
-function TNavBarArea.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
+function TDENavBarNavigation.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
   const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
   vControl: TObject;
@@ -165,14 +165,14 @@ begin
   end;
 end;
 
-{ TDEButtonArea }
+{ TDEButton }
 
-procedure TDEButtonArea.DoBeforeFreeControl;
+procedure TDEButton.DoBeforeFreeControl;
 begin
   FreeAndNil(FTypeSelectionMenu);
 end;
 
-function TDEButtonArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+function TDEButton.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vParams: TStrings;
   vButton: TcxButton;
@@ -295,7 +295,7 @@ begin
   Result := vButton;
 end;
 
-procedure TDEButtonArea.RefillArea(const AKind: Word);
+procedure TDEButton.RefillArea(const AKind: Word);
 var
   vButton: TcxButton;
   vActionDef: TDefinition;
@@ -319,9 +319,9 @@ begin
   vButton.Hint := vButton.Caption;
 end;
 
-{ TDELinkArea }
+{ TDELink }
 
-function TDELinkArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+function TDELink.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vParams: TStrings;
   vLabel: TcxLabel;
@@ -362,7 +362,7 @@ begin
   Result := vLabel;
 end;
 
-procedure TDELinkArea.RefillArea(const AKind: Word);
+procedure TDELink.RefillArea(const AKind: Word);
 var
   vLabel: TcxLabel;
   vActionDef: TDefinition;
@@ -470,13 +470,9 @@ end;
 
 initialization
 
-TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, '', TTreeViewArea);
-TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'TreeView', TTreeViewArea);
-TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'NavBar', TNavBarArea);
-TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'MainMenu', TMainMenuArea);
-TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'ToolBar', TToolBarArea);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiNavigation, 'NavBar', TDENavBarNavigation);
 
-TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, '', TDEButtonArea);
-TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, 'link', TDELinkArea);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, '', TDEButton);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiAction, 'link', TDELink);
 
 end.

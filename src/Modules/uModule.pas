@@ -80,7 +80,7 @@ type
 implementation
 
 uses
-  SysUtils, uUtils;
+  SysUtils;
 
 class function TBaseModule.GetModuleInfo(const AType, AName: string): TModuleInfo;
 var

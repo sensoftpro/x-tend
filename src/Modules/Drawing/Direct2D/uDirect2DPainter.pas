@@ -36,7 +36,7 @@ unit uDirect2DPainter;
 interface
 
 uses
-  Windows, Graphics, Types, Classes, Direct2D, D2D1, uDrawStyles, WinCodec, uD2DExtra, uScene, uWinScene, uConsts;
+  Windows, Graphics, Types, Classes, Direct2D, D2D1, uDrawStyles, WinCodec, uD2DExtra, uScene, vclScene, uConsts;
 
 type
   TD2DPen = class
@@ -636,7 +636,7 @@ begin
   FD2DFactory.CreatePathGeometry(vGeometry);
   vGeometry.Open(vSink);
   try
-    vSink.BeginFigure(MakeD2DPointF(vPoints[0]), D2D1_FIGURE_BEGIN_HOLLOW);
+    vSink.BeginFigure(MakeD2DPointF(vPoints[0]), D2D1_FIGURE_BEGIN_FILLED);
     try
       for i := 1 to ACount - 1 do
         vSink.AddLine(MakeD2DPointF(vPoints[i]));
@@ -646,8 +646,7 @@ begin
   finally
     vSink.Close;
   end;
-
-  DrawGeometry(AStroke, vGeometry);
+  DrawGeometry(AFill, AStroke, vGeometry);
 end;
 
 procedure TDirect2DPainter.DoDrawText(const AFont: TStyleFont; const AText: string;
@@ -765,7 +764,6 @@ procedure TDirect2DPainter.DrawGeometry(const AFill: TStyleBrush; const AStroke:
 begin
   if Assigned(AFill) then
     ThisRenderTarget.FillGeometry(AGeometry, TD2DBrush(AFill.NativeObject).Brush);
-
   if Assigned(AStroke) then
     DrawGeometry(AStroke, AGeometry);
 end;
@@ -1120,7 +1118,7 @@ end;
 
 initialization
 
-TBaseModule.RegisterModule('Painting', 'Direct2D', TDirect2DScene);
+TBaseModule.RegisterModule('Painting', '', 'Direct2D', TDirect2DScene);
 
 end.
 

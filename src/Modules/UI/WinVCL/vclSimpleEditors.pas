@@ -1588,6 +1588,7 @@ var
   vTabLayout: TLayout;
   vChildArea: TUIArea;
   vHideTabs: Boolean;
+  vTabSheet: TTabSheet;
   i: Integer;
 begin
   FNeedCreateCaption := False;
@@ -1629,8 +1630,11 @@ begin
     vTabLayout := ALayout.Items[i];
 
     vChildArea := TPresenter(FPresenter).CreateArea(FOwner, FView.Parent, vTabLayout);
+    vTabSheet := TTabSheet(GetVCLControl(vChildArea));
     // It should be set here, because parent area still has no control
-    TWinControl(GetVCLControl(vChildArea)).Parent := vPC;
+    vTabSheet.Parent := vPC;
+    vTabSheet.PageControl := vPC;
+    vTabSheet.TabVisible := False;
     FOwner.AddArea(vChildArea);
 
     TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vChildArea.View, vTabLayout, '');

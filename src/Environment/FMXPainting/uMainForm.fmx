@@ -1,10 +1,10 @@
 object fmMain: TfmMain
   Left = 0
   Top = 0
-  Caption = 'Form11'
-  ClientHeight = 561
-  ClientWidth = 881
-  Quality = HighQuality
+  Caption = #1056#1077#1085#1076#1077#1088#1080#1085#1075' '#1089#1094#1077#1085#1099
+  ClientHeight = 580
+  ClientWidth = 953
+  Quality = HighPerformance
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop, iPhone, iPad]
@@ -12,68 +12,48 @@ object fmMain: TfmMain
   DesignerMasterStyle = 0
   object pnlTop: TPanel
     Align = Top
-    Size.Width = 881.000000000000000000
-    Size.Height = 89.000000000000000000
+    Size.Width = 953.000000000000000000
+    Size.Height = 65.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 0
     object btnCreate: TButton
-      Position.X = 552.000000000000000000
-      Position.Y = 40.000000000000000000
+      Position.X = 536.000000000000000000
+      Position.Y = 16.000000000000000000
+      Size.Width = 97.000000000000000000
+      Size.Height = 33.000000000000000000
+      Size.PlatformDefault = False
       TabOrder = 0
-      Text = 'btnCreate'
+      Text = 'Create'
       OnClick = btnCreateClick
     end
-    object grpPainters: TGroupBox
-      Position.X = 72.000000000000000000
-      Position.Y = 16.000000000000000000
-      Size.Width = 449.000000000000000000
-      Size.Height = 57.000000000000000000
-      Size.PlatformDefault = False
-      Text = 'grpPainters'
-      TabOrder = 1
-      object rbGDI: TRadioButton
-        GroupName = 'Painter'
-        Position.X = 32.000000000000000000
-        Position.Y = 24.000000000000000000
-        TabOrder = 0
-        Text = 'rbGDI'
-      end
-      object rbOpenGL: TRadioButton
-        GroupName = 'Painter'
-        Position.X = 304.000000000000000000
-        Position.Y = 24.000000000000000000
-        TabOrder = 1
-        Text = 'rbOpenGL'
-      end
-      object rbSkia: TRadioButton
-        GroupName = 'Painter'
-        Position.X = 176.000000000000000000
-        Position.Y = 24.000000000000000000
-        TabOrder = 2
-        Text = 'rbSkia'
-      end
-    end
     object btnMeasure: TButton
-      Position.X = 784.000000000000000000
-      Position.Y = 40.000000000000000000
-      TabOrder = 2
-      Text = 'btnMeasure'
+      Position.X = 776.000000000000000000
+      Position.Y = 16.000000000000000000
+      Size.Width = 97.000000000000000000
+      Size.Height = 33.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 1
+      Text = 'Measure'
       OnClick = btnMeasureClick
     end
     object lblFps: TLabel
       Position.X = 640.000000000000000000
-      Position.Y = 24.000000000000000000
+      Position.Y = 16.000000000000000000
       Size.Width = 129.000000000000000000
-      Size.Height = 49.000000000000000000
+      Size.Height = 33.000000000000000000
       Size.PlatformDefault = False
-      Text = 'lblFps'
-      TabOrder = 3
+      TabOrder = 2
     end
   end
-  object pbxCanvas: TPaintBox
+  object pbxCanvas: TPanel
     Align = Client
-    Size.Width = 881.000000000000000000
-    Size.Height = 472.000000000000000000
+    Margins.Left = 1.000000000000000000
+    Margins.Top = 1.000000000000000000
+    Margins.Right = 1.000000000000000000
+    Margins.Bottom = 1.000000000000000000
+    Size.Width = 951.000000000000000000
+    Size.Height = 513.000000000000000000
     Size.PlatformDefault = False
+    TabOrder = 1
   end
 end

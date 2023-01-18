@@ -16,9 +16,9 @@ type
 
   TFMXScene = class(TScene)
   private
-    FPlaceholder: TPaintBox;
+    FPlaceholder: TControl;
     FCachedDrawContext: TDrawContext;
-    procedure OnFMXScenePaint(Sender: TObject; Canvas: TCanvas);
+    procedure OnFMXScenePaint(Sender: TObject; Canvas: TCanvas; const ARect: TRectF);
     procedure OnFMXSceneMouseWheel(Sender: TObject; Shift: TShiftState; WheelDelta: Integer; var Handled: Boolean);
     procedure OnFMXSceneKeyDown(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
     procedure OnFMXSceneKeyUp(Sender: TObject; var Key: Word; var KeyChar: WideChar; Shift: TShiftState);
@@ -67,7 +67,7 @@ end;
 
 function TFMXScene.DoCreateScene(const APlaceholder: TObject): TPainter;
 begin
-  FPlaceholder := TPaintBox(APlaceholder);
+  FPlaceholder := TControl(APlaceholder);
 
   FPlaceholder.OnMouseWheel := OnFMXSceneMouseWheel;
   FPlaceholder.OnKeyDown := OnFMXSceneKeyDown;
@@ -188,7 +188,7 @@ begin
   OnMouseWheel(Sender, Shift, WheelDelta, Point(0, 0), Handled);
 end;
 
-procedure TFMXScene.OnFMXScenePaint(Sender: TObject; Canvas: TCanvas);
+procedure TFMXScene.OnFMXScenePaint(Sender: TObject; Canvas: TCanvas; const ARect: TRectF);
 begin
   OnPaint(Sender);
 end;

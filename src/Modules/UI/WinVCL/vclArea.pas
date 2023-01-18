@@ -111,7 +111,7 @@ type
     property Control: TObject read FControl;
   end;
 
-  TButtonArea = class(TVCLControl)
+  TVCLButton = class(TVCLControl)
   private
     FTypeSelectionMenu: TPopupMenu;
   protected
@@ -120,13 +120,13 @@ type
     procedure RefillArea(const AKind: Word); override;
   end;
 
-  TLinkArea = class(TVCLControl)
+  TVCLLink = class(TVCLControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure RefillArea(const AKind: Word); override;
   end;
 
-  TMainMenuArea = class(TVCLControl)
+  TVCLMainMenuNavigation = class(TVCLControl)
   private
     FMenu: TMainMenu;
     FMenuItem: TMenuItem;
@@ -136,7 +136,7 @@ type
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
-  TToolBarArea = class(TVCLControl)
+  TVCLToolBarNavigation = class(TVCLControl)
   private
     FToolBar: TToolBar;
     FToolButton: TToolButton;
@@ -148,7 +148,7 @@ type
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
-  TTreeViewArea = class(TVCLControl)
+  TVCLTreeViewNavigation = class(TVCLControl)
   private
     FTreeView: TTreeView;
     FDefaultWorkArea: string;
@@ -165,7 +165,7 @@ type
     procedure DoExecuteUIAction(const AView: TView); override;
   end;
 
-  TOneButtonArea = class(TVCLControl)
+  TVCLOneButtonNavigation = class(TVCLControl)
   private
     FButton: TButton;
     FMenu: TPopupMenu;
@@ -200,11 +200,6 @@ type
   TCrackedWinControl = class(TWinControl) end;
   TCrackedControl = class(TControl) end;
 
-  TUIAreaComparer = class(TComparer<TUIArea>)
-  public
-    function Compare(const ALeft, ARight: TUIArea): Integer; override;
-  end;
-
 const
   cServiceAreaHeight = 44;
 
@@ -229,16 +224,9 @@ begin
   Params.ExStyle := Params.ExStyle or WS_EX_APPWINDOW;
 end;
 
-{ TUIAreaComparer }
+{ TVCLOneButtonNavigation }
 
-function TUIAreaComparer.Compare(const ALeft, ARight: TUIArea): Integer;
-begin
-  Result := ARight.TabOrder - ALeft.TabOrder;
-end;
-
-{ TOneButtonArea }
-
-function TOneButtonArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+function TVCLOneButtonNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vImageSize: Integer;
   vActionName: string;
@@ -280,7 +268,7 @@ begin
   Result := FButton;
 end;
 
-function TOneButtonArea.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
+function TVCLOneButtonNavigation.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
   const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
   vControl: TObject;
@@ -298,7 +286,7 @@ begin
   Result := FItem;
 end;
 
-procedure TOneButtonArea.OnClick(Sender: TObject);
+procedure TVCLOneButtonNavigation.OnClick(Sender: TObject);
 var
   vPoint: TPoint;
 begin
@@ -306,16 +294,16 @@ begin
   FMenu.Popup(vPoint.X, vPoint.Y);
 end;
 
-{ TMainMenuArea }
+{ TVCLMainMenuNavigation }
 
-function TMainMenuArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+function TVCLMainMenuNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FMenu := TMainMenu.Create(TComponent(GetVCLControl(AParent)));
   FMenu.Images := TDragImageList(FUIBuilder.Images[16]);
   Result := FMenu;
 end;
 
-function TMainMenuArea.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
+function TVCLMainMenuNavigation.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
   const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
   vForm: TForm;
@@ -354,16 +342,16 @@ begin
   end;
 end;
 
-{ TToolBarArea }
+{ TVCLToolBarNavigation }
 
-function TToolBarArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+function TVCLToolBarNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FToolBar := TToolBar.Create(TComponent(GetVCLControl(AParent)));
   FToolBar.ShowCaptions := True;
   Result := FToolBar;
 end;
 
-function TToolBarArea.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
+function TVCLToolBarNavigation.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
   const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
   vMenu: TPopupMenu;
@@ -420,7 +408,7 @@ begin
   end;
 end;
 
-procedure TToolBarArea.SetParent(const AParent: TUIArea);
+procedure TVCLToolBarNavigation.SetParent(const AParent: TUIArea);
 var
   vToolButton: TToolButton;
   i, vImageSize: Integer;
@@ -441,9 +429,9 @@ begin
   end
 end;
 
-{ TTreeViewArea }
+{ TVCLTreeViewNavigation }
 
-function TTreeViewArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+function TVCLTreeViewNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FTreeView := TTreeView.Create(nil);
   //FTreeView.Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
@@ -461,7 +449,7 @@ begin
   Result := FTreeView;
 end;
 
-function TTreeViewArea.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
+function TVCLTreeViewNavigation.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
   const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
   vParentNode: TTreeNode;
@@ -485,7 +473,7 @@ begin
     vParentNode.Expand(True);
 end;
 
-procedure TTreeViewArea.DoExecuteUIAction(const AView: TView);
+procedure TVCLTreeViewNavigation.DoExecuteUIAction(const AView: TView);
 begin
   if AView.Name = '#Refill' then
     Refill;
@@ -583,13 +571,13 @@ begin
   end;
 end;}
 
-procedure TTreeViewArea.OnKeyPress(Sender: TObject; var Key: Char);
+procedure TVCLTreeViewNavigation.OnKeyPress(Sender: TObject; var Key: Char);
 begin
   if (Key = #13) and Assigned(FTreeView.Selected) then
     SelectNode(FTreeView.Selected);
 end;
 
-procedure TTreeViewArea.OnMouseClick(Sender: TObject);
+procedure TVCLTreeViewNavigation.OnMouseClick(Sender: TObject);
 var
   vClickPos: TPoint;
   vNode: TTreeNode;
@@ -600,14 +588,14 @@ begin
     SelectNode(vNode);
 end;
 
-procedure TTreeViewArea.Refill;
+procedure TVCLTreeViewNavigation.Refill;
 begin
   FOwner.Clear;
   FTreeView.Items.Clear;
   FOwner.ProcessChilds;
 end;
 
-procedure TTreeViewArea.SelectNode(const ANode: TTreeNode);
+procedure TVCLTreeViewNavigation.SelectNode(const ANode: TTreeNode);
 var
   vArea: TUIArea;
 begin
@@ -619,14 +607,14 @@ begin
     FOwner.ProcessAreaClick(vArea);
 end;
 
-{ TButtonArea }
+{ TVCLButton }
 
-procedure TButtonArea.DoBeforeFreeControl;
+procedure TVCLButton.DoBeforeFreeControl;
 begin
   FreeAndNil(FTypeSelectionMenu);
 end;
 
-function TButtonArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+function TVCLButton.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vParams: TStrings;
   vButton: TButton;
@@ -750,7 +738,7 @@ begin
   Result := vButton;
 end;
 
-procedure TButtonArea.RefillArea(const AKind: Word);
+procedure TVCLButton.RefillArea(const AKind: Word);
 var
   vButton: TButton;
   vActionDef: TDefinition;
@@ -774,9 +762,9 @@ begin
   vButton.Hint := vButton.Caption;
 end;
 
-{ TLinkArea }
+{ TVCLLink }
 
-function TLinkArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+function TVCLLink.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vParams: TStrings;
   vLabel: TLabel;
@@ -814,7 +802,7 @@ begin
   Result := vLabel;
 end;
 
-procedure TLinkArea.RefillArea(const AKind: Word);
+procedure TVCLLink.RefillArea(const AKind: Word);
 var
   vLabel: TLabel;
   vActionDef: TDefinition;
@@ -1444,12 +1432,12 @@ initialization
 
 RegisterClasses([TLabel, TPanel, TSplitter, TImage, TBevel, TPageControl, TMemo, TTabSheet, TScrollBox, TShape, TPopupMenu]);
 
-TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, '', TTreeViewArea);
-TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'TreeView', TTreeViewArea);
-TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'MainMenu', TMainMenuArea);
-TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'ToolBar', TToolBarArea);
+TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, '', TVCLTreeViewNavigation);
+TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'TreeView', TVCLTreeViewNavigation);
+TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'MainMenu', TVCLMainMenuNavigation);
+TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'ToolBar', TVCLToolBarNavigation);
 
-TPresenter.RegisterControlClass('Windows.VCL', uiAction, '', TButtonArea);
-TPresenter.RegisterControlClass('Windows.VCL', uiAction, 'link', TLinkArea);
+TPresenter.RegisterControlClass('Windows.VCL', uiAction, '', TVCLButton);
+TPresenter.RegisterControlClass('Windows.VCL', uiAction, 'link', TVCLLink);
 
 end.

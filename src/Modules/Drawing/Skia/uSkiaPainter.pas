@@ -36,7 +36,7 @@ unit uSkiaPainter;
 interface
 
 uses
-  Windows, Graphics, Types, Classes, ExtCtrls, Skia, uScene, uWinScene, uDrawStyles, uConsts;
+  Windows, Graphics, Types, Classes, ExtCtrls, Skia, uScene, vclScene, uDrawStyles, uConsts;
 
 type
   TSkiaPen = class
@@ -882,7 +882,7 @@ end;
 
 initialization
 
-TBaseModule.RegisterModule('Painting', 'Skia', TSkiaScene);
+TBaseModule.RegisterModule('Painting', '', 'Skia', TSkiaScene);
 
 end.
 

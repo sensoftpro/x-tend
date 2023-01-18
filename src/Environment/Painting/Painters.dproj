@@ -102,7 +102,7 @@
         <DCCReference Include="..\..\Modules\uModule.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\uDrawStyles.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\uScene.pas"/>
-        <DCCReference Include="..\..\Modules\UI\WinVCL\uWinScene.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\vclScene.pas"/>
         <DCCReference Include="uMainForm.pas">
             <Form>fmMain</Form>
         </DCCReference>

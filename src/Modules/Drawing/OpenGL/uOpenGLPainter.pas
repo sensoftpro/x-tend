@@ -3,7 +3,7 @@
 interface
 
 uses
-  Windows, Graphics, Types, Classes, ExtCtrls, dglOpenGL, uScene, uWinScene,
+  Windows, Graphics, Types, Classes, ExtCtrls, dglOpenGL, uScene, vclScene,
   uDrawStyles, uConsts, Vcl.Controls, System.SysUtils, Vcl.StdCtrls,
   System.IOUtils, System.Math, Vcl.Imaging.pngimage, uFreeType,
   Generics.Collections, uModule;
@@ -1132,6 +1132,6 @@ begin
 end;
 
 initialization
-  TBaseModule.RegisterModule('Painting', 'OpenGL', TOpenGLScene);
+  TBaseModule.RegisterModule('Painting', '', 'OpenGL', TOpenGLScene);
 
 end.

@@ -4,7 +4,7 @@ interface
 
 uses
   Types, Classes, FMX.Graphics, uDrawStyles, FMX.Controls, FMX.Types, Math, FMX.Objects, IOUtils, Math.Vectors,
-  UITypes, uConsts, SysUtils, FMX.Filter.Effects;
+  UITypes, uConsts, SysUtils, FMX.Filter.Effects, FMX.Platform;
 
 type
   TFMXContext = class(TDrawContext)
@@ -14,10 +14,10 @@ type
   protected
     procedure DoSetSize(const AWidth, AHeight: Single); override;
   public
-    procedure SaveToFile(const AFileName: string); override;
-  public
     constructor Create(const ACanvas: TCanvas; const AWidth, AHeight: Single);
     destructor Destroy; override;
+
+    procedure SaveToFile(const AFileName: string); override;
 
     property Bitmap: TBitmap read FBitmap;
     property Canvas: TCanvas read FCanvas;
@@ -75,6 +75,14 @@ implementation
 uses
   uFMXScene;
 
+function MulDiv(ANumber, ANumerator, ADenominator: Integer): Integer;
+begin
+  if ADenominator = 0 then
+    Result := -1
+  else
+    Result := Round(Int64(ANumber) * Int64(ANumerator) / ADenominator);
+end;
+
 { TFMXPainter }
 
 procedure TFMXPainter.BeginPaint;
@@ -123,10 +131,16 @@ end;
 procedure TFMXPainter.CreateFont(const AFont: TStyleFont);
 var
   vFont: TFont;
+  vMetricsService: IFMXDeviceMetricsService;
+  vPPI: Integer;
 begin
   vFont := TFont.Create;
-
-  vFont.Size := AFont.Size * 96 / 72;
+  vPPI := 96;
+  if TPlatformServices.Current.SupportsPlatformService(IFMXDeviceMetricsService, vMetricsService) then
+  begin
+    vPPI := vMetricsService.GetDisplayMetrics.PixelsPerInch;
+  end;
+  vFont.Size := MulDiv(Round(AFont.Size), vPPI, 72);
 
   vFont.Family := AFont.Family;
   vFont.Style := [];
@@ -150,7 +164,7 @@ begin
   begin
     if not TFile.Exists(AImage.FileName) then
       Exit;
-
+	  
     vImage := TBitmap.Create;
     vImage.LoadFromFile(AImage.FileName);
 
@@ -167,14 +181,17 @@ var
   vStroke: TStrokeBrush;
 begin
   vStroke := TStrokeBrush.Create(TBrushKind.Solid, AStroke.Color);
+  vStroke.Thickness := AStroke.Width;
   case AStroke.Style of
-    psDot: vStroke.Dash := TStrokeDash.Dot;
+    psDot: begin
+      vStroke.Dash := TStrokeDash.Custom;
+      vStroke.SetCustomDash(TArray<Single>.Create(3,3), 0)
+    end;
     psDash: vStroke.Dash := TStrokeDash.Dash;
     psDashDot: vStroke.Dash := TStrokeDash.DashDot;
     psDashDotDot: vStroke.Dash := TStrokeDash.DashDotDot;
     psSolid: vStroke.Dash := TStrokeDash.Solid;
   end;
-  vStroke.Thickness := AStroke.Width;
   vStroke.Join := TStrokeJoin.Round;
 
   AStroke.NativeObject := vStroke;
@@ -235,20 +252,20 @@ end;
 
 procedure TFMXPainter.DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF);
 begin
-  if Assigned(AStroke) then
-    ThisCanvas.DrawEllipse(ARect, 1, TStrokeBrush(AStroke.NativeObject));
   if Assigned(AFill) then
     ThisCanvas.FillEllipse(ARect, 1, TBrush(AFill.NativeObject));
+  if Assigned(AStroke) then
+    ThisCanvas.DrawEllipse(ARect, 1, TStrokeBrush(AStroke.NativeObject));
 end;
 
 procedure TFMXPainter.DoDrawImage(const AImage: TObject; const ARect: TRectF; const AOpacity: Single);
 begin
-  ThisCanvas.DrawBitmap(TBitmap(AImage), TBitmap(AImage).BoundsF, ARect, 1, True);
+  ThisCanvas.DrawBitmap(TBitmap(AImage), TBitmap(AImage).BoundsF, ARect.Round, 1, True);
 end;
 
 procedure TFMXPainter.DoDrawLine(const AStroke: TStylePen; const APoint1, APoint2: TPointF);
 begin
-  ThisCanvas.DrawLine(APoint1, APoint2, 1, TStrokeBrush(AStroke.NativeObject));
+  ThisCanvas.DrawLine(APoint1  + PointF(0.5, 0.5), APoint2 + PointF(0.5, 0.5), 1, TStrokeBrush(AStroke.NativeObject));
 end;
 
 procedure TFMXPainter.DoDrawPath(const AFill: TStyleBrush; const AStroke: TStylePen; const APath: TObject);
@@ -257,10 +274,6 @@ end;
 
 procedure TFMXPainter.DoDrawPie(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF;
   const AStartAngle, AEndAngle: Single);
-var
-  vStartAngle: Single;
-  vEndAngle: Single;
-  vSweepAngle: Single;
   function CorrectAngle(const AAngle: Single): Single;
   var
     vAngle: Single;
@@ -278,7 +291,11 @@ var
         Result := Result + 180;
     end;
   end;
+
 var
+  vStartAngle: Single;
+  vEndAngle: Single;
+  vSweepAngle: Single;
   vCentre: TPointF;
   vPath: TPathData;
   vWidth, vHeight, vTheta, vAngleIncrement, vX, vY, vEnd: Single;
@@ -308,12 +325,11 @@ begin
   end;
 
   vPath.LineTo(vCentre);
-  vPath.LineTo(PointF((vWidth / 2), 0) + vCentre);
 
-  if ASsigned(AStroke) then
-    ThisCanvas.DrawPath(vPath, 1, TStrokeBrush(AStroke.NativeObject));
   if Assigned(AFill) then
     ThisCanvas.FillPath(vPath, 1, TBrush(AFill.NativeObject));
+  if Assigned(AStroke) then
+    ThisCanvas.DrawPath(vPath, 1, TStrokeBrush(AStroke.NativeObject));
   FreeAndNil(vPath);
 end;
 
@@ -325,9 +341,9 @@ var
 begin
   vPath := TPathData.Create;
   vPath.MoveTo(vPoints[0]);
-  for i := 1 to ACount - 2 do
+  for i := 1 to ACount - 1 do
   begin
-    vPath.LineTo(vPoints[i]);
+    vPath.LineTo(vPoints[i] + PointF(0.5, 0.5));
   end;
   ThisCanvas.DrawPath(vPath, 1, TStrokeBrush(AStroke.NativeObject));
   FreeAndNil(vPath);
@@ -335,10 +351,10 @@ end;
 
 procedure TFMXPainter.DoDrawRect(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF);
 begin
-  if Assigned(AStroke) then
-    ThisCanvas.DrawRect(ARect, ARect.Width, ARect.Height, [], 1, TStrokeBrush(AStroke.NativeObject), TCornerType.Round);
   if Assigned(AFill) then
     ThisCanvas.FillRect(ARect, ARect.Width, ARect.Height, [], 1, TBrush(AFill.NativeObject), TCornerType.Round);
+  if Assigned(AStroke) then
+    ThisCanvas.DrawRect(ARect, ARect.Width, ARect.Height, [], 1, TStrokeBrush(AStroke.NativeObject), TCornerType.Round);
 end;
 
 procedure TFMXPainter.DoDrawRegion(const AFill: TStyleBrush; const AStroke: TStylePen; const APoints: PPointF;
@@ -378,7 +394,7 @@ begin
   vCanvas.Font.Size := TFont(AFont.NativeObject).Size;
   vCanvas.Font.Style := TFont(AFont.NativeObject).Style;
   vCanvas.Fill.Color := AFont.Color;
-
+  vR := ARect;
   if (DT_CENTER and AOptions) > 0 then
     vHorzAlign := TTextAlign.Center
   else if (DT_RIGHT and AOptions) > 0 then
@@ -394,7 +410,7 @@ begin
     vVertAlign := TTextAlign.Leading;
 
   if IsZero(AAngle) then
-    vCanvas.FillText(ARect, AText, False, 1, [], vHorzAlign, vVertAlign)
+    vCanvas.FillText(vR, AText, False, 1, [], vHorzAlign, vVertAlign)
   else begin
     vSize := GetTextExtents(AFont, AText);
 
@@ -402,8 +418,8 @@ begin
     vSaveMatrix := vCanvas.Matrix;
     try
       vMatrix := TMatrix.CreateRotation(DegToRad(AAngle));
-      vMatrix.m31 := ARect.Left;
-      vMatrix.m32 := ARect.Bottom;
+      vMatrix.m31 := Round(ARect.Left + ARect.Width / 2);
+      vMatrix.m32 := Round(ARect.Bottom);
       vCanvas.MultiplyMatrix(vMatrix);
 
       vCanvas.FillText(vR, AText, False, 1, [], vHorzAlign, vVertAlign);
@@ -445,7 +461,8 @@ begin
   R := RectF(0, 0, 10000, 10000);
   ThisCanvas.MeasureText(R, AText, False, [], TTextAlign.Leading, TTextAlign.Leading);
   Result.cx := R.Right;
-  Result.cy := R.Bottom;
+  Result.cy := R.Bottom - 1;
+  Result := Result.Round;
 end;
 
 function TFMXPainter.ThisCanvas: TCanvas;
@@ -486,7 +503,7 @@ begin
   if not Assigned(ACanvas) then
   begin
     FBitmap := TBitmap.Create(Round(AWidth), Round(AHeight));
-    FCanvas := FBitmap.Canvas;
+    FCanvas := TCanvasManager.CreateFromBitmap(FBitmap, TCanvasQuality.HighPerformance);
   end
   else begin
     FCanvas := ACanvas;
@@ -496,8 +513,13 @@ end;
 
 destructor TFMXContext.Destroy;
 begin
-  FCanvas := nil;
-  FreeAndNil(FBitmap);
+  if Assigned(FBitmap) then
+  begin
+    FreeAndNil(FCanvas);
+    FreeAndNil(FBitmap);
+  end
+  else
+    FCanvas := nil;
 end;
 
 procedure TFMXContext.DoSetSize(const AWidth, AHeight: Single);
@@ -506,7 +528,8 @@ begin
   if Assigned(FBitmap) then
   begin
     FBitmap.SetSize(Round(AWidth), Round(AHeight));
-    FCanvas := FBitmap.Canvas;
+    FreeAndNil(FCanvas);
+    FCanvas := TCanvasManager.CreateFromBitmap(FBitmap, TCanvasQuality.HighPerformance);
   end;
 end;
 

@@ -9,15 +9,10 @@ uses
 
 type
   TfmMain = class(TForm)
-    pnlTop: TPanel;
     btnCreate: TButton;
-    rbSkia: TRadioButton;
-    rbOpenGL: TRadioButton;
-    rbGDI: TRadioButton;
-    grpPainters: TGroupBox;
     btnMeasure: TButton;
     lblFps: TLabel;
-    pbxCanvas: TPaintBox;
+    pbxCanvas: TPanel;
     procedure btnCreateClick(Sender: TObject);
     procedure btnMeasureClick(Sender: TObject);
     procedure FormDestroy(Sender: TObject);

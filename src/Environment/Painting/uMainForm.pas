@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Variants, Classes, Graphics, Controls, Forms,
-  Dialogs, uWinScene, uSimpleChart, Vcl.StdCtrls, uDrawStyles, Vcl.ExtCtrls, uScene, Vcl.ExtDlgs;
+  Dialogs, vclScene, uSimpleChart, Vcl.StdCtrls, uDrawStyles, Vcl.ExtCtrls, uScene, Vcl.ExtDlgs;
 
 type
   TfmMain = class(TForm)
