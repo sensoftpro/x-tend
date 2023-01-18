@@ -1,7 +1,7 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
         <ProjectGuid>{8B5BC586-6CF6-4D24-B607-FAE6D89AE487}</ProjectGuid>
-        <ProjectVersion>18.2</ProjectVersion>
+        <ProjectVersion>18.3</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <MainSource>Configurator.dpr</MainSource>
         <Base>True</Base>
@@ -205,6 +205,7 @@
         <DCCReference Include="..\..\Modules\UI\WinVCL\vclSimpleEditors.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\vclEntityEditors.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\vclBlobEditors.pas"/>
+        <DCCReference Include="..\..\Modules\UI\WinVCL\vclListEditors.pas"/>
         <DCCReference Include="..\..\Modules\UI\WinVCL\DebugInfoForm.pas">
             <Form>DebugFm</Form>
         </DCCReference>

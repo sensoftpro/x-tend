@@ -69,6 +69,7 @@ uses
   vclSimpleEditors in '..\..\Modules\UI\WinVCL\vclSimpleEditors.pas',
   vclEntityEditors in '..\..\Modules\UI\WinVCL\vclEntityEditors.pas',
   vclBlobEditors in '..\..\Modules\UI\WinVCL\vclBlobEditors.pas',
+  vclListEditors in '..\..\Modules\UI\WinVCL\vclListEditors.pas',
   DebugInfoForm in '..\..\Modules\UI\WinVCL\DebugInfoForm.pas' {DebugFm},
   // UI: DevExpress
   uDevExpressPresenter in '..\..\Modules\UI\WinVCL\DevExpress\uDevExpressPresenter.pas',

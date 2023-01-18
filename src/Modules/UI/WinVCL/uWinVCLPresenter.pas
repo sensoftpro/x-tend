@@ -118,7 +118,7 @@ procedure SetPictureFromStream(const APicture: TPicture; const ALayout: TLayout)
 implementation
 
 uses
-  Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX, JPEG, PngImage,
+  Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX, JPEG, PngImage, ImgList,
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon,
   uEntity, uEntityList, vclArea, uSession, uCollection;
 
@@ -1039,6 +1039,11 @@ begin
   vImageList := TImageList.Create(nil);
   vImageList.SetSize(ASize, ASize);
   vImageList.BlendColor := clBtnFace;
+  vImageList.DrawingStyle := dsTransparent;
+  vImageList.ColorDepth := cd32Bit;
+  vImageList.BlendColor := clNone;
+  vImageList.BkColor := clNone;
+  vImageList.Masked := True;
   Result := vImageList;
 
   for vIndex in AImages.Indices.Keys do
