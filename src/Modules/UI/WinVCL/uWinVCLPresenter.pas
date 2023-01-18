@@ -1050,7 +1050,6 @@ var
 begin
   vImageList := TImageList.Create(nil);
   vImageList.SetSize(ASize, ASize);
-  vImageList.BlendColor := clBtnFace;
   vImageList.DrawingStyle := dsTransparent;
   vImageList.ColorDepth := cd32Bit;
   vImageList.BlendColor := clNone;

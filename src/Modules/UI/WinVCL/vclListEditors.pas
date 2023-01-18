@@ -59,7 +59,15 @@ type
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
   end;
 
-  TCollectionEditor = class(TVCLControl)
+  TColumnBinding = class
+  private
+    FFieldDef: TFieldDef;
+    FIsAscSort: Boolean;
+  public
+    constructor Create(const AFieldDef: TFieldDef);
+  end;
+
+  TGridEditor = class(TVCLControl)
   private
     FGrid: TListView;
     FAllData: TEntityList;
@@ -68,10 +76,11 @@ type
     FFilterDateFrom, FFilterDateTo: TDateTime;
     FFilterDateActive: Boolean;
     FLayoutExists: Boolean;
-    procedure DoOnCompare(Sender: TObject; AItem1, AItem2: TListItem; Data: Integer; var Compare: Integer);
+    FColumns: TObjectList<TColumnBinding>;
     procedure DoOnTableViewDblClick(Sender: TObject);
     procedure DoOnSelectItem(Sender: TObject; AItem: TListItem; ASelected: Boolean);
     procedure DoOnItemChecked(Sender: TObject; AItem: TListItem);
+    procedure OnColumnClick(Sender: TObject; Column: TListColumn);
     procedure CreateColumnsFromModel(const AFields: string = '');
     procedure EnableColumnParamsChangeHandlers(const AEnable: Boolean);
     procedure CreateColumn(const AFieldDef: TFieldDef; const AOverriddenCaption: string; const AWidth: Integer);
@@ -98,7 +107,6 @@ type
 
   end;
 
-
 implementation
 
 uses
@@ -107,8 +115,11 @@ uses
   uWinVCLPresenter, uObjectField, uInteractor, uEnumeration, uSession, uChangeManager,
   uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uSettings;
 
-type
-  TCalculateStyleFunc = function(const AViewName: string; const AEntity: TEntity): TColor of object;
+constructor TColumnBinding.Create(const AFieldDef: TFieldDef);
+begin
+  FFieldDef := AFieldDef;
+  FIsAscSort := True;
+end;
 
 const
   cColWidthDelim = ',';
@@ -173,12 +184,12 @@ begin
     if AFieldDef = nil then
       Result := CompareStr(AEnt1.DisplayName, AEnt2.DisplayName)
     else if AFieldDef.Kind = fkObject then
-      Result := CompareEntities(AEnt1.ExtractEntity(AFieldName), AEnt2.ExtractEntity(AFieldName), nil, '')
+      Result := CompareEntities(AEnt1.ExtractEntity(AFieldDef.Name), AEnt2.ExtractEntity(AFieldDef.Name), nil, '')
     else if AFieldDef.Kind in [fkString .. fkCurrency] then
     begin
       Result := 0;
-      vValue1 := AEnt1.ExtractFieldValue(AFieldName);
-      vValue2 := AEnt2.ExtractFieldValue(AFieldName);
+      vValue1 := AEnt1.ExtractFieldValue(AFieldDef.Name);
+      vValue2 := AEnt2.ExtractFieldValue(AFieldDef.Name);
       if VarIsNull(vValue1) then
         Result := -1;
       if VarIsNull(vValue2) then
@@ -232,7 +243,7 @@ var
   begin
     Result := nil;
     for i := 0 to AListView.Columns.Count - 1 do
-      if TFieldDef(AListView.Columns[i].tag).Name = AColName then
+      if TColumnBinding(AListView.Columns[i].Tag).FFieldDef.Name = AColName then
       begin
         Result := AListView.Columns[i];
         Break;
@@ -331,31 +342,40 @@ begin
     vColumn := AListView.Columns[i];
     vValues := IntToStr(AListView.Columns[i].Width) + cColWidthDelim + IntToStr(AListView.Columns[i].Index) +
       cColWidthDelim + IntToStr(0) + cColWidthDelim + cColWidthDelim;
-    vSettings.SetValue(vSectionName, TFieldDef(vColumn.tag).Name, vValues);
+    vSettings.SetValue(vSectionName, TColumnBinding(vColumn.Tag).FFieldDef.Name, vValues);
   end;
 end;
 
-{ TCollectionEditor }
-
-// Events
-
-procedure TCollectionEditor.DoOnCompare(Sender: TObject; AItem1, AItem2: TListItem; Data: Integer;
-  var Compare: Integer);
+function CustomSortProc(const AItem1, AItem2: TListItem; const AColumn: TListColumn): Integer; stdcall;
+var
+  vEnt1, vEnt2: TEntity;
+  vFieldDef: TFieldDef;
+  vColumnBinding: TColumnBinding;
 begin
-  if not Assigned(AItem1) or not Assigned(AItem2) then
-  begin
-    Compare := 0;
-    Exit;
-  end;
+  vEnt1 := TEntity(AItem1.Data);
+  vEnt2 := TEntity(AItem2.Data);
+  vColumnBinding := TColumnBinding(AColumn.Tag);
+  vFieldDef := vColumnBinding.FFieldDef;
 
+  Result := CompareEntities(vEnt1, vEnt2, vFieldDef, '');
+  if not vColumnBinding.FIsAscSort then
+    Result := -Result;
+  vColumnBinding.FIsAscSort := not vColumnBinding.FIsAscSort;
 end;
 
-procedure TCollectionEditor.DoOnItemChecked(Sender: TObject; AItem: TListItem);
+{ TGridEditor }
+
+procedure TGridEditor.OnColumnClick(Sender: TObject; Column: TListColumn);
+begin
+  FGrid.CustomSort(@CustomSortProc, Integer(Column));
+end;
+
+procedure TGridEditor.DoOnItemChecked(Sender: TObject; AItem: TListItem);
 begin
   AItem.Selected := AItem.Checked;
 end;
 
-procedure TCollectionEditor.DoOnSelectItem(Sender: TObject; AItem: TListItem; ASelected: Boolean);
+procedure TGridEditor.DoOnSelectItem(Sender: TObject; AItem: TListItem; ASelected: Boolean);
 var
   vEntityList: TEntityList;
   vItem: TListItem;
@@ -378,7 +398,7 @@ begin
   end;
 end;
 
-procedure TCollectionEditor.BeforeContextMenuShow(Sender: TObject);
+procedure TGridEditor.BeforeContextMenuShow(Sender: TObject);
 var
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
@@ -393,7 +413,7 @@ begin
   for i := 0 to vMenu.Items.Count - 1 do
   begin
     vMenuItem := vMenu.Items[i];
-    vArea := TVCLControl(vMenuItem.tag);
+    vArea := TVCLControl(vMenuItem.Tag);
     if not Assigned(vArea) then
       Continue;
 
@@ -415,7 +435,7 @@ begin
   vMenuItem.Caption := TInteractor(FInteractor).Translate('txtRecordCount', 'Записей') + ': ' + IntToStr(FAllData.Count);
 end;
 
-procedure TCollectionEditor.CreateColumnsFromModel(const AFields: string = '');
+procedure TGridEditor.CreateColumnsFromModel(const AFields: string = '');
 var
   i: Integer;
   vFieldDef: TFieldDef;
@@ -424,7 +444,7 @@ var
   vFields: TStrings;
   vFieldName: string;
 begin
-  FGrid.Items.BeginUpdate;
+  FGrid.Columns.BeginUpdate;
   try
     vMainDefinition := FAllData.MainDefinition;
     if AFields = '' then
@@ -438,10 +458,6 @@ begin
         { TODO -cUI refactoring : Перенести описание аггрегаций в слой описания UI }
         CreateColumn(vFieldDef, GetFieldTranslation(vFieldDef), vWidth);
       end;
-
-      // Очень сильно тормозит на прокрутке списков
-      // if FAllData.ContentDefinitions.Count > 1 then
-      // CreateColumn(nil, '', 50, uConsts.soNone, akNotDefined);
     end
     else
     begin
@@ -463,22 +479,23 @@ begin
       end;
     end;
   finally
-    FGrid.Items.EndUpdate;
+    FGrid.Columns.EndUpdate;
   end;
 end;
 
-procedure TCollectionEditor.CreateColumn(const AFieldDef: TFieldDef; const AOverriddenCaption: string;
+procedure TGridEditor.CreateColumn(const AFieldDef: TFieldDef; const AOverriddenCaption: string;
   const AWidth: Integer);
 var
   vCol: TListColumn;
 begin
   vCol := FGrid.Columns.Add;
   vCol.Caption := AOverriddenCaption;
-  vCol.Width := round(AWidth * 1.5);
-  vCol.tag := NativeInt(AFieldDef);
+  vCol.Width := Round(AWidth * 1.5);
+  FColumns.Add(TColumnBinding.Create(AFieldDef));
+  vCol.Tag := NativeInt(FColumns.Last);
 end;
 
-function TCollectionEditor.CreateRow(AEntity: TEntity): Boolean;
+function TGridEditor.CreateRow(AEntity: TEntity): Boolean;
 var
   vListItem: TListItem;
   i: Integer;
@@ -493,7 +510,7 @@ begin
     vListItem.SubItems.Add('');
 end;
 
-procedure TCollectionEditor.FillRow(AEntity: TEntity);
+procedure TGridEditor.FillRow(AEntity: TEntity);
 var
   vListItem: TListItem;
   vValue: Variant;
@@ -517,7 +534,7 @@ end;
 
 // Services
 
-function TCollectionEditor.GetSearchType: uConsts.TSearchType;
+function TGridEditor.GetSearchType: uConsts.TSearchType;
 begin
   // todo:
   { if FAllData.Filler is TEntityField then
@@ -526,7 +543,7 @@ begin
   Result := stSearchFromBegin;
 end;
 
-procedure TCollectionEditor.ExportToExcel;
+procedure TGridEditor.ExportToExcel;
   function GetFileName(out AFileName: string): Boolean;
   var
     vSaveDialog: TSaveDialog;
@@ -556,8 +573,7 @@ begin
 
   // ExportGridToExcel(vFileName, FGrid, True, True, False);
 
-  if FileExists(vFileName) and (TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes)
-  then
+  if FileExists(vFileName) and (TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
     TPresenter(FPresenter).OpenFile(vFileName);
 end;
 
@@ -578,7 +594,7 @@ begin
   end;
 end;   }
 
-function TCollectionEditor.IsMatchToFilter(const AEntity: TEntity): Boolean;
+function TGridEditor.IsMatchToFilter(const AEntity: TEntity): Boolean;
 var
   vFilterText, vText: string;
   vST: uConsts.TSearchType;
@@ -623,7 +639,7 @@ begin
   end;
 end;
 
-function TCollectionEditor.GetValue(AEntity: TEntity; AColumn: TListColumn): Variant;
+function TGridEditor.GetValue(AEntity: TEntity; AColumn: TListColumn): Variant;
 var
   vFieldDef: TFieldDef;
   vFieldName: string;
@@ -634,7 +650,7 @@ begin
     if not Assigned(AEntity) then
       Exit;
 
-    vFieldDef := TFieldDef(AColumn.tag);
+    vFieldDef := TColumnBinding(AColumn.Tag).FFieldDef;
     vFieldName := vFieldDef.Name;
 
     if vFieldDef = nil then
@@ -672,7 +688,7 @@ begin
   end;
 end;
 
-procedure TCollectionEditor.UpdateArea(const AKind: Word; const AParameter: TEntity = nil);
+procedure TGridEditor.UpdateArea(const AKind: Word; const AParameter: TEntity = nil);
 var
   i: Integer;
   vEntity: TEntity;
@@ -705,13 +721,6 @@ begin
           FGrid.Selected := nil;
           FGrid.OnSelectItem := DoOnSelectItem;
           FGrid.OnItemChecked := DoOnItemChecked;
-        end;
-
-        if not FLayoutExists then
-        begin
-          // TODO: Разобраться!
-          // FMasterTableView.ApplyBestFit;
-          // SaveColumnWidths;
         end;
       end;
     dckEntityDeleted: // 2
@@ -756,7 +765,7 @@ begin
   end;
 end;
 
-procedure TCollectionEditor.EnableColumnParamsChangeHandlers(const AEnable: Boolean);
+procedure TGridEditor.EnableColumnParamsChangeHandlers(const AEnable: Boolean);
 begin
   if AEnable then
     FGrid.OnColumnDragged := SaveColumnWidths
@@ -764,12 +773,12 @@ begin
     FGrid.OnColumnDragged := nil;
 end;
 
-procedure TCollectionEditor.SaveColumnWidths;
+procedure TGridEditor.SaveColumnWidths;
 begin
   SaveGridColumnWidths(TInteractor(FView.Interactor).Domain, FGrid, FView.InitialName);
 end;
 
-procedure TCollectionEditor.SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl);
+procedure TGridEditor.SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl);
 var
   vPopupMenu: TPopupMenu;
 begin
@@ -781,7 +790,7 @@ begin
   end;
 end;
 
-procedure TCollectionEditor.SetParent(const AParent: TUIArea);
+procedure TGridEditor.SetParent(const AParent: TUIArea);
 var
   vFields: string;
 begin
@@ -815,12 +824,12 @@ begin
   EnableColumnParamsChangeHandlers(True);
 end;
 
-procedure TCollectionEditor.LoadColumnWidths;
+procedure TGridEditor.LoadColumnWidths;
 begin
   FLayoutExists := LoadGridColumnWidths(TInteractor(FView.Interactor).Domain, FGrid, FView.InitialName);
 end;
 
-procedure TCollectionEditor.DoBeforeFreeControl;
+procedure TGridEditor.DoBeforeFreeControl;
 begin
   if Assigned(FGrid.PopupMenu) then
   begin
@@ -830,15 +839,17 @@ begin
 
   FAllData := nil;
   FreeAndNil(FEntities);
+  FreeAndNil(FColumns);
 end;
 
-function TCollectionEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+function TGridEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FGrid := TListView.Create(nil);
   Result := FGrid;
-//  FGrid.Items := TListItems.Create(FGrid);
+
   FEntities := TList<TEntity>.Create;
   FAllData := TEntityList(FView.DomainObject);
+  FColumns := TObjectList<TColumnBinding>.Create;
 
   FGrid.ViewStyle := vsReport;
   FGrid.MultiSelect := True;
@@ -850,19 +861,18 @@ begin
   FGrid.Font.Size := 10;
   FGrid.ReadOnly := True;
 
-  FGrid.OnCompare := DoOnCompare;
   FGrid.OnItemChecked := DoOnItemChecked;
   FGrid.OnDblClick := DoOnTableViewDblClick;
   FGrid.OnSelectItem := DoOnSelectItem;
+  FGrid.OnColumnClick := OnColumnClick;
 
   if ALayout.Kind = lkPanel then
     FGrid.Align := TAlign(ALayout.Align)
   else
     FGrid.Align := alClient;
-
 end;
 
-procedure TCollectionEditor.DoExecuteUIAction(const AView: TView);
+procedure TGridEditor.DoExecuteUIAction(const AView: TView);
 var
   vDateFrom, vDateTo: TDateTime;
   vIsPeriodActive: Boolean;
@@ -903,7 +913,7 @@ begin
   end;
 end;
 
-procedure TCollectionEditor.DoOnTableViewDblClick(Sender: TObject);
+procedure TGridEditor.DoOnTableViewDblClick(Sender: TObject);
 begin
   OnTableViewDblClick(FView, FOwner);
 end;
@@ -915,9 +925,6 @@ begin
   inherited;
   FreeAndNil(FEntityList);
   FreeAndNil(FCheckList);
-{  FControl := nil;
-  FreeAndNil(FListBox);
- }
 end;
 
 function TEntityListSelectorMTM.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -1052,75 +1059,15 @@ begin
 end;
 
 procedure TEntityListSelectorMTM.UpdateArea(const AKind: Word; const AParameter: TEntity);
-{ var
-  i: Integer;
-  vEntity: TEntity;
-  vNewFocusedRowIndex: Integer;
-  vRow: TcxCustomGridRow; }
 begin
   FillList;
-  { if AKind = dckEntityChanged then
-    begin
-    FMasterTableView.OnFocusedRecordChanged := nil;
-    try
-    if not FMasterDS.IsLoading then
-    FMasterTableView.Invalidate(True) //CustomDataSource.DataChanged
-    finally
-    FMasterTableView.OnFocusedRecordChanged := DoOnFocusedRecordChanged;
-    end;
-    end
-    // Нужно отключать dckEntityChanged
-    //else if AKind = dckEntitySaved then
-    //  FMasterTableView.DataController.CustomDataSource.DataChanged
-    else if AKind = dckListAdded then
-    begin
-    TUserDataSource(FMasterTableView.DataController.CustomDataSource).Add(AParameter, not TDomain(Domain).LoadingChanges);
-    end
-    else if AKind = dckListRemoved then
-    begin
-    TUserDataSource(FMasterTableView.DataController.CustomDataSource).Remove(AParameter, not TDomain(Domain).LoadingChanges);
-    end
-    else if AKind = dckSelectionChanged then
-    begin
-    vNewFocusedRowIndex := FMasterDS.FEntities.IndexOf(AParameter);
-    if vNewFocusedRowIndex <> FMasterTableView.DataController.FocusedRowIndex then
-    begin
-    vRow := FMasterTableView.ViewData.Rows[vNewFocusedRowIndex];
-    vRow.Selected := True;
-    vRow.Focused := True;
-    end;
-    end
-    else if AKind = dckViewStateChanged then
-    // Сделать что-то с видимостью
-    else begin
-    FMasterTableView.BeginUpdate;
-    try
-    FMasterDS.Data.Clear;
-
-    FAllData.Resort;
-    for i := 0 to FAllData.Count - 1 do
-    begin
-    vEntity := FAllData[i];
-    if (not vEntity.Deleted) {IsMatchToFilter(vEnt)) } // then
-  { FMasterDS.Data.Add(vEntity);
-    end;
-
-    FMasterDS.Update;
-    finally
-    FMasterTableView.EndUpdate;
-    FMasterTableView.DataController.ClearSelection;
-    FMasterTableView.DataController.FocusedRecordIndex := -1;
-    end;
-    if not FLayoutExists then
-    FMasterTableView.ApplyBestFit;
-    end; }
 end;
 
 initialization
 
-TPresenter.RegisterControlClass('Windows.VCL', uiListEdit, '', TCollectionEditor);
+TPresenter.RegisterControlClass('Windows.VCL', uiListEdit, '', TGridEditor);
 TPresenter.RegisterControlClass('Windows.VCL', uiListEdit, 'mtm', TEntityListSelectorMTM);
 
-TPresenter.RegisterControlClass('Windows.VCL', uiCollection, '', TCollectionEditor);
+TPresenter.RegisterControlClass('Windows.VCL', uiCollection, '', TGridEditor);
 
 end.

@@ -277,6 +277,13 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
+  // неопределённый по времени процесс
+  TVCLSpinner = class(TVCLControl)
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure FillEditor; override;
+  end;
+
   // определённый по времени процесс
   TVCLProgress = class(TVCLControl)
   protected
@@ -338,7 +345,7 @@ implementation
 
 uses
   Generics.Collections, Variants, SysUtils, Windows,
-  Forms, Math, DateUtils, Messages, VCL.Mask,
+  Forms, Math, DateUtils, Messages, VCL.Mask, WinXCtrls,
 
   uConfiguration, uDomain, uInteractor, uPresenter, uWinVCLPresenter, uCollection, uConsts,
   uUtils, UITypes;
@@ -1080,6 +1087,7 @@ begin
   FBtn.Parent := vBase;
   FBtn.Width := 40;
   FBtn.Images := TDragImageList(FUIBuilder.Images[16]);
+  FBtn.ImageAlignment := iaCenter;
   FBtn.Action := FAction;
 
   FText := TEdit.Create(nil);
@@ -1161,6 +1169,7 @@ begin
   FBtn.Parent := vBase;
   FBtn.Width := 40;
   FBtn.Images := TDragImageList(FUIBuilder.Images[16]);
+  FBtn.ImageAlignment := iaCenter;
   FBtn.Action := FAction;
 
   FText := TEdit.Create(nil);
@@ -2117,6 +2126,21 @@ begin
   end;
 end;
 
+{ TVCLSpinner }
+
+function TVCLSpinner.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+begin
+  Result := TActivityIndicator.Create(nil);
+
+end;
+
+procedure TVCLSpinner.FillEditor;
+begin
+  inherited;
+//  Control.Visible := FView.FieldValue > 0;
+  TActivityIndicator(FControl).Animate := FView.FieldValue > 0;
+end;
+
 initialization
 
 TPresenter.RegisterControlClass('Windows.VCL', uiTextEdit, '', TVCLTextFieldEditor);
@@ -2134,6 +2158,7 @@ TPresenter.RegisterControlClass('Windows.VCL', uiTextEdit, 'selector', TVCLTextS
 TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, '', TVCLIntegerFieldEditor);
 TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'simple', TVCLIntegerFieldEditor);
 TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'info', TVCLTextInfo);
+TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'spinner', TVCLSpinner);
 TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'progress', TVCLProgress);
 TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'pages', TVCLPagesFieldEditor);
 TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'flags', TVCLIntegerFlagsEditor);
