@@ -312,7 +312,7 @@ type
     function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
     procedure GetLayoutName(const AEntity: TEntity; const AParams: string; var ALayoutName: string);
-    procedure ScaleLayout(const ALayout: TLayout);
+    procedure ScaleLayout(const ALayout: TLayout; const AScale: Single = 1.0);
   public
     constructor Create(const ADomain: TObject);
     destructor Destroy; override;
@@ -576,17 +576,18 @@ end;
 
 { TUIBuilder }
 
-procedure TUIBuilder.ScaleLayout(const ALayout: TLayout);
+procedure TUIBuilder.ScaleLayout(const ALayout: TLayout; const AScale: Single);
 var
   vChild: TLayout;
-const
-  cScale = 1.5;
 begin
-  ALayout.Left := Round(ALayout.Left * cScale);
-  ALayout.Top := Round(ALayout.Top * cScale);
-  ALayout.Width := Round(ALayout.Width * cScale);
-  ALayout.Height := Round(ALayout.Height * cScale);
-  ALayout.Font.Size := Round(ALayout.Font.Size * cScale);
+  if SameValue(AScale, 1.0, 1e-6) then
+    Exit;
+
+  ALayout.Left := Round(ALayout.Left * AScale);
+  ALayout.Top := Round(ALayout.Top * AScale);
+  ALayout.Width := Round(ALayout.Width * AScale);
+  ALayout.Height := Round(ALayout.Height * AScale);
+  ALayout.Font.Size := Round(ALayout.Font.Size * AScale);
   for vChild in ALayout.Items do
     ScaleLayout(vChild);
 end;
