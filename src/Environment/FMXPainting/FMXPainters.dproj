@@ -110,7 +110,7 @@
         <DCCReference Include="uMainForm.pas">
             <Form>fmMain</Form>
         </DCCReference>
-        <DCCReference Include="..\..\Modules\UI\FMX\uFMXScene.pas"/>
+        <DCCReference Include="..\..\Modules\UI\FMX\fmxScene.pas"/>
         <DCCReference Include="..\..\Modules\Drawing\FMX\uFMXPainter.pas"/>
         <None Include="Profiling\AQtimeModule1.aqt"/>
         <BuildConfiguration Include="Release">

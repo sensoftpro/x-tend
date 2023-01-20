@@ -66,25 +66,34 @@ uses
   uReport in '..\..\Modules\Reporting\uReport.pas',
 
   // UI: WinVCL
-  uWinVCLPresenter in '..\..\Modules\UI\WinVCL\uWinVCLPresenter.pas',
-  vclScene in '..\..\Modules\UI\WinVCL\vclScene.pas',
-  vclArea in '..\..\Modules\UI\WinVCL\vclArea.pas',
-  vclSimpleEditors in '..\..\Modules\UI\WinVCL\vclSimpleEditors.pas',
-  vclEntityEditors in '..\..\Modules\UI\WinVCL\vclEntityEditors.pas',
-  vclBlobEditors in '..\..\Modules\UI\WinVCL\vclBlobEditors.pas',
-  vclListEditors in '..\..\Modules\UI\WinVCL\vclListEditors.pas',
-  DebugInfoForm in '..\..\Modules\UI\WinVCL\DebugInfoForm.pas' {DebugFm},
+  //uWinVCLPresenter in '..\..\Modules\UI\WinVCL\uWinVCLPresenter.pas',
+  //vclScene in '..\..\Modules\UI\WinVCL\vclScene.pas',
+  //vclArea in '..\..\Modules\UI\WinVCL\vclArea.pas',
+  //vclSimpleEditors in '..\..\Modules\UI\WinVCL\vclSimpleEditors.pas',
+  //vclEntityEditors in '..\..\Modules\UI\WinVCL\vclEntityEditors.pas',
+  //vclBlobEditors in '..\..\Modules\UI\WinVCL\vclBlobEditors.pas',
+  //vclListEditors in '..\..\Modules\UI\WinVCL\vclListEditors.pas',
+  //DebugInfoForm in '..\..\Modules\UI\WinVCL\DebugInfoForm.pas' {DebugFm},
   // UI: DevExpress
-  uDevExpressPresenter in '..\..\Modules\UI\WinVCL\DevExpress\uDevExpressPresenter.pas',
-  dexArea in '..\..\Modules\UI\WinVCL\DevExpress\dexArea.pas',
-  dexSimpleEditors in '..\..\Modules\UI\WinVCL\DevExpress\dexSimpleEditors.pas',
-  dexEntityEditors in '..\..\Modules\UI\WinVCL\DevExpress\dexEntityEditors.pas',
-  dexListEditors in '..\..\Modules\UI\WinVCL\DevExpress\dexListEditors.pas',
+  //uDevExpressPresenter in '..\..\Modules\UI\WinVCL\DevExpress\uDevExpressPresenter.pas',
+  //dexArea in '..\..\Modules\UI\WinVCL\DevExpress\dexArea.pas',
+  //dexSimpleEditors in '..\..\Modules\UI\WinVCL\DevExpress\dexSimpleEditors.pas',
+  //dexEntityEditors in '..\..\Modules\UI\WinVCL\DevExpress\dexEntityEditors.pas',
+  //dexListEditors in '..\..\Modules\UI\WinVCL\DevExpress\dexListEditors.pas',
+  uFMXPresenter in '..\..\Modules\UI\FMX\uFMXPresenter.pas',
+  fmxArea in '..\..\Modules\UI\FMX\fmxArea.pas',
+  fmxScene in '..\..\Modules\UI\FMX\fmxScene.pas',
+  fmxBlobEditors in '..\..\Modules\UI\FMX\fmxBlobEditors.pas',
+  FMXForm in '..\..\Modules\UI\FMX\FMXForm.pas' {FMXFm},
 
   // Storage: SQLite
   uSQLite3 in '..\..\Modules\Storage\SQLite\uSQLite3.pas',
   uSQLiteStorage in '..\..\Modules\Storage\SQLite\uSQLiteStorage.pas',
-  uVCLPainter in '..\..\Modules\Drawing\VCL\uVCLPainter.pas',
+  // Storage: FireDAC
+  uFireDACStorage in '..\..\Modules\Storage\FireDAC\uFireDACStorage.pas',
+
+  //uVCLPainter in '..\..\Modules\Drawing\VCL\uVCLPainter.pas',
+  uFMXPainter in '..\..\Modules\Drawing\FMX\uFMXPainter.pas',
   uFRReport in '..\..\Modules\Reporting\FastReport\uFRReport.pas',
 
   uConfiguratorScript in 'uConfiguratorScript.pas';

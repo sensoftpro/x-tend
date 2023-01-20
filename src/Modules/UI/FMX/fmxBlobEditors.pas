@@ -31,26 +31,25 @@
   SOFTWARE.
  ---------------------------------------------------------------------------------}
 
-unit vclBlobEditors;
+unit fmxBlobEditors;
 
 interface
 
 uses
-  uUIBuilder, vclArea, uScene, uSimpleChart, uLayout;
+  uUIBuilder, fmxArea, uScene, uSimpleChart, uLayout;
 
 type
-  TVCLSceneArea = class(TVCLControl)
+  TFMXSceneArea = class(TFMXControl)
   protected
     FScene: TScene;
     procedure DoActivate(const AAreaState: string = ''); override;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoDisableContent; override;
     procedure DoBeforeFreeControl; override;
-    procedure FillEditor; override;
     procedure RefillArea(const AKind: Word); override;
   end;
 
-  TVCLChartArea = class(TVCLSceneArea)
+  TFMXChartArea = class(TFMXSceneArea)
   protected
     FChart: TSimpleChart;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
@@ -59,57 +58,50 @@ type
 implementation
 
 uses
-  uPlatform, uModule, uDomain, uDrawStyles, uWinVCLPresenter, vclScene, uPresenter, uConfiguration, uConsts;
+  uPlatform, uModule, uDomain, uDrawStyles, uPresenter, uConfiguration, uConsts,
+  uFMXPresenter, fmxScene;
 
-{ TVCLSceneArea }
+{ TFMXSceneArea }
 
-procedure TVCLSceneArea.DoActivate(const AAreaState: string);
+procedure TFMXSceneArea.DoActivate(const AAreaState: string);
 begin
   inherited;
   FScene.Activate;
 end;
 
-procedure TVCLSceneArea.DoBeforeFreeControl;
+procedure TFMXSceneArea.DoBeforeFreeControl;
 begin
   FScene.Free;
 end;
 
-function TVCLSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
-var
-  vDomain: TDomain;
-  vModuleInfo: TModuleInfo;
+function TFMXSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+//var
+  //vDomain: TDomain;
+  //vModuleInfo: TModuleInfo;
 begin
-  vDomain := TDomain(FView.Domain);
+  //vDomain := TDomain(FView.Domain);
   // Domain oriented code
   //vModuleName := _Platform.ResolveModulename(vDomain.Settings, 'ChartPainter');
   //vSceneClass := TSceneClass(TPresenter(FPresenter).GetCanvasClass(vModuleName);
-  vModuleInfo := _Platform.ResolveModuleInfo(vDomain.Settings, 'ChartPainter', 'Painting');
-  FScene := TSceneClass(vModuleInfo.ModuleClass).Create(GetVCLControl(AParent));
-  Result := TWinScene(FScene).Panel;
+  //vModuleInfo := _Platform.ResolveModuleInfo(vDomain.Settings, 'ChartPainter', 'Painting');
+  FScene := TFMXScene.Create(GetFMXControl(AParent));
+  Result := TFMXScene(FScene).Control;
 end;
 
-procedure TVCLSceneArea.DoDisableContent;
+procedure TFMXSceneArea.DoDisableContent;
 begin
   FScene.Enabled := False;
 end;
 
-procedure TVCLSceneArea.FillEditor;
-begin
-  inherited;
-  // FView
-  // FFieldDef
-  // FControl.Control
-end;
-
-procedure TVCLSceneArea.RefillArea(const AKind: Word);
+procedure TFMXSceneArea.RefillArea(const AKind: Word);
 begin
   if AKind <> dckNameChanged then
     FScene.Repaint;
 end;
 
-{ TVCLChartArea }
+{ TFMXChartArea }
 
-function TVCLChartArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+function TFMXChartArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   Result := inherited DoCreateControl(AParent, ALayout);
   ALayout.Id := 'Chart';
@@ -118,6 +110,6 @@ end;
 
 initialization
 
-TPresenter.RegisterControlClass('Windows.VCL', uiComplexEdit, 'chart', TVCLChartArea);
+TPresenter.RegisterControlClass('FMX', uiComplexEdit, 'chart', TFMXChartArea);
 
 end.

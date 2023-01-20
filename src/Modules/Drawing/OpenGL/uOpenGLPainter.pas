@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Graphics, Types, Classes, ExtCtrls, dglOpenGL, uScene, vclScene,
-  uDrawStyles, uConsts, Vcl.Controls, System.SysUtils, Vcl.StdCtrls,
+  uDrawStyles, uConsts, Vcl.Controls, System.SysUtils,
   System.IOUtils, System.Math, Vcl.Imaging.pngimage, uFreeType,
   Generics.Collections, uModule;
 
@@ -22,15 +22,19 @@ type
     FGLWidth, FGLHeight: Integer;
     FWidth, FHeight: Integer;
     FUVCoords: TArray<Single>;
-    function LoadTexture(const AWidth, AHeight: Integer; const APixels: TArray<GLubyte>): GLuint;
     function GetPixels(): TArray<GLubyte>;
   public
     destructor Destroy; override;
 
     procedure LoadTextureFromImage(const AFileName: string);
     procedure LoadTextureFromRawBytes(const APixels: TArray<TArray<TArray<GLubyte>>>; const AWidth, AHeight: Integer);
+    function LoadTexture(const AWidth, AHeight: Integer; const APixels: TArray<GLubyte>): GLuint; overload;
+    function LoadTexture(const AWidth, AHeight: Integer;
+     const APixels: TArray<GLubyte>; const AInputMode: Integer): GLuint; overload;
+    procedure RecalculateUV(const AWidth, AHeight: Integer);
+    function NeedsRecreation: Boolean;
 
-    property UVCoords: TArray<Single> read FUVCOords;
+    property UVCoords: TArray<Single> read FUVCoords;
     property ID: GLuint read FID;
     property Width: Integer read FWidth;
     property Height: Integer read FHeight;
@@ -39,24 +43,64 @@ type
     property Pixels: TArray<GLubyte> read GetPixels;
   end;
 
-  TCharacter = record
-    TextureID: Cardinal;
+  TOpenGLDrawContext = class(TDrawContext)
+  private
+    FOffscreen: Boolean;
+    FBuffer: TArray<GLubyte>;
+    FTexture: TOpenGLTexture;
+    FWidth, FHeight: Integer;
+    FHasTexture: Boolean;
+  public
+    constructor Create(const AWidth, AHeight: Integer);
+    destructor Destroy; override;
+
+    procedure ConvertBufferToTexture;
+    property Texture: TOpenGLTexture read FTexture;
+    property IsOffscreen: Boolean read FOffscreen write FOffscreen;
+    property Buffer: TArray<GLubyte> read FBuffer write FBuffer;
+    property Width: Integer read FWidth;
+    property Height: Integer read FHeight;
+  end;
+
+  TCharacter = class
+  public
+    Texture: TOpenGLTexture;
     Width: Cardinal;
     Height: Cardinal;
     BearingLeft: Cardinal;
     BearingTop: Cardinal;
     AdvanceX: Cardinal;
     AdvanceY: Cardinal;
-    class function Create(const ATextureID, AWidth, AHeight, ABearingLeft, ABearingTop, AAdvanceX, AAdvanceY: Cardinal): TCharacter; static;
+    procedure RecreateTexture(const ABitmap: TFTBitmap);
+    constructor Create(const ATexture: TOpenGLTexture; const AWidth, AHeight, ABearingLeft,
+     ABearingTop, AAdvanceX, AAdvanceY: Cardinal);
+    destructor Destroy; override;
   end;
 
   TTrueTypeFont = class
   private
     FCharacters: TDictionary<WideChar, TCharacter>;
+    FSize: Single;
+    FFTFace: TFTFace;
+    FOptions: Integer;
+    FStyle: Integer;
+    FAngle: Single;
+    procedure DrawUnderline(const APoint1, APoint2: TPointF);
+    procedure ResizeFont(const ASize: Single);
+    procedure DrawStrikeout(const APoint1, APoint2: TPointF; const ATextHeight: Single);
+    procedure DrawCharacter(const ARect: TRectF; const ACharTexture: TOpenGLTexture);
   public
-    constructor Create(const AChars: TDictionary<WideChar, TCharacter>);
+    constructor Create(const AChars: TDictionary<WideChar, TCharacter>; const AFTFace: TFTFace);
     destructor Destroy; override;
 
+    procedure DrawText(const ARect: TRectF; const AText: string; const AColor: TColor);
+    function MeasureText(const AText: string): TSizeF;
+
+    property FTFace: TFTFace read FFTFace write FFTFace;
+    property Size: Single read FSize write ResizeFont;
+    property Options: Integer read FOptions write FOptions;
+    property Style: Integer read FStyle write FStyle;
+    property Angle: Single read FAngle write FAngle;
     property Characters: TDictionary<WideChar, TCharacter> read FCharacters write FCharacters;
   end;
 
@@ -68,8 +112,8 @@ type
     FTexture: TOpenGLTexture;
   public
     constructor Create(const AImage: TStyleImage); overload;
-    constructor Create(AWidth, AHeight: Integer; APixels: TArray<GLubyte>); overload;
-    constructor Create(AWidth, AHeight: Integer; APixels: TArray<TArray<TArray<GLubyte>>>); overload;
+    constructor Create(const AWidth, AHeight: Integer;const APixels: TArray<GLubyte>); overload;
+    constructor Create(const AWidth, AHeight: Integer;const APixels: TArray<TArray<TArray<GLubyte>>>); overload;
     destructor Destroy(); override;
 
     property Width: Integer read FWidth;
@@ -145,11 +189,9 @@ type
   public
     procedure DoRender(const ANeedFullRepaint: Boolean); override;
   end;
-  
   function NextPow2(const x: Cardinal): Cardinal; overload;
   function NextPow2(const x: Single): Cardinal; overload;
   function HexToRGBA(const AColor: Cardinal): TColor;
-  
 implementation
 
 { TOpenGLPainter }
@@ -170,7 +212,6 @@ end;
 procedure TOpenGLPainter.BeginPaint;
 begin
   inherited;
-  glClearColor(0.1, 0.1, 0.1, 1.0);
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT);
 end;
 
@@ -182,7 +223,9 @@ begin
   InitOpenGL;
   FDC := GetDC(vContainer.HWND);
   SetDCPixelFormat;
-  FContext := CreateDrawContext(vContainer.Width, vContainer.Height);
+  FRC := wglCreateContext(FDC);
+  ActivateRenderingContext(FDC, FRC);
+  FContext := TDrawContext.Create(vContainer.Width, vContainer.Height);
   glViewport(0, 0, FContext.Width, FContext.Height);
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity;
@@ -202,15 +245,16 @@ function TOpenGLPainter.CreateDrawContext(const AWidth, AHeight: Single): TDrawC
 begin
   FRC := wglCreateContext(FDC);
   ActivateRenderingContext(FDC, FRC);
-  Result := TDrawContext.Create(AWidth, AHeight);
+  Result := TOpenGLDrawContext.Create(Round(AWidth), Round(AHeight));
 end;
 
 procedure TOpenGLPainter.CreateFont(const AFont: TStyleFont);
 var
   vFontP: PTrueTypeFont;
+  vFont: TTrueTypeFont;
   vFace: TFTFace;
   vLibrary: TFTLibrary;
-  vTextureID: Cardinal;
+  vTexture: TOpenGLTexture;
   vCharacter: TCharacter;
   vPixels: TArray<GLubyte>;
   vCharacters: TDictionary<WideChar, TCharacter>;
@@ -228,12 +272,16 @@ begin
       if vFontP^.Characters.TryGetValue(WideChar(i), vCharacter) then
         vCharacters.Add(WideChar(i), vCharacter);
     end;
-    AFont.NativeObject := TTrueTypeFont.Create(vCharacters);
+    vFont := TTrueTypeFont.Create(vCharacters, vFontP^.FTFace);
+    vFont.Style := AFont.Style;
+    vFont.Angle := AFont.Angle;
+    vFont.Size := AFont.Size;
+    AFont.NativeObject := vFont;
     Exit;
   end;
-  vCharacters := TDictionary<Char, TCharacter>.Create;
-  FT_Init_FreeType(vLibrary);
 
+  vCharacters := TObjectDictionary<Char, TCharacter>.Create([doOwnsValues]);
+  FT_Init_FreeType(vLibrary);
   vFace := TFTFace.Create('C:/Windows/Fonts/' + AnsiString(AFont.Family) + '.ttf', 0);
   vFace.SetCharSize(0, Round(AFont.Size * 64 * 96 / 72), 0, 0);
   for i := 0 to 3728 do
@@ -241,40 +289,34 @@ begin
     if FT_Load_Glyph(vFace, FT_Get_Char_Index(vFace, i), [ftlfRender]) <> 0 then
       continue;
 
-    glGenTextures(1, @vTextureID);
-    glBindTexture(GL_TEXTURE_2D, vTextureID);
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-
-    vWidth := NextPow2(vFace.glyph.bitmap.width);
-    vHeight := NextPow2(vFace.glyph.bitmap.rows);
+    vWidth := NextPow2(vFace.Glyph.Bitmap.Width);
+    vHeight := NextPow2(vFace.Glyph.Bitmap.Rows);
 
     SetLength(vPixels, vWidth * vHeight * 2);
     for j := 0 to vHeight - 1 do
     begin
       for k := 0 to vWidth - 1 do
       begin
-        if ((k >= vFace.glyph.bitmap.width) or (j >= vFace.glyph.bitmap.rows)) then
+        if ((k >= vFace.Glyph.Bitmap.Width) or (j >= vFace.Glyph.Bitmap.Rows)) then
           vPixels[2 * (k + j * vWidth)] := 0
         else
-          vPixels[2 * (k + j * vWidth)] := byte(vFace.glyph.bitmap.buffer[k + vFace.glyph.bitmap.width * j]);
+          vPixels[2 * (k + j * vWidth)] := Byte(vFace.Glyph.Bitmap.Buffer[k + vFace.Glyph.Bitmap.Width * j]);
         vPixels[2 * (k + j * vWidth) + 1] := vPixels[2 * (k + j * vWidth)];
       end;
     end;
 
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, vWidth, vHeight, 0, GL_LUMINANCE_ALPHA, GL_UNSIGNED_BYTE, @vPixels[0]);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
-    vCharacter := TCharacter.Create(vTextureID, vFace.Glyph.Bitmap.Width, vFace.Glyph.Bitmap.Rows, vFace.glyph.BitmapLeft, vFace.glyph.BitmapTop, vFace.Glyph.Advance.X shr 6, vFace.Glyph.Advance.Y shr 6);
-    glBindTexture(GL_TEXTURE_2D, 0);
+    vTexture := TOpenGLTexture.Create;
+    vTexture.LoadTexture(vFace.Glyph.Bitmap.Width, vFace.Glyph.Bitmap.Rows, vPixels, GL_LUMINANCE_ALPHA);
+    vCharacter := TCharacter.Create(vTexture, vFace.Glyph.Bitmap.Width, vFace.Glyph.Bitmap.Rows,
+     vFace.Glyph.BitmapLeft, vFace.Glyph.BitmapTop, vFace.Glyph.Advance.X shr 6, vFace.Glyph.Advance.Y shr 6);
     vCharacters.Add(WideChar(i), vCharacter);
   end;
 
-  FT_Done_Face(vFace);
-  FT_Done_Library(vLibrary);
-  AFont.NativeObject := TTrueTypeFont.Create(vCharacters);
+  vFont := TTrueTypeFont.Create(vCharacters, vFace);
+  vFont.Style := AFont.Style;
+  vFont.Angle := AFont.Angle;
+  vFont.Size := AFont.Size;
+  AFont.NativeObject := vFont;
   FUsedFontFamilies.Add(AFont.Family, @AFont.NativeObject);
 end;
 
@@ -282,9 +324,16 @@ procedure TOpenGLPainter.CreateImage(const AImage: TStyleImage);
 var
   vOpenGLImage: TOpenGLImage;
 begin
-  vOpenGLImage := TOpenGLImage.Create(AImage);
+  if TFile.Exists(AImage.FileName) then
+  begin
+    vOpenGLImage := TOpenGLImage.Create(AImage);
+  end
+  else
+    Exit;
   if AImage.IsNinePatch then
-    AImage.NativeObject := TOpenGLNinePatchImage.Create(Self, vOpenGLImage, AImage.CutRect.Left, AImage.CutRect.Right, AImage.CutRect.Top, AImage.CutRect.Bottom)
+  begin
+    AImage.NativeObject := TOpenGLNinePatchImage.Create(Self, vOpenGLImage, AImage.CutRect.Left, AImage.CutRect.Right, AImage.CutRect.Top, AImage.CutRect.Bottom);
+  end
   else
     AImage.NativeObject := vOpenGLImage;
 end;
@@ -297,9 +346,10 @@ end;
 destructor TOpenGLPainter.Destroy;
 begin
   inherited Destroy;
-  FUsedFontFamilies.Free;
+  FreeAndNil(FUsedFontFamilies);
   wglDeleteContext(FRC);
   wglMakeCurrent(0, 0);
+//  FT_Done_Library(vLibrary);
 end;
 
 procedure TOpenGLPainter.DoClipRect(const ARect: TRectF);
@@ -370,6 +420,9 @@ end;
 
 procedure TOpenGLPainter.DoDrawContext(const AContext: TDrawContext);
 begin
+//  vContext := TOpenGLDrawContext(AContext);
+//  vRect := RectF(0,0, NextPow2(vContext.Width), NextPow2(vContext.Height));
+//  DrawTexture(vRect, vContext.Texture.ID);
 end;
 
 procedure TOpenGLPainter.DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF);
@@ -556,24 +609,39 @@ procedure TOpenGLPainter.DoDrawRect(const AFill: TStyleBrush; const AStroke: TSt
 var
   vLocation: TPointF;
   vWidth, vHeight: Single;
-  vColor: TColor;
+  vColor, vBackColor: TColor;
 begin
   vLocation.X := ARect.Left;
   vLocation.Y := FContext.Height - ARect.Bottom;
   vWidth := ARect.Width;
   vHeight := ARect.Height;
   vColor := HexToRGBA(AFill.Color);
+  if AFill.GradientKind <> gkNone then
+    vBackColor := HexToRGBA(AFill.BackColor);
 
   if vColor.Alpha <> 1.0 then
   begin
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
   end;
-  glColor4f(vColor.Red, vColor.Green, vColor.Blue, vColor.Alpha);
   glBegin(GL_QUADS);
+  if AFill.GradientKind = gkVertical then
+    glColor4f(vBackColor.Red, vBackColor.Green, vBackColor.Blue, vBackColor.Alpha)
+  else
+    glColor4f(vColor.Red, vColor.Green, vColor.Blue, vColor.Alpha);
   glVertex2f(vLocation.X, vLocation.Y);
+  if AFill.GradientKind <> gkNone then
+    glColor4f(vBackColor.Red, vBackColor.Green, vBackColor.Blue, vBackColor.Alpha);
   glVertex2f(vLocation.X + vWidth, vLocation.Y);
+
+  if AFill.GradientKind = gkHorizontal then
+    glColor4f(vBackColor.Red, vBackColor.Green, vBackColor.Blue, vBackColor.Alpha)
+  else if  AFill.GradientKind = gkVertical then
+    glColor4f(vColor.Red, vColor.Green, vColor.Blue, vColor.Alpha);
   glVertex2f(vLocation.X + vWidth, vLocation.Y + vHeight);
+
+  if AFill.GradientKind <> gkNone then
+    glColor4f(vColor.Red, vColor.Green, vColor.Blue, vColor.Alpha);
   glVertex2f(vLocation.X, vLocation.Y + vHeight);
   glEnd;
 
@@ -589,21 +657,15 @@ var
 begin
   if Assigned(AFill) then
   begin
-    // При пересечении многоульника с самим собой заполнит все,
-    // никакого пропуска заливки не произойдет в отличии от Skia, GDI
-    vColor := HexToRGBA(AStroke.Color);
+    vColor := HexToRGBA(AFill.Color);
     glColor4f(vColor.Red, vColor.Green, vColor.Blue, vColor.Alpha);
-    glBegin(GL_POLYGON);
-    for i := 0 to ACount - 2 do
-    begin
-      vPoint1 := vPoints[i];
-      vPoint2 := vPoints[i + 1];
-      glVertex2f(vPoint1.X, FContext.Height - vPoint1.Y);
-      glVertex2f(vPoint2.X, FContext.Height - vPoint2.Y);
-    end;
-    glVertex2f(vPoints[ACount - 1].X, FContext.Height - vPoints[ACount - 1].Y);
-    glVertex2f(vPoints[0].X, FContext.Height - vPoints[0].Y);
-    glEnd;
+//    glBegin(GL_POLYGON);
+//    for i := 0 to ACount - 1 do
+//    begin
+//      glVertex2f(vPoints[i].X, FContext.Height - vPoints[i].Y);
+//    end;
+//    glVertex2f(vPoints[0].X, FContext.Height - vPoints[0].Y);
+//    glEnd;
   end;
 
   if Assigned(AStroke) then
@@ -626,102 +688,20 @@ end;
 
 procedure TOpenGLPainter.DoDrawText(const AFont: TStyleFont; const AText: string; const ARect: TRectF; const AOptions: Cardinal; const AAngle: Single);
 var
-  vColor: TColor;
-  c: Char;
-  i, delta: Cardinal;
-  vFlag: Boolean;
-  vChar: TCharacter;
   vLocation: TPointF;
-  vWidth, vHeight, vMaxWidth, vMaxHeight: Single;
 begin
-  vLocation.X := ARect.Right - (ARect.Width / 2);
-  vLocation.Y := FContext.Height - ARect.Bottom - (ARect.Height / 2);
-  delta := 0;
-  vMaxHeight := 0;
-  vMaxWidth := 0;
   glEnable(GL_TEXTURE_2D);
   glEnable(GL_BLEND);
-  glPixelStorei(GL_UNPACK_ALIGNMENT, 1);
-  vColor := HexToRGBA(AFont.Color);
-  glColor4f(vColor.Red, vColor.Green, vColor.Blue, vColor.Alpha);
+
+  vLocation.X := ARect.Left;
+  vLocation.Y := FContext.Height - ARect.Bottom;
+
   glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-  if AAngle > 90 then
-    vLocation.Y := FContext.Height - ARect.Top;
-  vFlag := False;
-  for i := strlen(PWideChar(AText)) downto 1 do
-  begin
-    c := AText[i];
-    if TTrueTypeFont(AFont.NativeObject).Characters.TryGetValue(c, vChar) = True then
-      glBindTexture(GL_TEXTURE_2D, vChar.TextureID);
-    if (AFont.Style and FontStyleBold) = 1 then
-      vChar.AdvanceX := vChar.AdvanceX + 1;
 
-    if (vChar.AdvanceY <> 0) then
-      vLocation.Y := vLocation.Y + vChar.AdvanceY;
+  TTrueTypeFont(AFont.NativeObject).Options := AOptions;
 
-    if (vMaxWidth < vChar.Width) then
-      vMaxWidth := NextPow2(vChar.Width);
-    vWidth := NextPow2(vChar.Width);
-
-    if (vMaxHeight < vChar.Height) then
-    begin
-      vMaxHeight := NextPow2(vChar.Height);
-      delta := Round(vMaxHeight) - vChar.Height - 1;
-    end;
-    vHeight := NextPow2(vChar.Height);
-
-    if i = strlen(PWideChar(AText)) then
-      vLocation.X := Round(vLocation.X + vChar.AdvanceX);
-
-    if ((vMaxWidth * strlen(PWideChar(AText))) > (ARect.Left + ARect.Width)) then
-    begin
-      vLocation.Y := Round(vLocation.Y - vChar.AdvanceX);
-    end
-    else
-      vLocation.X := Round(vLocation.X - vChar.AdvanceX);
-
-    if (vMaxHeight <> vHeight) and (vFlag = False) then
-    begin
-      vLocation.X := vLocation.X - delta;
-      vFlag := True;
-    end
-    else if (vMaxHeight = vHeight) and (vFlag = True) then
-    begin
-      vLocation.X := vLocation.X + delta;
-      vFlag := False;
-    end;
-
-    glPushMatrix;
-    glTranslatef(vLocation.X, vLocation.Y, 0);
-    glRotatef(360 - AAngle, 0, 0, 1);
-    glTranslatef(-vLocation.X, -vLocation.Y, 0);
-
-    glBegin(GL_QUADS);
-    glTexCoord2f(0, 1);
-    glVertex2f(vLocation.X, vLocation.Y);
-    glTexCoord2f(1, 1);
-    glVertex2f(vLocation.X + vWidth, vLocation.Y);
-    glTexCoord2f(1, 0);
-    glVertex2f(vLocation.X + vWidth, vLocation.Y + vHeight);
-    glTexCoord2f(0, 0);
-    glVertex2f(vLocation.X, vLocation.Y + vHeight);
-    if (AFont.Style and FontStyleBold) = 1 then
-    begin
-      glTexCoord2f(0, 1);
-      glVertex2f(vLocation.X + 1, vLocation.Y);
-      glTexCoord2f(1, 1);
-      glVertex2f(vLocation.X + 1 + vWidth, vLocation.Y);
-      glTexCoord2f(1, 0);
-      glVertex2f(vLocation.X + 1 + vWidth, vLocation.Y + vHeight);
-      glTexCoord2f(0, 0);
-      glVertex2f(vLocation.X + 1, vLocation.Y + vHeight);
-    end;
-    glEnd;
-
-    glBindTexture(GL_TEXTURE_2D, 0);
-    //Подчеркивание и зачеркивание текста
-    glPopMatrix;
-  end;
+  TTrueTypeFont(AFont.NativeObject).DrawText(RectF(vLocation.X, vLocation.Y + ARect.Height,
+   vLocation.X + ARect.Width, vLocation.Y), AText, HexToRGBA(AFont.Color));
 
   glDisable(GL_BLEND);
   glDisable(GL_TEXTURE_2D);
@@ -758,37 +738,29 @@ end;
 procedure TOpenGLPainter.EndPaint;
 begin
   inherited;
+//  if TOpenGLDrawContext(FContext).IsOffScreen then
+//  begin
+//    vDrawContext := TOpenGLDrawContext(FContext);
+//    glReadBuffer(GL_FRONT);
+//    glReadPixels(0, 0, NextPow2(vDrawContext.Width), NextPow2(vDrawContext.Height), GL_RGBA,
+//     GL_UNSIGNED_BYTE, @vDrawContext.Buffer[0]);
+//    vDrawContext.ConvertBufferToTexture;
+//    FContext := vDrawContext;
+//
+//  end;
+
   SwapBuffers(FDC);
 end;
 
 function TOpenGLPainter.GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF;
-var
-  vChar: TCharacter;
-  i: Cardinal;
-  vTotalWidth: Single;
 begin
-  vTotalWidth := 0;
-  for i := 1 to strlen(PWideChar(AText)) do
-  begin
-    if TTrueTypeFont(AFont.NativeObject).Characters.TryGetValue(Char(AText[i]), vChar) then
-    begin
-      vTotalWidth := vChar.Width + vTotalWidth;
-      Result.cy := vChar.Height * 96 / 72;
-    end;
-  end;
-
-  Result.cx := vTotalWidth;
+  Result := TTrueTypeFont(AFont.NativeObject).MeasureText(AText);
 end;
 
 function TOpenGLPainter.SetContext(const AContext: TDrawContext): TDrawContext;
 begin
-  Result := AContext;
-  glViewport(0, 0, FContext.Width, FContext.Height);
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity;
-  gluOrtho2D(0, FContext.Width, 0, FContext.Height);
-  glMatrixMode(GL_MODELVIEW);
-  glLoadIdentity;
+  Result := FContext;
+  FContext := AContext
 end;
 
 procedure TOpenGLPainter.SetDCPixelFormat;
@@ -806,11 +778,15 @@ begin
   SetPixelFormat(FDC, FPixelFormat, @pfd);
 end;
 
-{ TOpenGLScene }
+{ TpenGLScene }
 
 function TOpenGLScene.CreatePainter(const AContainer: TObject): TPainter;
+var
+  vContainer: TDrawContainer absolute AContainer;
 begin
   Result := TOpenGLPainter.Create(Self, AContainer);
+  FStaticContext := TOpenGLDrawContext.Create(vContainer.Width, vContainer.Height);
+  TOpenGLDrawContext(FStaticContext).IsOffscreen := True;
 end;
 
 procedure TOpenGLScene.DoActivate;
@@ -868,23 +844,17 @@ begin
   FPanel.OnMouseMove := nil;
   FPanel.OnMouseLeave := nil;
   FPanel := nil;
+  FreeAndNil(FStaticContext);
 end;
 
 procedure TOpenGLScene.DoRender(const ANeedFullRepaint: Boolean);
-var
-  vOldContext: TDrawContext;
 begin
-  vOldContext := FPainter.SetContext(FStaticContext);
+  FPainter.BeginPaint;
   try
-    FPainter.BeginPaint;
-    try
-      FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
-      FRoot.RenderDynamic(FPainter, GetSceneRect);
-    finally
-      FPainter.EndPaint;
-    end;
+    FRoot.RenderStatic(FPainter, GetSceneRect, spmNormal);
+    FRoot.RenderDynamic(FPainter, GetSceneRect);
   finally
-    FPainter.SetContext(vOldContext);
+    FPainter.EndPaint;
   end;
 end;
 
@@ -981,7 +951,6 @@ begin
 end;
 
 { TOpenGLImage }
-
 constructor TOpenGLImage.Create(const AImage: TStyleImage);
 begin
   FTexture := TOpenGLTexture.Create;
@@ -992,13 +961,13 @@ begin
   FHeight := FTexture.Height;
 end;
 
-constructor TOpenGLImage.Create(AWidth, AHeight: Integer; APixels: TArray<GLubyte>);
+constructor TOpenGLImage.Create(const AWidth, AHeight: Integer;const APixels: TArray<GLubyte>);
 begin
   FTexture := TOpenGLTexture.Create;
   FTexture.LoadTexture(AWidth, AHeight, APixels);
 end;
 
-constructor TOpenGLImage.Create(AWidth, AHeight: Integer; APixels: TArray<TArray<TArray<GLubyte>>>);
+constructor TOpenGLImage.Create(const AWidth, AHeight: Integer;const APixels: TArray<TArray<TArray<GLubyte>>>);
 begin
   FTexture := TOpenGLTexture.Create;
   FTexture.LoadTextureFromRawBytes(APixels, AWidth, AHeight);
@@ -1038,6 +1007,27 @@ begin
   glGenTextures(1, @FID);
   glBindTexture(GL_TEXTURE_2D, FID);
   glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FGLWidth, FGLHeight, 0, GL_RGBA, GL_UNSIGNED_BYTE, @APixels[0]);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+  glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+  glBindTexture(GL_TEXTURE_2D, 0);
+  Result := FID;
+end;
+
+function TOpenGLTexture.LoadTexture(const AWidth, AHeight: Integer; const APixels: TArray<GLubyte>;
+  const AInputMode: Integer): GLuint;
+begin
+  FGLWidth := NextPow2(AWidth);
+  FGLHeight := NextPow2(AHeight);
+  FHeight := AHeight;
+  FWidth := AWidth;
+  FUVCoords := [0, Height / GLHeight, Width / GLWidth, Height / GLHeight, Width / GLWidth, 0, 0, 0];
+  glEnable(GL_TEXTURE_2D);
+  glGenTextures(1, @FID);
+  glBindTexture(GL_TEXTURE_2D, FID);
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, FGLWidth, FGLHeight, 0, AInputMode, GL_UNSIGNED_BYTE, @APixels[0]);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
@@ -1096,6 +1086,18 @@ begin
   LoadTexture(AWidth, AHeight, vPixels);
 end;
 
+function TOpenGLTexture.NeedsRecreation: Boolean;
+begin
+  Result := (NextPow2(FWidth) <> Cardinal(FGLWidth)) or (NextPow2(FHeight) <> Cardinal(FGLHeight));
+end;
+
+procedure TOpenGLTexture.RecalculateUV(const AWidth, AHeight: Integer);
+begin
+  FWidth := AWidth;
+  FHeight := AHeight;
+  FUVCoords := [0, Height / GLHeight, Width / GLWidth, Height / GLHeight, Width / GLWidth, 0, 0, 0];
+end;
+
 function NextPow2(const x: Cardinal): Cardinal;
 var
   vMaxTextureSize: GLuint;
@@ -1108,30 +1110,254 @@ end;
 
 { TOpenGLPainter.TCharacter }
 
-class function TCharacter.Create(const ATextureID, AWidth, AHeight, ABearingLeft, ABearingTop, AAdvanceX, AAdvanceY: Cardinal): TCharacter;
+constructor TCharacter.Create(const ATexture: TOpenGLTexture; const AWidth, AHeight, ABearingLeft, ABearingTop, AAdvanceX, AAdvanceY: Cardinal);
 begin
-  Result.TextureID := ATextureID;
-  Result.Width := AWidth;
-  Result.Height := AHeight;
-  Result.BearingLeft := ABearingLeft;
-  Result.BearingTop := ABearingTop;
-  Result.AdvanceX := AAdvanceX;
-  Result.AdvanceY := AAdvanceY;
+  Texture := ATexture;
+  Width := AWidth;
+  Height := AHeight;
+  BearingLeft := ABearingLeft;
+  BearingTop := ABearingTop;
+  AdvanceX := AAdvanceX;
+  AdvanceY := AAdvanceY;
 end;
 
 { TTrueTypeFont }
 
-constructor TTrueTypeFont.Create(const AChars: TDictionary<WideChar, TCharacter>);
+constructor TTrueTypeFont.Create(const AChars: TDictionary<WideChar, TCharacter>; const AFTFace: TFTFace);
 begin
   FCharacters := AChars;
+  FFTFace := AFTFace;
 end;
 
 destructor TTrueTypeFont.Destroy;
 begin
+  FCharacters.Clear;
   FreeAndNil(FCharacters);
+//  FT_Done_Face(FFTFace);
+end;
+
+procedure TTrueTypeFont.DrawCharacter(const ARect: TRectF; const ACharTexture: TOpenGLTexture);
+var
+  vUVCoords: TArray<Single>;
+begin
+  vUVCoords := ACharTexture.UVCoords;
+  glEnable(GL_TEXTURE_2D);
+  glEnable(GL_BLEND);
+  glBindTexture(GL_TEXTURE_2D, ACharTexture.ID);
+  glBegin(GL_QUADS);
+  glTexCoord2f(vUVCoords[0], vUVCoords[1]);
+  glVertex2f(ARect.Left, ARect.Bottom);
+  glTexCoord2f(vUVCoords[2], vUVCoords[3]);
+  glVertex2f(ARect.Right,ARect.Bottom);
+  glTexCoord2f(vUVCoords[4], vUVCoords[5]);
+  glVertex2f(ARect.Right,ARect.Top);
+  glTexCoord2f(vUVCoords[6], vUVCoords[7]);
+  glVertex2f(ARect.Left, ARect.Top);
+  glEnd;
+  glBindTexture(GL_TEXTURE_2D, 0);
+  glDisable(GL_TEXTURE_2D);
+  glDisable(GL_BLEND);
+end;
+
+procedure TTrueTypeFont.DrawStrikeout(const APoint1, APoint2: TPointF; const ATextHeight: Single);
+var
+  vRadAngle: Single;
+begin
+  vRadAngle := DegToRad(FAngle);
+  glBegin(GL_LINES);
+  glVertex2f(APoint1.X + (ATextHeight * sin(vRadAngle))/ 2, APoint1.Y + (ATextHeight * cos(vRadAngle)) / 2);
+  glVertex2f(APoint2.X + (ATextHeight * sin(vRadAngle)) / 2, APoint2.Y + (ATextHeight * cos(vRadAngle)) / 2);
+  glEnd;
+end;
+
+procedure TTrueTypeFont.DrawText(const ARect: TRectF; const AText: string; const AColor: TColor);
+var
+  c: Char;
+  delta: Extended;
+  i: Integer;
+  vChar: TCharacter;
+  vLocation: TPointF;
+  vStartLocation, vEndLocation: TPointF;
+  vTextMetric: TSizeF;
+begin
+  vTextMetric := MeasureText(AText);
+  if (FOptions and DT_LEFT) > 0 then
+    vLocation.X := ARect.Left
+  else if (FOptions and DT_CENTER) > 0 then
+  begin
+    delta := ARect.Width - vTextMetric.cx * cos(DegToRad(FAngle));
+    vLocation.X := ARect.Left + delta / 2
+  end
+  else if (FOptions and DT_RIGHT) > 0 then
+    vLocation.X := ARect.Right - vTextMetric.cx * cos(DegToRad(FAngle))
+  else
+   vLocation.X := ARect.Right - vTextMetric.cx * cos(DegToRad(FAngle));
+
+  if (FOptions and DT_TOP) > 0 then
+    vLocation.Y := ARect.Top
+  else if (FOptions and DT_VCENTER) > 0 then
+  begin
+    delta := ARect.Height - vTextMetric.cy;
+    vLocation.Y := ARect.Top + delta / 2
+  end
+  else if (FOptions and DT_BOTTOM) > 0 then
+    vLocation.Y := ARect.Bottom
+  else
+   vLocation.Y := ARect.Bottom;
+
+  CopyMemory(@vStartLocation, @vLocation, SizeOf(vLocation));
+
+  for i := 1 to AText.Length do
+  begin
+    c := AText[i];
+
+    if i <> 1 then
+    begin
+      delta := vChar.AdvanceX - vChar.AdvanceX * cos(DegToRad(FAngle));
+      vLocation.X := vLocation.X + vChar.AdvanceX * cos(DegToRad(FAngle));
+      vLocation.Y := vLocation.Y + delta;
+    end;
+    if FCharacters.TryGetValue(c, vChar) = True then
+    begin
+      glPushMatrix;
+      glTranslatef(vLocation.X, vLocation.Y, 0);
+      glRotatef(360 - FAngle, 0, 0, 1);
+      glTranslatef(-vLocation.X, -vLocation.Y, 0);
+
+      glColor4f(AColor.Red, AColor.Green, AColor.Blue, AColor.Alpha);
+      if AColor.Red <> 0 then
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+      DrawCharacter(RectF(vLocation.X, vLocation.Y - (vChar.Height - vChar.BearingTop) + vChar.Height,
+       vLocation.X + vChar.Width, vLocation.Y - (vChar.Height - vChar.BearingTop)), vChar.Texture);
+      if (FStyle and FontStyleBold) > 0 then
+      begin
+        DrawCharacter(RectF(vLocation.X + 1, vLocation.Y + vChar.Height,
+          vLocation.X + vChar.Width + 1, vLocation.Y - (vChar.Height - vChar.BearingTop)), vChar.Texture);
+      end;
+
+      glPopMatrix;
+    end
+  end;
+
+  vEndLocation := TPointF.Create(vLocation.X + vChar.Width * cos(DegToRad(FAngle)),
+   vLocation.Y - vChar.Width * sin(DegToRad(FAngle)));
+  if (FStyle and FontStyleUnderline) > 0 then
+    DrawUnderline(vStartLocation, vEndLocation);
+  if (FStyle and FontStyleStrikeout) > 0 then
+    DrawStrikeout(vStartLocation, vEndLocation, vTextMetric.cy / 96 * 72)
+end;
+
+procedure TTrueTypeFont.DrawUnderline(const APoint1, APoint2: TPointF);
+begin
+  glBegin(GL_LINES);
+  glVertex2f(APoint1.X, APoint1.Y);
+  glVertex2f(APoint2.X, APoint2.Y);
+  glEnd;
+end;
+
+function TTrueTypeFont.MeasureText(const AText: string): TSizeF;
+var
+  vTotalWidth: Single;
+  vChar: TCharacter;
+  i: Integer;
+begin
+  vTotalWidth := 0;
+  Result.cy := 0;
+  FFTFace.SetCharSize(0, Round(FSize * 64 * 96 / 72), 0, 0);
+
+  for i := 1 to AText.Length do
+  begin
+    if FCharacters.TryGetValue(Char(AText[i]), vChar) then
+    begin
+    if FT_Load_Glyph(FFTFace, FT_Get_Char_Index(FFTFace, Cardinal(AText[i])), [ftlfNoBitmap]) <> 0 then
+      continue;
+    vChar.Height := FFTFace.Glyph.Bitmap.Rows;
+    vChar.BearingTop := FFTFace.Glyph.BitmapTop;
+    vChar.Width := FFTFace.Glyph.Bitmap.Width;
+    vChar.AdvanceX := FFTFace.Glyph.Advance.X shr 6;
+    vChar.Texture.RecalculateUV(vChar.Width, vChar.Height);
+    if vChar.Texture.NeedsRecreation then
+    begin
+      if FT_Load_Glyph(FFTFace, FT_Get_Char_Index(FFTFace, Cardinal(AText[i])), [ftlfRender]) <> 0 then
+        continue;
+      vChar.RecreateTexture(FFTFace.Glyph.Bitmap);
+    end;
+    vTotalWidth := vChar.Width + vTotalWidth;
+    if (Result.cy <= vChar.Height * 96 / 72) then
+      Result.cy := vChar.Height * 96 / 72;
+    end;
+  end;
+  Result.cx := vTotalWidth;
+end;
+
+procedure TTrueTypeFont.ResizeFont(const ASize: Single);
+begin
+  FSize := ASize;
+end;
+
+{ TOpenGLDrawContext }
+
+procedure TOpenGLDrawContext.ConvertBufferToTexture;
+begin
+  if not FHasTexture then
+  begin
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    FTexture := TOpenGLTexture.Create;
+    FTexture.LoadTexture(FWidth, FHeight, FBuffer);
+    FHasTexture := True;
+  end else
+    Exit;
+end;
+
+constructor TOpenGLDrawContext.Create(const AWidth, AHeight: Integer);
+begin
+  SetLength(FBuffer, NextPow2(AWidth) * NextPow2(AHeight) * 4);
+  FOffscreen := False;
+  FWidth := AWidth;
+  FHeight := AHeight;
+end;
+
+destructor TOpenGLDrawContext.Destroy;
+begin
+  FBuffer := nil;
+  FreeAndNil(FTexture);
+  inherited;
+end;
+
+destructor TCharacter.Destroy;
+begin
+  FreeAndNil(Texture);
+end;
+
+procedure TCharacter.RecreateTexture(const ABitmap: TFTBitmap);
+var
+  vWidth, vHeight: Cardinal;
+  vPixels: TArray<GLubyte>;
+  j, k: Cardinal;
+begin
+  vWidth := NextPow2(ABitmap.Width);
+  vHeight := NextPow2(ABitmap.Rows);
+
+  SetLength(vPixels, vWidth * vHeight * 2);
+  for j := 0 to vHeight - 1 do
+  begin
+    for k := 0 to vWidth - 1 do
+    begin
+      if ((k >= ABitmap.Width) or (j >= ABitmap.Rows)) then
+        vPixels[2 * (k + j * vWidth)] := 0
+      else
+        vPixels[2 * (k + j * vWidth)] := Byte(ABitmap.Buffer[k + ABitmap.Width * j]);
+      vPixels[2 * (k + j * vWidth) + 1] := vPixels[2 * (k + j * vWidth)];
+    end;
+  end;
+  FreeAndNil(Texture);
+
+  Texture := TOpenGLTexture.Create;
+  Texture.LoadTexture(Width, Height, vPixels, GL_LUMINANCE_ALPHA);
 end;
 
 initialization
   TBaseModule.RegisterModule('Painting', '', 'OpenGL', TOpenGLScene);
-
 end.

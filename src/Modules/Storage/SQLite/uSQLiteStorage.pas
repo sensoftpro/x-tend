@@ -58,7 +58,7 @@ type
     constructor Create(const AStorage: TStorage; const ATableName: string);
     destructor Destroy; override;
 
-    procedure AddParameter(const AName: string; const AValue: Variant;
+    procedure AddParameter(const AName: string; const AValue: Variant;  const AFieldKind: TFieldKind;
       const AIsKey: Boolean = False); virtual;
     procedure AddBlobParameter(const AName: string; const AValue: TStream); virtual;
 
@@ -140,7 +140,7 @@ begin
   FParameters.Add(vParameter);
 end;
 
-procedure TSQLiteDBContext.AddParameter(const AName: string; const AValue: Variant;
+procedure TSQLiteDBContext.AddParameter(const AName: string; const AValue: Variant; const AFieldKind: TFieldKind;
   const AIsKey: Boolean = False);
 var
   vParameter: TBaseParameter;
@@ -149,7 +149,7 @@ begin
     if SameText(vParameter.Name, AName) then
       Exit;
 
-  vParameter := TSimpleParameter.Create(AName, AValue, AIsKey);
+  vParameter := TSimpleParameter.Create(AName, AValue, AFieldKind, AIsKey);
   if AIsKey then
     FKeyParameters.Add(vParameter)
   else
@@ -791,7 +791,7 @@ end;
 procedure TSQLiteStorage.DoWriteValue(const ATag: string; const AFieldKind: TFieldKind;
   const AValue: Variant; const AIsKey: Boolean = False);
 begin
-  GetActiveContext.AddParameter(ATag, AValue, AIsKey);
+  GetActiveContext.AddParameter(ATag, AValue, AFieldKind, AIsKey);
 end;
 
 function TSQLiteStorage.ExecuteDBQuery(Sql: string; Params: array of const): Boolean;

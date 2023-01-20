@@ -40,9 +40,6 @@ uses
   ExtCtrls, Types, ComCtrls, SysUtils, Windows, Graphics,
   Variants, Controls, Forms, Mask, Menus,
 
-  // Remove if you don't have DevExpress controls installed
-  dxGDIPlusClasses,
-
   uDefinition, uPresenter, uInteractor, uView, uSettings,
 
   DebugInfoForm, uUIBuilder, uLayout;
@@ -121,7 +118,7 @@ procedure SetPictureFromStream(const APicture: TPicture; const ALayout: TLayout)
 implementation
 
 uses
-  Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX, JPEG, PngImage, ImgList,
+  Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX, JPEG, PngImage, GIFImg, ImgList,
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon,
   uEntity, uEntityList, vclArea, uSession, uCollection;
 
@@ -967,6 +964,7 @@ begin
     if vForm = nil then
       Exit(nil);
 
+    vForm.Color := clBtnFace;
     vForm.ShowHint := True;
     vForm.DisableAlign;
     Assert(not Assigned(vForm.OnShow), 'vForm.OnShow already assigned');
@@ -1292,19 +1290,6 @@ var
   vView: TView;
   vForm: TForm;
   vCaption: string;
-
-  function ModalResultToDialogResult(const AModalResult: TModalResult): TDialogResult;
-  begin
-    case AModalResult of
-      mrOk: Result := drOk;
-      mrCancel: Result := drCancel;
-      mrYes: Result := drYes;
-      mrNo: Result := drNo;
-    else
-      Result := drNone;
-    end;
-  end;
-
 begin
   Result := drNone;
   if (AAreaName = '') or (AAreaName = 'float') or (AAreaName = 'free') then
@@ -1603,6 +1588,8 @@ begin
 end;
 
 initialization
+
+RegisterClasses([TPngImage, TJPEGImage, TGIFImage]);
 
 TBaseModule.RegisterModule('UI', '', 'Windows.VCL', TWinVCLPresenter);
 

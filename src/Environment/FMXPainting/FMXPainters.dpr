@@ -13,7 +13,7 @@ uses
   uDrawStyles in '..\..\Modules\Drawing\uDrawStyles.pas',
   uScene in '..\..\Modules\Drawing\uScene.pas',
   uMainForm in 'uMainForm.pas' {fmMain},
-  uFMXScene in '..\..\Modules\UI\FMX\uFMXScene.pas',
+  fmxScene in '..\..\Modules\UI\FMX\fmxScene.pas',
   uFMXPainter in '..\..\Modules\Drawing\FMX\uFMXPainter.pas';
 
 {$R *.res}

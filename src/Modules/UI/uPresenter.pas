@@ -203,6 +203,8 @@ type
     procedure DoOnFormShow(Sender: TObject);
     procedure DoChildFormKeyDown(Sender: TObject; const AShift: TShiftState; const AKey: Word; var AHandled: Boolean);
     procedure DoProcessShortCut(const AShift: TShiftState; const AKey: Word; var AHandled: Boolean);
+
+    function ModalResultToDialogResult(const AModalResult: TModalResult): TDialogResult;
   protected
     FName: string;
     FCursorType: TCursorType;
@@ -1266,6 +1268,18 @@ procedure TPresenter.Logout(const AInteractor: TInteractor);
 begin
   DoLogout(AInteractor);
   FInteractors.Remove(AInteractor);
+end;
+
+function TPresenter.ModalResultToDialogResult(const AModalResult: TModalResult): TDialogResult;
+begin
+  case AModalResult of
+    mrOk: Result := drOk;
+    mrCancel: Result := drCancel;
+    mrYes: Result := drYes;
+    mrNo: Result := drNo;
+  else
+    Result := drNone;
+  end;
 end;
 
 procedure TPresenter.OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);

@@ -1,4 +1,4 @@
-unit uFMXScene;
+unit fmxScene;
 
 interface
 
@@ -39,6 +39,9 @@ type
     function GetSceneRect: TRectF; override;
     function GetClientPos: TPointF; override;
     function GetScaleFactor: Single; override;
+
+  public
+    property Control: TControl read FPlaceholder;
   end;
 
 implementation
@@ -201,6 +204,7 @@ begin
   begin
     FPlaceholder.OnResize := OnResize;
     FPlaceholder.OnPaint := OnFMXScenePaint;
+    FPlaceholder.Repaint;
   end
   else begin
     FPlaceholder.OnResize := nil;

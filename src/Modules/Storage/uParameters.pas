@@ -36,7 +36,7 @@ unit uParameters;
 interface
 
 uses
-  Classes;
+  Classes, uConsts;
 
 type
   TParameterKind = (pkSimple, pkBlob);
@@ -45,11 +45,13 @@ type
   protected
     FParamName: string;
     FParamKind: TParameterKind;
+    FFieldKind: TFieldKind;
   public
-    constructor Create(const AName: string; const AParamKind: TParameterKind);
+    constructor Create(const AName: string; const AParamKind: TParameterKind; const AFieldKind: TFieldKind);
 
     property Name: string read FParamName;
     property ParamKind: TParameterKind read FParamKind;
+    property FieldKind: TFieldKind read FFieldKind;
   end;
 
   TSimpleParameter = class(TBaseParameter)
@@ -57,7 +59,7 @@ type
     FParamValue: Variant;
     FIsKey: Boolean;
   public
-    constructor Create(const AName: string; const AValue: Variant;
+    constructor Create(const AName: string; const AValue: Variant; const AFieldKind: TFieldKind;
       const AIsKey: Boolean = False);
     property Value: Variant read FParamValue;
     property IsKey: Boolean read FIsKey;
@@ -78,20 +80,21 @@ implementation
 { TBaseParameter }
 
 constructor TBaseParameter.Create(const AName: string;
-  const AParamKind: TParameterKind);
+  const AParamKind: TParameterKind; const AFieldKind: TFieldKind);
 begin
   inherited Create;
 
   FParamName := AName;
   FParamKind := AParamKind;
+  FFieldKind := AFieldKind;
 end;
 
 { TSimpleParameter }
 
-constructor TSimpleParameter.Create(const AName: string; const AValue: Variant;
+constructor TSimpleParameter.Create(const AName: string; const AValue: Variant; const AFieldKind: TFieldKind;
   const AIsKey: Boolean);
 begin
-  inherited Create(AName, pkSimple);
+  inherited Create(AName, pkSimple, AFieldKind);
   FParamValue := AValue;
   FIsKey := AIsKey;
 end;
@@ -100,7 +103,7 @@ end;
 
 constructor TBlobParameter.Create(const AName: string; const AValue: TStream);
 begin
-  inherited Create(AName, pkBlob);
+  inherited Create(AName, pkBlob, fkBlob);
   FStream := AValue;
 end;
 

@@ -73,7 +73,7 @@ type
 implementation
 
 uses
-  uFMXScene;
+  fmxScene;
 
 function MulDiv(ANumber, ANumerator, ADenominator: Integer): Integer;
 begin
