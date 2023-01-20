@@ -793,8 +793,15 @@ begin
     vForm := TForm(FControl);
 
     if AModalResult = mrNone then
-    //TODO Нужно закрывать отложенно, так как мы находимся в OnMouseClick
-      vForm.Close
+    begin
+      TThread.CreateAnonymousThread(procedure
+      begin
+        TThread.Queue(nil, procedure
+        begin
+          vForm.Close;
+        end);
+      end).Start;
+    end
     else begin
       vForm.Close;
       vForm.ModalResult := AModalResult;
