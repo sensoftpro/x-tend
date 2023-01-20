@@ -312,6 +312,7 @@ type
     function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
     procedure GetLayoutName(const AEntity: TEntity; const AParams: string; var ALayoutName: string);
+    procedure ScaleLayout(const ALayout: TLayout);
   public
     constructor Create(const ADomain: TObject);
     destructor Destroy; override;
@@ -575,11 +576,27 @@ end;
 
 { TUIBuilder }
 
+procedure TUIBuilder.ScaleLayout(const ALayout: TLayout);
+var
+  vChild: TLayout;
+const
+  cScale = 1.5;
+begin
+  ALayout.Left := Round(ALayout.Left * cScale);
+  ALayout.Top := Round(ALayout.Top * cScale);
+  ALayout.Width := Round(ALayout.Width * cScale);
+  ALayout.Height := Round(ALayout.Height * cScale);
+  ALayout.Font.Size := Round(ALayout.Font.Size * cScale);
+  for vChild in ALayout.Items do
+    ScaleLayout(vChild);
+end;
+
 procedure TUIBuilder.ApplyLayout(const AArea: TUIArea; const AView: TView; const ALayoutName: string; const AParams: string);
 var
   vLayout: TLayout;
 begin
   vLayout := FLayouts.GetLayout(ALayoutName, AView);
+  ScaleLayout(vLayout);
 
   AArea.BeginUpdate;
   try
