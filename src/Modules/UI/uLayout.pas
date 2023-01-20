@@ -157,6 +157,7 @@ type
 const
   cLayoutKindNames: array[TLayoutKind] of string = ('', 'panel', 'page', 'pages', 'frame', 'memo', 'label',
     'image', 'bevel', 'shape', 'splitter', 'scrollbox', 'action', 'nav-item');
+  cAreaKindNames: array[TAreaKind] of string = ('autodetect', 'form', 'field', 'list', 'action', 'navigation');
   cAnchorKindNames: array[TAnchorKind] of string = ('left', 'top', 'right', 'bottom');
   cFontStyleNames: array[TFontStyle] of string = ('bold', 'italic', 'underline', 'strikeout');
   cAlignNames: array[TLayoutAlign] of string = ('', 'top', 'bottom', 'left', 'right', 'client', 'custom');
@@ -172,6 +173,7 @@ const
   cBorderStyleNames: array[TLayoutBorderStyle] of string = ('', 'single', 'sizeable', 'dialog', 'tool-window', 'size-tool-window');
 
 function StrToLayoutKind(const s: string): TLayoutKind;
+function StrToAreaKind(const s: string): TAreaKind;
 function StrToViewState(const s: string): TViewState;
 function StrToAlign(const s: string): TLayoutAlign;
 function StrToAlignment(const s: string): TAlignment;
@@ -424,6 +426,16 @@ begin
     if SameText(cLayoutKindNames[vKind], s) then
       Exit(vKind);
   Result := lkNone;
+end;
+
+function StrToAreaKind(const s: string): TAreaKind;
+var
+  vKind: TAreaKind;
+begin
+  for vKind := Low(TAreaKind) to High(TAreaKind) do
+    if SameText(cAreaKindNames[vKind], s) then
+      Exit(vKind);
+  Result := akAutoDetect;
 end;
 
 function StrToViewState(const s: string): TViewState;
@@ -867,6 +879,18 @@ var
   i: Integer;
 begin
   FCaption := AJSON.ExtractString('caption');
+  FId := AJSON.ExtractString('id');
+  FLevel := AJSON.ExtractInteger('level');
+  FCaption := AJSON.ExtractString('caption');
+  FHint := AJSON.ExtractString('hint');
+  FImageID := AJSON.ExtractInteger('image_index');
+  FViewName := AJSON.ExtractString('view_name');
+  FContentLayout := AJSON.ExtractString('content_layout');
+  FContentWorkArea := AJSON.ExtractString('content_workarea');
+  FContentCaption := AJSON.ExtractString('content_caption');
+  FGroupIndex := AJSON.ExtractInteger('group_index');
+  FRadioItem := AJSON.ExtractBoolean('radio_item');
+
   if AJSON.Contains('items') then
   begin
     vItems := AJSON.ExtractArray('items');
@@ -885,7 +909,19 @@ var
   i: Integer;
 begin
   Result := TJSONObject.Create;
+
+  Result.StoreString('id', FId);
+  Result.StoreInteger('level', FLevel);
   Result.StoreString('caption', FCaption);
+  Result.StoreString('hint', FHint);
+  Result.StoreInteger('image_index', FImageID);
+  Result.StoreString('view_name', FViewName);
+  Result.StoreString('content_layout', FContentLayout);
+  Result.StoreString('content_workarea', FContentWorkArea);
+  Result.StoreString('content_caption', FContentCaption);
+  Result.StoreInteger('group_index', FGroupIndex);
+  Result.StoreBoolean('radio_item', FRadioItem);
+
   if FItems.Count = 0 then
     Exit;
 
@@ -1121,7 +1157,6 @@ begin
   FUrlParser := nil;
   FKind := AKind;
   FStyleName := '';
-  Assert(FKind > lkNone);
 
   FLeft := 0;
   FTop := 0;
@@ -1298,42 +1333,57 @@ var
   vChild: TLayout;
   i: Integer;
 begin
+(*
+
+  if FKind = lkAction then
+  begin
+    Result.StoreBoolean('button_show_caption', FButton_ShowCaption);
+    Result.StoreBoolean('button_flat', FButton_Flat);
+  end
+  else if FKind = lkShape then
+  begin
+    Result.StoreString('shape_type', cShapeTypeNames[FShape_Type]);
+  end
+  else if FKind = lkImage then
+  begin
+    Result.StoreBoolean('stretch', FImage_Stretch);
+    Result.StoreBoolean('proportional', FImage_Proportional);
+    Result.StoreBoolean('center', FImage_Center);
+    if Assigned(FImage_Picture) then
+      Result.StoreString('picture', BinaryToText(FImage_Picture));
+  end
+  else if FKind = lkPages then
+  begin
+    Result.StoreString('page_style', cPageStyleNames[FPage_Style]);
+    Result.StoreString('page_position', cPagePositionNames[FPage_Position]);
+    Result.StoreInteger('page_height', FPage_Height);
+    Result.StoreInteger('page_width', FPage_Width);
+  end
+  else if FKind = lkBevel then
+  begin
+    Result.StoreString('bevel_style', cBevelStyleNames[FBevel_Style]);
+    Result.StoreString('bevel_shape', cBevelShapeNames[FBevel_Shape]);
+  end;
+
+  if Assigned(FMenu) then
+    Result.AddPair('menu', FMenu.InternalSave);
+
+  if FItems.Count = 0 then
+    Exit;
+
+  jChildren := TJSONArray.Create;
+  for i := 0 to FItems.Count - 1 do
+    jChildren.Add(FItems[i].InternalSave);
+
+  Result.AddPair('items', jChildren);
+*)
+
   FKind := StrToLayoutKind(AJSON.ExtractString('kind'));
-  //FViewType := StrToViewType(AJSON.ExtractString('view_type'));
-
-  FName := AJSON.ExtractString('name');
-  FTag := AJSON.ExtractInteger('tag');
-  FCaption := AJSON.ExtractString('caption');
-  FShowCaption := AJSON.ExtractBoolean('show_caption');
-  FHint := AJSON.ExtractString('hint');
-  FImageID := AJSON.ExtractInteger('image_index', -1);
-
-  FUIParams := AJSON.ExtractString('ui_params');
-
+  FStyleName := AJSON.ExtractString('style_name');
   FLeft := AJSON.ExtractInteger('left');
   FTop := AJSON.ExtractInteger('top');
   FWidth := AJSON.ExtractInteger('width');
   FHeight := AJSON.ExtractInteger('height');
-  FAlign := StrToAlign(AJSON.ExtractString('align'));
-  if AJSON.Contains('margins') then
-    FMargins := TLayoutMargins.Create(AJSON.ExtractObject('margins'))
-  else
-    FMargins := TLayoutMargins.Create(0, 0, 0, 0);
-  if AJSON.Contains('padding') then
-    FPadding := TLayoutPadding.Create(AJSON.ExtractObject('padding'))
-  else
-    FPadding := TLayoutPadding.Create(0, 0, 0, 0);
-  if AJSON.Contains('constraints') then
-    FConstraints := TLayoutConstraints.Create(AJSON.ExtractObject('constraints'))
-  else
-    FConstraints := TLayoutConstraints.Create(-1, -1, -1, -1);
-  FState := StrToViewState(AJSON.ExtractString('view_state'));
-  FTabOrder := AJSON.ExtractInteger('tab_order');
-  FColor := AJSON.ExtractColor('color');
-  if AJSON.Contains('font') then
-    FFont := TLayoutFont.Create(AJSON.ExtractObject('font'))
-  else
-    FFont := TLayoutFont.Create(TColorRec.Black, '', 0, []);
 
   FAnchors := [];
   vAnchors := AJSON.ExtractStrings('anchors');
@@ -1346,21 +1396,62 @@ begin
     FreeAndNil(vAnchors);
   end;
 
-  FCursor := AJSON.ExtractInteger('cursor');
+  FAlign := StrToAlign(AJSON.ExtractString('align'));
+  if AJSON.Contains('margins') then
+    FMargins.InternalLoad(AJSON.ExtractObject('margins'));
+  if AJSON.Contains('padding') then
+    FPadding.InternalLoad(AJSON.ExtractObject('padding'));
+  if AJSON.Contains('constraints') then
+    FConstraints.InternalLoad(AJSON.ExtractObject('constraints'));
+
+  FId := AJSON.ExtractString('id');
+  FAreaKind := StrToAreaKind(AJSON.ExtractString('area_kind'));
+  FName := AJSON.ExtractString('name');
+  FHint := AJSON.ExtractString('hint');
+  FShowCaption := AJSON.ExtractBoolean('show_caption');
+  FCaption := AJSON.ExtractString('caption');
+  FUIParams := AJSON.ExtractString('ui_params');
   FParams := AJSON.ExtractString('params');
-
-  //FStyleName := AJSON.ExtractString('style_name');
-  //FChildLayoutName := AJSON.ExtractString('child_layout_name');
-  //FTargetWorkAreaName := AJSON.ExtractString('target_workarea_name');
-  //FTargetLayoutName := AJSON.ExtractString('target_layout_name');
-  //FTargetViewName := AJSON.ExtractString('target_view_name');
-
+  FTag := AJSON.ExtractInteger('tag');
+  FImageID := AJSON.ExtractInteger('image_index', -1);
+  FState := StrToViewState(AJSON.ExtractString('view_state'));
+  FColor := AJSON.ExtractColor('color');
+  FCursor := AJSON.ExtractInteger('cursor');
+  FTransparent := AJSON.ExtractBoolean('transparent');
+  FAlignment := StrToAlignment(AJSON.ExtractString('alignment'));
+  FAutoSize := AJSON.ExtractBoolean('auto_size');
+  FWordWrap := AJSON.ExtractBoolean('word_wrap');
+  FBevelInner := StrToBevelKind(AJSON.ExtractString('bevel_inner'));
+  FBevelOuter := StrToBevelKind(AJSON.ExtractString('bevel_outer'));
   FBorderStyle := StrToBorderStyle(AJSON.ExtractString('border_style'));
+  FTabOrder := AJSON.ExtractInteger('tab_order');
+  FCaption_AtLeft := AJSON.ExtractBoolean('caption_at_left');
 
-  if FKind = lkPanel then
+  if AJSON.Contains('pen') then
+    FPen.InternalLoad(AJSON.ExtractObject('pen'));
+  if AJSON.Contains('brush') then
+    FBrush.InternalLoad(AJSON.ExtractObject('brush'));
+  if AJSON.Contains('font') then
+    FFont.InternalLoad(AJSON.ExtractObject('font'));
+
+  if FKind = lkAction then
   begin
-    FBevelInner := StrToBevelKind(AJSON.ExtractString('bevel_inner'));
-    FBevelOuter := StrToBevelKind(AJSON.ExtractString('bevel_outer'));
+    FButton_ShowCaption := AJSON.ExtractBoolean('button_show_caption');
+    FButton_Flat := AJSON.ExtractBoolean('button_flat');
+  end
+  else if FKind = lkShape then
+  begin
+    FShape_Type := StrToShapeType(AJSON.ExtractString('shape_type'));
+  end
+  else if FKind = lkImage then
+  begin
+    FImage_Stretch := AJSON.ExtractBoolean('stretch');
+    FImage_Proportional := AJSON.ExtractBoolean('proportional');
+    FImage_Center := AJSON.ExtractBoolean('center');
+    if AJSON.Contains('picture') then
+      FImage_Picture := TextToBinary(AJSON.ExtractString('picture'))
+    else
+      FImage_Picture := nil;
   end
   else if FKind = lkPages then
   begin
@@ -1369,29 +1460,14 @@ begin
     FPage_Height := AJSON.ExtractInteger('page_height');
     FPage_Width := AJSON.ExtractInteger('page_width');
   end
-  else if FKind = lkImage then
-  begin
-    FImage_Stretch := AJSON.ExtractBoolean('stretch');
-    FImage_Proportional := AJSON.ExtractBoolean('proportional');
-    if AJSON.Contains('picture') then
-      FImage_Picture := TextToBinary(AJSON.ExtractString('picture'))
-    else
-      FImage_Picture := nil;
-  end
   else if FKind = lkBevel then
   begin
     FBevel_Style := StrToBevelStyle(AJSON.ExtractString('bevel_style'));
     FBevel_Shape := StrToBevelShape(AJSON.ExtractString('bevel_shape'));
-  end
-  else if FKind = lkLabel then
-  begin
-    FAutoSize := AJSON.ExtractBoolean('auto_size');
-    FTransparent := AJSON.ExtractBoolean('transparent');
-    FWordWrap := AJSON.ExtractBoolean('word_wrap');
   end;
 
   if AJSON.Contains('menu') then
-    FMenu := TNavigationItem.Create(nil, AJSON.ExtractObject('menu'))
+    SetMenu(TNavigationItem.Create(nil, AJSON.ExtractObject('menu')))
   else
     FMenu := nil;
 
@@ -1417,31 +1493,11 @@ begin
   Result := TJSONObject.Create;
 
   Result.StoreString('kind', cLayoutKindNames[FKind]);
-  //Result.StoreString('view_type', cViewTypeNames[FViewType]);
-
-  Result.StoreString('name', FName);
-  Result.StoreInteger('tag', FTag);
-  Result.StoreString('caption', FCaption);
-  Result.StoreBoolean('show_caption', FShowCaption);
-  Result.StoreString('hint', FHint);
-  //Result.StoreBoolean('show_hint', FShowHint);
-  Result.StoreInteger('image_index', FImageID);
-
-  Result.StoreString('ui_params', FUIParams);
-
+  Result.StoreString('style_name', FStyleName);
   Result.StoreInteger('left', FLeft);
   Result.StoreInteger('top', FTop);
   Result.StoreInteger('width', FWidth);
   Result.StoreInteger('height', FHeight);
-  Result.StoreString('align', cAlignNames[FAlign]);
-  Result.AddPair('margins', FMargins.InternalSave);
-  Result.AddPair('padding', FPadding.InternalSave);
-  Result.AddPair('constraints', FConstraints.InternalSave);
-  Result.StoreString('view_state', ViewStateToStr(FState));
-  //Result.StoreBoolean('double_buffered', FDoubleBuffered);
-  Result.StoreInteger('tab_order', FTabOrder);
-  Result.StoreColor('color', FColor);
-  Result.AddPair('font', FFont.InternalSave);
 
   vAnchors := TStringList.Create;
   try
@@ -1452,21 +1508,54 @@ begin
   finally
     FreeAndNil(vAnchors);
   end;
+  Result.StoreString('align', cAlignNames[FAlign]);
+  Result.AddPair('margins', FMargins.InternalSave);
+  Result.AddPair('padding', FPadding.InternalSave);
+  Result.AddPair('constraints', FConstraints.InternalSave);
 
-  Result.StoreInteger('cursor', FCursor);
+  Result.StoreString('id', FId);
+  Result.StoreString('area_kind', cAreaKindNames[FAreaKind]);
+  Result.StoreString('name', FName);
+  Result.StoreString('hint', FHint);
+  Result.StoreBoolean('show_caption', FShowCaption);
+  Result.StoreString('caption', FCaption);
+  Result.StoreString('ui_params', FUIParams);
   Result.StoreString('params', FParams);
+  Result.StoreInteger('tag', FTag);
+  Result.StoreInteger('image_index', FImageID);
+  Result.StoreString('view_state', ViewStateToStr(FState));
+  Result.StoreColor('color', FColor);
+  Result.StoreInteger('cursor', FCursor);
+  Result.StoreBoolean('transparent', FTransparent);
+  Result.StoreString('alignment', cAlignmentNames[FAlignment]);
+  Result.StoreBoolean('auto_size', FAutoSize);
+  Result.StoreBoolean('word_wrap', FWordWrap);
+  Result.StoreString('bevel_inner', cBevelKindNames[FBevelInner]);
+  Result.StoreString('bevel_outer', cBevelKindNames[FBevelOuter]);
   Result.StoreString('border_style', cBorderStyleNames[FBorderStyle]);
+  Result.StoreInteger('tab_order', FTabOrder);
+  Result.StoreBoolean('caption_at_left', FCaption_AtLeft);
 
-  //Result.StoreString('style_name', FStyleName);
-  //Result.StoreString('child_layout_name', FChildLayoutName);
-  //Result.StoreString('target_workarea_name', FTargetWorkAreaName);
-  //Result.StoreString('target_layout_name', FTargetLayoutName);
-  //Result.StoreString('target_view_name', FTargetViewName);
+  Result.AddPair('pen', FPen.InternalSave);
+  Result.AddPair('brush', FBrush.InternalSave);
+  Result.AddPair('font', FFont.InternalSave);
 
-  if FKind = lkPanel then
+  if FKind = lkAction then
   begin
-    Result.StoreString('bevel_inner', cBevelKindNames[FBevelInner]);
-    Result.StoreString('bevel_outer', cBevelKindNames[FBevelOuter]);
+    Result.StoreBoolean('button_show_caption', FButton_ShowCaption);
+    Result.StoreBoolean('button_flat', FButton_Flat);
+  end
+  else if FKind = lkShape then
+  begin
+    Result.StoreString('shape_type', cShapeTypeNames[FShape_Type]);
+  end
+  else if FKind = lkImage then
+  begin
+    Result.StoreBoolean('stretch', FImage_Stretch);
+    Result.StoreBoolean('proportional', FImage_Proportional);
+    Result.StoreBoolean('center', FImage_Center);
+    if Assigned(FImage_Picture) then
+      Result.StoreString('picture', BinaryToText(FImage_Picture));
   end
   else if FKind = lkPages then
   begin
@@ -1475,23 +1564,10 @@ begin
     Result.StoreInteger('page_height', FPage_Height);
     Result.StoreInteger('page_width', FPage_Width);
   end
-  else if FKind = lkImage then
-  begin
-    Result.StoreBoolean('stretch', FImage_Stretch);
-    Result.StoreBoolean('proportional', FImage_Proportional);
-    if Assigned(FImage_Picture) then
-      Result.StoreString('picture', BinaryToText(FImage_Picture));
-  end
   else if FKind = lkBevel then
   begin
     Result.StoreString('bevel_style', cBevelStyleNames[FBevel_Style]);
     Result.StoreString('bevel_shape', cBevelShapeNames[FBevel_Shape]);
-  end
-  else if FKind = lkLabel then
-  begin
-    Result.StoreBoolean('auto_size', FAutoSize);
-    Result.StoreBoolean('transparent', FTransparent);
-    Result.StoreBoolean('word_wrap', FWordWrap);
   end;
 
   if Assigned(FMenu) then
@@ -1544,7 +1620,8 @@ end;
 procedure TLayout.SetMenu(const Value: TNavigationItem);
 begin
   FMenu := Value;
-  FMenu.FOwner := Self;
+  if Assigned(FMenu) then
+    FMenu.FOwner := Self;
 end;
 
 procedure TLayout.SetParams(const Value: string);

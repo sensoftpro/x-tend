@@ -914,7 +914,7 @@ begin
       end;
     end;
   end
-  else if (ALayout.Kind in [lkPanel, lkMemo]) and (FControl is TControl) then
+  else if (ALayout.Kind in [lkPanel, lkMemo, lkShape]) and (FControl is TControl) then
   begin
     SetBounds(Rect(ALayout.Left, ALayout.Top,
       ALayout.Left + ALayout.Width, ALayout.Top + ALayout.Height));
@@ -1276,7 +1276,7 @@ begin
   if not Assigned(FCaption) then
     Exit;
 
-  if ALayout.Kind in [lkMemo, lkPanel] then
+  if ALayout.Kind in [lkMemo, lkPanel, lkShape] then
   begin
     FShowCaption := ALayout.ShowCaption;
     TLabel(FCaption).Visible := FShowCaption and (FOwner.View.State > vsHidden);

@@ -402,6 +402,8 @@ var
   vUser: TEntity;
   vRoles: TListField;
   vRole: TEntity;
+  vCanLoadFromDFM: Boolean;
+  vLayoutExt: string;
 begin
   if FNames.TryGetValue(ALayoutName, vFileName) then
     Exit(FItems.Items[vFileName].Clone);
@@ -428,7 +430,10 @@ begin
     end;
   end;
 
-  vFileName := TDomain(FUIBuilder.Domain).Configuration.FindLayoutFile(ALayoutName, LAYOUT_DFM_EXT, vPostfix);
+  vCanLoadFromDFM := TPresenter(FUIBuilder.Presenter).LoadFromDFM;
+  vLayoutExt := IfThen(vCanLoadFromDFM, LAYOUT_DFM_EXT, '.jlt');
+
+  vFileName := TDomain(FUIBuilder.Domain).Configuration.FindLayoutFile(ALayoutName, vLayoutExt, vPostfix);
 
   if FItems.TryGetValue(vFileName, Result) then
   begin
@@ -438,7 +443,17 @@ begin
   end;
 
   if FileExists(vFileName) then
-    Result := MakeLayoutFromFile(vFileName)
+  begin
+    if vCanLoadFromDFM then
+    begin
+      Result := MakeLayoutFromFile(vFileName);
+      Result.Save(ChangeFileExt(vFileName, '.jlt'));
+    end
+    else begin
+      Result := TLayout.Create(lkNone);
+      Result.Load(vFileName);
+    end;
+  end
   else begin
     vFileName := ALayoutName + '_auto_';
     Result := MakeDefaultLayout(AView, ALayoutName);
@@ -1932,10 +1947,11 @@ end;
 
 procedure TUIArea.OnExit(Sender: TObject);
 begin
-  if Assigned(FUIBuilder) then
+  if Assigned(FUIBuilder) and Assigned(FInteractor) then
     TInteractor(FInteractor).ActiveArea := nil;
 
-  FNativeControl.DoOnExit(Sender);
+  if Assigned(FNativeControl) then
+    FNativeControl.DoOnExit(Sender);
 end;
 
 function TUIArea.ParentInUpdate: Boolean;

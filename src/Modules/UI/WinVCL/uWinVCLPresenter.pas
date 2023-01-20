@@ -92,6 +92,7 @@ type
     function DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject; override;
 
     procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); override; // DFM
+    function CanLoadFromDFM: Boolean; override; // DFM
 
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
   protected
@@ -331,6 +332,11 @@ begin
     waMozaic:
       ArrangeMozaic(vForm);
   end;
+end;
+
+function TWinVCLPresenter.CanLoadFromDFM: Boolean;
+begin
+  Result := True;
 end;
 
 procedure TWinVCLPresenter.CopyControlPropertiesToLayout(const ALayout: TLayout; const AControl: TObject);

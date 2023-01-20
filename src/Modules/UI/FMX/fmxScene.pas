@@ -39,7 +39,6 @@ type
     function GetSceneRect: TRectF; override;
     function GetClientPos: TPointF; override;
     function GetScaleFactor: Single; override;
-
   public
     property Control: TControl read FPlaceholder;
   end;
@@ -70,7 +69,9 @@ end;
 
 function TFMXScene.DoCreateScene(const APlaceholder: TObject): TPainter;
 begin
-  FPlaceholder := TControl(APlaceholder);
+  FPlaceholder := TPaintBox.Create(TControl(APlaceholder));
+  FPlaceholder.Align := TAlignLayout.Client;
+  FPlaceholder.Parent := TControl(APlaceholder);
 
   FPlaceholder.OnMouseWheel := OnFMXSceneMouseWheel;
   FPlaceholder.OnKeyDown := OnFMXSceneKeyDown;

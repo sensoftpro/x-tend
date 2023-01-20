@@ -1,7 +1,9 @@
 ﻿program NewApplication;
 
+{$DEFINE VCL_UI}
+
 uses
-  Dialogs,
+  {$IFDEF VCL_UI} Dialogs, {$ENDIF}
   SysUtils,
 {$I ..\..\files.inc}
 {$I ..\..\Modules\Storage\SQLite\files.inc}
@@ -16,7 +18,9 @@ begin
   try
     TPlatform.Run;
   except
+{$IFDEF VCL_UI}
     on E: Exception do
       ShowMessage('Ошибка старта приложения: ' + E.Message);
+{$ENDIF}
   end;
 end.

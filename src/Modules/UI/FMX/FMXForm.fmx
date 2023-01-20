@@ -1,12 +1,13 @@
-object FMXFm: TFMXFm
-  Left = 0
-  Top = 0
-  Caption = 'Form7'
-  ClientHeight = 480
-  ClientWidth = 640
-  StyleLookup = 'panelstyle'
+object FMXFm: TFMXForm
+  Left = 510
+  Top = 150
+  ClientHeight = 740
+  ClientWidth = 1040
+  Position = Designed
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
+  Left = 510
+  Top = 150
   DesignerMasterStyle = 0
 end

@@ -49,7 +49,7 @@ uses
   iOSapi.Foundation, FMX.Helpers.iOS,
 {$ENDIF IOS}
 
-  FMX.Types, FMX.Controls, FMX.Graphics, FMX.Forms, FMX.Layouts,
+  FMX.Types, FMX.Controls, FMX.Graphics, FMX.Objects, FMX.Forms, FMX.Layouts,
   uPresenter, uSettings, uInteractor, uUIBuilder, uView, fmxArea, uLayout, uConsts, uDefinition, uIcon;
 
 type
@@ -114,7 +114,7 @@ uses
   FMX.StdCtrls, FMX.ExtCtrls, FMX.Menus, FMX.TabControl, FMX.ListView, FMX.ImgList,
   FMX.Memo, FMX.Edit,
   uModule, uDomain, uPlatform, uSession, uUtils, uEntityList, uConfiguration,
-  uChangeManager, uEntity, FMXForm;
+  uChangeManager, uEntity;
 
 const
   cPCNavigatorFlag = 1;
@@ -243,6 +243,7 @@ var
   vDomain: TDomain;
   vInteractor: TInteractor;
   vUIBuilder: TUIBuilder;
+  vShape: TShape;
   vLabel: TLabel;
   vPC: TTabControl;
   vTab: TTabItem;
@@ -265,7 +266,29 @@ begin
   vDomain := TDomain(vInteractor.Domain);
   vParentControl := GetFMXControl(AParent);
 
-  if ALayout.Kind = lkLabel then
+  if ALayout.Kind = lkShape then
+  begin
+    case ALayout.Shape_Type of
+      lstRoundRect, lstRoundSquare: vShape := TRoundRect.Create(nil);
+      lstEllipse: vShape := TEllipse.Create(nil);
+      lstCircle: vShape := TCircle.Create(nil);
+    else
+      vShape := TRectangle.Create(nil);
+    end;
+
+    vShape.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+    vShape.Anchors := ALayout.Anchors;
+    vShape.Align := AlignToAlignLayout(ALayout.Align);
+    vShape.Hint := ALayout.Hint;
+    vShape.Visible := ALayout.State > vsHidden;
+    vShape.Stroke.Color := ALayout.Pen.Color;
+    vShape.Stroke.Thickness := ALayout.Pen.Width;
+    vShape.Fill.Color := ALayout.Brush.Color;
+    CopyMargins(vShape, ALayout);
+
+    Result := vShape;
+  end
+  else if ALayout.Kind = lkLabel then
   begin
     vLabel := TLabel.Create(nil);
     vLabel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
@@ -420,7 +443,7 @@ begin
 
     if ALayout.StyleName = '' then
     begin
-      Application.CreateForm(TFMXFm, vForm);
+      Application.CreateForm(TFMXForm, vForm);
       Application.RealCreateForms;
 
       vForm.OnClose := DoMainFormClose;
@@ -444,8 +467,7 @@ begin
         end;
       end;
 
-      Application.CreateForm(TFMXFm, vForm);
-      Application.RealCreateForms;
+      vForm := TFMXForm.Create(nil);
 
       vForm.OnClose := DoFloatFormClose;
       vForm.Position := TFormPosition.MainFormCenter;
@@ -455,8 +477,7 @@ begin
     // автономная форма со свободным отображением
     else if ALayout.StyleName = 'free' then
     begin
-      Application.CreateForm(TFMXFm, vForm);
-      Application.RealCreateForms;
+      vForm := TFMXForm.Create(nil);
 
       vForm.Position := TFormPosition.ScreenCenter;
       vForm.Caption := ALayout.Caption;
@@ -467,8 +488,7 @@ begin
     // дочерняя модальная форма
     else if (ALayout.StyleName = 'child') or (ALayout.StyleName = 'modal') then
     begin
-      Application.CreateForm(TFMXFm, vForm);
-      Application.RealCreateForms;
+      vForm := TFMXForm.Create(nil);
 
       vForm.OnClose := DoChildFormClose;
       vForm.OnKeyDown := OnChildFormKeyDown;
@@ -537,7 +557,7 @@ begin
     end;
   end
   else if ALayout.Kind <> lkNone then
-    Assert(False, 'Класс не поддерживается для создания лэйаутов')
+    Result := nil
   else
     Assert(False, 'Пустой класс для лэйаута');
 end;
@@ -855,7 +875,8 @@ end;
 
 procedure TFMXPresenter.DoSetCursor(const ACursorType: TCursorType);
 begin
-  //Screen.Cursor := cCursors[ACursorType];
+  if Assigned(Application.MainForm) then
+    Application.MainForm.Cursor := cCursors[ACursorType];
 end;
 
 function TFMXPresenter.DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;

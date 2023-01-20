@@ -1,21 +1,5 @@
-
-  // UI: VCL DevExpress implementation
-  uWinVCLPresenter in '..\..\Modules\UI\WinVCL\uWinVCLPresenter.pas',
-  uVCLScene in '..\..\Modules\UI\Windows\VCL\uVCLScene.pas',
-  vclArea in '..\..\Modules\UI\WinVCL\Editors\vclArea.pas',
-  vclSimpleEditors in '..\..\Modules\UI\WinVCL\Editors\vclSimpleEditors.pas',
-  vclEntityEditors in '..\..\Modules\UI\WinVCL\Editors\vclEntityEditors.pas',
-  vclListEditors in '..\..\Modules\UI\WinVCL\Editors\vclListEditors.pas',
-  vclBlobEditors in '..\..\Modules\UI\WinVCL\Editors\vclBlobEditors.pas',
-  vclPopupForm in '..\..\Modules\UI\WinVCL\Editors\vclPopupForm.pas',
-
-  uManagedForm in '..\..\Modules\UI\WinVCL\Forms\uManagedForm.pas',
-  SplashForm in '..\..\Modules\UI\WinVCL\Forms\SplashForm.pas' {SplashFm},
-  StartForm in '..\..\Modules\UI\WinVCL\Forms\StartForm.pas' {StartFm},
-  LoginForm in '..\..\Modules\UI\WinVCL\Forms\LoginForm.pas' {LoginFm},
-  OptionsForm in '..\..\Modules\UI\WinVCL\Forms\OptionsForm.pas' {OptionsFm},
-  TranslationEditForm in '..\..\Modules\UI\WinVCL\Forms\TranslationEditForm.pas' {TranslationEditFm},
-  LangEditForm in '..\..\Modules\UI\WinVCL\Forms\LangEditForm.pas' {LangEditFm},
-  AboutForm in '..\..\Modules\UI\WinVCL\Forms\AboutForm.pas' {AboutFm},
-  ReportConfigureForm in '..\..\Modules\UI\WinVCL\Forms\ReportConfigureForm.pas' {ReportConfigureFm},
-  DebugInfoForm in '..\..\Modules\UI\WinVCL\Forms\DebugInfoForm.pas' {DebugFm},
+  // UI: FMX
+  uFMXPresenter in '..\..\Modules\UI\FMX\uFMXPresenter.pas',
+  fmxArea in '..\..\Modules\UI\FMX\fmxArea.pas',
+  fmxScene in '..\..\Modules\UI\FMX\fmxScene.pas',
+  fmxBlobEditors in '..\..\Modules\UI\FMX\fmxBlobEditors.pas',

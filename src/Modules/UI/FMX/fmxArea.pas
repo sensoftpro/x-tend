@@ -146,6 +146,9 @@ type
     procedure DoExecuteUIAction(const AView: TView); override;
   end;
 
+  TFMXForm = class(TForm)
+  end;
+
 type
   TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
 
@@ -153,6 +156,8 @@ function AlignToAlignLayout(const AAlign: Byte): TAlignLayout; overload;
 function AlignToAlignLayout(const AAlign: TLayoutAlign): TAlignLayout; overload;
 
 implementation
+
+{$R FMXForm.fmx}
 
 uses
   Graphics, Math, StrUtils, Generics.Defaults, Variants,
@@ -189,7 +194,7 @@ end;
 
 function TFMXMainMenuNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FMenu := TMainMenu.Create(TComponent(GetFMXControl(AParent)));
+  FMenu := TMainMenu.Create(GetFMXControl(AParent));
   FMenu.Images := TImageList(FUIBuilder.Images[16]);
   Result := FMenu;
 end;
@@ -595,19 +600,23 @@ begin
 
       if (vForm.WindowState = TWindowState.wsNormal) then
       begin
-        if (ALayout.Tag and cFormUseDesignSizes) > 0 then
-        begin
+        //if (ALayout.Tag and cFormUseDesignSizes) > 0 then
+        //begin
           vForm.ClientWidth := ALayout.Width;
           if FOwner.View.DefinitionKind = dkDomain then
             vForm.ClientHeight := ALayout.Height
           else
             vForm.ClientHeight := ALayout.Height + cServiceAreaHeight;
-        end;
+        //end;
       end;
 
       if ALayout.Caption <> '' then
         vForm.Caption := ALayout.Caption;
-      vForm.Fill.Color := ALayout.Color;
+      if ALayout.Color <> ColorToAlphaColor(clBtnFace) then
+      begin
+        vForm.Fill.Color := ALayout.Color;
+        vForm.Fill.Kind := TBrushKind.Solid;
+      end;
     end
     else if ALayout.Kind = lkPanel then
     begin
@@ -619,6 +628,7 @@ begin
         vForm.ClientHeight := ALayout.Height
       else
         vForm.ClientHeight := ALayout.Height + cServiceAreaHeight;
+      vForm.Position := TFormPosition.ScreenCenter;
     end
     else if ALayout.Kind = lkPage then
     begin
@@ -641,7 +651,7 @@ begin
       end;
     end;
   end
-  else if (ALayout.Kind in [lkPanel, lkMemo]) and (FControl is TControl) then
+  else if (ALayout.Kind in [lkPanel, lkMemo, lkShape]) and (FControl is TControl) then
   begin
     SetBounds(Rect(ALayout.Left, ALayout.Top,
       ALayout.Left + ALayout.Width, ALayout.Top + ALayout.Height));
@@ -766,7 +776,7 @@ begin
       (not SameText(Parent.CreateParams.Values['TabActivationOption'], 'ChangeTab')) then
       vChangeTab := False;
     if vChangeTab then
-      TTabControl(FControl.Parent).ActiveTab := TTabItem(FControl);
+      TTabItem(FControl).TabControl.ActiveTab := TTabItem(FControl);
   end;
 end;
 
@@ -783,7 +793,7 @@ begin
     vForm := TForm(FControl);
 
     if AModalResult = mrNone then
-      //PostMessage(vForm.Handle, WM_CLOSE, 0, 0)
+    //TODO Нужно закрывать отложенно, так как мы находимся в OnMouseClick
       vForm.Close
     else begin
       vForm.Close;
@@ -954,7 +964,7 @@ begin
   if not Assigned(FCaption) then
     Exit;
 
-  if ALayout.Kind in [lkMemo, lkPanel] then
+  if ALayout.Kind in [lkMemo, lkPanel, lkShape] then
   begin
     FShowCaption := ALayout.ShowCaption;
     TLabel(FCaption).Visible := FShowCaption and (FOwner.View.State > vsHidden);

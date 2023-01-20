@@ -167,7 +167,7 @@ procedure Print(const AText: string; const AParams: array of const);
 implementation
 
 uses
-  Math, Variants, SysUtils, RegularExpressions, ZLib, NetEncoding, Hash, XMLDoc, StrUtils, IdURI, Windows, IOUtils;
+  Math, Variants, SysUtils, RegularExpressions, ZLib, NetEncoding, Hash, XMLDoc, StrUtils, IdURI, IOUtils;
 
 function MakeMethod(const ACode, AData: Pointer): TMethod;
 begin

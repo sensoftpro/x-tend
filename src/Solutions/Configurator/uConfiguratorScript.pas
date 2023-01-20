@@ -58,8 +58,9 @@ type
 implementation
 
 uses
-  Windows, Dialogs, ClipBrd, Math, SysUtils, DateUtils, Variants, XMLIntf, XMLDoc, ZIP, RegularExpressions,
-  IniFiles, IOUtils, StrUtils, Generics.Collections, uConfiguration, uDefinition, uDomain, uPresenter, uUtils, uEntityList;
+  Math, SysUtils, DateUtils, Variants, XMLIntf, XMLDoc, ZIP, RegularExpressions,
+  IniFiles, IOUtils, StrUtils, Generics.Collections,
+  uConfiguration, uDefinition, uDomain, uPresenter, uUtils, uEntityList;
 
 type
   TTestingState = (tsReady, tsRunning, tsPaused, tsCompleted);

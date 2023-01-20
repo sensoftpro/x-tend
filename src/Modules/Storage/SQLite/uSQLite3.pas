@@ -36,7 +36,9 @@ unit uSQLite3;
 interface
 
 uses
-  Classes, SysUtils, windows, Generics.Collections;
+  Classes,
+  {$IFDEF MSWINDOWS} Winapi.Windows, {$ENDIF}
+  SysUtils, Generics.Collections;
 
 const
   cSqlite3Lib = 'sqlite3.dll';
@@ -1208,7 +1210,7 @@ var
 implementation
 
 uses
-  Variants, StrUtils;
+  Variants, StrUtils, SyncObjs;
 
 function sqlite3_version(): pansichar;
 begin
@@ -1435,7 +1437,7 @@ var
 begin
   vLibraryName := IfThen(ALibraryName = '', cSqlite3Lib, ALibraryName);
 
-  Result := InterlockedIncrement(RefCount);
+  Result := TInterlocked.Increment(RefCount);
   if Result = 1 then
   begin
     SQLiteLibraryHandle := LoadLibrary(PWideChar(vLibraryName));
@@ -1469,7 +1471,7 @@ end;
 
 procedure ReleaseSQLite;
 begin
-  if InterlockedDecrement(RefCount) <= 0 then
+  if TInterlocked.Decrement(RefCount) <= 0 then
   begin
     if SQLiteLibraryHandle <> 0 then
       FreeLibrary(SQLiteLibraryHandle);

@@ -89,7 +89,7 @@ implementation
 
 uses
 {$IFDEF MSWINDOWS}
-  Windows,
+  WinApi.Windows,
 {$ENDIF}
   Classes, SysUtils, IOUtils, SyncObjs, Threading, uConsts, uCodeConfiguration, uScript, uUtils;
 
@@ -304,60 +304,37 @@ begin
   Result := nil;
   vModuleName := ResolveModuleName(ASettings, AName);
 
-  // Пользователь знает о нужной секции
+  // Пользователь знает о нужном модуле
   if vModuleName <> '' then
-  begin
     Result := TBaseModule.GetModuleInfo(AType, vModuleName);
-    if not Assigned(Result) and (vModuleName <> '') and Assigned(FPresenter) then
-      FPresenter.ShowMessage('Ошибка загрузки модуля',
-        Format('Модуль [%s] типа [%s] не зарегистрирован в системе', [AName, AType]) + #13#10#13#10
-        + 'Проверьте, что файл с модулем подключен к проекту и регистрация класса модуля в нём выполнена правильно:'
-        + #13#10#13#10'initialization'#13#10'  TBaseModule.RegisterModule(''' + AType + ''', '''
-        + AName + ''', {Класс модуля});');
-    Exit;
-  end;
 
-  // Запрос презентера
-  if SameText(AType, 'UI') then
+  if not Assigned(Result) then
   begin
     vAvailableTypes := TBaseModule.GetModuleNamesOfType(AType);
-    if vAvailableTypes.Count > 0 then
-    begin
-      vModuleName := vAvailableTypes[0];
-      Result := TBaseModule.GetModuleInfo(AType, vModuleName);
-      ASettings.SetValue('Modules', AName, vModuleName);
+    try
+      if vAvailableTypes.Count > 0 then
+      begin
+        vModuleName := vAvailableTypes[0];
+        Result := TBaseModule.GetModuleInfo(AType, vModuleName);
+        ASettings.SetValue('Modules', AName, vModuleName);
+      end
+      else if Assigned(FPresenter) then
+      begin
+        if vModuleName <> '' then
+          FPresenter.ShowMessage('Ошибка загрузки модуля',
+            Format('Модуль [%s] типа [%s] не зарегистрирован в системе', [AName, AType]) + #13#10#13#10
+            + 'Проверьте, что файл с модулем подключен к проекту и регистрация класса модуля в нём выполнена правильно:'
+            + #13#10#13#10'initialization'#13#10'  TBaseModule.RegisterModule(''' + AType + ''', '''
+            + AName + ''', {Класс модуля});')
+        else
+          FPresenter.ShowMessage('Ошибка загрузки модуля',
+            Format('В системе не обнаружено ни одного класса модуля типа [%s]', [AType]) + #13#10#13#10
+            + 'Для загрузки модуля подключите к проекту содержащий его файл и перезапустите приложение');
+      end;
+    finally
+      FreeAndNil(vAvailableTypes);
     end;
-    Exit;
   end;
-
-  // Нет возможностей для исправления
-  if not Assigned(FPresenter) then
-    Exit;
-
-  vAvailableTypes := TBaseModule.GetModuleNamesOfType(AType);
-  if vAvailableTypes.Count = 0 then
-  begin
-    FPresenter.ShowMessage('Загрузка модуля',
-      Format('В системе не обнаружено ни одного класса типа [%s]', [AType]) + #13#10#13#10
-      + 'Для загрузки модуля подключите содержащий его файл к проекту и перезапустите приложение');
-    vModuleName := '';
-  end
-  else while vAvailableTypes.Count > 0 do
-  begin
-    if FPresenter.ShowYesNoDialog(Format('Загрузка модуля, case: %d', [vAvailableTypes.Count]),
-      Format('В системе найден класс [%s], реализующий тип [%s]', [vAvailableTypes[0], AType]) + #13#10#13#10
-      + Format('Хотите использовать его для модуля [%s] того же типа?', [AName])) = drYes
-    then begin
-      vModuleName := vAvailableTypes[0];
-      Result := TBaseModule.GetModuleInfo(AType, vModuleName);
-      ASettings.SetValue('Modules', AName, vModuleName);
-      Break;
-    end
-    else
-      vAvailableTypes.Delete(0);
-  end;
-
-  FreeAndNil(vAvailableTypes);
 end;
 
 function TPlatform.ResolveModuleName(const ASettings: TSettings; const AName: string): string;

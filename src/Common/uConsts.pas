@@ -359,7 +359,7 @@ implementation
 
 uses
 {$IFDEF MSWINDOWS}
-  Windows, ShlObj,
+  WinApi.Windows, WinApi.ShlObj,
 {$ENDIF}
   IOUtils, SysUtils;
 

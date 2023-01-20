@@ -241,6 +241,7 @@ type
       const ASize: Integer): TObject; virtual; abstract;
 
     procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); virtual;
+    function CanLoadFromDFM: Boolean; virtual;
 
     function ActiveInteractor: TInteractor;
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
@@ -282,6 +283,7 @@ type
 
     function CreateImages(const ADomain: TObject; const ASize: Integer): TObject;
     property Name: string read FName;
+    property LoadFromDFM: Boolean read CanLoadFromDFM;
   end;
 
   TPresenterClass = class of TPresenter;
@@ -314,6 +316,11 @@ end;
 
 procedure TPresenter.ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement);
 begin
+end;
+
+function TPresenter.CanLoadFromDFM: Boolean;
+begin
+  Result := False;
 end;
 
 procedure TPresenter.CloseAllPages(const AInteractor: TInteractor);
@@ -741,15 +748,11 @@ begin
   end
   else begin
     Randomize;
-    ALayout.Kind := lkPanel;
-    ALayout.Font.Size := 10;
-    ALayout.Font.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
-    ALayout.Font.Family := 'Tahoma';
-    ALayout.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+    ALayout.Kind := lkShape;
     ALayout.ShowCaption := True;
-    ALayout.Caption := ALayout.Caption;
-    ALayout.BevelInner := lbkRaised;
-    ALayout.BevelOuter := lbkLowered;
+    ALayout.Pen.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+    ALayout.Pen.Width := 1;
+    ALayout.Brush.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);;
 
     Result := CreateAreaContent(AArea, AView, ALayout, vParams);
   end;
