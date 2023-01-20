@@ -195,6 +195,7 @@ end;
 function TFMXMainMenuNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FMenu := TMainMenu.Create(GetFMXControl(AParent));
+  FMenu.Parent := GetFMXControl(AParent);
   FMenu.Images := TImageList(FUIBuilder.Images[16]);
   Result := FMenu;
 end;
