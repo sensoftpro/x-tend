@@ -50,7 +50,6 @@ type
     TabSheet2: TTabSheet;
     memHolders: TMemo;
     memLog: TMemo;
-    ColorBox1: TColorBox;
     procedure FormCreate(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure FormActivate(Sender: TObject);

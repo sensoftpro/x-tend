@@ -61,23 +61,11 @@ object DebugFm: TDebugFm
           ScrollBars = ssBoth
           TabOrder = 0
         end
-        object ColorBox1: TColorBox
-          Left = 48
-          Top = 240
-          Width = 145
-          Height = 22
-          Style = [cbStandardColors, cbExtendedColors, cbSystemColors, cbCustomColor, cbPrettyNames]
-          TabOrder = 1
-        end
       end
     end
     object TabSheet2: TTabSheet
       Caption = 'TabSheet2'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object memHolders: TMemo
         AlignWithMargins = True
         Left = 6

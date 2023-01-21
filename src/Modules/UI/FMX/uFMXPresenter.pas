@@ -244,6 +244,7 @@ var
   vInteractor: TInteractor;
   vUIBuilder: TUIBuilder;
   vShape: TShape;
+  vImage: TImage;
   vLabel: TLabel;
   vPC: TTabControl;
   vTab: TTabItem;
@@ -310,6 +311,20 @@ begin
       vLabel.Text := ALayout.Caption;
 
     Result := vLabel;
+  end
+  else if ALayout.Kind = lkImage then
+  begin
+    vImage := TImage.Create(nil);
+    vImage.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+    vImage.Anchors := ALayout.Anchors;
+    vImage.Align := AlignToAlignLayout(ALayout.Align);
+    vImage.Hint := ALayout.Hint;
+    CopyMargins(vImage, ALayout);
+    vImage.MarginWrapMode := TImageWrapMode.Original;
+
+    vImage.Bitmap.LoadFromStream(ALayout.Image_Picture);
+
+    Result := vImage;
   end
   else if ALayout.Kind = lkPages then
   begin
