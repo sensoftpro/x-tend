@@ -98,6 +98,7 @@ type
     procedure SetFocused(const Value: Boolean); virtual;
     function GetBounds: TRect; virtual;
     procedure SetBounds(const Value: TRect); virtual;
+    function GetClientRect: TRect; virtual;
     function GetViewState: TViewState; virtual;
     procedure SetViewState(const AViewState: TViewState); virtual;
     function GetTabOrder: Integer; virtual;
@@ -139,6 +140,7 @@ type
     property View: TView read FView;
     property Focused: Boolean read GetFocused write SetFocused;
     property Bounds: TRect read GetBounds write SetBounds;
+    property ClientRect: TRect read GetClientRect;
     property ViewState: TViewState read GetViewState write SetViewState;
     property TabOrder: Integer read GetTabOrder write SetTabOrder;
     property Description: string read GetDescription;
@@ -2336,6 +2338,11 @@ end;
 function TNativeControl.GetBounds: TRect;
 begin
   Result := TRect.Empty;
+end;
+
+function TNativeControl.GetClientRect: TRect;
+begin
+  Result := GetBounds;
 end;
 
 function TNativeControl.GetControlInfo: string;

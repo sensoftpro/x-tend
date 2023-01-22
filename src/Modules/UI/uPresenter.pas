@@ -204,6 +204,10 @@ type
       const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl;
     procedure StoreUILayout(const AInteractor: TInteractor; const AForm: TNativeControl);
     procedure RestoreUILayout(const AInteractor: TInteractor; const AForm: TNativeControl);
+    procedure ArrangeCascade(const AClientRect: TRect; const AChildForms: TList<TNativeControl>);
+    procedure ArrangeHorz(const AClientRect: TRect; const AChildForms: TList<TNativeControl>);
+    procedure ArrangeVert(const AClientRect: TRect; const AChildForms: TList<TNativeControl>);
+    procedure ArrangeMozaic(const AClientRect: TRect; const AChildForms: TList<TNativeControl>);
   protected
     procedure OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
     procedure OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
@@ -237,6 +241,7 @@ type
     function DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean; virtual;
     function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; virtual;
     procedure DoSetCursor(const ACursorType: TCursorType); virtual;
+    procedure DoArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
     procedure DoCloseAllPages(const AInteractor: TInteractor); virtual; abstract;
     function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''): TObject; virtual;
@@ -267,7 +272,7 @@ type
 
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; virtual;
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; virtual;
-    procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); virtual;
+    procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement);
     procedure CloseAllPages(const AInteractor: TInteractor);
 
     function CreateNativeControl(const AArea: TUIArea; const AView: TView; const ALayout: TLayout;
@@ -325,8 +330,124 @@ begin
     Result := nil;
 end;
 
+procedure TPresenter.ArrangeCascade(const AClientRect: TRect;
+  const AChildForms: TList<TNativeControl>);
+var
+  vHeaderHeight: Integer;
+  vFormBoundRect: TRect;
+  vFormClientRect: TRect;
+  i, vIndex: Integer;
+  vMaxCount: Integer;
+  vWidth, vHeight: Integer;
+begin
+  vFormBoundRect := AChildForms[0].Bounds;
+  vFormClientRect := AChildForms[0].ClientRect;
+  vHeaderHeight := (vFormBoundRect.Height - vFormClientRect.Height) -
+    (vFormBoundRect.Width - vFormClientRect.Width) div 2;
+
+  vMaxCount := Max(1, Round(AClientRect.Height * 0.45 / vHeaderHeight));
+  vWidth := Max(50, AClientRect.Width - (vMaxCount - 1) * vHeaderHeight);
+  vHeight := Max(35, AClientRect.Height - (vMaxCount - 1) * vHeaderHeight);
+
+  for i := 0 to AChildForms.Count - 1 do
+  begin
+    vIndex := i mod vMaxCount;
+    AChildForms[i].Bounds := Rect(vHeaderHeight * vIndex, vHeaderHeight * vIndex,
+      vHeaderHeight * vIndex + vWidth, vHeaderHeight * vIndex + vHeight);
+  end;
+end;
+
+procedure TPresenter.ArrangeHorz(const AClientRect: TRect;
+  const AChildForms: TList<TNativeControl>);
+var
+  i: Integer;
+  vWidth: Integer;
+  vStart: Integer;
+begin
+  vStart := 0;
+  for i := 0 to AChildForms.Count - 1 do
+  begin
+    vWidth := (AClientRect.Width - vStart) div (AChildForms.Count - i);
+    AChildForms[i].Bounds := Rect(vStart, AClientRect.Top, vStart + vWidth, AClientRect.Bottom);
+    vStart := vStart + vWidth;
+  end;
+end;
+
+procedure TPresenter.ArrangeMozaic(const AClientRect: TRect;
+  const AChildForms: TList<TNativeControl>);
+var
+  i, j: Integer;
+  vColCount: Integer;
+  vMap: array of Integer;
+  vRow: Integer;
+  vTotal: Integer;
+const
+  cColumnCounts: array[1..30] of Integer =
+    (1,2,2,2,2, 3,3,4,3,3, 3,4,4,4,5, 4,4,4,4,5, 5,5,5,6,5, 5,5,5,5,6);
+
+  procedure PlaceForm(const ACol, ARow, AMainWidth, AMainHeight: Integer; const AForm: TNativeControl);
+  var
+    vRect: TRect;
+  begin
+    vRect.Width := AMainWidth div vColCount;
+    vRect.Height := AMainHeight div vMap[ACol];
+    vRect.Left := ACol * vRect.Width;
+    vRect.Top := ARow * vRect.Height;
+    AForm.Bounds := vRect;
+  end;
+begin
+  // Формируем карту расположения окон
+  if AChildForms.Count > 30 then
+    vColCount := Floor(Sqrt(AChildForms.Count))
+  else
+    vColCount := cColumnCounts[AChildForms.Count];
+
+  SetLength(vMap, vColCount);
+  for i := 0 to vColCount - 1 do
+    vMap[i] := AChildForms.Count div vColCount;
+  for i := vColCount - AChildForms.Count mod vColCount to vColCount - 1 do
+    vMap[i] := vMap[i] + 1;
+
+  try
+    for i := 0 to AChildForms.Count - 1 do
+    begin
+      vTotal := 0;
+      for j := 0 to vColCount - 1 do
+      begin
+        vTotal := vTotal + vMap[j];
+        if i < vTotal then
+        begin
+          vRow := (i - (vTotal - vMap[j])) mod vMap[j];
+          PlaceForm(j, vRow, AClientRect.Width, AClientRect.Height, AChildForms[i]);
+          Break;
+        end;
+      end;
+    end;
+  finally
+    SetLength(vMap, 0);
+  end;
+end;
+
 procedure TPresenter.ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement);
 begin
+  if AInteractor.UIBuilder.IsMDIStyle then
+    DoArrangePages(AInteractor, AArrangeKind);
+end;
+
+procedure TPresenter.ArrangeVert(const AClientRect: TRect;
+  const AChildForms: TList<TNativeControl>);
+var
+  i: Integer;
+  vHeight: Integer;
+  vStart: Integer;
+begin
+  vStart := 0;
+  for i := 0 to AChildForms.Count - 1 do
+  begin
+    vHeight := (AClientRect.Height - vStart) div (AChildForms.Count - i);
+    AChildForms[i].Bounds := Rect(AClientRect.Left, vStart, AClientRect.Right, vStart + vHeight);
+    vStart := vStart + vHeight;
+  end;
 end;
 
 function TPresenter.CanLoadFromDFM: Boolean;
@@ -631,6 +752,7 @@ var
   vConfiguration: TConfiguration;
   vImages: TImages;
   vPlaceholder: TStream;
+  vIndex: Integer;
 
   procedure AppendIconsToImages(const AIcons: TIcons; const AImages: TImages);
   var
@@ -656,6 +778,9 @@ begin
 
     if Assigned(vPlaceholder) then
       vImages.FillWithPlaceholder(vPlaceholder);
+
+    for vIndex in vImages.Indices.Keys do
+      TDomain(ADomain).UIBuilder.StoreImageIndex(vIndex, vImages.Indices[vIndex]);
 
     Result := DoCreateImages(ADomain, vImages, ASize);
   finally
@@ -791,6 +916,39 @@ begin
   FreeAndNil(FInteractors);
   FreeAndNil(FCommonIcons);
   inherited Destroy;
+end;
+
+procedure TPresenter.DoArrangePages(const AInteractor: TInteractor;
+  const AArrangeKind: TWindowArrangement);
+var
+  i: Integer;
+  vClientRect: TRect;
+  vFormControl: TNativeControl;
+  vForms: TList<TNativeControl>;
+begin
+  vForms := TList<TNativeControl>.Create;
+  try
+    for i := 0 to AInteractor.RootArea.Count - 1 do
+      if AInteractor.RootArea.Areas[i].NativeControl.IsForm then
+        vForms.Add(AInteractor.RootArea.Areas[i].NativeControl);
+
+    if vForms.Count = 0 then
+      Exit;
+
+    vFormControl := AInteractor.RootArea.NativeControl;
+    vClientRect := vFormControl.ClientRect;
+
+    case AArrangeKind of
+      waCascade: ArrangeCascade(vClientRect, vForms);
+      waTileHorz: ArrangeHorz(vClientRect, vForms);
+      waTileVert: ArrangeVert(vClientRect, vForms);
+      waMozaic: ArrangeMozaic(vClientRect, vForms);
+    else
+      //waNone: do nothing
+    end;
+  finally
+    FreeAndNil(vForms);
+  end;
 end;
 
 procedure TPresenter.DoChildFormClose(Sender: TObject; var Action: TCloseAction);

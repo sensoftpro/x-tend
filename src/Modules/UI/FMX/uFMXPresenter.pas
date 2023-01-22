@@ -509,7 +509,6 @@ end;
 function TFMXPresenter.DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject;
 var
   vImageList: TImageList;
-  vIndex: Integer;
   vStream: TStream;
   vBitmap: TBitmap;
   i: Integer;
@@ -538,9 +537,6 @@ var
 begin
   vImageList := TImageList.Create(nil);
   Result := vImageList;
-
-  for vIndex in AImages.Indices.Keys do
-    TDomain(ADomain).UIBuilder.StoreImageIndex(vIndex, AImages.Indices[vIndex]);
 
   vBitmap := TBitmap.Create;
   vImageList.BeginUpdate;

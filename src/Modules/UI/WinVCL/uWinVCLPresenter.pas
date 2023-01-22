@@ -52,7 +52,6 @@ type
   private
     procedure DoDebugFormClose(Sender: TObject; var Action: TCloseAction);
   private
-    procedure ArrangeMozaic(const AMDIForm: TForm);
     procedure SetAsMainForm(const AForm: TForm);
     function MessageTypeToMBFlags(const AMessageType: TMessageType): Integer;
 
@@ -79,7 +78,10 @@ type
     function DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean; override;
     function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; override;
     procedure DoSetCursor(const ACursorType: TCursorType); override;
+
+    procedure DoArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
     procedure DoCloseAllPages(const AInteractor: TInteractor); override;
+
     function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''): TObject; override;
 
@@ -95,7 +97,6 @@ type
 
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
-    procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
   end;
 
 procedure CopyFontSettings(const AFont: TFont; const ALayout: TLayout);
@@ -214,89 +215,6 @@ begin
     Result := TUIArea(TTreeNode(ASender).Data)
   else
     Result := inherited AreaFromSender(ASender);
-end;
-
-procedure TWinVCLPresenter.ArrangeMozaic(const AMDIForm: TForm);
-var
-  i, j: Integer;
-  vClientRect: TRect;
-  vTotalForms: Integer;
-  vColCount: Integer;
-  vMap: array of Integer;
-  vRow: Integer;
-  vTotal: Integer;
-const
-  cColumnCounts: array[1..30] of Integer = (1,2,2,2,2, 3,3,4,3,3, 3,4,4,4,5, 4,4,4,4,5, 5,5,5,6,5, 5,5,5,5,6);
-
-  procedure LayoutForm(const ACol, ARow, AMainWidth, AMainHeight: Integer; const AForm: TForm);
-  begin
-    AForm.Width := AMainWidth div vColCount;
-    AForm.Height := AMainHeight div vMap[ACol];
-    AForm.Left := ACol * AForm.Width;
-    AForm.Top := ARow * AForm.Height;
-  end;
-begin
-  vTotalForms := AMDIForm.MDIChildCount;
-  if vTotalForms <= 0 then
-    Exit;
-
-  // Формируем карту расположения окон
-  if vTotalForms > 30 then
-    vColCount := Floor(Sqrt(vTotalForms))
-  else
-    vColCount := cColumnCounts[vTotalForms];
-
-  SetLength(vMap, vColCount);
-  for i := 0 to vColCount - 1 do
-    vMap[i] := vTotalForms div vColCount;
-  for i := vColCount - vTotalForms mod vColCount to vColCount - 1 do
-    vMap[i] := vMap[i] + 1;
-
-  try
-    GetClientRect(AMDIForm.ClientHandle, vClientRect);
-    for i := 0 to AMDIForm.MDIChildCount - 1 do
-    begin
-      vTotal := 0;
-      for j := 0 to vColCount - 1 do
-      begin
-        vTotal := vTotal + vMap[j];
-        if i < vTotal then
-        begin
-          vRow := (i - (vTotal - vMap[j])) mod vMap[j];
-          LayoutForm(j, vRow, vClientRect.Width, vClientRect.Height, AMDIForm.MDIChildren[i]);
-          Break;
-        end;
-      end;
-    end;
-  finally
-    SetLength(vMap, 0);
-  end;
-end;
-
-procedure TWinVCLPresenter.ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement);
-var
-  vForm: TForm;
-begin
-  if not AInteractor.UIBuilder.IsMDIStyle then
-    Exit;
-
-  vForm := TForm(GetRealControl(AInteractor.RootArea));
-  case AArrangeKind of
-    waCascade:
-      vForm.Cascade;
-    waTileHorz:
-      begin
-        vForm.TileMode := tbHorizontal;
-        vForm.Tile;
-      end;
-    waTileVert:
-      begin
-        vForm.TileMode := tbVertical;
-        vForm.Tile;
-      end;
-    waMozaic:
-      ArrangeMozaic(vForm);
-  end;
 end;
 
 function TWinVCLPresenter.CanLoadFromDFM: Boolean;
@@ -990,7 +908,6 @@ function TWinVCLPresenter.DoCreateImages(const ADomain: TObject; const AImages: 
 var
   vImageList: TImageList;
   vImage: TPngImage;
-  vIndex: Integer;
   vStream: TStream;
   vBitmap: TBitmap;
   i: Integer;
@@ -1003,9 +920,6 @@ begin
   vImageList.BkColor := clNone;
   vImageList.Masked := True;
   Result := vImageList;
-
-  for vIndex in AImages.Indices.Keys do
-    TDomain(ADomain).UIBuilder.StoreImageIndex(vIndex, AImages.Indices[vIndex]);
 
   vImage := TPngImage.Create;
   vBitmap := TBitmap.Create;
@@ -1292,6 +1206,30 @@ begin
         AArea.Release;
       vForm.Free;
     end;
+  end;
+end;
+
+procedure TWinVCLPresenter.DoArrangePages(const AInteractor: TInteractor;
+  const AArrangeKind: TWindowArrangement);
+var
+  vForm: TForm;
+begin
+  vForm := TForm(GetRealControl(AInteractor.RootArea));
+  case AArrangeKind of
+    waCascade:
+      vForm.Cascade;
+    waTileHorz:
+      begin
+        vForm.TileMode := tbHorizontal;
+        vForm.Tile;
+      end;
+    waTileVert:
+      begin
+        vForm.TileMode := tbVertical;
+        vForm.Tile;
+      end;
+    waMozaic:
+      inherited DoArrangePages(AInteractor, AArrangeKind);
   end;
 end;
 

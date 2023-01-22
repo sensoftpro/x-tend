@@ -77,6 +77,7 @@ type
     procedure SetFocused(const Value: Boolean); override;
     function GetBounds: TRect; override;
     procedure SetBounds(const Value: TRect); override;
+    function GetClientRect: TRect; override;
     function GetViewState: TViewState; override;
     procedure SetViewState(const AViewState: TViewState); override;
     function GetTabOrder: Integer; override;
@@ -1104,6 +1105,16 @@ end;
 function TVCLControl.GetBounds: TRect;
 begin
   Result := TControl(FControl).BoundsRect;
+end;
+
+function TVCLControl.GetClientRect: TRect;
+begin
+  if not FControl is TForm then
+    Result := TControl(FControl).BoundsRect
+  else if TForm(FControl).FormStyle = fsMDIForm then
+    GetClientRect(TForm(FControl).ClientHandle, Result)
+  else
+    GetClientRect(TForm(FControl).Handle, Result);
 end;
 
 function TVCLControl.GetFocused: Boolean;
