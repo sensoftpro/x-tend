@@ -2334,7 +2334,7 @@ begin
   end;
 
   // Нужно прописывать родителя, чтобы создавать вложенные сцены
-  vPC.Parent := TWinControl(GetVCLControl(AParent));
+  vPC.Parent := TWinControl(GetRealControl(AParent));
 
   for i := 0 to ALayout.Items.Count - 1 do
   begin
@@ -2342,7 +2342,7 @@ begin
 
     vChildArea := TPresenter(FPresenter).CreateArea(FOwner, FView.Parent, vTabLayout);
     // It should be set here, because parent area still has no control
-    TWinControl(GetVCLControl(vChildArea)).Parent := vPC;
+    TWinControl(GetRealControl(vChildArea)).Parent := vPC;
     FOwner.AddArea(vChildArea);
 
     TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(vChildArea, vChildArea.View, vTabLayout, '');
@@ -2738,7 +2738,7 @@ var
 begin
   inherited;
   FGaugeControl := TdxGaugeControl.Create(nil);
-  vParentControl := GetVCLControl(AParent);
+  vParentControl := GetRealControl(AParent);
   if Assigned(vParentControl) and (vParentControl is TWinControl) then
     FGaugeControl.Parent := TWinControl(vParentControl);
   FGaugeControl.Transparent := True;

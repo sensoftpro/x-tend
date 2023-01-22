@@ -56,9 +56,6 @@ type
     procedure SetAsMainForm(const AForm: TForm);
     function MessageTypeToMBFlags(const AMessageType: TMessageType): Integer;
 
-    procedure StoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
-    procedure RestoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
-
     // Creation of Layout from DFM
     function GetLayoutKind(const AControl: TObject): TLayoutKind;
     procedure CopyControlPropertiesToLayout(const ALayout: TLayout; const AControl: TObject);
@@ -83,10 +80,8 @@ type
     function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; override;
     procedure DoSetCursor(const ACursorType: TCursorType); override;
     procedure DoCloseAllPages(const AInteractor: TInteractor); override;
-    function CreateAreaContent(const AArea: TUIArea; const AView: TView;
-      const ALayout: TLayout; const AParams: string = ''): TNativeControl; override;
-    function CreateAreaContentItem(const AOwner, AArea: TUIArea; const ANavItem: TNavigationItem;
-      const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl; override;
+    function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AParams: string = ''): TObject; override;
 
     function GetImagePlaceholder(const ASize: Integer): TStream; override;
     function DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject; override;
@@ -95,9 +90,6 @@ type
     function CanLoadFromDFM: Boolean; override; // DFM
 
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
-  protected
-    function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AParams: string = ''): TObject; virtual;
   public
     function CreateTempControl: TObject; override; // DFM
 
@@ -105,8 +97,6 @@ type
     function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
     procedure ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
   end;
-
-function GetVCLControl(const AArea: TUIArea): TObject;
 
 procedure CopyFontSettings(const AFont: TFont; const ALayout: TLayout);
 procedure CopyMargins(const AControl: TControl; const ALayout: TLayout);
@@ -123,18 +113,9 @@ uses
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon,
   uEntity, uEntityList, vclArea, uSession, uCollection;
 
-const
-  cPCNavigatorFlag = 1;
-  cServiceAreaHeight = 44;
-
-type
-  TLoginedProc = procedure(const AInteractor: TInteractor) of object;
-  TBeforeUIClosingFunc = function(const AInteractor: TInteractor): Boolean of object;
-
 type
   TCrackedWinControl = class(TWinControl) end;
   TCrackedControl = class(TControl) end;
-  TCrackedArea = class(TUIArea) end;
 
 type
   TImageHeaderGetter = packed record
@@ -143,20 +124,6 @@ type
       1: (Words: array[0..1] of Word);
       2: (Value: Cardinal);
   end;
-
-function GetVCLControl(const AArea: TUIArea): TObject;
-var
-  vVCLControl: TVCLControl;
-begin
-  if not Assigned(AArea) then
-    Exit(nil);
-
-  vVCLControl := TVCLControl(AArea.NativeControl);
-  if not Assigned(vVCLControl) then
-    Result := nil
-  else
-    Result := vVCLControl.Control;
-end;
 
 procedure CopyFontSettings(const AFont: TFont; const ALayout: TLayout);
 begin
@@ -245,10 +212,8 @@ function TWinVCLPresenter.AreaFromSender(const ASender: TObject): TUIArea;
 begin
   if ASender is TTreeNode then
     Result := TUIArea(TTreeNode(ASender).Data)
-  else if ASender is TControl then
-    Result := TUIArea(TControl(ASender).Tag)
   else
-    Result := nil;
+    Result := inherited AreaFromSender(ASender);
 end;
 
 procedure TWinVCLPresenter.ArrangeMozaic(const AMDIForm: TForm);
@@ -315,7 +280,7 @@ begin
   if not AInteractor.UIBuilder.IsMDIStyle then
     Exit;
 
-  vForm := TForm(GetVCLControl(AInteractor.RootArea));
+  vForm := TForm(GetRealControl(AInteractor.RootArea));
   case AArrangeKind of
     waCascade:
       vForm.Cascade;
@@ -620,26 +585,6 @@ begin
     Assert(False, 'Тип контрола не поддерживается');
 end;
 
-function TWinVCLPresenter.CreateAreaContent(const AArea: TUIArea;
-  const AView: TView; const ALayout: TLayout; const AParams: string): TNativeControl;
-var
-  vControl: TObject;
-begin
-  Result := GetNativeControlClass.Create(AArea, AParams);
-  vControl := CreateControl(AArea.Parent, AView, ALayout, AParams);
-  Result.CreateContent(vControl);
-end;
-
-function TWinVCLPresenter.CreateAreaContentItem(const AOwner, AArea: TUIArea;
-  const ANavItem: TNavigationItem; const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl;
-var
-  vControl: TObject;
-begin
-  Result := GetNativeControlClass.Create(AArea, '');
-  vControl := TVCLControl(AOwner.NativeControl).CreateItem(AArea.Parent, ANavItem, ACaption, AHint, AImageIndex);
-  Result.CreateContent(vControl);
-end;
-
 function TWinVCLPresenter.CreateControl(const AParent: TUIArea; const AView: TView;
   const ALayout: TLayout; const AParams: string): TObject;
 var
@@ -669,7 +614,7 @@ begin
   vInteractor := TInteractor(AView.Interactor);
   vUIBuilder := vInteractor.UIBuilder;
   vDomain := TDomain(vInteractor.Domain);
-  vParentControl := GetVCLControl(AParent);
+  vParentControl := GetRealControl(AParent);
 
   if ALayout.Kind = lkShape then
   begin
@@ -915,8 +860,6 @@ begin
       vForm.Position := poScreenCenter;
       vForm.Caption := vDomain.AppTitle + ' (' + TUserSession(vInteractor.Session).CurrentUserName + ')';
 
-      RestoreUILayout(vInteractor, vForm);
-
       SetAsMainForm(vForm);
     end
     // второстепенная автономная форма
@@ -928,7 +871,7 @@ begin
         for i := 0 to AParent.Count - 1 do
         begin
           vArea := AParent.Areas[i];
-          if (vArea.View = AView) and (GetVCLControl(vArea) is TForm) then
+          if (vArea.View = AView) and (GetRealControl(vArea) is TForm) then
             Exit(vArea);
         end;
       end;
@@ -1265,7 +1208,6 @@ end;
 procedure TWinVCLPresenter.DoLogout(const AInteractor: TInteractor);
 begin
   inherited DoLogout(AInteractor);
-  StoreUILayout(AInteractor, TForm(GetVCLControl(AInteractor.RootArea)));
   if Assigned(FDebugForm) then
     FDebugForm.RemoveInteractor(AInteractor);
 end;
@@ -1300,12 +1242,12 @@ begin
   Result := drNone;
   if (AAreaName = '') or (AAreaName = 'float') or (AAreaName = 'free') then
   begin
-    vForm := TForm(GetVCLControl(AArea));
+    vForm := TForm(GetRealControl(AArea));
     vForm.Show;
   end
   else if (AAreaName = 'child') or (AAreaName = 'modal') then
   begin
-    vForm := TForm(GetVCLControl(AArea));
+    vForm := TForm(GetRealControl(AArea));
     vForm.ShowHint := True;
     vView := AArea.View;
 
@@ -1353,40 +1295,6 @@ begin
   end;
 end;
 
-procedure TWinVCLPresenter.StoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
-var
-  vLayoutStr: string;
-begin
-  vLayoutStr := IntToStr(AForm.Left) + ';' + IntToStr(AForm.Top) + ';' + IntToStr(AForm.Width) + ';' +
-    IntToStr(AForm.Height) + ';' + IntToStr(Ord(AForm.WindowState));
-  TDomain(AInteractor.Domain).UserSettings.SetValue('MainForm', 'Layout', vLayoutStr);
-end;
-
-procedure TWinVCLPresenter.RestoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
-var
-  vLayoutStr: string;
-  vValues: TStrings;
-begin
-  //if (not Assigned(vMainForm)) or (vMainForm.Position <> poDesigned) then Exit;
-
-  vLayoutStr := TDomain(AInteractor.Domain).UserSettings.GetValue('MainForm', 'Layout');
-  if Length(vLayoutStr) = 0 then Exit;
-
-  vValues := CreateDelimitedList(vLayoutStr, ';');
-  try
-    if vValues.Count <> 5 then Exit;
-
-    AForm.Left := StrToIntDef(vValues[0], 100);
-    AForm.Top := StrToIntDef(vValues[1], 100);
-    AForm.Width := StrToIntDef(vValues[2], 1280);
-    AForm.Height := StrToIntDef(vValues[3], 960);
-    if TWindowState(StrToIntDef(vValues[4], 0)) = wsMaximized then
-      AForm.WindowState := wsMaximized;
-  finally
-    FreeAndNil(vValues);
-  end;
-end;
-
 procedure TWinVCLPresenter.DoCloseAllPages(const AInteractor: TInteractor);
 var
   i: Integer;
@@ -1394,7 +1302,7 @@ var
 begin
   if AInteractor.UIBuilder.IsMDIStyle then
   begin
-    vMainForm := TForm(GetVCLControl(AInteractor.RootArea));
+    vMainForm := TForm(GetRealControl(AInteractor.RootArea));
     if Assigned(vMainForm) and (vMainForm.FormStyle = fsMDIForm) then
       for i := vMainForm.MDIChildCount - 1 downto 0 do
         vMainForm.MDIChildren[i].Close;

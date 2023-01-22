@@ -39,6 +39,10 @@ uses
   Classes, Generics.Collections, SysUtils, UITypes, Types,
   uModule, uSettings, uDefinition, uInteractor, uView, uConsts, uUIBuilder, uLayout, uIcon;
 
+const
+  cPCNavigatorFlag = 1;
+  cServiceAreaHeight = 44;
+
 type
   { НАВИГАЦИЯ И ИДЕНТИФИКАЦИЯ ПОЛЕЙ }
   {
@@ -194,6 +198,12 @@ type
     function CreateItem(const AOwner, AArea: TUIArea; const ANavItem: TNavigationItem;
       const AView: TView): TNativeControl;
     function GetControlClass(const AControlType: TUIItemType; const AStyleName: string): TNativeControlClass;
+    function CreateAreaContent(const AArea: TUIArea; const AView: TView;
+      const ALayout: TLayout; const AParams: string = ''): TNativeControl;
+    function CreateAreaContentItem(const AOwner, AArea: TUIArea; const ANavItem: TNavigationItem;
+      const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl;
+    procedure StoreUILayout(const AInteractor: TInteractor; const AForm: TNativeControl);
+    procedure RestoreUILayout(const AInteractor: TInteractor; const AForm: TNativeControl);
   protected
     procedure OnPCCanClose(Sender: TObject; var ACanClose: Boolean);
     procedure OnCloseMDIForm(Sender: TObject; var Action: TCloseAction);
@@ -228,10 +238,8 @@ type
     function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; virtual;
     procedure DoSetCursor(const ACursorType: TCursorType); virtual;
     procedure DoCloseAllPages(const AInteractor: TInteractor); virtual; abstract;
-    function CreateAreaContent(const AArea: TUIArea; const AView: TView;
-      const ALayout: TLayout; const AParams: string = ''): TNativeControl; virtual;
-    function CreateAreaContentItem(const AOwner, AArea: TUIArea; const ANavItem: TNavigationItem;
-      const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl; virtual;
+    function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AParams: string = ''): TObject; virtual;
 
     procedure CopyPopupMenuItems(const AParent: TUIArea; const AView: TView;
       const ASrcItem: TNavigationItem; const ADestArea: TUIArea);
@@ -272,6 +280,7 @@ type
     function SetCursor(const ACursorType: TCursorType): TCursorType;
     function GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
     function GetCanvasClass(const ACanvasTypeName: string): TClass;
+    function GetRealControl(const AArea: TUIArea): TObject;
 
     procedure ShowMessage(const ACaption, AText: string; const AMessageType: TMessageType = msNone);
     function ShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
@@ -297,7 +306,6 @@ uses
 type
   TLoginedProc = procedure(const AInteractor: TInteractor) of object;
   TBeforeUIClosingFunc = function(const AInteractor: TInteractor): Boolean of object;
-  //TCrackedArea = class(TUIArea) end;
 
 { TPresenter }
 
@@ -311,7 +319,10 @@ end;
 
 function TPresenter.AreaFromSender(const ASender: TObject): TUIArea;
 begin
-  Result := nil;
+  if ASender is TComponent then
+    Result := TUIArea(TComponent(ASender).Tag)
+  else
+    Result := nil;
 end;
 
 procedure TPresenter.ArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement);
@@ -586,16 +597,33 @@ end;
 
 function TPresenter.CreateAreaContent(const AArea: TUIArea;
   const AView: TView; const ALayout: TLayout; const AParams: string): TNativeControl;
+var
+  vControl: TObject;
 begin
   Result := GetNativeControlClass.Create(AArea, AParams);
-  Result.CreateContent(nil);
+  vControl := CreateControl(AArea.Parent, AView, ALayout, AParams);
+  Result.CreateContent(vControl);
 end;
 
 function TPresenter.CreateAreaContentItem(const AOwner, AArea: TUIArea; const ANavItem: TNavigationItem;
   const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl;
+var
+  vControlClass: TNativeControlClass;
+  vControl: TObject;
 begin
-  Result := GetNativeControlClass.Create(AArea, '');
-  Result.CreateContent(nil);
+  vControlClass := GetNativeControlClass;
+  Result := vControlClass.Create(AArea, '');
+  if vControlClass.InheritsFrom(TNativeControlHolder) then
+    vControl := TNativeControlHolder(AOwner.NativeControl).CreateItem(AArea.Parent, ANavItem, ACaption, AHint, AImageIndex)
+  else
+    vControl := nil;
+  Result.CreateContent(vControl);
+end;
+
+function TPresenter.CreateControl(const AParent: TUIArea; const AView: TView;
+  const ALayout: TLayout; const AParams: string): TObject;
+begin
+  Result := nil;
 end;
 
 function TPresenter.CreateImages(const ADomain: TObject; const ASize: Integer): TObject;
@@ -1030,11 +1058,14 @@ begin
     vMainFormName := 'MainForm';
   vDomain.UIBuilder.Navigate(Result.RootView, '', vMainFormName, '', vSession.NullHolder);
 
+  RestoreUILayout(Result, Result.RootArea.NativeControl);
+
   TLoginedProc(vDomain.Configuration.LoginedProc)(Result);
 end;
 
 procedure TPresenter.DoLogout(const AInteractor: TInteractor);
 begin
+  StoreUILayout(AInteractor, AInteractor.RootArea.NativeControl);
 end;
 
 procedure TPresenter.DoMainFormClose(Sender: TObject; var Action: TCloseAction);
@@ -1248,6 +1279,20 @@ begin
   Result := FindControlClass(FName);
 end;
 
+function TPresenter.GetRealControl(const AArea: TUIArea): TObject;
+var
+  vNativeControl: TNativeControl;
+begin
+  if not Assigned(AArea) then
+    Exit(nil);
+
+  vNativeControl := AArea.NativeControl;
+  if vNativeControl is TNativeControlHolder then
+    Result := TNativeControlHolder(vNativeControl).Control
+  else
+    Result := nil;
+end;
+
 function TPresenter.GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
 begin
   case AFieldDef.Kind of
@@ -1408,6 +1453,36 @@ begin
   vClassesList.Add(vClassName, vClassInfo);
 end;
 
+procedure TPresenter.RestoreUILayout(const AInteractor: TInteractor;
+  const AForm: TNativeControl);
+var
+  vLayoutStr: string;
+  vValues: TStrings;
+  vRect: TRect;
+begin
+  //if (not Assigned(vMainForm)) or (vMainForm.Position <> poDesigned) then Exit;
+
+  vLayoutStr := TDomain(AInteractor.Domain).UserSettings.GetValue('MainForm', 'Layout');
+  if Length(vLayoutStr) = 0 then Exit;
+
+  vValues := CreateDelimitedList(vLayoutStr, ';');
+  try
+    if vValues.Count <> 5 then Exit;
+
+    vRect.Left := StrToIntDef(vValues[0], 100);
+    vRect.Top := StrToIntDef(vValues[1], 100);
+    vRect.Width := StrToIntDef(vValues[2], 1280);
+    vRect.Height := StrToIntDef(vValues[3], 960);
+    AForm.Bounds := vRect;
+    if TWindowState(StrToIntDef(vValues[4], 0)) = TWindowState.wsMaximized then
+      AForm.WindowState := TWindowState.wsMaximized
+    else
+      AForm.WindowState := TWindowState.wsNormal;
+  finally
+    FreeAndNil(vValues);
+  end;
+end;
+
 procedure TPresenter.Run(const AParameter: string = '');
 begin
   DoRun(AParameter);
@@ -1470,6 +1545,18 @@ end;
 procedure TPresenter.Stop;
 begin
   DoStop;
+end;
+
+procedure TPresenter.StoreUILayout(const AInteractor: TInteractor;
+  const AForm: TNativeControl);
+var
+  vLayoutStr: string;
+  vRect: TRect;
+begin
+  vRect := AForm.Bounds;
+  vLayoutStr := IntToStr(vRect.Left) + ';' + IntToStr(vRect.Top) + ';' + IntToStr(vRect.Width) + ';' +
+    IntToStr(vRect.Height) + ';' + IntToStr(Ord(AForm.WindowState));
+  TDomain(AInteractor.Domain).UserSettings.SetValue('MainForm', 'Layout', vLayoutStr);
 end;
 
 procedure TPresenter.Unfreeze;

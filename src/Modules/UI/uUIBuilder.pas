@@ -106,6 +106,8 @@ type
     procedure SetActiveChildArea(const AArea: TUIArea); virtual;
     function GetModalResult: TModalResult; virtual;
     procedure SetModalResult(const AModalResult: TModalResult); virtual;
+    function GetWindowState: TWindowState; virtual;
+    procedure SetWindowState(const AWindowState: TWindowState); virtual;
     procedure SetAlignment(const AAlignment: TAlignment); virtual;
 
     procedure PlaceLabel; virtual;
@@ -124,6 +126,7 @@ type
     procedure SetFieldStream(const AStream: TStream);
     function GetDisplayFormat(const AFieldDef: TFieldDef; const AEntity: TEntity): string;
     function GetFormat: string;
+    function GetRealControl(const AArea: TUIArea): TObject;
   public
     constructor Create(const AOwner: TUIArea; const AParams: string = ''); virtual;
     destructor Destroy; override;
@@ -141,12 +144,32 @@ type
     property Description: string read GetDescription;
     property ActiveChildArea: TUIArea read GetActiveChildArea write SetActiveChildArea;
     property ModalResult: TModalResult read GetModalResult write SetModalResult;
+    property WindowState: TWindowState read GetWindowState write SetWindowState;
 
     property IsForm: Boolean read FIsForm;
     property ShowCaption: Boolean read FShowCaption;
   end;
 
   TNativeControlClass = class of TNativeControl;
+
+  TNativeControlHolder = class(TNativeControl)
+  protected
+    [Weak] FControl: TObject;
+
+    procedure SetControl(const AControl: TObject); virtual;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
+    function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
+      const ACaption, AHint: string; const AImageIndex: Integer): TObject; virtual;
+
+    function GetControlInfo: string; override;
+    procedure UnbindContent(const AForceUnbind: Boolean); override;
+  public
+    procedure CreateContent(const AContent: TObject); override;
+    function CreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
+      const ACaption, AHint: string; const AImageIndex: Integer): TObject;
+
+    property Control: TObject read FControl;
+  end;
 
   TUIArea = class
   private
@@ -344,9 +367,6 @@ uses
   StrUtils, IOUtils, UIConsts, Variants, Math,
   uPlatform, uPresenter, uInteractor, uConfiguration, uDomain, uChangeManager,
   uUtils, uObjectField, uEntityList;
-
-const
-  cServiceAreaHeight = 44;
 
 { TLayouts }
 
@@ -2155,7 +2175,10 @@ end;
 
 function TNativeControl.AreaFromSender(const ASender: TObject): TUIArea;
 begin
-  Result := nil;
+  if Assigned(ASender) and (ASender is TComponent) then
+    Result := TUIArea(TComponent(ASender).Tag)
+  else
+    Result := nil;
 end;
 
 procedure TNativeControl.AssignFromLayout(const ALayout: TLayout; const AParams: string);
@@ -2354,6 +2377,14 @@ begin
   Result := Null;
 end;
 
+function TNativeControl.GetRealControl(const AArea: TUIArea): TObject;
+begin
+  if Assigned(FPresenter) then
+    Result := TPresenter(FPresenter).GetRealControl(AArea)
+  else
+    Result := nil;
+end;
+
 function TNativeControl.GetDescription: string;
 var
   vViewState: TViewState;
@@ -2417,6 +2448,11 @@ end;
 function TNativeControl.GetViewState: TViewState;
 begin
   Result := vsUndefined;
+end;
+
+function TNativeControl.GetWindowState: TWindowState;
+begin
+  Result := TWindowState.wsNormal;
 end;
 
 function TNativeControl.IndexOfSender(const ASender: TObject): Integer;
@@ -2531,6 +2567,10 @@ procedure TNativeControl.SetViewState(const AViewState: TViewState);
 begin
 end;
 
+procedure TNativeControl.SetWindowState(const AWindowState: TWindowState);
+begin
+end;
+
 procedure TNativeControl.SwitchChangeHandlers(const AHandler: TNotifyEvent);
 begin
 end;
@@ -2549,6 +2589,58 @@ end;
 
 procedure TNativeControl.UpdateCaptionVisibility;
 begin
+end;
+
+{ TNativeControlHolder }
+
+procedure TNativeControlHolder.CreateContent(const AContent: TObject);
+begin
+  if Assigned(AContent) then
+    SetControl(AContent)
+  else
+    SetControl(DoCreateControl(FParent, FLayout));
+end;
+
+function TNativeControlHolder.CreateItem(const AParent: TUIArea;
+  const ANavItem: TNavigationItem; const ACaption, AHint: string;
+  const AImageIndex: Integer): TObject;
+begin
+  Result := DoCreateItem(AParent, ANavItem, ACaption, AHint, AImageIndex);
+end;
+
+function TNativeControlHolder.DoCreateControl(const AParent: TUIArea;
+  const ALayout: TLayout): TObject;
+begin
+  Result := nil;
+end;
+
+function TNativeControlHolder.DoCreateItem(const AParent: TUIArea;
+  const ANavItem: TNavigationItem; const ACaption, AHint: string;
+  const AImageIndex: Integer): TObject;
+begin
+  Result := nil;
+end;
+
+function TNativeControlHolder.GetControlInfo: string;
+begin
+  if not Assigned(FControl) then
+    Result := 'NULL'
+  else
+    Result := FControl.ClassName;
+end;
+
+procedure TNativeControlHolder.SetControl(const AControl: TObject);
+begin
+  FControl := AControl;
+
+  if (FControl is TComponent) and (TComponent(FControl).Tag = 0) then
+    TComponent(FControl).Tag := NativeInt(FOwner);
+end;
+
+procedure TNativeControlHolder.UnbindContent(const AForceUnbind: Boolean);
+begin
+  if (AForceUnbind or FIsAutoReleased) and not FIsForm then
+    FControl := nil;
 end;
 
 end.

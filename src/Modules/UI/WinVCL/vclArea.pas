@@ -57,15 +57,11 @@ uses
 ///  15. Рефакторинг работы с заголовками полей
 
 type
-  TVCLControl = class(TNativeControl)
+  TVCLControl = class(TNativeControlHolder)
   private
     procedure BeforeContextMenuShow(Sender: TObject);
-    procedure SetControl(const AControl: TObject);
   protected
-    [Weak] FControl: TObject;
-
     function IndexOfSender(const ASender: TObject): Integer; override;
-    function AreaFromSender(const ASender: TObject): TUIArea; override;
 
     procedure DoActivate(const AUrlParams: string); override;
     procedure DoClose(const AModalResult: Integer); override;
@@ -74,8 +70,8 @@ type
 
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); override;
 
-    function GetControlInfo: string; override;
     procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
+    procedure SetControl(const AControl: TObject); override;
     procedure SetParent(const AParent: TUIArea); override;
     function GetFocused: Boolean; override;
     procedure SetFocused(const Value: Boolean); override;
@@ -89,12 +85,9 @@ type
     procedure SetActiveChildArea(const AArea: TUIArea); override;
     function GetModalResult: TModalResult; override;
     procedure SetModalResult(const AModalResult: TModalResult); override;
+    function GetWindowState: TWindowState; override;
+    procedure SetWindowState(const AWindowState: TWindowState); override;
     procedure SetAlignment(const AAlignment: TAlignment); override;
-
-    procedure UnbindContent(const AForceUnbind: Boolean = False); override;
-    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
-    function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
-      const ACaption, AHint: string; const AImageIndex: Integer): TObject; virtual;
 
     function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; override;
     procedure PlaceLabel; override;
@@ -103,12 +96,6 @@ type
   public
     constructor Create(const AOwner: TUIArea; const AParams: string = ''); override;
     destructor Destroy; override;
-
-    procedure CreateContent(const AContent: TObject); override;
-    function CreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
-      const ACaption, AHint: string; const AImageIndex: Integer): TObject;
-
-    property Control: TObject read FControl;
   end;
 
   TVCLButton = class(TVCLControl)
@@ -200,9 +187,6 @@ type
   TCrackedWinControl = class(TWinControl) end;
   TCrackedControl = class(TControl) end;
 
-const
-  cServiceAreaHeight = 44;
-
 procedure LockControl(const AWinControl: TWinControl; const ALock: Boolean);
 begin
   if (AWinControl = nil) or (AWinControl.Handle = 0) then Exit;
@@ -278,7 +262,7 @@ begin
   FItem.Hint := AHint;
   FItem.ImageIndex := AImageIndex;
   FItem.OnClick := FOwner.OnAreaClick;
-  vControl := GetVCLControl(AParent);
+  vControl := GetRealControl(AParent);
   if (ANavItem.Level > 0) and (vControl is TMenuItem) then
     TMenuItem(vControl).Add(FItem)
   else
@@ -298,7 +282,7 @@ end;
 
 function TVCLMainMenuNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FMenu := TMainMenu.Create(TComponent(GetVCLControl(AParent)));
+  FMenu := TMainMenu.Create(TComponent(GetRealControl(AParent)));
   FMenu.Images := TDragImageList(FUIBuilder.Images[16]);
   Result := FMenu;
 end;
@@ -322,7 +306,7 @@ begin
     Result := FMenuItem;
   end
   else begin
-    vControl := GetVCLControl(AParent);
+    vControl := GetRealControl(AParent);
     if vControl is TMenuItem then
     begin
       TMenuItem(vControl).Add(FMenuItem);
@@ -335,7 +319,7 @@ begin
     //FMenuItem.Visible := TInteractor(FView.Interactor).Layout = 'mdi';
     if FUIBuilder.IsMDIStyle and (Parent.NativeControl.IsForm) then
     begin
-      vForm := TForm(GetVCLControl(Parent));
+      vForm := TForm(GetRealControl(Parent));
       if vForm.FormStyle = fsMDIForm then
         vForm.WindowMenu := FMenuItem;
     end;
@@ -346,7 +330,7 @@ end;
 
 function TVCLToolBarNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FToolBar := TToolBar.Create(TComponent(GetVCLControl(AParent)));
+  FToolBar := TToolBar.Create(TComponent(GetRealControl(AParent)));
   FToolBar.ShowCaptions := True;
   Result := FToolBar;
 end;
@@ -380,7 +364,7 @@ begin
     Result := FToolButton;
   end
   else begin
-    vControl := GetVCLControl(AParent);
+    vControl := GetRealControl(AParent);
 
     FMenuItem := TMenuItem.Create(FToolBar);
     FMenuItem.Caption := ACaption;
@@ -459,7 +443,7 @@ begin
     Exit(nil);
 
   if ANavItem.Level > 0 then
-    vParentNode := TTreeNode(GetVCLControl(AParent))
+    vParentNode := TTreeNode(GetRealControl(AParent))
   else
     vParentNode := nil;
 
@@ -822,14 +806,6 @@ end;
 
 { TVCLControl }
 
-function TVCLControl.AreaFromSender(const ASender: TObject): TUIArea;
-begin
-  if Assigned(ASender) and (ASender is TComponent) then
-    Result := TUIArea(TComponent(ASender).Tag)
-  else
-    Result := nil;
-end;
-
 procedure TVCLControl.AssignFromLayout(const ALayout: TLayout; const AParams: string);
 var
   vForm: TForm;
@@ -979,21 +955,6 @@ begin
   inherited Create(AOwner, AParams);
 end;
 
-function TVCLControl.CreateItem(const AParent: TUIArea;
-  const ANavItem: TNavigationItem; const ACaption, AHint: string;
-  const AImageIndex: Integer): TObject;
-begin
-  Result := DoCreateItem(AParent, ANavItem, ACaption, AHint, AImageIndex);
-end;
-
-procedure TVCLControl.CreateContent(const AContent: TObject);
-begin
-  if Assigned(AContent) then
-    SetControl(AContent)
-  else
-    SetControl(DoCreateControl(FParent, FLayout));
-end;
-
 destructor TVCLControl.Destroy;
 var
   vControl: TObject;
@@ -1099,7 +1060,7 @@ begin
   vLabel := TLabel.Create(nil);
   Result := vLabel;
 
-  vLabel.Parent := TWinControl(GetVCLControl(FParent));
+  vLabel.Parent := TWinControl(GetRealControl(FParent));
   vLabel.Transparent := True;
   vLabel.Caption := ACaption;
   vLabel.Hint := AHint;
@@ -1118,19 +1079,6 @@ begin
     vLabel.Font.Size := vFontSize;
     vLabel.Font.Color := clGray;
   end;
-end;
-
-function TVCLControl.DoCreateControl(const AParent: TUIArea;
-  const ALayout: TLayout): TObject;
-begin
-  Result := nil;
-end;
-
-function TVCLControl.DoCreateItem(const AParent: TUIArea;
-  const ANavItem: TNavigationItem; const ACaption, AHint: string;
-  const AImageIndex: Integer): TObject;
-begin
-  Result := nil;
 end;
 
 procedure TVCLControl.DoEndUpdate;
@@ -1156,14 +1104,6 @@ end;
 function TVCLControl.GetBounds: TRect;
 begin
   Result := TControl(FControl).BoundsRect;
-end;
-
-function TVCLControl.GetControlInfo: string;
-begin
-  if not Assigned(FControl) then
-    Result := 'NULL'
-  else
-    Result := FControl.ClassName;
 end;
 
 function TVCLControl.GetFocused: Boolean;
@@ -1200,6 +1140,14 @@ begin
     Result := vsDisabled
   else
     Result := vsFullAccess;
+end;
+
+function TVCLControl.GetWindowState: TWindowState;
+begin
+  if FControl is TForm then
+    Result := TForm(FControl).WindowState
+  else
+    Result := inherited GetWindowState;
 end;
 
 function TVCLControl.IndexOfSender(const ASender: TObject): Integer;
@@ -1313,26 +1261,18 @@ begin
     Exit;
   end;
 
-  if Assigned(FControl) then
+  if FControl is TWinControl then
   begin
-    if FControl is TWinControl then
-    begin
-      TCrackedWinControl(FControl).OnEnter := nil;
-      TCrackedWinControl(FControl).OnExit := nil;
-    end;
+    TCrackedWinControl(FControl).OnEnter := nil;
+    TCrackedWinControl(FControl).OnExit := nil;
   end;
 
-  FControl := AControl;
+  inherited SetControl(AControl);
 
-  if Assigned(FControl) then
+  if FControl is TWinControl then
   begin
-    if TCrackedControl(FControl).Tag = 0 then
-      TCrackedControl(FControl).Tag := NativeInt(FOwner);
-    if FControl is TWinControl then
-    begin
-      TCrackedWinControl(FControl).OnEnter := FOwner.OnEnter;
-      TCrackedWinControl(FControl).OnExit := FOwner.OnExit;
-    end;
+    TCrackedWinControl(FControl).OnEnter := FOwner.OnEnter;
+    TCrackedWinControl(FControl).OnExit := FOwner.OnExit;
   end;
 end;
 
@@ -1378,7 +1318,7 @@ begin
   if FIsForm or not Assigned(AParent) then
     TControl(FControl).Parent := nil
   else if not Assigned(TControl(FControl).Parent) then
-    TControl(FControl).Parent := TWinControl(GetVCLControl(AParent));
+    TControl(FControl).Parent := TWinControl(GetRealControl(AParent));
 end;
 
 procedure TVCLControl.SetTabOrder(const ATabOrder: Integer);
@@ -1416,10 +1356,10 @@ begin
   end;
 end;
 
-procedure TVCLControl.UnbindContent(const AForceUnbind: Boolean);
+procedure TVCLControl.SetWindowState(const AWindowState: TWindowState);
 begin
-  if (AForceUnbind or FIsAutoReleased) and not FIsForm then
-    FControl := nil;
+  if FControl is TForm then
+    TForm(FControl).WindowState := AWindowState;
 end;
 
 procedure TVCLControl.UpdateCaptionVisibility;

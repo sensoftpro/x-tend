@@ -1632,14 +1632,14 @@ begin
   end;
 
   // Нужно прописывать родителя, чтобы создавать вложенные сцены
-  vPC.Parent := TWinControl(GetVCLControl(AParent));
+  vPC.Parent := TWinControl(GetRealControl(AParent));
 
   for i := 0 to ALayout.Items.Count - 1 do
   begin
     vTabLayout := ALayout.Items[i];
 
     vChildArea := TPresenter(FPresenter).CreateArea(FOwner, FView.Parent, vTabLayout);
-    vTabSheet := TTabSheet(GetVCLControl(vChildArea));
+    vTabSheet := TTabSheet(GetRealControl(vChildArea));
     // It should be set here, because parent area still has no control
     vTabSheet.Parent := vPC;
     vTabSheet.PageControl := vPC;

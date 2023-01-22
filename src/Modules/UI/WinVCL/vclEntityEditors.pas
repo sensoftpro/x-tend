@@ -214,7 +214,7 @@ begin
 
   vAddArea := FOwner.CreateChildArea(FView, vButtonLayout, '');
 
-  FbtnAdd := TButton(GetVCLControl(vAddArea));
+  FbtnAdd := TButton(GetRealControl(vAddArea));
   FbtnAdd.Parent := FBasePanel;
 end;
 

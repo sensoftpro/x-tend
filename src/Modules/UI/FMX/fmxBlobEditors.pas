@@ -84,7 +84,7 @@ begin
   //vModuleName := _Platform.ResolveModulename(vDomain.Settings, 'ChartPainter');
   //vSceneClass := TSceneClass(TPresenter(FPresenter).GetCanvasClass(vModuleName);
   //vModuleInfo := _Platform.ResolveModuleInfo(vDomain.Settings, 'ChartPainter', 'Painting');
-  FScene := TFMXScene.Create(GetFMXControl(AParent));
+  FScene := TFMXScene.Create(GetRealControl(AParent));
   Result := TFMXScene(FScene).Control;
 end;
 

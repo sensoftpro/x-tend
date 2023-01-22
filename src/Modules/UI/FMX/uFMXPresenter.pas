@@ -57,11 +57,6 @@ type
 
 type
   TFMXPresenter = class(TPresenter)
-  private
-    procedure SetAsMainForm(const AForm: TForm);
-
-    procedure StoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
-    procedure RestoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
   protected
     procedure OnChildFormKeyDown(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
   protected
@@ -69,7 +64,6 @@ type
     procedure DoUnfreeze; override;
     procedure DoStop; override;
 
-    function AreaFromSender(const ASender: TObject): TUIArea; override;
     function DoLogin(const ADomain: TObject): TInteractor; override;
     procedure DoLogout(const AInteractor: TInteractor); override;
 
@@ -80,31 +74,22 @@ type
     function DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean; override;
     function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; override;
     procedure DoSetCursor(const ACursorType: TCursorType); override;
-
-    function CreateAreaContent(const AArea: TUIArea; const AView: TView;
-      const ALayout: TLayout; const AParams: string = ''): TNativeControl; override;
-    function CreateAreaContentItem(const AOwner, AArea: TUIArea; const ANavItem: TNavigationItem;
-      const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl; override;
+    function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
+      const AParams: string = ''): TObject; override;
 
     function GetImagePlaceholder(const ASize: Integer): TStream; override;
     function DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject; override;
 
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
-  protected
-    function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
-      const AParams: string = ''): TObject; virtual;
   public
     function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
   end;
-
-function GetFMXControl(const AArea: TUIArea): TFmxObject;
 
 procedure CopyTextSettings(const ATextSettings: TTextSettings; const ALayout: TLayout);
 procedure CopyMargins(const AControl: TControl; const ALayout: TLayout);
 procedure CopyPadding(const AControl: TControl; const ALayout: TLayout);
 procedure CopyPenSettings(const APen: TStrokeBrush; const ALayout: TLayout);
 procedure CopyBrushSettings(const ABrush: TBrush; const ALayout: TLayout);
-//procedure SetPictureFromStream(const APicture: TPicture; const ALayout: TLayout);
 
 implementation
 
@@ -115,30 +100,6 @@ uses
   FMX.Memo, FMX.Edit,
   uModule, uDomain, uPlatform, uSession, uUtils, uEntityList, uConfiguration,
   uChangeManager, uEntity;
-
-const
-  cPCNavigatorFlag = 1;
-  cServiceAreaHeight = 44;
-
-type
-  TCrackedArea = class(TUIArea) end;
-
-  TLoginedProc = procedure(const AInteractor: TInteractor) of object;
-  TBeforeUIClosingFunc = function(const AInteractor: TInteractor): Boolean of object;
-
-function GetFMXControl(const AArea: TUIArea): TFmxObject;
-var
-  vFMXControl: TFMXControl;
-begin
-  if not Assigned(AArea) then
-    Exit(nil);
-
-  vFMXControl := TFMXControl(AArea.NativeControl);
-  if not Assigned(vFMXControl) then
-    Result := nil
-  else
-    Result := vFMXControl.Control;
-end;
 
 procedure CopyTextSettings(const ATextSettings: TTextSettings; const ALayout: TLayout);
 begin
@@ -209,34 +170,6 @@ end;}
 
 { TFMXPresenter }
 
-function TFMXPresenter.AreaFromSender(const ASender: TObject): TUIArea;
-begin
-  if Assigned(ASender) then
-    Result := TUIArea(TControl(ASender).Tag)
-  else
-    Result := nil;
-end;
-
-function TFMXPresenter.CreateAreaContent(const AArea: TUIArea;
-  const AView: TView; const ALayout: TLayout; const AParams: string): TNativeControl;
-var
-  vControl: TObject;
-begin
-  Result := GetNativeControlClass.Create(AArea, AParams);
-  vControl := CreateControl(AArea.Parent, AView, ALayout, AParams);
-  Result.CreateContent(vControl);
-end;
-
-function TFMXPresenter.CreateAreaContentItem(const AOwner, AArea: TUIArea;
-  const ANavItem: TNavigationItem; const ACaption, AHint: string; const AImageIndex: Integer): TNativeControl;
-var
-  vControl: TObject;
-begin
-  Result := GetNativeControlClass.Create(AArea, '');
-  vControl := TFMXControl(AOwner.NativeControl).CreateItem(AArea.Parent, ANavItem, ACaption, AHint, AImageIndex);
-  Result.CreateContent(vControl);
-end;
-
 function TFMXPresenter.CreateControl(const AParent: TUIArea; const AView: TView;
   const ALayout: TLayout; const AParams: string): TObject;
 var
@@ -265,7 +198,7 @@ begin
   vInteractor := TInteractor(AView.Interactor);
   vUIBuilder := vInteractor.UIBuilder;
   vDomain := TDomain(vInteractor.Domain);
-  vParentControl := GetFMXControl(AParent);
+  vParentControl := TFmxObject(GetRealControl(AParent));
 
   if ALayout.Kind = lkShape then
   begin
@@ -464,10 +397,6 @@ begin
       vForm.OnClose := DoMainFormClose;
       vForm.Position := TFormPosition.ScreenCenter;
       vForm.Caption := vDomain.AppTitle + ' (' + TUserSession(vInteractor.Session).CurrentUserName + ')';
-
-      RestoreUILayout(vInteractor, vForm);
-
-      SetAsMainForm(vForm);
     end
     // второстепенная автономная форма
     else if ALayout.StyleName = 'float' then
@@ -477,7 +406,7 @@ begin
         for i := 0 to AParent.Count - 1 do
         begin
           vArea := AParent.Areas[i];
-          if (vArea.View = AView) and (GetFMXControl(vArea) is TForm) then
+          if (vArea.View = AView) and (GetRealControl(vArea) is TForm) then
             Exit(vArea);
         end;
       end;
@@ -676,7 +605,6 @@ end;
 procedure TFMXPresenter.DoLogout(const AInteractor: TInteractor);
 begin
   inherited DoLogout(AInteractor);
-  StoreUILayout(AInteractor, TForm(GetFMXControl(AInteractor.RootArea)));
 end;
 
 function TFMXPresenter.ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult;
@@ -688,12 +616,12 @@ begin
   Result := drNone;
   if (AAreaName = '') or (AAreaName = 'float') or (AAreaName = 'free') then
   begin
-    vForm := TForm(GetFMXControl(AArea));
+    vForm := TForm(GetRealControl(AArea));
     vForm.Show;
   end
   else if (AAreaName = 'child') or (AAreaName = 'modal') then
   begin
-    vForm := TForm(GetFMXControl(AArea));
+    vForm := TForm(GetRealControl(AArea));
     vForm.ShowHint := True;
     vView := AArea.View;
 
@@ -738,38 +666,6 @@ begin
         AArea.Release;
       vForm.Free;
     end;
-  end;
-end;
-
-procedure TFMXPresenter.StoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
-var
-  vLayoutStr: string;
-begin
-  vLayoutStr := IntToStr(AForm.Left) + ';' + IntToStr(AForm.Top) + ';' + IntToStr(AForm.Width) + ';' +
-    IntToStr(AForm.Height) + ';' + IntToStr(Ord(AForm.WindowState));
-  TDomain(AInteractor.Domain).UserSettings.SetValue('MainForm', 'Layout', vLayoutStr);
-end;
-
-procedure TFMXPresenter.RestoreUILayout(const AInteractor: TInteractor; const AForm: TForm);
-var
-  vLayoutStr: string;
-  vValues: TStrings;
-begin
-  vLayoutStr := TDomain(AInteractor.Domain).UserSettings.GetValue('MainForm', 'Layout');
-  if Length(vLayoutStr) = 0 then Exit;
-
-  vValues := CreateDelimitedList(vLayoutStr, ';');
-  try
-    if vValues.Count <> 5 then Exit;
-
-    AForm.Left := StrToIntDef(vValues[0], 100);
-    AForm.Top := StrToIntDef(vValues[1], 100);
-    AForm.Width := StrToIntDef(vValues[2], 1280);
-    AForm.Height := StrToIntDef(vValues[3], 960);
-    if TWindowState(StrToIntDef(vValues[4], 0)) = TWindowState.wsMaximized then
-      AForm.WindowState := TWindowState.wsMaximized;
-  finally
-    FreeAndNil(vValues);
   end;
 end;
 
@@ -995,14 +891,6 @@ begin
   Application.Title := AAppTitle;
   //if FileExists(AIconName) then
   //  Application.Icon.LoadFromFile(AIconName);
-end;
-
-procedure TFMXPresenter.SetAsMainForm(const AForm: TForm);
-var
-  p: Pointer;
-begin
-  p := @Application.MainForm;
-  Pointer(p^) := AForm;
 end;
 
 initialization

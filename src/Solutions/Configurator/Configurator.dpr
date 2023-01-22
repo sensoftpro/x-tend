@@ -4,11 +4,14 @@
 {$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}
 
 {$DEFINE VCL_UI}
-{$DEFINE FMX_UI}
+{ $DEFINE FMX_UI}
+{ $DEFINE UNIGUI}
 
 uses
-  {$IFDEF VCL_UI} Dialogs, {$ENDIF}
+{$IFDEF VCL_UI}
+  Dialogs,
   SysUtils,
+{$ENDIF}
   // COMMON
   uConsts in '..\..\Common\uConsts.pas',
   uUtils in '..\..\Common\uUtils.pas',
@@ -88,7 +91,7 @@ uses
   uVCLPainter in '..\..\Modules\Drawing\VCL\uVCLPainter.pas',
   // Reports: FastReports
   uFRReport in '..\..\Modules\Reporting\FastReport\uFRReport.pas',
-{$ELSE IFDEF FMX_UI}
+{$ELSE} {$IFDEF FMX_UI}
   // UI: FMX
   uFMXPresenter in '..\..\Modules\UI\FMX\uFMXPresenter.pas',
   fmxArea in '..\..\Modules\UI\FMX\fmxArea.pas',
@@ -98,6 +101,11 @@ uses
   uFMXPainter in '..\..\Modules\Drawing\FMX\uFMXPainter.pas',
   // Storage: FireDAC (FMX)
   uFireDACStorage in '..\..\Modules\Storage\FireDAC\uFireDACStorage.pas',
+{$ELSE} {$IFDEF UNIGUI}
+  // UI: UniGUI
+  uWebUniGUIPresenter in '..\..\Modules\UI\Web\uniGUI\uWebUniGUIPresenter.pas',
+{$ENDIF}
+{$ENDIF}
 {$ENDIF}
 
   // Storage: SQLite

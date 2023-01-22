@@ -277,7 +277,7 @@ begin
 
   vAddArea := FOwner.CreateChildArea(FView, vButtonLayout, '');
 
-  FbtnAdd := TcxButton(GetVCLControl(vAddArea));
+  FbtnAdd := TcxButton(GetRealControl(vAddArea));
   FbtnAdd.Parent := FBasePanel;
 end;
 

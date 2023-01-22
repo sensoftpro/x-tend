@@ -84,7 +84,7 @@ begin
   //vModuleName := _Platform.ResolveModulename(vDomain.Settings, 'ChartPainter');
   //vSceneClass := TSceneClass(TPresenter(FPresenter).GetCanvasClass(vModuleName);
   vModuleInfo := _Platform.ResolveModuleInfo(vDomain.Settings, 'ChartPainter', 'Painting');
-  FScene := TSceneClass(vModuleInfo.ModuleClass).Create(GetVCLControl(AParent));
+  FScene := TSceneClass(vModuleInfo.ModuleClass).Create(GetRealControl(AParent));
   Result := TWinScene(FScene).Panel;
 end;
 

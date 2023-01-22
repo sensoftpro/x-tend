@@ -44,15 +44,11 @@ uses
   uConsts, uUIBuilder, uDefinition, uEntity, uView, uLayout;
 
 type
-  TFMXControl = class(TNativeControl)
+  TFMXControl = class(TNativeControlHolder)
   private
     procedure BeforeContextMenuShow(Sender: TObject);
-    procedure SetControl(const AControl: TFmxObject);
   protected
-    [Weak] FControl: TFmxObject;
-
     function IndexOfSender(const ASender: TObject): Integer; override;
-    function AreaFromSender(const ASender: TObject): TUIArea; override;
 
     procedure DoActivate(const AUrlParams: string); override;
     procedure DoClose(const AModalResult: Integer); override;
@@ -61,8 +57,8 @@ type
 
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); override;
 
-    function GetControlInfo: string; override;
     procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
+    procedure SetControl(const AControl: TObject); override;
     procedure SetParent(const AParent: TUIArea); override;
     function GetFocused: Boolean; override;
     procedure SetFocused(const Value: Boolean); override;
@@ -76,12 +72,9 @@ type
     procedure SetActiveChildArea(const AArea: TUIArea); override;
     function GetModalResult: TModalResult; override;
     procedure SetModalResult(const AModalResult: TModalResult); override;
+    function GetWindowState: TWindowState; override;
+    procedure SetWindowState(const AWindowState: TWindowState); override;
     procedure SetAlignment(const AAlignment: TAlignment); override;
-
-    procedure UnbindContent(const AForceUnbind: Boolean = False); override;
-    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; virtual;
-    function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
-      const ACaption, AHint: string; const AImageIndex: Integer): TObject; virtual;
 
     function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; override;
     procedure PlaceLabel; override;
@@ -90,12 +83,6 @@ type
   public
     constructor Create(const AOwner: TUIArea; const AParams: string = ''); override;
     destructor Destroy; override;
-
-    procedure CreateContent(const AContent: TObject); override;
-    function CreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
-      const ACaption, AHint: string; const AImageIndex: Integer): TObject;
-
-    property Control: TFmxObject read FControl;
   end;
 
   TFMXButton = class(TFMXControl)
@@ -193,9 +180,12 @@ end;
 { TFMXMainMenuNavigation }
 
 function TFMXMainMenuNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vParentObject: TFmxObject;
 begin
-  FMenu := TMainMenu.Create(GetFMXControl(AParent));
-  FMenu.Parent := GetFMXControl(AParent);
+  vParentObject := TFmxObject(GetRealControl(AParent));
+  FMenu := TMainMenu.Create(vParentObject);
+  FMenu.Parent := vParentObject;
   FMenu.Images := TImageList(FUIBuilder.Images[16]);
   Result := FMenu;
 end;
@@ -219,7 +209,7 @@ begin
     Result := vMenuItem;
   end
   else begin
-    vControl := GetFMXControl(AParent);
+    vControl := GetRealControl(AParent);
     if vControl is TMenuItem then
     begin
       TMenuItem(vControl).AddObject(vMenuItem);
@@ -232,7 +222,7 @@ end;
 
 function TFMXToolBarNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FToolBar := TToolBar.Create(TComponent(GetFMXControl(AParent)));
+  FToolBar := TToolBar.Create(TControl(GetRealControl(AParent)));
   Result := FToolBar;
 end;
 
@@ -295,7 +285,7 @@ begin
     Exit(nil);
 
   if ANavItem.Level > 0 then
-    vParentNode := TTreeViewItem(GetFMXControl(AParent))
+    vParentNode := TTreeViewItem(GetRealControl(AParent))
   else
     vParentNode := nil;
 
@@ -304,7 +294,7 @@ begin
   vTreeNode.Text := ACaption;
   if ANavItem.Level > 0 then
   begin
-    vParentNode := TTreeViewItem(GetFMXControl(AParent));
+    vParentNode := TTreeViewItem(GetRealControl(AParent));
     vParentNode.AddObject(vTreeNode);
   end
   else
@@ -558,14 +548,6 @@ end;
 
 { TFMXControl }
 
-function TFMXControl.AreaFromSender(const ASender: TObject): TUIArea;
-begin
-  if Assigned(ASender) and (ASender is TComponent) then
-    Result := TUIArea(TComponent(ASender).Tag)
-  else
-    Result := nil;
-end;
-
 procedure TFMXControl.AssignFromLayout(const ALayout: TLayout; const AParams: string);
 var
   vForm: TForm;
@@ -719,21 +701,6 @@ begin
   inherited Create(AOwner, AParams);
 end;
 
-function TFMXControl.CreateItem(const AParent: TUIArea;
-  const ANavItem: TNavigationItem; const ACaption, AHint: string;
-  const AImageIndex: Integer): TObject;
-begin
-  Result := DoCreateItem(AParent, ANavItem, ACaption, AHint, AImageIndex);
-end;
-
-procedure TFMXControl.CreateContent(const AContent: TObject);
-begin
-  if Assigned(AContent) then
-    SetControl(TFmxObject(AContent))
-  else
-    SetControl(TFmxObject(DoCreateControl(FParent, FLayout)));
-end;
-
 destructor TFMXControl.Destroy;
 var
   vControl: TObject;
@@ -818,7 +785,7 @@ begin
   vLabel := TLabel.Create(nil);
   Result := vLabel;
 
-  vLabel.Parent := GetFMXControl(FParent);
+  vLabel.Parent := TFmxObject(GetRealControl(FParent));
   vLabel.Text := ACaption;
   vLabel.Hint := AHint;
 
@@ -837,19 +804,6 @@ begin
   end;
 end;
 
-function TFMXControl.DoCreateControl(const AParent: TUIArea;
-  const ALayout: TLayout): TObject;
-begin
-  Result := nil;
-end;
-
-function TFMXControl.DoCreateItem(const AParent: TUIArea;
-  const ANavItem: TNavigationItem; const ACaption, AHint: string;
-  const AImageIndex: Integer): TObject;
-begin
-  Result := nil;
-end;
-
 procedure TFMXControl.DoEndUpdate;
 begin
 end;
@@ -865,14 +819,6 @@ end;
 function TFMXControl.GetBounds: TRect;
 begin
   Result := TControl(FControl).BoundsRect.Round;
-end;
-
-function TFMXControl.GetControlInfo: string;
-begin
-  if not Assigned(FControl) then
-    Result := 'NULL'
-  else
-    Result := FControl.ClassName;
 end;
 
 function TFMXControl.GetFocused: Boolean;
@@ -909,6 +855,14 @@ begin
     Result := vsDisabled
   else
     Result := vsFullAccess;
+end;
+
+function TFMXControl.GetWindowState: TWindowState;
+begin
+  if FControl is TForm then
+    Result := TForm(FControl).WindowState
+  else
+    Result := inherited GetWindowState;
 end;
 
 function TFMXControl.IndexOfSender(const ASender: TObject): Integer;
@@ -989,28 +943,20 @@ begin
   end;
 end;
 
-procedure TFMXControl.SetControl(const AControl: TFmxObject);
+procedure TFMXControl.SetControl(const AControl: TObject);
 begin
-  if Assigned(FControl) then
+  if FControl is TControl then
   begin
-    if FControl is TControl then
-    begin
-      TControl(FControl).OnEnter := nil;
-      TControl(FControl).OnExit := nil;
-    end;
+    TControl(FControl).OnEnter := nil;
+    TControl(FControl).OnExit := nil;
   end;
 
-  FControl := AControl;
+  inherited SetControl(AControl);
 
-  if Assigned(FControl) then
+  if FControl is TControl then
   begin
-    if FControl.Tag = 0 then
-      FControl.Tag := NativeInt(FOwner);
-    if FControl is TControl then
-    begin
-      TControl(FControl).OnEnter := FOwner.OnEnter;
-      TControl(FControl).OnExit := FOwner.OnExit;
-    end;
+    TControl(FControl).OnEnter := FOwner.OnEnter;
+    TControl(FControl).OnExit := FOwner.OnExit;
   end;
 end;
 
@@ -1056,7 +1002,7 @@ begin
   if FIsForm or not Assigned(AParent) then
     TControl(FControl).Parent := nil
   else if not Assigned(TControl(FControl).Parent) then
-    TControl(FControl).Parent := GetFMXControl(AParent);
+    TControl(FControl).Parent := TFmxObject(GetRealControl(AParent));
 end;
 
 procedure TFMXControl.SetTabOrder(const ATabOrder: Integer);
@@ -1085,10 +1031,10 @@ begin
   end;
 end;
 
-procedure TFMXControl.UnbindContent(const AForceUnbind: Boolean);
+procedure TFMXControl.SetWindowState(const AWindowState: TWindowState);
 begin
-  if (AForceUnbind or FIsAutoReleased) and not FIsForm then
-    FControl := nil;
+  if FControl is TForm then
+    TForm(FControl).WindowState := AWindowState;
 end;
 
 procedure TFMXControl.UpdateCaptionVisibility;

@@ -99,9 +99,6 @@ type
   TCrackedWinControl = class(TWinControl) end;
   TCrackedControl = class(TControl) end;
 
-const
-  cServiceAreaHeight = 44;
-
 { TDENavBarNavigation }
 
 function TDENavBarNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -153,7 +150,7 @@ begin
   else
   begin
     FNavBarItem := FNavBar.Items.Add;
-    vControl := GetVCLControl(AParent);
+    vControl := GetRealControl(AParent);
     if vControl is TdxNavBarGroup then
       TdxNavBarGroup(vControl).CreateLink(FNavBarItem);
     FNavBarItem.Caption := ACaption;

@@ -71,14 +71,9 @@ uses
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon, uEntity,
   uEntityList, dexArea, uSession, uCollection;
 
-const
-  cPCNavigatorFlag = 1;
-  cServiceAreaHeight = 44;
-
 type
   TCrackedWinControl = class(TWinControl) end;
   TCrackedControl = class(TControl) end;
-  TCrackedArea = class(TUIArea) end;
 
 { TDevExpressPresenter }
 
@@ -190,7 +185,7 @@ begin
     if vUIBuilder.IsMDIStyle and (ALayout.Tag = 11) then
       Result := inherited CreateControl(AParent, AView, ALayout, AParams)
     else begin
-      vTab := TcxTabSheet.Create(TComponent(GetVCLControl(AParent)));
+      vTab := TcxTabSheet.Create(TComponent(GetRealControl(AParent)));
       vTab.Caption := ALayout.Caption;
       vTab.ImageIndex := AParent.GetImageID(ALayout.ImageID);
 
