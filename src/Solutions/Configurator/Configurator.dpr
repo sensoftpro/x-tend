@@ -103,7 +103,8 @@ uses
   uFireDACStorage in '..\..\Modules\Storage\FireDAC\uFireDACStorage.pas',
 {$ELSE} {$IFDEF UNIGUI}
   // UI: UniGUI
-  uWebUniGUIPresenter in '..\..\Modules\UI\Web\uniGUI\uWebUniGUIPresenter.pas',
+  uUniGUIPresenter in '..\..\Modules\UI\Web\uniGUI\uUniGUIPresenter.pas',
+  uniArea in '..\..\Modules\UI\Web\uniGUI\uniArea.pas',
 {$ENDIF}
 {$ENDIF}
 {$ENDIF}

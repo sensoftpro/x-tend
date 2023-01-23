@@ -136,9 +136,6 @@ type
   TFMXForm = class(TForm)
   end;
 
-type
-  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
-
 function AlignToAlignLayout(const AAlign: Byte): TAlignLayout; overload;
 function AlignToAlignLayout(const AAlign: TLayoutAlign): TAlignLayout; overload;
 
@@ -154,9 +151,6 @@ uses
 
   uPresenter, uFMXPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
   uEntityList, uDomainUtils, uChangeManager;
-
-const
-  cServiceAreaHeight = 44;
 
 function AlignToAlignLayout(const AAlign: Byte): TAlignLayout;
 begin

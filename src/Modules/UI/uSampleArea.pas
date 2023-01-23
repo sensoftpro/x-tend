@@ -112,10 +112,6 @@ uses
 
   uDomain, uPresenter, uConfiguration, uSession, uInteractor, uUtils, uEntityList, uDomainUtils;
 
-type
-  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string): Boolean of object;
-  TCrackedControl = class(TWinControl) end;
-
 const
   cServiceAreaHeight = 44;
 

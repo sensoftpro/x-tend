@@ -31,17 +31,18 @@
   SOFTWARE.
  ---------------------------------------------------------------------------------}
 
-unit uWebUniGUIPresenter;
+unit uUniGUIPresenter;
 
 interface
 
 uses
   Messages, Classes, Generics.Collections, Generics.Defaults, ActnList, uConsts, StdCtrls, Buttons,
   ExtCtrls, TypInfo, Types, ComCtrls, SysUtils, Windows, Graphics,
-  Variants, Controls, Forms, Mask, Menus,
+  Variants, Vcl.Controls, Forms, Mask, Menus,
 
   uniGUIServer, uniGUIMainModule, uniGUIApplication, uIdCustomHTTPServer, uniGUIClasses, uniGUITypes,
   uniGUIForm, uniEdit, uniGUIBaseClasses, uniLabel, uniButton, uniImageList, uniPanel, uniPageControl,
+  uniGUIFont, uniImage,
 
   uSettings, uDefinition, uPresenter, uInteractor, uView, uUIBuilder, uLayout, uEntity;
 
@@ -49,7 +50,7 @@ type
   TImageResolution = (ir16x16, ir24x24, ir32x32);
 
 type
-  // Служебные объекты uniGUI
+  // Service forms of uniGUI
 
   TUniServerModule = class(TUniGUIServerModule)
   protected
@@ -69,7 +70,7 @@ type
     UniEdit1: TUniEdit;
     UniButton1: TUniButton;
     procedure UniButton1Click(Sender: TObject);
-    procedure UniFormCreate(Sender: TObject);
+    procedure UniFormBeforeShow(Sender: TObject);
   private
     FInteractor: TInteractor;
   public
@@ -128,12 +129,18 @@ type
     destructor Destroy; override;
   end;  }
 
-function GetNativeControl(const AArea: TUIArea): TObject;
+procedure CopyFontSettings(const AFont: TUniFont; const ALayout: TLayout);
+procedure CopyMargins(const AControl: TUniControl; const ALayout: TLayout);
+procedure CopyPadding(const AControl: TUniControl; const ALayout: TLayout);
+procedure CopyConstraints(const AConstraints: TSizeConstraints; const ALayout: TLayout);
+//procedure CopyPenSettings(const APen: TUniPen; const ALayout: TLayout);
+//procedure CopyBrushSettings(const ABrush: TUniBrush; const ALayout: TLayout);
 
 implementation
 
 uses
-  Math, PngImage, ImgList, UITypes, UniGUIVars,
+  Math, PngImage, UITypes, UniGUIVars, uniArea,
+  uniScrollBox, uniMainMenu, uniSplitter,
   uPlatform, uIcon, uModule, uConfiguration, uDomain, uEntityList, uSession, uUtils;
 
 {$R ServerModule.dfm}
@@ -141,22 +148,44 @@ uses
 {$R Main.dfm} // Это необязательный ресурс
 
 type
-  TUniGUIControl = class(TNativeControl)
-    Control: TObject;
-  end;
+  TCrackedUniControl = class(TUniControl) end;
 
-function GetNativeControl(const AArea: TUIArea): TObject;
-var
-  vUniGUIControl: TUniGUIControl;
+procedure CopyFontSettings(const AFont: TUniFont; const ALayout: TLayout);
 begin
-  if not Assigned(AArea) then
-    Exit(nil);
+  AFont.Name := ALayout.Font.Family;
+  AFont.Color := AlphaColorToColor(ALayout.Font.Color);
+  AFont.Size := ALayout.Font.Size;
+  AFont.Style := ALayout.Font.Style;
+end;
 
-  vUniGUIControl := TUniGUIControl(AArea.NativeControl);
-  if not Assigned(vUniGUIControl) then
-    Result := nil
+procedure CopyMargins(const AControl: TUniControl; const ALayout: TLayout);
+begin
+  if not ALayout.Margins.IsEmpty then
+  begin
+    AControl.AlignWithMargins := True;
+    AControl.Margins.Left := ALayout.Margins.Left;
+    AControl.Margins.Top := ALayout.Margins.Top;
+    AControl.Margins.Right := ALayout.Margins.Right;
+    AControl.Margins.Bottom := ALayout.Margins.Bottom;
+  end
   else
-    Result := vUniGUIControl.Control;
+    AControl.AlignWithMargins := False;
+end;
+
+procedure CopyPadding(const AControl: TUniControl; const ALayout: TLayout);
+begin
+  AControl.Padding.Left := ALayout.Padding.Left;
+  AControl.Padding.Top := ALayout.Padding.Top;
+  AControl.Padding.Right := ALayout.Padding.Right;
+  AControl.Padding.Bottom := ALayout.Padding.Bottom;
+end;
+
+procedure CopyConstraints(const AConstraints: TSizeConstraints; const ALayout: TLayout);
+begin
+  AConstraints.MinWidth := ALayout.Constraints.MinWidth;
+  AConstraints.MinHeight := ALayout.Constraints.MinHeight;
+  AConstraints.MaxWidth := ALayout.Constraints.MaxWidth;
+  AConstraints.MaxHeight := ALayout.Constraints.MaxHeight;
 end;
 
 { TUniServerModule }
@@ -206,7 +235,7 @@ begin
   end;
 end;
 
-procedure TUniMainForm.UniFormCreate(Sender: TObject);
+procedure TUniMainForm.UniFormBeforeShow(Sender: TObject);
 var
   vPresenter: TUniGUIPresenter;
   vDomain: TDomain;
@@ -286,70 +315,58 @@ end;
 
 function TUniGUIPresenter.CreateControl(const AParent: TUIArea; const AView: TView;
   const ALayout: TLayout; const AParams: string): TObject;
-{var
+var
   vDomain: TDomain;
   vInteractor: TInteractor;
   vUIBuilder: TUIBuilder;
   vStartPageName: string;
-  vForm: TForm;
-  vShape: TShape;
-  vLabel: TLabel; //TStaticText;
-  vImage: TImage;
-  vPC: TPageControl;
-  vTab: TTabSheet;
-  vPanel: TPanel;
+  vForm: TUniForm;
+  //vShape: TShape;
+  vLabel: TUniLabel;
+  vImage: TUniImage;
+  vPC: TUniPageControl;
+  vTab: TUniTabSheet;
+  vPanel: TUniPanel;
   vParams: TStrings;
-  vBox: TScrollBox;
-  vBevel: TBevel;
-  vSplitter: TSplitter;
-  vMenu: TPopupMenu;
-  vMenuItem: TMenuItem;
+  vBox: TUniScrollBox;
+  //vBevel: TBevel;
+  vSplitter: TUniSplitter;
+  vMenu: TUniPopupMenu;
+  vMenuItem: TUniMenuItem;
   i: Integer;
   vArea: TUIArea;
-  vParentControl: TObject; }
+  vParentControl: TObject;
+  vOwner: TComponent;
 begin
   Result := nil;
 
-{    lkPanel, lkFrame: begin
-        Result := TUniPanel.Create(nil);
-        TUniPanel(Result).BorderStyle := ubsNone;
-      end;
-    lkPage: begin
-        Result := TUniTabSheet.Create(nil);
-        TUniTabSheet(Result).Caption := vParams.Values['Caption'];
-        TUniTabSheet(Result).ImageIndex := StrToIntDef(vParams.Values['ImageIndex'], -1);
-        TUniTabSheet(Result).Name := vParams.Values['Name'];
-        TUniTabSheet(Result).Tag := 11;
-      end; }
-
-{  vInteractor := TInteractor(AView.Interactor);
+  vInteractor := TInteractor(AView.Interactor);
   vUIBuilder := vInteractor.UIBuilder;
   vDomain := TDomain(vInteractor.Domain);
-  vParentControl := GetNativeControl(AParent);
+  vParentControl := GetRealControl(AParent);
+  vOwner := TComponent(GetRealControl(AParent));
 
   if ALayout.Kind = lkShape then
   begin
-    vShape := TShape.Create(nil);
-    vShape.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
-    vShape.Anchors := ALayout.Anchors;
-    vShape.Align := TAlign(ALayout.Align);
-    vShape.Hint := ALayout.Hint;
-    vShape.Visible := ALayout.State > vsHidden;
-    CopyPenSettings(vShape.Pen, ALayout);
-    CopyBrushSettings(vShape.Brush, ALayout);
-    CopyMargins(vShape, ALayout);
-    CopyConstraints(vShape, ALayout);
-    vShape.Shape := TShapeType(ALayout.Shape_Type);
+    vPanel := TUniPanel.Create(vOwner);
+    vPanel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+    vPanel.Anchors := ALayout.Anchors;
+    vPanel.Align := TAlign(ALayout.Align);
+    vPanel.Hint := ALayout.Hint;
+    vPanel.Visible := ALayout.State > vsHidden;
+    vPanel.Color := ColorToAlphaColor(ALayout.Brush.Color);
+    CopyMargins(vPanel, ALayout);
+    CopyConstraints(vPanel.Constraints, ALayout);
 
-    Result := vShape;
+    Result := vPanel;
   end
   else if ALayout.Kind = lkLabel then
   begin
-    vLabel := TLabel.Create(nil);
+    vLabel := TUniLabel.Create(vOwner);
     vLabel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vLabel.Transparent := ALayout.Transparent;
     vLabel.AutoSize := ALayout.AutoSize;
-    vLabel.WordWrap := ALayout.WordWrap;
+    //vLabel.WordWrap := ALayout.WordWrap;
     CopyFontSettings(vLabel.Font, ALayout);
     vLabel.Anchors := ALayout.Anchors;
 
@@ -369,7 +386,7 @@ begin
   end
   else if ALayout.Kind = lkImage then
   begin
-    vImage := TImage.Create(nil);
+    vImage := TUniImage.Create(vOwner);
     vImage.ControlStyle := vImage.ControlStyle + [csOpaque];
     vImage.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vImage.Anchors := ALayout.Anchors;
@@ -379,7 +396,12 @@ begin
     vImage.Transparent := ALayout.Transparent;
     vImage.AutoSize := ALayout.AutoSize;
 
-    SetPictureFromStream(vImage.Picture, ALayout);
+    if Assigned(ALayout.Image_Picture) then
+    begin
+      ALayout.Image_Picture.Position := 0;
+      vImage.LoadFromStream(ALayout.Image_Picture);
+    end;
+
     vImage.Stretch := ALayout.Image_Stretch;
     vImage.Proportional := ALayout.Image_Proportional;
     vImage.Center := ALayout.Image_Center;
@@ -388,14 +410,14 @@ begin
   end
   else if ALayout.Kind = lkPages then
   begin
-    vPC := TPageControl.Create(nil);
+    vPC := TUniPageControl.Create(vOwner);
     vPC.DoubleBuffered := True;
     vPC.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
-    vPC.TabPosition := TTabPosition(ALayout.Page_Position);
-    vPC.TabHeight := ALayout.Page_Height;
-    vPC.TabWidth := ALayout.Page_Width;
+    //vPC.TabPosition := TTabPosition(ALayout.Page_Position);
+    //vPC.TabHeight := ALayout.Page_Height;
+    //vPC.TabWidth := ALayout.Page_Width;
     vPC.Anchors := ALayout.Anchors;
-    CopyFontSettings(vPC.Font, ALayout);
+    //CopyFontSettings(vPC.Font, ALayout);
     vPC.Align := TAlign(ALayout.Align);
     CopyMargins(vPC, ALayout);
     vPC.Visible := ALayout.State > vsHidden;
@@ -409,46 +431,34 @@ begin
 
     if vUIBuilder.IsMDIStyle and (ALayout.Tag = 11) then
     begin
-      vForm := TForm.Create(nil);
+      vForm := TUniForm.Create(vOwner);
       vForm.Caption := ALayout.Caption;
       vForm.Position := poDefault;
-      vForm.FormStyle := fsMDIChild;
+      //vForm.FormStyle := fsMDIChild;
       vForm.OnClose := OnCloseMDIForm;
       vForm.ShowHint := True;
       if AView.DefinitionKind in [dkCollection, dkAction, dkEntity] then
-        TDragImageList(vUIBuilder.Images[16]).GetIcon(AParent.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
+        TUniCustomImageList(vUIBuilder.Images[16]).GetIcon(AParent.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
 
       Result := vForm;
     end
     else begin
-      vTab := TTabSheet.Create(TWinControl(vParentControl));
+      vTab := TUniTabSheet.Create(vOwner);
       vTab.Caption := ALayout.Caption;
       vTab.ImageIndex := AParent.GetImageID(ALayout.ImageID);
 
       vStartPageName := vDomain.Settings.GetValue('Core', 'StartPage', '');
       vTab.Parent := TWinControl(vParentControl);
       vTab.TabVisible := ALayout.ShowCaption;
-      if vParentControl is TPageControl then
-        vTab.PageControl := TPageControl(vParentControl);
+      if vParentControl is TUniPageControl then
+        vTab.PageControl := TUniPageControl(vParentControl);
 
       Result := vTab;
     end;
   end
-  else if ALayout.Kind = lkBevel then
-  begin
-    vBevel := TBevel.Create(nil);
-    vBevel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
-    vBevel.Align := TAlign(ALayout.Align);
-    CopyMargins(vBevel, ALayout);
-    vBevel.Shape := TBevelShape(ALayout.Bevel_Shape);
-    vBevel.Style := TBevelStyle(ALayout.Bevel_Style);
-
-    ALayout.Id := '-bevel-';
-    Result := vBevel;
-  end
   else if ALayout.Kind = lkSplitter then
   begin
-    vSplitter := TSplitter.Create(nil);
+    vSplitter := TUniSplitter.Create(vOwner);
     vSplitter.Align := TAlign(ALayout.Align);
     vSplitter.Cursor := ALayout.Cursor;
     vSplitter.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
@@ -476,24 +486,25 @@ begin
         Exit(nil);
       end;
 
-      vPC := TPageControl.Create(nil);
+      vPC := TUniPageControl.Create(vOwner);
       vPC.DoubleBuffered := True;
       vPC.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
-      vPC.Images := TDragImageList(vUIBuilder.Images[16]);
-      vPC.TabPosition := tpBottom;
+      vPC.Images := TUniCustomImageList(vUIBuilder.Images[16]);
       if vParams.Values['PageLayout'] = 'Top' then
-        vPC.TabPosition := tpTop;
+      else
+        vPC.ClientEvents.UniEvents.Append(
+          'tabPanel.beforeInit=function tabPanel.beforeInit(sender, config){sender.tabPosition = "bottom"}');
       //vPC.OnCanClose := OnPCCanClose;
       vPC.Align := TAlign(ALayout.Align);
       vPC.Anchors := ALayout.Anchors;
-      CopyFontSettings(vPC.Font, ALayout);
+      //CopyFontSettings(vPC.Font, ALayout);
 
       ALayout.Name := '-pages-';
       Result := vPC;
     end
     else
     begin
-      vPanel := TPanel.Create(nil);
+      vPanel := TUniPanel.Create(vOwner);
       vPanel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
       vPanel.Anchors := ALayout.Anchors;
       vPanel.Align := TAlign(ALayout.Align);
@@ -501,14 +512,9 @@ begin
       CopyFontSettings(vPanel.Font, ALayout);
       CopyPadding(vPanel, ALayout);
       if AView.DefinitionKind <> dkListField then
-      begin
-        vPanel.BevelInner := TBevelCut(ALayout.BevelInner);
-        vPanel.BevelOuter := TBevelCut(ALayout.BevelOuter);
-      end
-      else begin
-        vPanel.BevelInner := bvNone;
-        vPanel.BevelOuter := bvNone;
-      end;
+        vPanel.BorderStyle := TUniBorderStyle.ubsOutset
+      else
+        vPanel.BorderStyle := TUniBorderStyle.ubsNone;
       vPanel.Color := AlphaColorToColor(ALayout.Color);
       vPanel.ParentColor := False;
       vPanel.ParentBackground := False;
@@ -520,20 +526,20 @@ begin
   end
   else if ALayout.Kind = lkScrollBox then
   begin
-    vBox := TScrollBox.Create(nil);
+    vBox := TUniScrollBox.Create(vOwner);
     vBox.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vBox.Anchors := ALayout.Anchors;
     vBox.Align := TAlign(ALayout.Align);
     CopyMargins(vBox, ALayout);
     CopyPadding(vBox, ALayout);
     if ALayout.BorderStyle = lbsNone then
-      vBox.BorderStyle := bsNone;
+      vBox.BorderStyle := TUniBorderStyle.ubsNone;
 
     Result := vBox;
   end
   else if ALayout.Kind = lkMemo then
   begin
-    vPanel := TPanel.Create(nil);
+    vPanel := TUniPanel.Create(vOwner);
     vPanel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vPanel.Anchors := ALayout.Anchors;
     vPanel.Align := TAlign(ALayout.Align);
@@ -541,14 +547,9 @@ begin
     CopyPadding(vPanel, ALayout);
     CopyFontSettings(vPanel.Font, ALayout);
     if AView.DefinitionKind <> dkListField then
-    begin
-      vPanel.BevelInner := TBevelCut(ALayout.BevelInner);
-      vPanel.BevelOuter := TBevelCut(ALayout.BevelOuter);
-    end
-    else begin
-      vPanel.BevelInner := bvNone;
-      vPanel.BevelOuter := bvNone;
-    end;
+      vPanel.BorderStyle := TUniBorderStyle.ubsOutset
+    else
+      vPanel.BorderStyle := TUniBorderStyle.ubsNone;
     vPanel.Color := AlphaColorToColor(ALayout.Color);
     vPanel.ParentColor := False;
     vPanel.ParentBackground := False;
@@ -562,18 +563,11 @@ begin
 
     if ALayout.StyleName = '' then
     begin
-      Application.CreateForm(TForm, vForm);
-
-      if vUIBuilder.IsMDIStyle then
-        vForm.FormStyle := fsMDIForm;
+      vForm := FormInstance;
 
       vForm.OnClose := DoMainFormClose;
       vForm.Position := poScreenCenter;
       vForm.Caption := vDomain.AppTitle + ' (' + TUserSession(vInteractor.Session).CurrentUserName + ')';
-
-      RestoreUILayout(vInteractor, vForm);
-
-      SetAsMainForm(vForm);
     end
     // второстепенная автономная форма
     else if ALayout.StyleName = 'float' then
@@ -584,12 +578,12 @@ begin
         for i := 0 to AParent.Count - 1 do
         begin
           vArea := AParent.Areas[i];
-          if (vArea.View = AView) and (GetNativeControl(vArea) is TForm) then
+          if (vArea.View = AView) and (GetRealControl(vArea) is TForm) then
             Exit(vArea);
         end;
       end;
 
-      vForm := TFloatFm.Create(nil);
+      vForm := TUniForm.Create(nil);
 
       vForm.OnClose := DoFloatFormClose;
       vForm.Position := poMainFormCenter;
@@ -602,7 +596,8 @@ begin
     // автономная форма со свободным отображением
     else if ALayout.StyleName = 'free' then
     begin
-      vForm := TForm.Create(nil);
+      vForm := nil;
+      Exit;
       vForm.Position := poScreenCenter;
       vForm.Font.Size := 12;
       vForm.Caption := ALayout.Caption;
@@ -613,7 +608,7 @@ begin
     // дочерняя модальная форма
     else if (ALayout.StyleName = 'child') or (ALayout.StyleName = 'modal') then
     begin
-      vForm := TForm.Create(nil);
+      vForm := TUniForm.Create(UniApplication);
       vForm.OnClose := DoChildFormClose;
       vForm.OnKeyDown := OnChildFormKeyDown;
       vForm.KeyPreview := True;
@@ -628,27 +623,22 @@ begin
 
     vForm.Color := clBtnFace;
     vForm.ShowHint := True;
-    vForm.DisableAlign;
     Assert(not Assigned(vForm.OnShow), 'vForm.OnShow already assigned');
     vForm.OnShow := DoOnFormShow;
-    try
-      ALayout.Id := ALayout.StyleName;
-      Result := vForm;
-    finally
-      vForm.EnableAlign;
-    end;
+    ALayout.Id := ALayout.StyleName;
+    Result := vForm;
   end
   else if ALayout.Kind = lkAction then
   begin
     if (ALayout.StyleName = '') or (ALayout.StyleName = 'menu') then
     begin
-      vMenu := TPopupMenu.Create(TComponent(vParentControl));
-      vMenu.Images := TDragImageList(vUIBuilder.Images[16]);
+      vMenu := TUniPopupMenu.Create(TComponent(vParentControl));
+      vMenu.Images := TUniCustomImageList(vUIBuilder.Images[16]);
       ALayout.Name := '-popup-';
       Result := vMenu;
     end
     else begin
-      vMenuItem := TMenuItem.Create(nil);
+      vMenuItem := TUniMenuItem.Create(vOwner);
       if ALayout.StyleName = 'action' then
       begin
         vMenuItem.Caption := ALayout.Caption;
@@ -675,10 +665,10 @@ begin
       else
         vMenuItem.Caption := ALayout.Caption;
 
-      if vParentControl is TPopupMenu then
-        TPopupMenu(vParentControl).Items.Add(vMenuItem)
+      if vParentControl is TUniPopupMenu then
+        TUniPopupMenu(vParentControl).Items.Add(vMenuItem)
       else
-        TMenuItem(vParentControl).Add(vMenuItem);
+        TUniMenuItem(vParentControl).Add(vMenuItem);
 
       if ALayout is TNavigationItem then
         ALayout.Id := TNavigationItem(ALayout).ViewName
@@ -689,9 +679,9 @@ begin
     end;
   end
   else if ALayout.Kind <> lkNone then
-    Assert(False, 'Класс не поддерживается для создания лэйаутов')
+    Result := nil
   else
-    Assert(False, 'Пустой класс для лэйаута'); }
+    Assert(False, 'Пустой класс для лэйаута');
 end;
 
 function TUniGUIPresenter.DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject;
@@ -1139,6 +1129,6 @@ RegisterServerModuleClass(TUniServerModule);
 RegisterMainModuleClass(TUniMainModule);
 RegisterAppFormClass(TUniMainForm);
 
-TBaseModule.RegisterModule('UI', '', 'Web.uniGUI', TUniGUIPresenter);
+TBaseModule.RegisterModule('UI', '', 'Web.UniGUI', TUniGUIPresenter);
 
 end.

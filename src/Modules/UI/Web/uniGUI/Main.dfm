@@ -6,7 +6,7 @@ object UniMainForm: TUniMainForm
   Caption = 'Main Form'
   OldCreateOrder = False
   MonitoredKeys.Keys = <>
-  OnCreate = UniFormCreate
+  OnBeforeShow = UniFormBeforeShow
   PixelsPerInch = 96
   TextHeight = 13
   object UniLabel1: TUniLabel

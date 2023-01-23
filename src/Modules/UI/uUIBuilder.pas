@@ -811,6 +811,8 @@ begin
   ///  AAreaName - идентификатор области, указывающий на область для заполнения
   ///  ALayoutName - имя лэйаута, которое будет использовано для заполнения области
   Result := drNone;
+  if AAreaName = 'free' then
+    Exit;
 
   if Assigned(AView) then
     vInteractor := TInteractor(AView.Interactor)
