@@ -1109,12 +1109,12 @@ end;
 
 function TVCLControl.GetClientRect: TRect;
 begin
-  if not FControl is TForm then
+  if not (FControl is TForm) then
     Result := TControl(FControl).BoundsRect
   else if TForm(FControl).FormStyle = fsMDIForm then
-    GetClientRect(TForm(FControl).ClientHandle, Result)
+    Windows.GetClientRect(TForm(FControl).ClientHandle, Result)
   else
-    GetClientRect(TForm(FControl).Handle, Result);
+    Windows.GetClientRect(TForm(FControl).Handle, Result);
 end;
 
 function TVCLControl.GetFocused: Boolean;
