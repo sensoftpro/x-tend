@@ -291,6 +291,12 @@ type
     procedure FillEditor; override;
   end;
 
+  TVCLGauge = class(TVCLControl)
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure FillEditor; override;
+  end;
+
   TVCLColorEditor = class(TVCLControl)
   private
     FBasePanel: TPanel;
@@ -348,7 +354,7 @@ uses
   Forms, Math, DateUtils, Messages, VCL.Mask, WinXCtrls,
 
   uConfiguration, uDomain, uInteractor, uPresenter, uWinVCLPresenter, uCollection, uConsts,
-  uUtils, UITypes;
+  uUtils, UITypes, Samples.Gauges;
 
 { TVCLTextInfo }
 
@@ -2141,6 +2147,28 @@ begin
   TActivityIndicator(FControl).Animate := FView.FieldValue > 0;
 end;
 
+{ TVCLGauge }
+
+function TVCLGauge.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+begin
+  Result := TGauge.Create(nil);
+  TGauge(Result).Kind := gkNeedle;
+  TGauge(Result).BorderStyle := bsNone;
+  TGauge(Result).BackColor := AlphaColorToColor(ALayout.Color);
+  FNeedCreateCaption := False;
+  TGauge(Result).Progress := 0;
+  if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
+    TGauge(Result).MaxValue := TSimpleFieldDef(FFieldDef).MaxValue
+  else
+    TGauge(Result).MaxValue := 100;
+end;
+
+procedure TVCLGauge.FillEditor;
+begin
+  inherited;
+  TGauge(FControl).Progress := FView.FieldValue;
+end;
+
 initialization
 
 TPresenter.RegisterControlClass('Windows.VCL', uiTextEdit, '', TVCLTextFieldEditor);
@@ -2160,6 +2188,7 @@ TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'simple', TVCLInte
 TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'info', TVCLTextInfo);
 TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'spinner', TVCLSpinner);
 TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'progress', TVCLProgress);
+TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'gauge', TVCLGauge);
 TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'pages', TVCLPagesFieldEditor);
 TPresenter.RegisterControlClass('Windows.VCL', uiIntegerEdit, 'flags', TVCLIntegerFlagsEditor);
 TPresenter.RegisterControlClass('Windows.VCL', uiEnumEdit, '', TVCLEnumEditor);
