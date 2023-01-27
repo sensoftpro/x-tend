@@ -127,8 +127,6 @@ type
   TVCLToolBarNavigation = class(TVCLControl)
   private
     FToolBar: TToolBar;
-    FToolButton: TToolButton;
-    FMenuItem: TMenuItem;
   protected
     procedure SetParent(const AParent: TUIArea); override;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
@@ -172,9 +170,6 @@ type
 
 {$R PopupForm.dfm}
 {$R FloatForm.dfm}
-
-type
-  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
 
 implementation
 
@@ -340,6 +335,7 @@ function TVCLToolBarNavigation.DoCreateItem(const AParent: TUIArea; const ANavIt
   const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
   vMenu: TPopupMenu;
+  vMenuItem: TMenuItem;
   vLeft: Integer;
   vToolButton: TToolButton;
   vControl: TObject;
@@ -354,24 +350,24 @@ begin
     else
       vLeft := 0;
 
-    FToolButton := TToolButton.Create(FToolBar);
-    FToolButton.AutoSize := True;
-    FToolButton.Left := vLeft;
-    FToolButton.Caption := ACaption;
-    FToolButton.Hint := AHint;
-    FToolButton.ImageIndex := AImageIndex;
-    FToolButton.OnClick := FOwner.OnAreaClick;
+    vToolButton := TToolButton.Create(FToolBar);
+    vToolButton.AutoSize := True;
+    vToolButton.Left := vLeft;
+    vToolButton.Caption := ACaption;
+    vToolButton.Hint := AHint;
+    vToolButton.ImageIndex := AImageIndex;
+    vToolButton.OnClick := FOwner.OnAreaClick;
 
-    Result := FToolButton;
+    Result := vToolButton;
   end
   else begin
     vControl := GetRealControl(AParent);
 
-    FMenuItem := TMenuItem.Create(FToolBar);
-    FMenuItem.Caption := ACaption;
-    FMenuItem.Hint := AHint;
-    FMenuItem.ImageIndex := AImageIndex;
-    FMenuItem.OnClick := FOwner.OnAreaClick;
+    vMenuItem := TMenuItem.Create(FToolBar);
+    vMenuItem.Caption := ACaption;
+    vMenuItem.Hint := AHint;
+    vMenuItem.ImageIndex := AImageIndex;
+    vMenuItem.OnClick := FOwner.OnAreaClick;
 
     if vControl is TToolButton then
     begin
@@ -384,12 +380,12 @@ begin
         TToolButton(vControl).DropdownMenu := vMenu;
       end;
 
-      vMenu.Items.Add(FMenuItem);
+      vMenu.Items.Add(vMenuItem);
     end
     else if vControl is TMenuItem then
-      TMenuItem(vControl).Add(FMenuItem);
+      TMenuItem(vControl).Add(vMenuItem);
 
-    Result := FMenuItem;
+    Result := vMenuItem;
   end;
 end;
 
@@ -1023,7 +1019,7 @@ begin
       (not SameText(Parent.CreateParams.Values['TabActivationOption'], 'ChangeTab')) then
       vChangeTab := False;
     if vChangeTab then
-      TPageControl(TControl(FControl).Parent).ActivePage := TTabSheet(FControl);
+      TTabSheet(FControl).PageControl.ActivePage := TTabSheet(FControl);
   end;
 end;
 
@@ -1214,10 +1210,6 @@ begin
   end
   else if FControl.InheritsFrom(TRadioButton) then
     TRadioButton(FControl).Alignment := AAlignment
-  else if FControl.InheritsFrom(TLabel) then
-    TLabel(FControl).Alignment := AAlignment
-  else if FControl.InheritsFrom(TEdit) then
-    TEdit(FControl).Alignment:= AAlignment
   else if FControl is TVCLFileNameFieldEditor then
     TVCLFileNameFieldEditor(FControl).TextEdit.Alignment := AAlignment;
 end;

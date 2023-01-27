@@ -81,9 +81,6 @@ type
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
-type
-  TCanChangeFieldFunc = function(const AView: TView; const AEntity: TEntity; const AFieldName: string; const ANewValue: Variant): Boolean of object;
-
 implementation
 
 uses
