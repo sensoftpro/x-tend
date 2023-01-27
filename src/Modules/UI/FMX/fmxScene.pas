@@ -3,7 +3,7 @@ unit fmxScene;
 interface
 
 uses
-  Messages, Classes, FMX.Graphics, FMX.Controls, FMX.Objects, FMX.Types, FMX.Forms,
+  Classes, FMX.Graphics, FMX.Controls, FMX.Objects, FMX.Types, FMX.Forms,
   SysUtils, UITypes, uScene, uDrawStyles, uFMXPainter, FMX.StdCtrls, FMX.Platform, Types;
 
 type

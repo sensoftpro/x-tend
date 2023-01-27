@@ -201,11 +201,14 @@ begin
   FCacheDir := TPath.Combine(TPath.GetCachePath, cProductCreator + PathDelim + FName);
   if not TDirectory.Exists(FCacheDir) then
     TDirectory.CreateDirectory(FCacheDir);
+{$ELSE} {$IFDEF  POSIX}
+  FCacheDir := '/tmp/Sensoft/Configuration';
+  FConfigurationDir := 'Solutions' + PathDelim + FName;
 {$ELSE}
   FConfigurationDir := TPath.GetHomePath;
   FCacheDir := TPath.GetCachePath;
 //  FCacheDir := FConfigurationDir;
-{$ENDIF}
+{$ENDIF} {$ENDIF}
 
 {$IFDEF IOS}
   FConfigurationDir := TPath.Combine(FConfigurationDir, 'Documents');

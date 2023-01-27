@@ -2910,6 +2910,7 @@ TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'file', TDEFil
 TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'selector', TDETextSelector);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'comport', TDETextSelector);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiTextEdit, 'fieldpath', TDEEntityBreadcrumb);
+
 TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, '', TDEIntegerFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'simple', TDEIntegerFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'info', TDETextInfo);
@@ -2918,30 +2919,40 @@ TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'progress',
 TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'gauge', TDEGauge);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'pages', TDEPagesFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'flags', TDEIntegerFlagsEditor);
+
 TPresenter.RegisterControlClass('Windows.DevExpress', uiEnumEdit, '', TDEEnumEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiEnumEdit, 'radio', TDEEnumEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiEnumEdit, 'info', TDETextInfo);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiEnumEdit, 'line_style', TDELineStyleSelector);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiEnumEdit, 'pages', TDEPagesFieldEditor);
+
 TPresenter.RegisterControlClass('Windows.DevExpress', uiFlagEdit, '', TDEFlagsEditor);
-TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'enum', TDEEnumFieldEditor);
+
 TPresenter.RegisterControlClass('Windows.DevExpress', uiFloatEdit, '', TDEFloatFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiFloatEdit, 'currency_rate', TDEFloatFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiFloatEdit, 'info', TDETextInfo);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiFloatEdit, 'gauge', TDEGauge);
+
 TPresenter.RegisterControlClass('Windows.DevExpress', uiDateEdit, '', TDEDateFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiDateEdit, 'time', TDETimeFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiDateEdit, 'datetime', TDEDateTimeFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiDateEdit, 'info', TDETextInfo);
+
 TPresenter.RegisterControlClass('Windows.DevExpress', uiCurrencyEdit, '', TDECurrencyFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiCurrencyEdit, 'info', TDETextInfo);
+
 TPresenter.RegisterControlClass('Windows.DevExpress', uiBoolEdit, '', TDEBoolFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiBoolEdit, 'simple', TDEBoolFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiBoolEdit, 'imaged_action', TDEImagedAction);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiBoolEdit, 'pages', TDEPagesFieldEditor);
+
+TPresenter.RegisterControlClass('Windows.DevExpress', uiColorEdit, '', TDEColorEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiColorEdit, 'simple', TDEColorEditor);
+
 TPresenter.RegisterControlClass('Windows.DevExpress', uiBLOBEdit, '', TDEBLOBEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiBLOBEdit, 'image', TDEImageEditor);
+
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'enum', TDEEnumFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'info', TDETextInfo);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'pages', TDEPagesFieldEditor);
 

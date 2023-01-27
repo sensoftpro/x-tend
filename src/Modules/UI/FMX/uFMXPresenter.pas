@@ -117,10 +117,10 @@ end;
 
 procedure CopyMargins(const AControl: TControl; const ALayout: TLayout);
 begin
-  AControl.Margins.Left := ALayout.Margins.Left;
-  AControl.Margins.Top := ALayout.Margins.Top;
-  AControl.Margins.Right := ALayout.Margins.Right;
-  AControl.Margins.Bottom := ALayout.Margins.Bottom;
+  AControl.Margins.Left := Max(ALayout.Margins.Left, 1);
+  AControl.Margins.Top := Max(ALayout.Margins.Top, 1);
+  AControl.Margins.Right := Max(ALayout.Margins.Right, 1);
+  AControl.Margins.Bottom := Max(ALayout.Margins.Bottom, 1);
 end;
 
 procedure CopyPadding(const AControl: TControl; const ALayout: TLayout);
@@ -193,7 +193,6 @@ var
   vSplitter: TSplitter;
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
-
   vForm: TForm;
   i: Integer;
   vArea: TUIArea;
@@ -220,7 +219,7 @@ begin
     vShape.Anchors := ALayout.Anchors;
     vShape.Align := AlignToAlignLayout(ALayout.Align);
     vShape.Hint := ALayout.Hint;
-    vShape.Visible := ALayout.State > vsHidden;
+    vShape.Visible := not ALayout.Transparent;
     vShape.Stroke.Color := ALayout.Pen.Color;
     vShape.Stroke.Thickness := ALayout.Pen.Width;
     vShape.Fill.Color := ALayout.Brush.Color;
@@ -235,6 +234,7 @@ begin
     vLabel.AutoSize := ALayout.AutoSize;
     vLabel.WordWrap := ALayout.WordWrap;
     CopyTextSettings(vLabel.TextSettings, ALayout);
+    vLabel.StyledSettings := [];
     vLabel.Anchors := ALayout.Anchors;
 
     if (ALayout.Caption  = '$') and (ALayout.UIParams = 'Caption') then
@@ -260,8 +260,11 @@ begin
     vImage.Hint := ALayout.Hint;
     CopyMargins(vImage, ALayout);
     vImage.MarginWrapMode := TImageWrapMode.Original;
-
-    vImage.Bitmap.LoadFromStream(ALayout.Image_Picture);
+    if Assigned(ALayout.Image_Picture) then
+    try
+      vImage.Bitmap.LoadFromStream(ALayout.Image_Picture);
+    except
+    end;
 
     Result := vImage;
   end
@@ -303,6 +306,7 @@ begin
       vTab.ImageIndex := AParent.GetImageID(ALayout.ImageID);
       vTab.Visible := ALayout.ShowCaption;
 
+      ALayout.Id := ALayout.Name;
       Result := vTab;
     end;
   end
@@ -401,7 +405,7 @@ begin
       Application.RealCreateForms;
 
       vForm.OnClose := DoMainFormClose;
-      vForm.Position := TFormPosition.ScreenCenter;
+//      vForm.Position := TFormPosition.ScreenCenter;
       vForm.Caption := vDomain.AppTitle + ' (' + TUserSession(vInteractor.Session).CurrentUserName + ')';
     end
     // второстепенная автономная форма
@@ -420,7 +424,7 @@ begin
       vForm := TFMXForm.Create(nil);
 
       vForm.OnClose := DoFloatFormClose;
-      vForm.Position := TFormPosition.MainFormCenter;
+//      vForm.Position := TFormPosition.MainFormCenter;
       vForm.Caption := ALayout.Caption;
       vForm.BorderIcons := [TBorderIcon.biSystemMenu, TBorderIcon.biMinimize, TBorderIcon.biMaximize];
      end
@@ -429,7 +433,7 @@ begin
     begin
       vForm := TFMXForm.Create(nil);
 
-      vForm.Position := TFormPosition.ScreenCenter;
+//      vForm.Position := TFormPosition.ScreenCenter;
       vForm.Caption := ALayout.Caption;
       vForm.BorderStyle := TfmxFormBorderStyle.None;
       vForm.BorderIcons := [];
@@ -443,7 +447,7 @@ begin
       vForm.OnClose := DoChildFormClose;
       vForm.OnKeyDown := OnChildFormKeyDown;
       vForm.BorderIcons := [TBorderIcon.biSystemMenu];
-      vForm.Position := TFormPosition.MainFormCenter;
+//      vForm.Position := TFormPosition.MainFormCenter;
       vForm.BorderStyle := TfmxFormBorderStyle.Single;
     end;
 
@@ -545,7 +549,6 @@ var
     vSource.MultiResBitmap.Height := ABitmap.Height;
     vBitmapItem := vSource.MultiResBitmap.Add;
     vBitmapItem.Bitmap.Assign(ABitmap);
-
     vDestination := AImageList.Destination.Add;
     vLayer := vDestination.Layers.Add;
     vLayer.SourceRect.Rect := TRectF.Create(TPoint.Zero, vSource.MultiResBitmap.Width,
@@ -699,13 +702,13 @@ var
   vExtFile: string;
 {$IFDEF MSWINDOWS}
   vExecResult: Cardinal;
-{$ELSE IFDEF ANDROID}
+{$ELSE} {$IFDEF ANDROID}
   vMime: JMimeTypeMap;
   vExtToMime: JString;
   vIntent: JIntent;
-{$ELSE IFDEF IOS}
+{$ELSE} {$IFDEF IOS}
   vUrl: NSURL;
-{$ENDIF}
+{$ENDIF} {$ENDIF} {$ENDIF}
 begin
   vExtFile := LowerCase(Copy(ExtractFileExt(aFileName), 2, Length(aFileName)));
 
@@ -722,18 +725,18 @@ begin
       ShowError('Невозможно отобразить файл');
     end;
   end;
-{$ELSE IFDEF MSWINDOWS}
+{$ELSE} {$IFDEF MSWINDOWS}
   vExecResult := ShellExecuteU(0, AFileName, '', '', Await);
   if (vExecResult = SE_ERR_NOASSOC) and (ADefaultApp <> '') then
     ShellExecuteU(0, ADefaultApp, AFileName, '', Await);
-{$ELSE}
+{$ELSE} {$IFDEF IOS}
   vUrl := TNSURL.Wrap(TNSURL.OCClass.URLWithString(StrToNSStr(AFileName)));
 
   if SharedApplication.canOpenURL(vUrl) then
     SharedApplication.openURL(vUrl)
   else
     ShowError('Невозможно отобразить файл');
-{$ENDIF}
+{$ENDIF} {$ENDIF} {$ENDIF}
 end;
 
 procedure TFMXPresenter.DoRun(const AParameter: string);

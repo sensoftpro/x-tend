@@ -144,13 +144,17 @@ implementation
 {$R FMXForm.fmx}
 
 uses
-  Graphics, Math, StrUtils, Generics.Defaults, Variants,
+  Math, StrUtils, Generics.Defaults, Variants,
 
   FMX.ExtCtrls, FMX.Graphics, FMX.TabControl, FMX.Objects, FMX.ListView, FMX.ImgList,
   FMX.ScrollBox, FMX.Memo, FMX.Edit,
 
   uPresenter, uFMXPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
   uEntityList, uDomainUtils, uChangeManager;
+
+const
+  fsUnderline = System.UITypes.TFontStyle.fsUnderline;
+  clBtnFace = TColors.SysBtnFace;
 
 function AlignToAlignLayout(const AAlign: Byte): TAlignLayout;
 begin
@@ -392,28 +396,30 @@ begin
       if ALayout.Button_ShowCaption then
         vButton.Text := vCaption
       else begin
-        //vButton.ImageAlignment := TImageAlignment.iaCenter;
         vButton.ImageIndex := vImageID;
+        vButton.StyleLookup := 'stepperbuttonleft';
+        ALayout.Padding.Bottom := ALayout.Height - vImageSize - 4;
       end;
     end
     else if vComposition = 'TextOnly' then
       vButton.Text := vCaption
     else if vComposition = 'ImageOnly' then
     begin
-      //vButton.ImageAlignment := TImageAlignment.iaCenter;
       vButton.ImageIndex := vImageID;
+      vButton.StyleLookup := 'stepperbuttonleft';
+      ALayout.Padding.Bottom := ALayout.Height - vImageSize - 4;
     end
     else begin
       vButton.Text := vCaption;
       vButton.ImageIndex := vImageID;
-      //if vComposition = 'ImageRight' then
-      //  vButton.ImageAlignment := TImageAlignment.iaRight
+//      if vComposition = 'ImageRight' then
+//        vButton.Align := TAlignLayout.Right
       //else if vComposition = 'ImageTop' then
       //  vButton.ImageAlignment := TImageAlignment.iaTop
       //else if vComposition = 'ImageBottom' then
       //  vButton.ImageAlignment := TImageAlignment.iaBottom
-      //else
-      //  vButton.ImageAlignment := TImageAlignment.iaLeft;
+//      else
+//        vButton.TextSettings.HorzAlign := TTextAlign.Center;
     end;
   end
   else begin
@@ -516,7 +522,8 @@ begin
   vLabel.Cursor := crHandPoint;
   vLabel.TextSettings.HorzAlign := TTextAlign.Leading;
   vLabel.TextSettings.FontColor := ALayout.Font.Color;
-  vLabel.Font.Style := [fsUnderline];
+  vLabel.Font.Style := [TFontStyle.fsUnderline];
+  vLabel.StyledSettings := vLabel.StyledSettings - [TStyledSetting.FontColor, TStyledSetting.Style];
   vLabel.OnClick := FOwner.OnAreaClick;
 
   Result := vLabel;
@@ -589,7 +596,7 @@ begin
 
       if ALayout.Caption <> '' then
         vForm.Caption := ALayout.Caption;
-      if ALayout.Color <> ColorToAlphaColor(clBtnFace) then
+      if ALayout.Color <> TAlphaColorRec.Gray then
       begin
         vForm.Fill.Color := ALayout.Color;
         vForm.Fill.Kind := TBrushKind.Solid;
@@ -635,21 +642,28 @@ begin
     SetCaptionProperty(ALayout);
 
     if FControl is TCustomEdit then
-      CopyTextSettings(TCustomEdit(FControl).TextSettings, ALayout)
+    begin
+      CopyTextSettings(TCustomEdit(FControl).TextSettings, ALayout);
+      TCustomEdit(FControl).StyledSettings := [];
+    end
     else if FControl is TPresentedTextControl then
-      CopyTextSettings(TPresentedTextControl(FControl).TextSettings, ALayout)
+    begin
+      CopyTextSettings(TPresentedTextControl(FControl).TextSettings, ALayout);
+      TPresentedTextControl(FControl).StyledSettings := [];
+    end
     else if FControl is TTextControl then
+    begin
       CopyTextSettings(TTextControl(FControl).TextSettings, ALayout);
+      TTextControl(FControl).StyledSettings := [];
+    end;
 
     TControl(FControl).Anchors := ALayout.Anchors;
     TControl(FControl).Align := AlignToAlignLayout(ALayout.Align);
     CopyMargins(TControl(FControl), ALayout);
     CopyPadding(TControl(FControl), ALayout);
-
-    SetAlignment(ALayout.Alignment);
+//    SetAlignment(ALayout.Alignment);
 
     // TODO
-    //TControl(FControl).Color := ALayout.Color;
   end;
 end;
 
@@ -724,12 +738,13 @@ end;
 
 procedure TFMXControl.DoActivate(const AUrlParams: string);
 var
-  //vForm: TForm;
+  vForm: TForm;
   vChangeTab: Boolean;
 begin
   if FControl is TForm then
   begin
-    //vForm := TForm(FControl);
+    vForm := TForm(FControl);
+    vForm.Activate;
   end
   else if FControl is TTabItem then
   begin
@@ -780,21 +795,25 @@ begin
   Result := vLabel;
 
   vLabel.Parent := TFmxObject(GetRealControl(FParent));
+//  vLabel.Align := TAlignLayout.Client;
+  vLabel.Visible := True;
   vLabel.Text := ACaption;
   vLabel.Hint := AHint;
 
   if Assigned(FOwner.View.Parent) and (FOwner.View.Parent.DefinitionKind = dkAction)
     and TDefinition(FOwner.View.Parent.Definition).HasFlag(ccInstantExecution) then
   begin
-    vLabel.Font.Size := 9;
+    vLabel.StyledSettings := vLabel.StyledSettings - [TStyledSetting.Size];
+    vLabel.Font.Size := 12;
   end
   else begin
+    vLabel.StyledSettings := vLabel.StyledSettings - [TStyledSetting.Size, TStyledSetting.FontColor];
     vFontSize := vLabel.Font.Size;
     vFontSize := vFontSize - 3;
     if vFontSize < 8 then
       vFontSize := 8;
-    vLabel.Font.Size := vFontSize;
-    vLabel.FontColor := clGray;
+    vLabel.Font.Size := vFontSize * 96 / 72;
+    vLabel.FontColor := TAlphaColorRec.Gray;
   end;
 end;
 
@@ -878,14 +897,16 @@ begin
     vLabel.Position.X := TControl(FControl).Position.X;
     vLabel.Position.Y := TControl(FControl).Position.Y - vLabel.Height - 4;
     vLabel.AutoSize := True;
+    vLabel.TextSettings.VertAlign := TTextAlign.Leading;
   end
   else if FLabelPosition = lpLeft then
   begin
     vSpace := vLabel.Width + 8;
-    vLabel.Position.X := TControl(FControl).Position.X - vSpace;
-    vLabel.Position.Y := TControl(FControl).Position.Y + 3;
+    vLabel.Position.X := TControl(FControl).AbsoluteToLocal(PointF(0,0)).X - vSpace;
+    vLabel.Position.Y := TControl(FControl).AbsoluteToLocal(PointF(0,0)).Y + 3;
     vLabel.AutoSize := False;
   end;
+//  vLabel.Align := TAlignLayout.Center;
   vLabel.Parent := TControl(FControl).Parent;
 end;
 
@@ -898,13 +919,17 @@ procedure TFMXControl.SetAlignment(const AAlignment: TAlignment);
 const
   cTextAligns: array[TAlignment] of TTextAlign =
     (TTextAlign.Leading, TTextAlign.Trailing, TTextAlign.Center);
+  cLayoutAlign: array[TAlignment] of TALignLayout =
+   (TALignLayout.Left, TALignLayout.Right, TALignLayout.Center);
 begin
   if FControl is TCustomEdit then
     TCustomEdit(FControl).TextSettings.HorzAlign := cTextAligns[AAlignment]
   else if FControl is TPresentedTextControl then
     TPresentedTextControl(FControl).TextSettings.HorzAlign := cTextAligns[AAlignment]
   else if FControl is TTextControl then
-    TTextControl(FControl).TextSettings.HorzAlign := cTextAligns[AAlignment];
+    TTextControl(FControl).TextSettings.HorzAlign := cTextAligns[AAlignment]
+//  else
+//    TControl(FControl).Align := cLayoutAlign[AAlignment];
 end;
 
 procedure TFMXControl.SetBounds(const Value: TRect);

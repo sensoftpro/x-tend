@@ -4,8 +4,8 @@
 {$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}
 
 { $DEFINE VCL_UI}
-{$DEFINE FMX_UI}
-{ $DEFINE UNIGUI}
+{ $DEFINE FMX_UI}
+{$DEFINE UNIGUI}
 
 uses
 {$IFDEF VCL_UI}
@@ -91,13 +91,15 @@ uses
   uCommonVCLPainter in '..\..\Modules\Drawing\VCL\uCommonVCLPainter.pas',
   uVCLPainter in '..\..\Modules\Drawing\VCL\uVCLPainter.pas',
   // Reports: FastReports
-  uFRReport in '..\..\Modules\Reporting\FastReport\uFRReport.pas',
+  //uFRReport in '..\..\Modules\Reporting\FastReport\uFRReport.pas',
 {$ELSE} {$IFDEF FMX_UI}
   // UI: FMX
   uFMXPresenter in '..\..\Modules\UI\FMX\uFMXPresenter.pas',
   fmxArea in '..\..\Modules\UI\FMX\fmxArea.pas',
   fmxScene in '..\..\Modules\UI\FMX\fmxScene.pas',
   fmxBlobEditors in '..\..\Modules\UI\FMX\fmxBlobEditors.pas',
+  fmxSimpleEditors in '..\..\Modules\UI\FMX\fmxSimpleEditors.pas',
+  fmxListEditors in '..\..\Modules\UI\FMX\fmxListEditors.pas',
   // Painters: FMX
   uFMXPainter in '..\..\Modules\Drawing\FMX\uFMXPainter.pas',
   // Storage: FireDAC (FMX)

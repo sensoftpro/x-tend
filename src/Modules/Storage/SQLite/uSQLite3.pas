@@ -41,7 +41,11 @@ uses
   SysUtils, Generics.Collections;
 
 const
+{$IFDEF MSWINDOWS}
   cSqlite3Lib = 'sqlite3.dll';
+{$ELSE} {$IFDEF LINUX}
+  cSqlite3Lib = 'libsqlite3.so';
+{$ENDIF} {$ENDIF}
 
 type
   qword = int64;

@@ -124,7 +124,9 @@ type
     FAlreadyExists: Boolean;
   {$IFDEF MSWINDOWS}
     FFileMapping: THandle;
-  {$ENDIF}
+  {$ELSE} {$IFDEF POSIX}
+    FLockFile: TextFile;
+  {$ENDIF}  {$ENDIF}
     FBaseAddress: Pointer;
     FEvent: TEvent;
     FWaitingTask: ITask;
@@ -460,9 +462,11 @@ begin
 {$IFDEF MSWINDOWS}
   FFileMapping := OpenFileMapping(FILE_MAP_WRITE or FILE_MAP_READ, False, PChar(FFileName));
   FAlreadyExists := FFileMapping <> 0;
+{$ELSE} {$IFDEF POSIX}
+  FAlreadyExists := FileExists('/tmp/Sensoft.Platform.lock');
 {$ELSE}
   FAlreadyExists := False;
-{$ENDIF}
+{$ENDIF} {$ENDIF}
 
   if not FAlreadyExists then
   begin
@@ -475,7 +479,7 @@ begin
 {$ELSE}
     FBaseAddress := nil;
 {$ENDIF}
-
+{$IFDEF MSWINDOWS}
     FEvent := TEvent.Create(nil, False, False, FEventName);
     FWaitingTask := TTask.Run(procedure
       var
@@ -496,6 +500,11 @@ begin
             Break;
         end;
       end);
+{$ELSE}
+  AssignFile(FLockFile, '/tmp/Sensoft.Platform.lock');
+  Rewrite(FLockFile);
+  CloseFile(FLockFile);
+{$ENDIF}
   end
   else begin
 {$IFDEF MSWINDOWS}
@@ -525,7 +534,10 @@ begin
     UnmapViewOfFile(FBaseAddress);
   if FFileMapping <> 0 then
     CloseHandle(FFileMapping);
-{$ENDIF}
+{$ELSE} {$IFDEF POSIX}
+  if FileExists('/tmp/Sensoft.Platform.lock') then
+    DeleteFile('/tmp/Sensoft.Platform.lock');
+{$ENDIF} {$ENDIF}
 
   inherited Destroy;
 end;

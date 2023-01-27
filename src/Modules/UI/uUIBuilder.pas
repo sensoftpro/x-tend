@@ -351,7 +351,6 @@ type
     procedure ApplyLayout(const AArea: TUIArea; const AView: TView; const ALayoutName: string; const AParams: string);
     procedure CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
 
-    // Возвращает False, если не удолось открыть требуемый лейаут
     procedure Navigate(const AView: TView; const AAreaName, ALayoutName: string;
       const AOptions: string = ''; const AChangeHolder: TObject = nil;
       const ACaption: string = ''; const AOnClose: TCloseProc = nil);

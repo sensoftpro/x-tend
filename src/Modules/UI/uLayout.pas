@@ -577,37 +577,6 @@ begin
   Result := False;
 end;
 
-function BinaryToText(const AStream: TStream): string;
-var
-  vStrStream: TStringStream;
-begin
-  vStrStream := TStringStream.Create;
-  try
-    vStrStream.CopyFrom(AStream, -1);
-    vStrStream.Position := 0;
-    Result := EncodeBase64(vStrStream.DataString);
-  finally
-    vStrStream.Free;
-  end;
-end;
-
-function TextToBinary(const AText: string): TStream;
-var
-  vDecodedString: string;
-  vStrStream: TStringStream;
-begin
-  vDecodedString := DecodeBase64(AText);
-  Result := TMemoryStream.Create;
-  vStrStream := TStringStream.Create;
-  try
-    vStrStream.WriteString(vDecodedString);
-    Result.CopyFrom(vStrStream, -1);
-    Result.Position := 0;
-  finally
-    vStrStream.Free;
-  end;
-end;
-
 { TLayoutEdges }
 
 constructor TLayoutEdges.Create;
@@ -1447,7 +1416,7 @@ begin
     FImage_Proportional := AJSON.ExtractBoolean('proportional');
     FImage_Center := AJSON.ExtractBoolean('center');
     if AJSON.Contains('picture') then
-      FImage_Picture := TextToBinary(AJSON.ExtractString('picture'))
+      FImage_Picture := Base64ToBinary(AJSON.ExtractString('picture'))
     else
       FImage_Picture := nil;
   end
@@ -1553,7 +1522,7 @@ begin
     Result.StoreBoolean('proportional', FImage_Proportional);
     Result.StoreBoolean('center', FImage_Center);
     if Assigned(FImage_Picture) then
-      Result.StoreString('picture', BinaryToText(FImage_Picture));
+      Result.StoreString('picture', BinaryToBase64(FImage_Picture));
   end
   else if FKind = lkPages then
   begin

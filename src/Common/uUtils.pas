@@ -56,11 +56,10 @@ function DefineNameCase(const ASurName, AFirstName, APatronymicName: string;
 //function DeleteFileToRecycleBin(const FileName: string): Integer;
 
 // Работа с Base64
-//function EncodeBase64(const AInput: TStream): string; overload;
-function EncodeBase64(const AInput: string): string; //overload;
-
+function EncodeBase64(const AInput: string): string;
 function DecodeBase64(const AInput: string): string;
-function DecodeFromBase64(const AInput: string): TStream;
+function Base64ToBinary(const AText: string): TStream;
+function BinaryToBase64(const AStream: TStream): string;
 
 function MoneyToStringEng(const AMoney: Currency; const ACurrName, ACentName: string): string;
 
@@ -970,47 +969,32 @@ end; }
 
 // Base64 encoding
 function EncodeBase64(const AInput: string): string;
-var
-  vEncoder: TBase64Encoding;
 begin
-  vEncoder := TBase64Encoding.Create(0);
-  try
-    Result := vEncoder.Encode(AInput);
-  finally
-    vEncoder.Free;
-  end;
+  Result := TNetEncoding.Base64.Encode(AInput);
 end;
 
 // Base64 decoding
 function DecodeBase64(const AInput: string): string;
-var
-  vEncoder: TBase64Encoding;
 begin
-  vEncoder := TBase64Encoding.Create(0);
-  try
-    Result := vEncoder.Decode(AInput);
-  finally
-    vEncoder.Free;
-  end;
+  Result := TNetEncoding.Base64.Decode(AInput);
 end;
 
-function DecodeFromBase64(const AInput: string): TStream;
+function Base64ToBinary(const AText: string): TStream;
 var
-  vEncoder: TBase64Encoding;
-  vData: TBytes;
-  vInput: TBytes;
+  vBytes: TBytes;
 begin
-  //if Length(AInput) > 0 then
-  vEncoder := TBase64Encoding.Create(0);
-  vInput := vEncoder.DecodeStringToBytes(AInput);
+  vBytes := TNetEncoding.Base64.DecodeStringToBytes(AText);
+  Result := TBytesStream.Create(vBytes);
+end;
 
-  Result := TMemoryStream.Create;
-  try
-    vData := vEncoder.Decode(vInput);
-    Result.WriteData(vData, Length(vData));
-  finally
-    vEncoder.Free;
-  end;
+function BinaryToBase64(const AStream: TStream): string;
+var
+  vBytes: array of Byte;
+begin
+  SetLength(vBytes, AStream.Size);
+  AStream.Position := 0;
+  AStream.Read(vBytes[0], AStream.Size);
+  Result := TNetEncoding.Base64.EncodeBytesToString(vBytes);
 end;
 
 function MoneyToStringEng(const AMoney: Currency; const ACurrName, ACentName: string): string;
