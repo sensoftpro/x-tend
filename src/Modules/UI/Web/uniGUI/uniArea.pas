@@ -49,6 +49,8 @@ type
   TUniGUIControl = class(TNativeControlHolder)
   private
     procedure BeforeContextMenuShow(Sender: TObject);
+    procedure OnControlMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
   protected
     function ExtractOwner(const AUIArea: TUIArea): TComponent;
   protected
@@ -118,7 +120,6 @@ type
   private
     FToolBar: TuniToolBar;
   protected
-    procedure SetParent(const AParent: TUIArea); override;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
@@ -147,7 +148,8 @@ uses
   //UniGUI.ExtCtrls, UniGUI.Graphics, UniGUI.TabControl, UniGUI.Objects, UniGUI.ListView, UniGUI.ImgList,
   //UniGUI.ScrollBox, UniGUI.Memo, UniGUI.Edit,
 
-  Vcl.Controls, uniGUITypes, uniBitBtn, uniMenuButton, uniLabel, uniPageControl, uniEdit,
+  Windows, Vcl.Controls, uniGUITypes, uniBitBtn, uniMenuButton, uniLabel, uniPageControl, uniEdit,
+  uniGUIApplication, UniGUIJSUtils,
 
   uPresenter, uUniGUIPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
   uEntityList, uDomainUtils, uChangeManager;
@@ -155,6 +157,7 @@ uses
 type
   TCrackedBitBtn = class(TUniCustomBitBtn) end;
   TCrackedUniControl = class(TUniControl) end;
+  TCrackedUniForm = class(TUniForm) end;
 
 { TUniGUIMainMenu }
 
@@ -196,9 +199,17 @@ end;
 { TUniGUIToolBar }
 
 function TUniGUIToolBar.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vImageSize: Integer;
 begin
   FToolBar := TUniToolBar.Create(TControl(GetRealControl(AParent)));
+  FToolBar.ButtonAutoWidth := True;
+  FToolBar.ButtonHeight := ALayout.Height;
   FToolBar.ShowCaptions := True;
+
+  vImageSize := StrToIntDef(GetUrlParam(FParams, 'ImageSize'), 16);
+  FToolBar.Images := TUniCustomImageList(FUIBuilder.Images[vImageSize]);
+
   Result := FToolBar;
 end;
 
@@ -222,11 +233,11 @@ begin
       vLeft := 0;
 
     vToolButton := TUniToolButton.Create(FToolBar);
-    vToolButton.AutoSize := True;
     vToolButton.Left := vLeft;
     vToolButton.Caption := ACaption;
     vToolButton.Hint := AHint;
     vToolButton.ImageIndex := AImageIndex;
+    vToolButton.IconAlign := iaTop;
     vToolButton.OnClick := FOwner.OnAreaClick;
 
     Result := vToolButton;
@@ -249,6 +260,7 @@ begin
       else begin
         vMenu := TUniPopupMenu.Create(FToolBar);
         vToolButton.DropdownMenu := vMenu;
+        vToolButton.DropdownMenu.Images := FToolBar.Images;
       end;
 
       vMenu.Items.Add(vMenuItem);
@@ -258,27 +270,6 @@ begin
 
     Result := vMenuItem;
   end;
-end;
-
-procedure TUniGUIToolBar.SetParent(const AParent: TUIArea);
-var
-  vToolButton: TUniToolButton;
-  i, vImageSize: Integer;
-begin
-  inherited SetParent(AParent);
-
-  if not Assigned(AParent) then
-    Exit;
-
-  vImageSize := StrToIntDef(GetUrlParam(FParams, 'ImageSize'), 16);
-  FToolBar.Images := TUniCustomImageList(FUIBuilder.Images[vImageSize]);
-  FToolBar.AutoSize := True;
-  for i := 0 to FToolBar.Buttons.Count - 1 do
-  begin
-    vToolButton := TUniToolButton(FToolBar.Buttons[i]);
-    if Assigned(vToolButton.DropdownMenu) then
-      vToolButton.DropdownMenu.Images := FToolBar.Images;
-  end
 end;
 
 { TUniGUITreeMenu }
@@ -292,12 +283,22 @@ begin
   FTreeView.OnClick := OnMouseClick;
   FTreeView.OnKeyPress := OnKeyPress;
 
+  UniSession.SetStyle(
+    '#' + FTreeView.JSName + '_id .x-tree-view{'+
+    '  background-color: ' + uniColor2Web(AlphaColorToColor(ALayout.Color)) + ';'+
+    '}'+
+    '#' + FTreeView.JSName + '_id .x-tree-view .x-grid-cell-inner-treecolumn{'+
+    '  background-color: ' + uniColor2Web(AlphaColorToColor(ALayout.Color)) + ';'+
+    '}');
+
   ALayout.Id := 'TreeView';
 
   FDefaultWorkArea := FCreateParams.Values['ContentWorkArea'];
   if FDefaultWorkArea = '' then
     FDefaultWorkArea := 'WorkArea';
   Result := FTreeView;
+
+  FTreeView.FullExpand;
 end;
 
 function TUniGUITreeMenu.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
@@ -359,7 +360,7 @@ begin
   if not Assigned(ANode) then
     Exit;
 
-  vArea := TUIArea(ANode.Data);
+  vArea := TUIArea(ANode.Tag);
   if Assigned(vArea) then
     FOwner.ProcessAreaClick(vArea);
 end;
@@ -368,7 +369,7 @@ end;
 
 procedure TUniGUIButton.DoBeforeFreeControl;
 begin
-  FreeAndNil(FTypeSelectionMenu);
+  //FreeAndNil(FTypeSelectionMenu);
 end;
 
 function TUniGUIButton.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -410,7 +411,9 @@ begin
   begin
     vDefinitions := TEntityList(FView.ParentDomainObject).ContentDefinitions;
     vHasPopupMenu := vIsSelectable and (vDefinitions.Count > 1);
-  end;
+  end
+  else
+    vHasPopupMenu := False;
 
   if vHasPopupMenu then
     vButton := TCrackedBitBtn(TUniMenuButton.Create(ExtractOwner(AParent)))
@@ -441,7 +444,11 @@ begin
     if vComposition = '' then
     begin
       if ALayout.Button_ShowCaption then
-        vButton.Caption := vCaption
+      begin
+        vButton.IconAlign := TUniIconAlign.iaLeft;
+        vButton.ImageIndex := vImageID;
+        vButton.Caption := vCaption;
+      end
       else begin
         vButton.IconAlign := TUniIconAlign.iaCenter;
         vButton.ImageIndex := vImageID;
@@ -624,14 +631,14 @@ begin
 
       if (vForm.WindowState = TWindowState.wsNormal) then
       begin
-        if {(vForm.FormStyle <> fsMDIChild) or} ((ALayout.Tag and cFormUseDesignSizes) > 0) then
-        begin
-          vForm.ClientWidth := ALayout.Width;
+        //if {(vForm.FormStyle <> fsMDIChild) or} ((ALayout.Tag and cFormUseDesignSizes) > 0) then
+        //begin
+          vForm.Width := vForm.Width - vForm.ClientWidth + ALayout.Width;
           if FOwner.View.DefinitionKind = dkDomain then
-            vForm.ClientHeight := ALayout.Height
+            vForm.Height := vForm.Height - vForm.ClientHeight + ALayout.Height
           else
-            vForm.ClientHeight := ALayout.Height + cServiceAreaHeight;
-        end;
+            vForm.Height := vForm.Height - vForm.ClientHeight + ALayout.Height + cServiceAreaHeight;
+        //end;
       end;
 
       CopyConstraints(vForm.Constraints, ALayout);
@@ -645,11 +652,11 @@ begin
       vForm.BorderStyle := bsSizeable;
       vForm.BorderIcons := [TBorderIcon.biSystemMenu, TBorderIcon.biMinimize, TBorderIcon.biMaximize];
       vForm.Caption := ALayout.Caption;
-      vForm.ClientWidth := ALayout.Width;
+      vForm.Width := vForm.Width - vForm.ClientWidth + ALayout.Width;
       if FOwner.View.DefinitionKind = dkDomain then
-        vForm.ClientHeight := ALayout.Height
+        vForm.Height := vForm.Height - vForm.ClientHeight + ALayout.Height
       else
-        vForm.ClientHeight := ALayout.Height + cServiceAreaHeight;
+        vForm.Height := vForm.Height - vForm.ClientHeight + ALayout.Height + cServiceAreaHeight;
     end
     else if ALayout.Kind = lkPage then
     begin
@@ -688,9 +695,12 @@ begin
 
     SetAlignment(ALayout.Alignment);
 
-    //TCrackedUniControl(FControl).Color := AlphaColorToColor(ALayout.Color);
-    //TCrackedUniControl(FControl).ParentColor := False;
-    //TCrackedUniControl(FControl).ParentBackground := False;
+    if ALayout.Kind <> lkShape then
+    begin
+      TCrackedUniControl(FControl).Color := AlphaColorToColor(ALayout.Color);
+      TCrackedUniControl(FControl).ParentColor := False;
+      TCrackedUniControl(FControl).ParentBackground := False;
+    end;
   end;
 end;
 
@@ -703,6 +713,7 @@ var
   var
     i: Integer;
     vArea: TUIArea;
+    vOnCheck: TNotifyEvent;
   begin
     if AMenuItem.Count > 0 then
     begin
@@ -710,6 +721,9 @@ var
         CheckMenuItems(AMenuItem[i]);
       Exit;
     end;
+
+    if not AMenuItem.CheckItem then
+      Exit;
 
     vArea := AreaFromSender(AMenuItem);
     if not Assigned(vArea) then
@@ -722,7 +736,18 @@ var
       Exit;
 
     if TEntity(vArea.View.DomainObject).FieldExists('IsChecked') then
-      AMenuItem.Checked := TEntity(vArea.View.DomainObject)['IsChecked'];
+    begin
+      if AMenuItem.Checked <> TEntity(vArea.View.DomainObject)['IsChecked'] then
+      begin
+        vOnCheck := AMenuItem.OnCheck;
+        AMenuItem.OnCheck := nil;
+        try
+          AMenuItem.Checked := TEntity(vArea.View.DomainObject)['IsChecked'];
+        finally
+          AMenuItem.OnCheck := vOnCheck;
+        end;
+      end;
+    end;
   end;
 
 begin
@@ -737,30 +762,11 @@ begin
 end;
 
 destructor TUniGUIControl.Destroy;
-var
-  vControl: TObject;
-  vIsFloat: Boolean;
 begin
   if Assigned(FCaption) then
     TUniLabel(FCaption).Parent := nil;
 
-  vControl := FControl;
-  vIsFloat := (FOwner.Id = 'float') or (FOwner.Id = 'free');
-
   inherited Destroy;
-
-  if not Assigned(vControl) then
-    Exit;
-  if not (vControl is TComponent) then
-    Exit;
-
-  if vControl is TUniForm then
-  begin
-    if {(TForm(vControl).FormStyle = fsMDIChild) or} vIsFloat then
-      FreeAndNil(vControl);
-  end
-  else
-    FreeAndNil(vControl);
 end;
 
 procedure TUniGUIControl.DoActivate(const AUrlParams: string);
@@ -800,10 +806,8 @@ begin
 
     if AModalResult = mrNone then
       vForm.Close
-    else begin
-      vForm.Close;
+    else
       vForm.ModalResult := AModalResult;
-    end;
   end;
 end;
 
@@ -832,7 +836,7 @@ begin
     if vFontSize < 8 then
       vFontSize := 8;
     vLabel.Font.Size := vFontSize;
-    vLabel.Font.Color := clGray;
+    vLabel.Font.Color := TColorRec.Gray;
   end;
 end;
 
@@ -919,6 +923,34 @@ begin
   Result := TUniMenuItem(ASender).MenuIndex;
 end;
 
+procedure TUniGUIControl.OnControlMouseDown(Sender: TObject;
+  Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
+var
+  vMenu: TObject;
+  vClientPos: TPoint;
+  vParent: TObject;
+begin
+  if (Button = mbRight) and Assigned(TCrackedUniControl(Sender).PopupMenu) then
+  begin
+    vMenu := TCrackedUniControl(Sender).PopupMenu;
+
+    BeforeContextMenuShow(vMenu);
+
+    if vMenu is TUniPopupMenu then
+    begin
+      vClientPos := Point(X, Y);
+      vParent := Sender;
+      while Assigned(vParent) and not (vParent is TUniForm) do
+      begin
+        vClientPos := TCrackedUniControl(vParent).ClientToParent(vClientPos);
+        vParent := TCrackedUniControl(vParent).Parent;
+      end;
+
+      TUniPopupMenu(vMenu).Popup(vClientPos.X, vClientPos.Y);
+    end;
+  end;
+end;
+
 procedure TUniGUIControl.PlaceLabel;
 var
   vSpace: Integer;
@@ -987,28 +1019,47 @@ end;
 
 procedure TUniGUIControl.SetControl(const AControl: TObject);
 begin
-  if FControl is TUniControl then
+  if FControl is TUniTreeNode then
+    TUniTreeNode(FControl).Tag := 0
+  else if FControl is TUniControl then
   begin
     TCrackedUniControl(FControl).OnEnter := nil;
     TCrackedUniControl(FControl).OnExit := nil;
+  end
+  else if FControl is TUniForm then
+  begin
+    TCrackedUniForm(FControl).OnEnter := nil;
+    TCrackedUniForm(FControl).OnExit := nil;
   end;
 
   inherited SetControl(AControl);
 
-  if FControl is TWinControl then
+  if FControl is TUniTreeNode then
+    TUniTreeNode(FControl).Tag := NativeInt(FOwner)
+  else if FControl is TUniControl then
   begin
     TCrackedUniControl(FControl).OnEnter := FOwner.OnEnter;
     TCrackedUniControl(FControl).OnExit := FOwner.OnExit;
+  end
+  else if FControl is TUniForm then
+  begin
+    TCrackedUniForm(FControl).OnEnter := FOwner.OnEnter;
+    TCrackedUniForm(FControl).OnExit := FOwner.OnExit;
   end;
 end;
 
 procedure TUniGUIControl.SetFocused(const Value: Boolean);
 begin
-  if not (FControl is TWinControl) then
-    Exit;
-
-  if Value and TWinControl(FControl).CanFocus then
-    TWinControl(FControl).SetFocus;
+  if FControl is TUniControl then
+  begin
+    if Value and TUniControl(FControl).CanFocus then
+      TUniControl(FControl).SetFocus;
+  end
+  else if FControl is TUniForm then
+  begin
+    if Value and TUniForm(FControl).CanFocus then
+      TUniForm(FControl).SetFocus;
+  end;
 end;
 
 procedure TUniGUIControl.SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl);
@@ -1021,9 +1072,9 @@ begin
   if SameText(ATargetName, 'popup') then
   begin
     vPopupMenu := TUniPopupMenu(TNativeControlHolder(ALinkedControl).Control);
-    if not Assigned(vPopupMenu.OnPopup) then
-      vPopupMenu.OnPopup := BeforeContextMenuShow;
     TCrackedUniControl(FControl).PopupMenu := vPopupMenu;
+    if not Assigned(TCrackedUniControl(FControl).OnMouseDown) then
+      TCrackedUniControl(FControl).OnMouseDown := OnControlMouseDown;
   end;
 end;
 
@@ -1042,9 +1093,9 @@ begin
 
   // Установка родителя для контрола
   if FIsForm or not Assigned(AParent) then
-    TControl(FControl).Parent := nil
+    TUniControl(FControl).Parent := nil
   else if not Assigned(TControl(FControl).Parent) then
-    TControl(FControl).Parent := TWinControl(GetRealControl(AParent));
+    TUniControl(FControl).Parent := TWinControl(GetRealControl(AParent));
 end;
 
 procedure TUniGUIControl.SetTabOrder(const ATabOrder: Integer);
@@ -1070,6 +1121,19 @@ begin
   begin
     TUniControl(FControl).Visible := AViewState > vsHidden;
     TUniControl(FControl).Enabled := AViewState > vsDisabled;
+  end
+  else if FControl is TUniMenuItem then
+  begin
+    TUniMenuItem(FControl).Visible := AViewState > vsHidden;
+    TUniMenuItem(FControl).Enabled := AViewState > vsDisabled;
+  end
+  else if FControl is TUniTreeNode then
+  begin
+    TUniTreeNode(FControl).Visible := AViewState > vsHidden;
+    TUniTreeNode(FControl).Enabled := AViewState > vsDisabled;
+  end
+  else begin
+    Assert(False, FControl.ClassName);
   end;
 end;
 

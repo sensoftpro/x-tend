@@ -1673,6 +1673,9 @@ var
   vListeners: TList<TObject>;
   vMessage: TDomainChangedMessage;
 begin
+  if not TUserSession(TChangeHolder(AHolder).Session).IsValid then
+    Exit;
+
   if not FUIListeners.TryGetValue(AFieldName, vListeners) then
     Exit;
 

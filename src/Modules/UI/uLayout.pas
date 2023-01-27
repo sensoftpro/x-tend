@@ -1434,12 +1434,10 @@ begin
   if AJSON.Contains('font') then
     FFont.InternalLoad(AJSON.ExtractObject('font'));
 
-  if FKind = lkAction then
-  begin
-    FButton_ShowCaption := AJSON.ExtractBoolean('button_show_caption');
-    FButton_Flat := AJSON.ExtractBoolean('button_flat');
-  end
-  else if FKind = lkShape then
+  FButton_ShowCaption := AJSON.ExtractBoolean('button_show_caption');
+  FButton_Flat := AJSON.ExtractBoolean('button_flat');
+
+  if FKind = lkShape then
   begin
     FShape_Type := StrToShapeType(AJSON.ExtractString('shape_type'));
   end

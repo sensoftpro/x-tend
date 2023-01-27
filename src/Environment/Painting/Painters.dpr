@@ -11,7 +11,6 @@ uses
   uDrawStyles in '..\..\Modules\Drawing\uDrawStyles.pas',
   uScene in '..\..\Modules\Drawing\uScene.pas',
   vclScene in '..\..\Modules\UI\WinVCL\vclScene.pas',
-
 {$I ..\..\Modules\Drawing\VCL\files.inc}
 {$I ..\..\Modules\Drawing\GDIPlus\files.inc}
 {$I ..\..\Modules\Drawing\Direct2D\files.inc}

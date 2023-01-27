@@ -271,8 +271,8 @@ type
     destructor Destroy; override;
 
     function Prepare(const AScript: TEntity): TCodeBlock;
-    function Execute(const AMainMethod: TCodeBlock; const ASession: TUserSession;
-      const AOnCustomEvent: TCustomEvent = nil; const AOnScriptEnd: TScriptEndEvent = nil): Integer;
+    procedure Execute(const AMainMethod: TCodeBlock; const ASession: TUserSession;
+      const AOnCustomEvent: TCustomEvent = nil; const AOnScriptEnd: TScriptEndEvent = nil);
     procedure Stop(const ASession: TUserSession);
 
     procedure StopFiber(const ASession: TUserSession; const AFiberID: Integer);
@@ -280,12 +280,12 @@ type
     procedure PrintText(const ATask: TTaskHandle; const AText: string);
     procedure NotifyEnd(const ATask: TTaskHandle; const AFiber: TExecutionFiber);
 
-    function ExecuteScenario(const ASession: TUserSession; const AScenario: TEntity;
+    procedure ExecuteScenario(const ASession: TUserSession; const AScenario: TEntity;
       var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent = nil;
-      const AOnScriptEnd: TScriptEndEvent = nil): Integer; overload;
-    function ExecuteScenario(const ASession: TUserSession; const AIdent: string;
+      const AOnScriptEnd: TScriptEndEvent = nil); overload;
+    procedure ExecuteScenario(const ASession: TUserSession; const AIdent: string;
       var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent = nil;
-      const AOnScriptEnd: TScriptEndEvent = nil): Integer; overload;
+      const AOnScriptEnd: TScriptEndEvent = nil); overload;
     procedure StopScenario(const ASession: TUserSession; const AFiberID: Integer);
 
     //procedure Subscribe(const AListener: TObject);
@@ -696,64 +696,63 @@ begin
 //    end);
 end;
 
-function TScriptExecutor.Execute(const AMainMethod: TCodeBlock; const ASession: TUserSession;
-  const AOnCustomEvent: TCustomEvent = nil; const AOnScriptEnd: TScriptEndEvent = nil): Integer;
+procedure TScriptExecutor.Execute(const AMainMethod: TCodeBlock; const ASession: TUserSession;
+  const AOnCustomEvent: TCustomEvent = nil; const AOnScriptEnd: TScriptEndEvent = nil);
 var
   vFiber: TExecutionFiber;
   vVarList: TList;
   vInteractor: TInteractor;
-  vCanRun: Boolean;
   vSettings: TSettings;
   vSection: string;
   i: Integer;
   vVariable: TScriptVariable;
 begin
-  Result := 0;
-  vCanRun := True;
+  vInteractor := TInteractor(ASession.Interactor);
+  if not Assigned(vInteractor) then
+    Exit;
+  if not Assigned(vInteractor.Presenter) then
+    Exit;
 
   vFiber := TExecutionFiber.Create(Self, AMainMethod, ASession, AOnCustomEvent, AOnScriptEnd);
-  try
-    // Отображение диалога
-    if Assigned(ASession.Interactor) then
+  vVarList := vFiber.GetExternalVariables;
+  if vVarList.Count > 0 then
+  begin
+    vInteractor := TInteractor(ASession.Interactor);
+    vSettings := TDomain(FDomain).UserSettings;
+    vSection := 'Script' + IntToStr(AMainMethod.FID);
+    for i := 0 to vVarList.Count - 1 do
     begin
-      vVarList := vFiber.GetExternalVariables;
-      try
-        if vVarList.Count > 0 then
-        begin
-          vInteractor := TInteractor(ASession.Interactor);
-          vSettings := TDomain(FDomain).UserSettings;
-          vSection := 'Script' + IntToStr(AMainMethod.FID);
-          for i := 0 to vVarList.Count - 1 do
-          begin
-            vVariable := TScriptVariable(vVarList[i]);
-            if vSettings.KeyExists(vSection, vVariable.Name) then
-              vVariable.SetStringValue(vSettings.GetValue(vSection, vVariable.Name, ''));
-          end;
-
-          vCanRun := Assigned(vInteractor.Presenter) and (TPresenter(vInteractor.Presenter).ShowPage(
-            vInteractor, 'parameters', vVarList) = drOk);
-
-          // SaveVariables
-          for i := 0 to vVarList.Count - 1 do
-          begin
-            vVariable := TScriptVariable(vVarList[i]);
-            vSettings.SetValue(vSection, vVariable.Name, VarToStr(vVariable.Value));
-          end;
-        end;
-      finally
-        FreeAndNil(vVarList);
-      end;
+      vVariable := TScriptVariable(vVarList[i]);
+      if vSettings.KeyExists(vSection, vVariable.Name) then
+        vVariable.SetStringValue(vSettings.GetValue(vSection, vVariable.Name, ''));
     end;
-  finally
-    if vCanRun then
-    begin
-      FInProcess := True;
-      Result := vFiber.ID;
-      FRuntime.AddFiber(vFiber);
-    end
-    else
-      FreeAndNil(vFiber);
-  end;
+
+    TPresenter(vInteractor.Presenter).ShowPage(vInteractor, 'parameters', vVarList,
+      procedure(const AResult: TDialogResult)
+      var
+        i: Integer;
+      begin
+        // SaveVariables
+        for i := 0 to vVarList.Count - 1 do
+        begin
+          vVariable := TScriptVariable(vVarList[i]);
+          vSettings.SetValue(vSection, vVariable.Name, VarToStr(vVariable.Value));
+        end;
+
+        FreeAndNil(vVarList);
+
+        if AResult = drOk then
+        begin
+          FInProcess := True;
+          //Result := vFiber.ID;
+          FRuntime.AddFiber(vFiber);
+        end
+        else
+          FreeAndNil(vFiber);
+      end);
+  end
+  else
+    FreeAndNil(vVarList);
 end;
 
 function TScriptExecutor.ExecuteCommand(const ATask: TTaskHandle; const AFiber: TExecutionFiber;
@@ -811,14 +810,17 @@ begin
   else if vCommandName = 'ASK' then
   begin
     TTaskHandle.SafeInvoke(ATask, procedure
-    var
-      vResult: Boolean;
     begin
       if Assigned(vPresenter) then
-        vResult := vPresenter.ShowYesNoDialog(TDomain(FDomain).AppTitle, VarToStrDef(ACommand['Question'], '')) = drYes
+      begin
+        vPresenter.ShowYesNoDialog(TDomain(FDomain).AppTitle, VarToStrDef(ACommand['Question'], ''), False,
+          procedure(const AResult: TDialogResult)
+          begin
+            ACommand.Owner.SetVariableValue(ATask, AFiber.Session, ACommand['Result'], AResult = drYes);
+          end);
+      end
       else
-        vResult := False;
-      ACommand.Owner.SetVariableValue(ATask, AFiber.Session, ACommand['Result'], vResult);
+        ACommand.Owner.SetVariableValue(ATask, AFiber.Session, ACommand['Result'], False);
     end);
   end
   else if vCommandName = 'SHOW_LAYOUT' then
@@ -862,8 +864,8 @@ begin
     Result := False;
 end;
 
-function TScriptExecutor.ExecuteScenario(const ASession: TUserSession; const AScenario: TEntity;
-  var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent; const AOnScriptEnd: TScriptEndEvent): Integer;
+procedure TScriptExecutor.ExecuteScenario(const ASession: TUserSession; const AScenario: TEntity;
+  var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent; const AOnScriptEnd: TScriptEndEvent);
 var
   vCodeBlock: TCodeBlock;
   vKey: string;
@@ -877,7 +879,7 @@ begin
   begin
     if Assigned(vPresenter) then
       vPresenter.ShowMessage('Ошибка', Format('Не удалось скомпилировать сценарий [%s]...', [AScenario['Name']]), msError);
-    Exit(0);
+    Exit;
   end;
 
   if Assigned(AParams) then
@@ -887,11 +889,11 @@ begin
     FreeAndNil(AParams);
   end;
 
-  Result := Execute(vCodeBlock, ASession, AOnCustomEvent, AOnScriptEnd);
+  Execute(vCodeBlock, ASession, AOnCustomEvent, AOnScriptEnd);
 end;
 
-function TScriptExecutor.ExecuteScenario(const ASession: TUserSession; const AIdent: string;
-  var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent; const AOnScriptEnd: TScriptEndEvent): Integer;
+procedure TScriptExecutor.ExecuteScenario(const ASession: TUserSession; const AIdent: string;
+  var AParams: TDictionary<string, Variant>; const AOnCustomEvent: TCustomEvent; const AOnScriptEnd: TScriptEndEvent);
 var
   vDomain: TDomain;
   vScenario: TEntity;
@@ -906,10 +908,10 @@ begin
   if not Assigned(vScenario) then
   begin
     vPresenter.ShowMessage('Ошибка', Format('Сценарий [%s] не найден в системе!', [AIdent]), msError);
-    Exit(0);
+    Exit;
   end;
 
-  Result := ExecuteScenario(ASession, vScenario, AParams, AOnCustomEvent, AOnScriptEnd);
+  ExecuteScenario(ASession, vScenario, AParams, AOnCustomEvent, AOnScriptEnd);
 end;
 
 procedure TScriptExecutor.NotifyEnd(const ATask: TTaskHandle; const AFiber: TExecutionFiber);

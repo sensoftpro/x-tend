@@ -654,7 +654,10 @@ end;
 
 procedure TLanguage.Save;
 begin
-  FDictionary.SaveToFile(FFileName);
+  try
+    FDictionary.SaveToFile(FFileName);
+  except
+  end;
 end;
 
 procedure TLanguage.SetValue(const AKey, Value: string);

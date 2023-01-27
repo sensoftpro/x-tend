@@ -36,7 +36,7 @@ unit uInteractor;
 interface
 
 uses
-  Generics.Collections, uConsts, uUIBuilder, uView, uLayout;
+  Generics.Collections, SysUtils, uConsts, uUIBuilder, uView, uLayout;
 
 type
   TGetViewFunc = reference to function(const AHolder: TObject): TView;
@@ -52,6 +52,7 @@ type
     FRootArea: TUIArea;
     FDefaultParams: string;
     [Weak] FCurrentArea: TUIArea;
+    [Weak] FAreaStack: TStack<TUIArea>;
     [Weak] FLastArea: TUIArea;
     [Weak] FActiveArea: TUIArea;
     [Weak] FPagedArea: TUIArea;
@@ -63,12 +64,20 @@ type
     destructor Destroy; override;
 
     function GetViewOfEntity(const AEntity: TObject): TView;
-    function ShowEntityEditor(const AView: TView; const AHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
-    function AtomicEditEntity(const AGetViewFunc: TGetViewFunc; const AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean; overload;
-    function AtomicEditEntity(const AView: TView; const AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean; overload;
-    function AtomicEditEntity(const AEntity: TObject; const AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean; overload;
-    function AtomicEditParams(const AView: TView; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
-    function EditParams(const AEntity: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
+    procedure ShowEntityEditor(const AView: TView; const AHolder: TObject; const ALayoutName: string = '';
+      const ACaption: string = ''; const AOnClose: TCloseProc = nil);
+    procedure AtomicEditEntity(const AGetViewFunc: TGetViewFunc; const AParentHolder: TObject;
+      const ALayoutName: string = ''; const ACaption: string = ''; const AOnClose: TCloseProc = nil); overload;
+    procedure AtomicEditEntity(const AView: TView; const AParentHolder: TObject;
+      const ALayoutName: string = ''; const ACaption: string = '';
+      const AOnClose: TCloseProc = nil); overload;
+    procedure AtomicEditEntity(const AEntity: TObject; const AParentHolder: TObject;
+      const ALayoutName: string = ''; const ACaption: string = '';
+      const AOnClose: TCloseProc = nil); overload;
+    procedure AtomicEditParams(const AView: TView; const ALayoutName: string = '';
+      const ACaption: string = ''; const AOnClose: TCloseProc = nil);
+    procedure EditParams(const AEntity: TObject; const ALayoutName: string = '';
+      const ACaption: string = ''; const AOnClose: TCloseProc = nil);
     procedure ViewEntity(const AView: TView; const ALayoutName: string = '');
 
     function Translate(const AKey: string; const ADefault: string = ''): string;
@@ -76,7 +85,8 @@ type
     function NeedSkipColumn(const ASource: TObject; const AFieldDef: TObject): Boolean;
 
     procedure ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);
-    function ShowYesNoDialog(const ACaption, AText: string; const AWithCancel: Boolean = False): TDialogResult;
+    procedure ShowYesNoDialog(const ACaption, AText: string;
+      const AWithCancel: Boolean = False; const AOnClose: TCloseProc = nil);
 
     procedure CloseCurrentArea(const AModalResult: Integer);
     procedure PrintHierarchy;
@@ -91,6 +101,7 @@ type
     property RootView: TView read FRootView;
     property RootArea: TUIArea read FRootArea write FRootArea;
     property CurrentArea: TUIArea read FCurrentArea write FCurrentArea;
+    property AreaStack: TStack<TUIArea> read FAreaStack;
     property DefaultParams: string read FDefaultParams write FDefaultParams;
     property PagedArea: TUIArea read FPagedArea write SetPagedArea;
     property LastArea: TUIArea read FLastArea write SetLastArea;
@@ -100,17 +111,15 @@ type
 implementation
 
 uses
-  SysUtils,
   uDomain, uEntity, uObjectField, uSession, uPresenter, uEntityList,
   uConfiguration, uDefinition, uChangeManager, uUtils;
 
 { TInteractor }
 
-function TInteractor.AtomicEditEntity(const AGetViewFunc: TGetViewFunc; const AParentHolder: TObject;
-  const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
+procedure TInteractor.AtomicEditEntity(const AGetViewFunc: TGetViewFunc; const AParentHolder: TObject;
+  const ALayoutName: string = ''; const ACaption: string = ''; const AOnClose: TCloseProc = nil);
 var
   vView: TView;
-  vResult: Boolean;
   vHolder: TChangeHolder;
 begin
   TUserSession(FSession).DomainWrite(procedure
@@ -119,40 +128,41 @@ begin
       vView := AGetViewFunc(vHolder);
     end);
 
-  try
-    vResult := ShowEntityEditor(vView, vHolder, ALayoutName, ACaption);
-  finally
-    TUserSession(FSession).DomainWrite(procedure
+  ShowEntityEditor(vView, vHolder, ALayoutName, ACaption, procedure(const AResult: TDialogResult)
+    begin
+      TUserSession(FSession).DomainWrite(procedure
       begin
-        TUserSession(FSession).ReleaseChangeHolder(vHolder, vResult);
+        TUserSession(FSession).ReleaseChangeHolder(vHolder, AResult = drOk);
       end);
-  end;
 
-  Result := vResult;
+      if Assigned(AOnClose) then
+        AOnClose(AResult);
+    end);
 end;
 
-function TInteractor.AtomicEditEntity(const AView: TView; const AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
+procedure TInteractor.AtomicEditEntity(const AView: TView; const AParentHolder: TObject;
+  const ALayoutName: string = ''; const ACaption: string = ''; const AOnClose: TCloseProc = nil);
 begin
-  Result := AtomicEditEntity(function(const AHolder: TObject): TView
+  AtomicEditEntity(function(const AHolder: TObject): TView
     begin
       Result := AView;
-    end, AParentHolder, ALayoutName, ACaption);
+    end, AParentHolder, ALayoutName, ACaption, AOnClose);
 end;
 
-function TInteractor.AtomicEditEntity(const AEntity, AParentHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
+procedure TInteractor.AtomicEditEntity(const AEntity, AParentHolder: TObject;
+  const ALayoutName: string = ''; const ACaption: string = ''; const AOnClose: TCloseProc = nil);
 begin
-  if not Assigned(AEntity) then
-    Exit(False);
-
-  Result := AtomicEditEntity(function(const AHolder: TObject): TView
-    begin
-      Result := GetViewOfEntity(TEntity(AEntity));
-    end, AParentHolder, ALayoutName, ACaption);
+  if Assigned(AEntity) then
+    AtomicEditEntity(function(const AHolder: TObject): TView
+      begin
+        Result := GetViewOfEntity(TEntity(AEntity));
+      end, AParentHolder, ALayoutName, ACaption, AOnClose);
 end;
 
-function TInteractor.AtomicEditParams(const AView: TView; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
+procedure TInteractor.AtomicEditParams(const AView: TView; const ALayoutName: string = '';
+  const ACaption: string = ''; const AOnClose: TCloseProc = nil);
 begin
-  Result := ShowEntityEditor(AView, nil, ALayoutName, ACaption);
+  ShowEntityEditor(AView, nil, ALayoutName, ACaption, AOnClose);
 end;
 
 procedure TInteractor.CloseCurrentArea(const AModalResult: Integer);
@@ -167,11 +177,12 @@ begin
   FPresenter := APresenter;
 
   FSession := ASession;
-  TUserSession(FSession).Interactor := Self;
+  TUserSession(FSession).AddInteractor(Self);
   FDomain := TUserSession(ASession).Domain;
   FConfiguration := TDomain(FDomain).Configuration;
   FUIBuilder := TDomain(FDomain).UIBuilder;
   FUIBuilder.Presenter := APresenter;
+  FAreaStack := TStack<TUIArea>.Create;
 
   FRootArea := nil;
   FCurrentArea := nil;
@@ -184,6 +195,7 @@ end;
 
 destructor TInteractor.Destroy;
 begin
+  FreeAndNil(FAreaStack);
   SetLastArea(nil);
   FCurrentArea := nil;
   FPagedArea := nil;
@@ -193,7 +205,6 @@ begin
 
   FUIBuilder := nil;
   FPresenter := nil;
-  TUserSession(FSession).Interactor := nil;
   FSession := nil;
   FDomain := nil;
   FConfiguration := nil;
@@ -201,9 +212,10 @@ begin
   inherited Destroy;
 end;
 
-function TInteractor.EditParams(const AEntity: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
+procedure TInteractor.EditParams(const AEntity: TObject; const ALayoutName: string = '';
+  const ACaption: string = ''; const AOnClose: TCloseProc = nil);
 begin
-  Result := ShowEntityEditor(GetViewOfEntity(AEntity), nil, ALayoutName, ACaption);
+  ShowEntityEditor(GetViewOfEntity(AEntity), nil, ALayoutName, ACaption, AOnClose);
 end;
 
 function TInteractor.GetViewOfEntity(const AEntity: TObject): TView;
@@ -295,7 +307,8 @@ begin
   FPagedArea := Value;
 end;
 
-function TInteractor.ShowEntityEditor(const AView: TView; const AHolder: TObject; const ALayoutName: string = ''; const ACaption: string = ''): Boolean;
+procedure TInteractor.ShowEntityEditor(const AView: TView; const AHolder: TObject;
+  const ALayoutName: string = ''; const ACaption: string = ''; const AOnClose: TCloseProc = nil);
 var
   vEntity: TEntity;
 begin
@@ -303,13 +316,8 @@ begin
   Assert(AView.DefinitionKind in [dkEntity, dkAction, dkObjectField], 'Показываем непонятно что');
 
   vEntity := TEntity(AView.DomainObject);
-  if not Assigned(vEntity) then
-  begin
-    Result := False;
-    Exit;
-  end;
-
-  Result := FUIBuilder.Navigate(AView, 'child', ALayoutName, 'operation=edit', AHolder, ACaption) = drOk;
+  if Assigned(vEntity) then
+    FUIBuilder.Navigate(AView, 'child', ALayoutName, 'operation=edit', AHolder, ACaption, AOnClose);
 end;
 
 procedure TInteractor.ShowMessage(const AText: string; const AMessageType: TMessageType = msNone);
@@ -318,11 +326,11 @@ begin
   TPresenter(FPresenter).ShowMessage(TDomain(FDomain).AppTitle, AText, AMessageType);
 end;
 
-function TInteractor.ShowYesNoDialog(const ACaption, AText: string;
-  const AWithCancel: Boolean): TDialogResult;
+procedure TInteractor.ShowYesNoDialog(const ACaption, AText: string;
+  const AWithCancel: Boolean; const AOnClose: TCloseProc);
 begin
   TDomain(FDomain).CheckLocking(False);
-  Result := TPresenter(FPresenter).ShowYesNoDialog(ACaption, AText, AWithCancel);
+  TPresenter(FPresenter).ShowYesNoDialog(ACaption, AText, AWithCancel, AOnClose);
 end;
 
 function TInteractor.Translate(const AKey, ADefault: string): string;

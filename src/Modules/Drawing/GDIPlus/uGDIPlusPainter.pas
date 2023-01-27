@@ -36,7 +36,8 @@ unit uGDIPlusPainter;
 interface
 
 uses
-  Windows, Types, Classes, GDIPOBJ, uDrawStyles, uScene, vclScene, uConsts;
+  Windows, Types, Classes, GDIPOBJ, uDrawStyles, uScene, vclScene,
+  uConsts;
 
 type
   TGDIPlusDrawContext = class(TDrawContext)
@@ -48,7 +49,7 @@ type
   protected
     procedure DoSetSize(const AWidth, AHeight: Single); override;
   public
-    constructor Create(const APainter: TPainter; const AContainer: TDrawContainer; const AWidth, AHeight: Single);
+    constructor Create(const APainter: TPainter; const AContainer: TWinDrawContainer; const AWidth, AHeight: Single);
     destructor Destroy; override;
 
     procedure SaveToFile(const AFileName: string); override;
@@ -155,7 +156,7 @@ end;
 
 constructor TGDIPlusPainter.Create(const AScene: TObject; const AContainer: TObject);
 var
-  vContainer: TDrawContainer absolute AContainer;
+  vContainer: TWinDrawContainer absolute AContainer;
 begin
   inherited Create(AScene, AContainer);
 
@@ -529,7 +530,8 @@ end;
 
 { TGDIPlusDrawContext }
 
-constructor TGDIPlusDrawContext.Create(const APainter: TPainter; const AContainer: TDrawContainer; const AWidth, AHeight: Single);
+constructor TGDIPlusDrawContext.Create(const APainter: TPainter;
+  const AContainer: TWinDrawContainer; const AWidth, AHeight: Single);
 begin
   inherited Create(AWidth, AHeight);
 
@@ -596,7 +598,7 @@ end;
 
 function TGDIPlusScene.CreatePainter(const AContainer: TObject): TPainter;
 var
-  vContainer: TDrawContainer absolute AContainer;
+  vContainer: TWinDrawContainer absolute AContainer;
 begin
   Result := TGDIPlusPainter.Create(Self, AContainer);
   FCachedDrawContext := TGDIPlusDrawContext(Result.CreateDrawContext(vContainer.Width, vContainer.Height));

@@ -37,7 +37,7 @@ interface
 
 uses
   Windows, Messages, Classes, Graphics, Controls, ExtCtrls,
-  SysUtils, Types, UITypes, uScene, uDrawStyles;
+  SysUtils, Types, UITypes, uScene, uDrawStyles, uCommonVCLPainter;
 
 type
   TLightPanel = class(TPanel)
@@ -60,46 +60,7 @@ type
     property OnPaint: TNotifyEvent read FOnPaint write FOnPaint;
   end;
 
-  TDrawContainer = class
-  private
-    FHWND: THandle;
-    FCanvas: TCanvas;
-    FWidth, FHeight: Integer;
-    function GetDC: THandle;
-  public
-    constructor Create(const AHWND: THandle; const ACanvas: TCanvas; const AWidth, AHeight: Single);
-    destructor Destroy; override;
-
-    property HWND: THandle read FHWND;
-    property Canvas: TCanvas read FCanvas;
-    property DC: THandle read GetDC;
-    property Width: Integer read FWidth;
-    property Height: Integer read FHeight;
-  end;
-
-  TWinDrawContext = class(TDrawContext)
-  private
-    FBitmap: TBitmap;
-    FCanvas: TCanvas;
-    function GetDC: THandle;
-  protected
-    procedure DoSetSize(const AWidth, AHeight: Single); override;
-  public
-    procedure SaveToFile(const AFileName: string); override;
-  public
-    constructor Create(const APainter: TPainter; const ACanvas: TCanvas; const AWidth, AHeight: Single);
-    destructor Destroy; override;
-
-    property Canvas: TCanvas read FCanvas;
-    property Handle: THandle read GetDC;
-  end;
-
-  TWinNinePatchImage = class(TNinePatchImage)
-  protected
-    function GetWidth: Integer; override;
-    function GetHeight: Integer; override;
-    function CutImage(const ALeft, ATop, AWidth, AHeight: Integer): TObject; override;
-  end;
+  TWinDrawContainer = TDrawContainer;
 
   TWinScene = class(TScene)
   private
@@ -159,75 +120,6 @@ begin
   finally
     EndPaint(Handle, PaintStruct);
   end;
-end;
-
-{ TWinNinePatchImage }
-
-function TWinNinePatchImage.CutImage(const ALeft, ATop, AWidth, AHeight: Integer): TObject;
-var
-  i: Integer;
-  vTempBmp: TBitmap;
-begin
-  if FImage is TPngImage then
-  begin
-    TPngImage(FImage).CreateAlpha;
-    Result := TPngImage.CreateBlank(COLOR_RGBALPHA, 8, AWidth, AHeight);
-    BitBlt(TPngImage(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
-      TPngImage(FImage).Canvas.Handle, ALeft, ATop, SRCCOPY);
-    for i := 0 to AHeight - 1 do
-      CopyMemory(TPngImage(Result).AlphaScanline[i],
-        PByte(NativeInt(TPngImage(FImage).AlphaScanline[i + ATop]) + ALeft), AWidth);
-  end
-  else if FImage is TBitmap then
-  begin
-    Result := TBitmap.Create;
-    TBitmap(Result).SetSize(AWidth, AHeight);
-    BitBlt(TBitmap(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
-      TBitmap(FImage).Canvas.Handle, ALeft, ATop, SRCCOPY);
-  end
-  else if FImage is TIcon then
-  begin
-    Result := TBitmap.Create;
-    TBitmap(Result).SetSize(AWidth, AHeight);
-    vTempBmp := TBitmap.Create;
-    vTempBmp.SetSize(GetWidth, GetHeight);
-    vTempBmp.Assign(TGraphic(FImage));
-    TBitmap(Result).PixelFormat := vTempBmp.PixelFormat;
-    TBitmap(Result).Transparent := vTempBmp.Transparent;
-    TBitmap(Result).TransparentColor := vTempBmp.TransparentColor;
-    TBitmap(Result).TransparentMode := vTempBmp.TransparentMode;
-    TBitmap(Result).AlphaFormat := vTempBmp.AlphaFormat;
-    BitBlt(TBitmap(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
-      vTempBmp.Canvas.Handle, ALeft, ATop, SRCCOPY);
-    FreeAndNil(vTempBmp);
-  end
-  {else if Source is TGIFImage then
-  begin
-    Result := TBitmap.Create;
-    Result.SetSize(AWidth, AHeight);
-    BitBlt(TBitmap(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
-      TGIFImage(Source).Bitmap.Canvas.Handle, ALeft, ATop, SRCCOPY);
-  end}
-  else begin // emf, wmf, jpeg, tiff
-    Result := TBitmap.Create;
-    TBitmap(Result).SetSize(AWidth, AHeight);
-    vTempBmp := TBitmap.Create;
-    vTempBmp.SetSize(GetWidth, GetHeight);
-    vTempBmp.Canvas.Draw(0, 0, TGraphic(FImage));
-    BitBlt(TBitmap(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
-      vTempBmp.Canvas.Handle, ALeft, ATop, SRCCOPY);
-    FreeAndNil(vTempBmp);
-  end;
-end;
-
-function TWinNinePatchImage.GetHeight: Integer;
-begin
-  Result := TGraphic(FImage).Height;
-end;
-
-function TWinNinePatchImage.GetWidth: Integer;
-begin
-  Result := TGraphic(FImage).Width;
 end;
 
 { TWinScene }
@@ -392,72 +284,6 @@ procedure TWinCanvasScene.UpdateContexts(const AWidth, AHeight: Single);
 begin
   FCachedDrawContext.SetSize(AWidth, AHeight);
   FDrawContext.SetSize(AWidth, AHeight);
-end;
-
-{ TWinDrawContext }
-
-constructor TWinDrawContext.Create(const APainter: TPainter; const ACanvas: TCanvas; const AWidth, AHeight: Single);
-begin
-  if not Assigned(ACanvas) then
-  begin
-    FBitmap := TBitmap.Create;
-    FBitmap.PixelFormat := pf32bit;
-    FBitmap.SetSize(Round(AWidth), Round(AHeight));
-    FCanvas := FBitmap.Canvas;
-  end
-  else begin
-    FCanvas := ACanvas;
-    FBitmap := nil;
-  end;
-
-  inherited Create(AWidth, AHeight);
-end;
-
-destructor TWinDrawContext.Destroy;
-begin
-  FCanvas := nil;
-  FreeAndNil(FBitmap);
-  inherited Destroy;
-end;
-
-procedure TWinDrawContext.DoSetSize(const AWidth, AHeight: Single);
-begin
-  inherited DoSetSize(AWidth, AHeight);
-  if Assigned(FBitmap) then
-    FBitmap.SetSize(Round(AWidth), Round(AHeight));
-end;
-
-function TWinDrawContext.GetDC: THandle;
-begin
-  Result := FCanvas.Handle;
-end;
-
-procedure TWinDrawContext.SaveToFile(const AFileName: string);
-begin
-  if Assigned(FBitmap) then
-    FBitmap.SaveToFile(AFileName);
-end;
-
-{ TDrawContainer }
-
-constructor TDrawContainer.Create(const AHWND: THandle; const ACanvas: TCanvas; const AWidth, AHeight: Single);
-begin
-  inherited Create;
-  FHWND := AHWND;
-  FCanvas := ACanvas;
-  FWidth := Round(AWidth);
-  FHeight := Round(AHeight);
-end;
-
-destructor TDrawContainer.Destroy;
-begin
-  FCanvas := nil;
-  inherited Destroy;
-end;
-
-function TDrawContainer.GetDC: THandle;
-begin
-  Result := FCanvas.Handle;
 end;
 
 end.

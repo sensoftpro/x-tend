@@ -50,7 +50,8 @@ uses
 {$ENDIF IOS}
 
   FMX.Types, FMX.Controls, FMX.Graphics, FMX.Objects, FMX.Forms, FMX.Layouts,
-  uPresenter, uSettings, uInteractor, uUIBuilder, uView, fmxArea, uLayout, uConsts, uDefinition, uIcon;
+  uPresenter, uSettings, uInteractor, uUIBuilder, uSession, uView, fmxArea,
+  uLayout, uConsts, uDefinition, uIcon;
 
 type
   TImageResolution = (ir16x16, ir24x24, ir32x32);
@@ -64,15 +65,20 @@ type
     procedure DoUnfreeze; override;
     procedure DoStop; override;
 
-    function DoLogin(const ADomain: TObject): TInteractor; override;
+    procedure DoLogin(const ADomain: TObject); override;
     procedure DoLogout(const AInteractor: TInteractor); override;
 
     function GetNativeControlClass: TNativeControlClass; override;
+    procedure CreateMainForm(const ASession: TUserSession); override;
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); override;
-    function DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult; override;
+    procedure DoShowDialog(const ACaption, AText: string; const ADialogActions:
+      TDialogResultSet; const AOnClose: TCloseProc = nil); override;
     procedure DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False); override;
-    function DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean; override;
-    function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; override;
+    procedure DoShowOpenDialog(const AFileName: string; const ATitle, AFilter,
+      ADefaultExt, ADefaultDir: string; const AOnClose: TCloseTextProc = nil); override;
+    procedure DoShowSaveDialog(const AFileName: string; const ATitle, AFilter,
+      ADefaultExt: string; const AOnClose: TCloseTextProc = nil); override;
+
     procedure DoSetCursor(const ACursorType: TCursorType); override;
     function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
       const AParams: string = ''): TObject; override;
@@ -82,7 +88,7 @@ type
 
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
   public
-    function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
+    procedure ShowUIArea(const AArea: TUIArea; const AAreaName: string; const ACaption: string); override;
   end;
 
 procedure CopyTextSettings(const ATextSettings: TTextSettings; const ALayout: TLayout);
@@ -98,7 +104,7 @@ uses
   FMX.DialogService, FMX.Dialogs, FMX.MultiResBitmap,
   FMX.StdCtrls, FMX.ExtCtrls, FMX.Menus, FMX.TabControl, FMX.ListView, FMX.ImgList,
   FMX.Memo, FMX.Edit,
-  uModule, uDomain, uPlatform, uSession, uUtils, uEntityList, uConfiguration,
+  uModule, uDomain, uPlatform, uUtils, uEntityList, uConfiguration,
   uChangeManager, uEntity;
 
 procedure CopyTextSettings(const ATextSettings: TTextSettings; const ALayout: TLayout);
@@ -506,6 +512,19 @@ begin
     Assert(False, 'Пустой класс для лэйаута');
 end;
 
+procedure TFMXPresenter.CreateMainForm(const ASession: TUserSession);
+begin
+  inherited CreateMainForm(ASession);
+
+  if Assigned(ASession) and Assigned(ASession.Interactor) then
+  begin
+    if FStartParameter <> '' then
+      TDomain(ASession.Domain).ExecuteDefaultAction(ASession, FStartParameter);
+
+    Application.Run;
+  end;
+end;
+
 function TFMXPresenter.DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject;
 var
   vImageList: TImageList;
@@ -591,11 +610,9 @@ begin
     Exit;
 end;
 
-function TFMXPresenter.DoLogin(const ADomain: TObject): TInteractor;
+procedure TFMXPresenter.DoLogin(const ADomain: TObject);
 begin
-  Result := inherited DoLogin(ADomain);
-  if not Assigned(Result) then
-    Exit;
+  inherited DoLogin(ADomain);
 end;
 
 procedure TFMXPresenter.DoLogout(const AInteractor: TInteractor);
@@ -603,13 +620,11 @@ begin
   inherited DoLogout(AInteractor);
 end;
 
-function TFMXPresenter.ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult;
+procedure TFMXPresenter.ShowUIArea(const AArea: TUIArea;
+  const AAreaName: string; const ACaption: string);
 var
-  vView: TView;
   vForm: TForm;
-  vCaption: string;
 begin
-  Result := drNone;
   if (AAreaName = '') or (AAreaName = 'float') or (AAreaName = 'free') then
   begin
     vForm := TForm(GetRealControl(AArea));
@@ -618,50 +633,8 @@ begin
   else if (AAreaName = 'child') or (AAreaName = 'modal') then
   begin
     vForm := TForm(GetRealControl(AArea));
-    vForm.ShowHint := True;
-    vView := AArea.View;
-
-    vCaption := GetUrlParam(AOptions, 'Caption', '');
-
-    if vCaption = '' then
-    begin
-      // Definition может быть от листового поля
-      if Assigned(vView.Definition) then
-      begin
-        if vForm.Caption = '' then
-        begin
-          if vView.DefinitionKind = dkObjectField then
-            vForm.Caption := TDomain(AInteractor.Domain).TranslateFieldDef(TFieldDef(vView.Definition))
-          else
-            vForm.Caption := TDomain(AInteractor.Domain).TranslateDefinition(TDefinition(vView.Definition));
-
-          if (Pos(AOptions, 'NoExtCaption') < 1) and (AAreaName = 'child') then
-          begin
-            if vView.DefinitionKind = dkAction then
-              vForm.Caption := 'Параметры: ' + vForm.Caption
-            else if vView.State >= vsSelectOnly {and Assigned(vArea.Holder) - у параметров нет холдера} then
-              vForm.Caption := 'Редактирование: ' + vForm.Caption
-            else
-              vForm.Caption := 'Просмотр: ' + vForm.Caption;
-          end;
-        end;
-      end
-      else
-        vForm.Caption := TDomain(AInteractor.Domain).AppTitle;
-    end
-    else
-      vForm.Caption := vCaption;
-
-    try
-      Result := ModalResultToDialogResult(vForm.ShowModal);
-    finally
-      AArea.SetHolder(nil);
-      if Assigned(AArea.Parent) then
-        AArea.Parent.RemoveArea(AArea)
-      else
-        AArea.Release;
-      vForm.Free;
-    end;
+    vForm.Caption := ACaption;
+    vForm.ShowModal;
   end;
 end;
 
@@ -766,18 +739,14 @@ end;
 procedure TFMXPresenter.DoRun(const AParameter: string);
 var
   vDomain: TDomain;
-  vInteractor: TInteractor;
 begin
+  inherited DoRun(AParameter);
+
   Application.Title := cPlatformTitle;
   Application.Initialize;
 
   vDomain := _Platform.Domains[0];
-  vInteractor := Login(vDomain);
-  if Assigned(vInteractor) and (AParameter <> '') then
-    vDomain.ExecuteDefaultAction(TUserSession(vInteractor.Session), AParameter);
-
-  if Assigned(vInteractor) then
-    Application.Run;
+  Login(vDomain);
 end;
 
 procedure TFMXPresenter.DoSetCursor(const ACursorType: TCursorType);
@@ -786,12 +755,12 @@ begin
     Application.MainForm.Cursor := cCursors[ACursorType];
 end;
 
-function TFMXPresenter.DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
+procedure TFMXPresenter.DoShowDialog(const ACaption, AText: string;
+  const ADialogActions: TDialogResultSet; const AOnClose: TCloseProc);
 var
   vButtons: TMsgDlgButtons;
   vMsgDlgType: TMsgDlgType;
   vDefaultBtn: TMsgDlgBtn;
-  vResult: TDialogResult;
 begin
   if drOk in ADialogActions then
   begin
@@ -814,13 +783,13 @@ begin
     end
   end
   else
-    Exit(drCancel);
+    Exit;
 
-  TDialogService.MessageDialog(AText, vMsgDlgType, vButtons, vDefaultBtn, 0, TInputCloseDialogProc(procedure (const AResult: TModalResult)
+  TDialogService.MessageDialog(AText, vMsgDlgType, vButtons, vDefaultBtn, 0, TInputCloseDialogProc(procedure(const AResult: TModalResult)
     begin
-      vResult := ModalResultToDialogResult(AResult);
+      if Assigned(AOnClose) then
+        AOnClose(ModalResultToDialogResult(AResult));
     end));
-  Result := vResult;
 end;
 
 procedure TFMXPresenter.DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType);
@@ -828,11 +797,16 @@ begin
   TDialogService.ShowMessage(AText);
 end;
 
-function TFMXPresenter.DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt,
-  ADefaultDir: string): Boolean;
+procedure TFMXPresenter.DoShowOpenDialog(const AFileName: string; const ATitle,
+  AFilter, ADefaultExt, ADefaultDir: string; const AOnClose: TCloseTextProc);
 var
   vOpenDialog: TOpenDialog;
+  vFileName: string;
 begin
+  if not Assigned(AOnClose) then
+    Exit;
+
+  vFileName := AFileName;
   vOpenDialog := TOpenDialog.Create(nil);
   try
     if ATitle <> '' then
@@ -846,27 +820,42 @@ begin
     else if AFileName <> '' then
       vOpenDialog.InitialDir := ExtractFilePath(AFileName);
 
-    Result := vOpenDialog.Execute;
-    if Result then
-      AFileName := vOpenDialog.FileName;
+    if vOpenDialog.Execute then
+    begin
+      vFileName := vOpenDialog.FileName;
+      AOnClose(drOk, vFileName);
+    end
+    else
+      AOnClose(drCancel, vFileName);
   finally
     FreeAndNil(vOpenDialog);
   end;
 end;
 
-function TFMXPresenter.DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean;
+procedure TFMXPresenter.DoShowSaveDialog(const AFileName: string; const ATitle,
+  AFilter, ADefaultExt: string; const AOnClose: TCloseTextProc);
 var
   vSaveDialog: TSaveDialog;
+  vFileName: string;
 begin
+  if not Assigned(AOnClose) then
+    Exit;
+
+  vFileName := AFileName;
   vSaveDialog := TSaveDialog.Create(nil);
   try
     vSaveDialog.Title := ATitle;
     vSaveDialog.Filter := AFilter;
     vSaveDialog.DefaultExt := ADefaultExt;
     vSaveDialog.FileName := AFileName;
-    Result := vSaveDialog.Execute;
-    if Result then
-      AFileName := vSaveDialog.FileName;
+
+    if vSaveDialog.Execute then
+    begin
+      vFileName := vSaveDialog.FileName;
+      AOnClose(drOk, vFileName);
+    end
+    else
+      AOnClose(drCancel, vFileName);
   finally
     FreeAndNil(vSaveDialog);
   end;

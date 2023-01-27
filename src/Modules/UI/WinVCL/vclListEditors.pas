@@ -682,8 +682,13 @@ begin
 
   // ExportGridToExcel(vFileName, FGrid, True, True, False);
 
-  if FileExists(vFileName) and (TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
-    TPresenter(FPresenter).OpenFile(vFileName);
+  if FileExists(vFileName) then
+    TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?', False,
+      procedure(const AResult: TDialogResult)
+      begin
+        if AResult = drYes then
+          TPresenter(FPresenter).OpenFile(vFileName);
+      end);
 end;
 
 {function TCollectionEditor.FindColumnByFieldName(const AFieldName: string): TListColumn;

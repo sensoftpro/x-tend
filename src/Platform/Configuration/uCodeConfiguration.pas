@@ -82,7 +82,7 @@ begin
   FFullTextFunc := MakeScriptMethod(@TScript.FullText);
   FCheckFieldFunc := MakeScriptMethod(@TScript.CheckField);
   FLoginedProc := MakeScriptMethod(@TScript.Logined);
-  FBeforeUIClosingFunc := MakeScriptMethod(@TScript.BeforeUIClosing);
+  FBeforeUIClosingProc := MakeScriptMethod(@TScript.BeforeUIClosing);
   FCalculateStyleFunc := MakeScriptMethod(@TScript.CalculateStyle);
   FCanChangeFieldFunc := MakeScriptMethod(@TScript.CanChangeField);
   FGetParamValueFunc := MakeScriptMethod(@TScript.GetParamValue);

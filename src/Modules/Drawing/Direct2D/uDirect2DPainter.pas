@@ -113,7 +113,7 @@ type
   public
     procedure SaveToFile(const AFileName: string); override;
   public
-    constructor Create(const APainter: TPainter; const AContainer: TDrawContainer; const AWidth, AHeight: Single);
+    constructor Create(const APainter: TPainter; const AContainer: TWinDrawContainer; const AWidth, AHeight: Single);
     destructor Destroy; override;
 
     property RenderTarget: ID2D1RenderTarget read FRenderTarget;
@@ -228,7 +228,7 @@ end;
 
 constructor TDirect2DPainter.Create(const AScene: TObject; const AContainer: TObject);
 var
-  vContainer: TDrawContainer absolute AContainer;
+  vContainer: TWinDrawContainer absolute AContainer;
 begin
   if (Win32MajorVersion < 6) or (Win32Platform <> VER_PLATFORM_WIN32_NT) then
     raise Exception.Create('Your Windows version do not support Direct2D');
@@ -925,7 +925,7 @@ end;
 
 function TDirect2DScene.CreatePainter(const AContainer: TObject): TPainter;
 var
-  vContainer: TDrawContainer absolute AContainer;
+  vContainer: TWinDrawContainer absolute AContainer;
 begin
   Result := TDirect2DPainter.Create(Self, AContainer);
   FStaticContext := TD2DDrawContext(Result.CreateDrawContext(vContainer.Width, vContainer.Height));
@@ -975,7 +975,7 @@ end;
 
 { TD2DDrawContext }
 
-constructor TD2DDrawContext.Create(const APainter: TPainter; const AContainer: TDrawContainer; const AWidth, AHeight: Single);
+constructor TD2DDrawContext.Create(const APainter: TPainter; const AContainer: TWinDrawContainer; const AWidth, AHeight: Single);
 var
   vTargetProperties: TD2D1RenderTargetProperties;
   vPixelFormat: TD2D1PixelFormat;

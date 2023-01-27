@@ -4,8 +4,8 @@
 {$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}
 
 { $DEFINE VCL_UI}
-{ $DEFINE FMX_UI}
-{$DEFINE UNIGUI}
+{$DEFINE FMX_UI}
+{ $DEFINE UNIGUI}
 
 uses
 {$IFDEF VCL_UI}
@@ -88,6 +88,7 @@ uses
   dexEntityEditors in '..\..\Modules\UI\WinVCL\DevExpress\dexEntityEditors.pas',
   dexListEditors in '..\..\Modules\UI\WinVCL\DevExpress\dexListEditors.pas',
   // Painters: VCL
+  uCommonVCLPainter in '..\..\Modules\Drawing\VCL\uCommonVCLPainter.pas',
   uVCLPainter in '..\..\Modules\Drawing\VCL\uVCLPainter.pas',
   // Reports: FastReports
   uFRReport in '..\..\Modules\Reporting\FastReport\uFRReport.pas',
@@ -105,6 +106,9 @@ uses
   // UI: UniGUI
   uUniGUIPresenter in '..\..\Modules\UI\Web\uniGUI\uUniGUIPresenter.pas',
   uniArea in '..\..\Modules\UI\Web\uniGUI\uniArea.pas',
+  uCommonVCLPainter in '..\..\Modules\Drawing\VCL\uCommonVCLPainter.pas',
+  uniScene in '..\..\Modules\UI\Web\uniGUI\uniScene.pas',
+  uniBlobEditors in '..\..\Modules\UI\Web\uniGUI\uniBlobEditors.pas',
 {$ENDIF}
 {$ENDIF}
 {$ENDIF}

@@ -37,7 +37,7 @@ interface
 
 uses
   Classes, SysUtils, UITypes, Generics.Collections, uFastClasses, uCollection, uEntity, uReport, uSession, uDefinition,
-  uScheduler, uConsts, uEnumeration, uChangeManager, uComplexObject, uView, uInteractor, uTask;
+  uScheduler, uConsts, uEnumeration, uChangeManager, uComplexObject, uView, uUIBuilder, uInteractor, uTask;
 
 type
   TInclusion = class;
@@ -129,10 +129,11 @@ type
       const AContext: TObject; const AParams: TEntity): TViewState;
     procedure FillActionParams(const AView: TView; const AActionName: string; const AContext: TObject;
       const AParams: TEntity);
+    procedure ExecutePreparedAction(const AView: TView; const AParentHolder: TChangeHolder);
   protected
     FInclusions: TObjectList<TInclusion>;
     function DoExecuteDefaultAction(const ASession: TUserSession; const AParams: string): Boolean; virtual;
-    function DoBeforeUIClosing(const AInteractor: TInteractor): Boolean; virtual;
+    procedure DoBeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc); virtual;
   protected
     constructor Create(const AConfiguration: TObject); override;
   public
@@ -158,7 +159,7 @@ type
     function CalculateStyle(const AViewName: string; const AEntity: TEntity): TColor;
     function CanChangeField(const AView: TView; const AEntity: TEntity;
       const AFieldName: string; const ANewValue: Variant): Boolean;
-    function BeforeUIClosing(const AInteractor: TInteractor): Boolean;
+    procedure BeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc);
     function CheckActionFlags(const AView: TView): TViewState;
     function ExecuteAction(const AView: TView; const AParentHolder: TChangeHolder): Boolean;
     function ExecuteCommand(const AExecutor: TObject; const ATask: TTaskHandle; const AFiber, ACommand: TObject): Boolean;
@@ -313,9 +314,9 @@ begin
   DoBeforeEntitySaving(AHolder, AEntity);
 end;
 
-function TScript.BeforeUIClosing(const AInteractor: TInteractor): Boolean;
+procedure TScript.BeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc);
 begin
-  Result := DoBeforeUIClosing(AInteractor);
+  DoBeforeUIClosing(AInteractor, AOnClose);
 end;
 
 function TScript.CalculateStyle(const AViewName: string; const AEntity: TEntity): TColor;
@@ -856,9 +857,9 @@ begin
   inherited Destroy;
 end;
 
-function TScript.DoBeforeUIClosing(const AInteractor: TInteractor): Boolean;
+procedure TScript.DoBeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc);
 begin
-  Result := AInteractor.ShowYesNoDialog('Подтвердите', 'Вы действительно хотите выйти?') = drYes;
+  AInteractor.ShowYesNoDialog('Подтвердите', 'Вы действительно хотите выйти?', False, AOnClose);
 end;
 
 function TScript.DoExecuteDefaultAction(const ASession: TUserSession; const AParams: string): Boolean;
@@ -890,20 +891,14 @@ var
   vSession: TUserSession;
   vAction: TActionDef;
   vActionName: string;
-  vContextView: TView;
   vContext: TObject;
-  vListObject: TEntityList;
   i: Integer;
   vParams: TEntity;
   vNeedClearParams: Boolean;
-  vSelectionCopy: TList<TObject>;
-  vSelectionCount: Integer;
-  vRecordsText: string;
   vNeedShowParams: Boolean;
   vVisibleFieldCount: Integer;
   vField: TBaseField;
   vFileName: string;
-  vDone: Boolean;
   vUrl: TIdURI;
   vUrlCommand, vFilter: string;
   vUrlParams: TStrings;
@@ -920,133 +915,97 @@ begin
   vContext := AView.ParentDomainObject;
   vParams := TEntity(AView.DomainObject);
 
-  vNeedClearParams := False;
-  vDone := False;
-  try
-    if Assigned(vParams) then
+  if Assigned(vParams) then
+  begin
+    FillActionParams(AView, vActionName, vContext, vParams);
+    vVisibleFieldCount := vParams.VisibleFieldCount(vSession);
+    vNeedShowParams := (vVisibleFieldCount > 0) and vAction.HasFlag(ccAlwaysShowParameters);
+    if vVisibleFieldCount = 1 then
     begin
-      FillActionParams(AView, vActionName, vContext, vParams);
-      vVisibleFieldCount := vParams.VisibleFieldCount(vSession);
-      vNeedShowParams := (vVisibleFieldCount > 0) and vAction.HasFlag(ccAlwaysShowParameters);
-      if vVisibleFieldCount = 1 then
-      begin
-        vField := nil;
-        for i := 0 to vParams.FieldCount - 1 do
-          if (vParams.Fields[i].GetUIState(vSession) > vsHidden)
-            and not vParams.Fields[i].FieldDef.HasFlag(cHideInEdit) then
-          begin
-            vField := vParams.Fields[i];
-            Break;
-          end;
-        if Assigned(vField) then
+      vField := nil;
+      for i := 0 to vParams.FieldCount - 1 do
+        if (vParams.Fields[i].GetUIState(vSession) > vsHidden)
+          and not vParams.Fields[i].FieldDef.HasFlag(cHideInEdit) then
         begin
-          vUrl := TIdURI.Create(vField.FieldDef.StyleName);
-          vUrlCommand := vUrl.Document;
-          vUrlParams := CreateDelimitedList(vUrl.Params, '&');
+          vField := vParams.Fields[i];
+          Break;
+        end;
+      if Assigned(vField) then
+      begin
+        vUrl := TIdURI.Create(vField.FieldDef.StyleName);
+        vUrlCommand := vUrl.Document;
+        vUrlParams := CreateDelimitedList(vUrl.Params, '&');
+        try
           vFilter := vUrlParams.Values['filter'];
           vMode := vUrlParams.Values['mode'];
           vDefaultExt := vUrlParams.Values['ext'];
-          vUrlParams.Free;
-          vUrl.Free;
-          if vUrlCommand = 'file' then
+        finally
+          FreeAndNil(vUrlParams);
+          FreeAndNil(vUrl);
+        end;
+
+        if vUrlCommand = 'file' then
+        begin
+          vFileName := vParams[vField.FieldName];
+          if SameText(vMode, 'save') then
           begin
-            vFileName := vParams[vField.FieldName];
-            if SameText(vMode, 'save') then
-            begin
-              if TPresenter(vInteractor.Presenter).ShowSaveDialog(vFileName, 'Выберите файл', vFilter, vDefaultExt) then
+            // REDO
+            {TPresenter(vInteractor.Presenter).ShowSaveDialog(vFileName, 'Выберите файл', vFilter, vDefaultExt,
+              procedure(const AResult: Boolean)
               begin
-                vDone := True;
-                vParams._SetFieldValue(vSession.NullHolder, vField.FieldName, vFileName);
-              end
-              else
-                Exit;
-            end
-            else begin
-              if TPresenter(vInteractor.Presenter).ShowOpenDialog(vFileName, 'Выберите файл', vFilter, vDefaultExt, '') then
+                if AResult then
+                begin
+                  vParams._SetFieldValue(vSession.NullHolder, vField.FieldName, vFileName);
+                  ExecutePreparedAction(AView, AParentHolder);
+                end;
+
+                if vNeedClearParams then
+                  vParams.ResetToDefault(vSession.NullHolder);
+              end);}
+
+            Exit;
+          end
+          else begin
+            // REDO
+            {TPresenter(vInteractor.Presenter).ShowOpenDialog(vFileName, 'Выберите файл', vFilter, vDefaultExt, '',
+              procedure(const AResult: Boolean)
               begin
-                vDone := True;
-                vParams._SetFieldValue(vSession.NullHolder, vField.FieldName, vFileName);
-              end
-              else
-                Exit;
-            end;
+                if AResult then
+                begin
+                  vParams._SetFieldValue(vSession.NullHolder, vField.FieldName, vFileName);
+                  ExecutePreparedAction(AView, AParentHolder);
+                end;
+
+                if vNeedClearParams then
+                  vParams.ResetToDefault(vSession.NullHolder);
+              end);}
+
+            Exit;
           end;
         end;
       end;
-
-      if (not vParams.IsValid or vNeedShowParams) and not vDone then
-      begin
-        vNeedClearParams := not vParams.IsValid and not vNeedShowParams;
-        if vActionName = 'Link' then
-          TObjectFieldDef(vAction.FieldByName('SelectedEntity')).SetContentDefinition(
-            TListFieldDef(AView.Parent.Definition)._ContentDefinition);
-
-        if not vInteractor.AtomicEditParams(AView) then
-          Exit;
-      end;
     end;
 
-    vContextView := AView.Parent;
-    if Assigned(vContextView) and vAction.HasFlag(ccMultiTarget)
-      and (vContextView.DefinitionKind = dkEntity) and (vContextView.Name = 'Selected') then
+    if not vParams.IsValid or vNeedShowParams then
     begin
-      if not Assigned(vContext) then
-        Exit;
+      vNeedClearParams := not vParams.IsValid and not vNeedShowParams;
+      if vActionName = 'Link' then
+        TObjectFieldDef(vAction.FieldByName('SelectedEntity')).SetContentDefinition(
+          TListFieldDef(AView.Parent.Definition)._ContentDefinition);
 
-      vListObject := TEntityList(vContextView.ParentDomainObject);
-      Assert(Assigned(vListObject), 'Список записей отсутствует для действия [' + vActionName +']');
-
-      vSelectionCount := vListObject.Selection.Count;
-      if vSelectionCount = 0 then
-        Exit;
-
-      if vActionName = 'Delete' then
-      begin
-        if vSelectionCount > 1 then
+      vInteractor.AtomicEditParams(AView, '', '', procedure(const AResult: TDialogResult)
         begin
-          case vSelectionCount mod 10 of
-            1: vRecordsText := 'запись';
-            2..4: vRecordsText := 'записи';
-          else
-            vRecordsText := 'записей';
-          end;
+          if AResult = drOk then
+            ExecutePreparedAction(AView, AParentHolder);
 
-          if vInteractor.ShowYesNoDialog(vInteractor.Translate('cptPrompt', 'Подтвердите'),
-            Format(vInteractor.Translate('msgWantDeleteNRecords', 'Вы действительно хотите удалить %d %s?'),
-            [vSelectionCount, vRecordsText])) = drNo
-          then
-            Exit;
-        end
-        else if (vSelectionCount = 1) and (vInteractor.ShowYesNoDialog(
-          vInteractor.Translate('cptPrompt', 'Подтвердите'), vInteractor.Translate('msgWantDeleteRecord',
-          'Вы действительно хотите удалить запись') + ' [' + SafeDisplayName(vListObject.Selection[0]) +']?') = drNo)
-        then
-          Exit;
-      end;
-
-      Result := True;
-
-      vSelectionCopy := TList<TObject>.Create;
-      for i := 0 to vSelectionCount - 1 do
-        if InternalCheckActionFlags(AView, vActionName, TEntity(vListObject.Selection[i]), vParams) = vsFullAccess then
-          vSelectionCopy.Add(vListObject.Selection[i]);
-
-      try
-        for i := 0 to vSelectionCount - 1 do
-          Result := Result and InternalExecuteAction(AView, vActionName, TEntity(vSelectionCopy[i]), vParams, AParentHolder);
-      finally
-        FreeAndNil(vSelectionCopy);
-      end;
-    end
-    else
-      if InternalCheckActionFlags(AView, vActionName, vContext, vParams) = vsFullAccess then
-        Result := InternalExecuteAction(AView, vActionName, vContext, vParams, AParentHolder)
-      else
-        Result := False;
-  finally
-    if vNeedClearParams then
-      vParams.ResetToDefault(vSession.NullHolder);
+          if vNeedClearParams then
+            vParams.ResetToDefault(vSession.NullHolder);
+        end);
+      Exit;
+    end;
   end;
+
+  ExecutePreparedAction(AView, AParentHolder);
 end;
 
 function TScript.ExecuteCommand(const AExecutor: TObject; const ATask: TTaskHandle; const AFiber, ACommand: TObject): Boolean;
@@ -1068,6 +1027,107 @@ end;
 function TScript.ExecuteDefaultAction(const ASession: TUserSession; const AParams: string): Boolean;
 begin
   Result := DoExecuteDefaultAction(ASession, AParams);
+end;
+
+procedure TScript.ExecutePreparedAction(const AView: TView; const AParentHolder: TChangeHolder);
+var
+  vInteractor: TInteractor;
+  vAction: TActionDef;
+  vActionName: string;
+  vContextView: TView;
+  vContext: TObject;
+  vListObject: TEntityList;
+  i: Integer;
+  vParams: TEntity;
+  vSelectionCount: Integer;
+  vSelectionCopy: TList<TEntity>;
+  vRecordsText: string;
+begin
+  vInteractor := TInteractor(AView.Interactor);
+  vAction := TActionDef(AView.Definition);
+  vActionName := vAction.Name;
+  vContext := AView.ParentDomainObject;
+  vParams := TEntity(AView.DomainObject);
+
+  vContextView := AView.Parent;
+  if Assigned(vContextView) and vAction.HasFlag(ccMultiTarget)
+    and (vContextView.DefinitionKind = dkEntity) and (vContextView.Name = 'Selected') then
+  begin
+    if not Assigned(vContext) then
+      Exit;
+
+    vListObject := TEntityList(vContextView.ParentDomainObject);
+    Assert(Assigned(vListObject), 'Список записей отсутствует для действия [' + vActionName +']');
+
+    vSelectionCount := vListObject.Selection.Count;
+    if vSelectionCount = 0 then
+      Exit;
+
+    if vActionName = 'Delete' then
+    begin
+      if vSelectionCount > 1 then
+      begin
+        case vSelectionCount mod 10 of
+          1: vRecordsText := 'запись';
+          2..4: vRecordsText := 'записи';
+        else
+          vRecordsText := 'записей';
+        end;
+
+        vInteractor.ShowYesNoDialog(vInteractor.Translate('cptPrompt', 'Подтвердите'),
+          Format(vInteractor.Translate('msgWantDeleteNRecords', 'Вы действительно хотите удалить %d %s?'),
+          [vSelectionCount, vRecordsText]), False, procedure(const AResult: TDialogResult)
+          var
+            i: Integer;
+            vSelectionCopy: TList<TEntity>;
+          begin
+            if AResult <> drYes then
+              Exit;
+
+            vSelectionCopy := TList<TEntity>.Create;
+            for i := 0 to vSelectionCount - 1 do
+              if InternalCheckActionFlags(AView, vActionName, TEntity(vListObject.Selection[i]), vParams) = vsFullAccess then
+                vSelectionCopy.Add(TEntity(vListObject.Selection[i]));
+            try
+              for i := vSelectionCopy.Count - 1 downto 0 do
+                InternalExecuteAction(AView, vActionName, vSelectionCopy[i], vParams, AParentHolder);
+            finally
+              FreeAndNil(vSelectionCopy);
+            end;
+          end);
+      end
+      else if InternalCheckActionFlags(AView, vActionName, vContext, vParams) = vsFullAccess then
+        vInteractor.ShowYesNoDialog(vInteractor.Translate('cptPrompt', 'Подтвердите'),
+          vInteractor.Translate('msgWantDeleteRecord', 'Вы действительно хотите удалить запись') +
+          ' [' + SafeDisplayName(vListObject.Selection[0]) +']?', False, procedure(const AResult: TDialogResult)
+          begin
+            if AResult <> drYes then
+              Exit;
+
+            if InternalCheckActionFlags(AView, vActionName, vContext, vParams) = vsFullAccess then
+              InternalExecuteAction(AView, vActionName, vContext, vParams, AParentHolder);
+          end);
+
+      Exit;
+    end
+    else if vSelectionCount > 1 then
+    begin
+      vSelectionCopy := TList<TEntity>.Create;
+      for i := 0 to vSelectionCount - 1 do
+        if InternalCheckActionFlags(AView, vActionName, TEntity(vListObject.Selection[i]), vParams) = vsFullAccess then
+          vSelectionCopy.Add(TEntity(vListObject.Selection[i]));
+      try
+        for i := vSelectionCopy.Count - 1 downto 0 do
+          InternalExecuteAction(AView, vActionName, vSelectionCopy[i], vParams, AParentHolder);
+      finally
+        FreeAndNil(vSelectionCopy);
+      end;
+    end
+    else if InternalCheckActionFlags(AView, vActionName, vContext, vParams) = vsFullAccess then
+      InternalExecuteAction(AView, vActionName, vContext, vParams, AParentHolder);
+  end
+  else if InternalCheckActionFlags(AView, vActionName, vContext, vParams) = vsFullAccess then
+    InternalExecuteAction(AView, vActionName, vContext, vParams, AParentHolder);
 end;
 
 procedure TScript.FillActionParams(const AView: TView; const AActionName: string; const AContext: TObject;
@@ -1478,16 +1538,15 @@ const
         end;
       end);
 
-    try
-      vResult := AInteractor.ShowEntityEditor(AView.Parent, vHolder, '');
-      if vResult then
-        AView.Parent.SetDomainObject(vNewEntity);
-    finally
-      vSession.DomainWrite(procedure
-        begin
-          vSession.ReleaseChangeHolder(vHolder, vResult);
-        end);
-    end;
+    AInteractor.ShowEntityEditor(AView.Parent, vHolder, '', '', procedure(const AResult: TDialogResult)
+      begin
+        if AResult = drOk then
+          AView.Parent.SetDomainObject(vNewEntity);
+        vSession.DomainWrite(procedure
+          begin
+            vSession.ReleaseChangeHolder(vHolder, vResult);
+          end);
+      end);
   end;
 
   procedure InternalCreateEmbedded(const AView: TView);
@@ -1595,7 +1654,7 @@ begin
   begin
     vConfig := vDomain.FirstEntity('SysConstants');
     if Assigned(vConfig) then
-      Result := AInteractor.AtomicEditEntity(AInteractor.RootView.BuildView('SysConstants/Current'), AParentHolder);
+      AInteractor.AtomicEditEntity(AInteractor.RootView.BuildView('SysConstants/Current'), AParentHolder);
     Exit;
   end
   else if AActionName = 'ShowOptions' then
@@ -1609,13 +1668,16 @@ begin
     vServiceData._SetFieldValue(vDomain.DomainHolder, 'MouseMultiselectInGrids', StrToBoolDef(vSettings.GetValue('Core', 'MouseMultiSelectInGrids'), False));
     vServiceData._SetFieldValue(vDomain.DomainHolder, 'MarkRequiredFields', StrToBoolDef(vSettings.GetValue('Core', 'MarkRequiredFields'), True));
 
-    if AInteractor.UIBuilder.Navigate(AInteractor.RootView, 'modal', 'OptionsForm', '', nil, 'Опции') = drOk then
-    begin
-      vSettings.SetValue('Core', 'ShowHorzLines', IfThen(Boolean(vServiceData['ShowHorzLinesInGrids']), '1', '0'));
-      vSettings.SetValue('Core', 'ShowBordersForDisabled', IfThen(Boolean(vServiceData['ShowBordersForDisabled']), '1', '0'));
-      vSettings.SetValue('Core', 'MouseMultiselectInGrids', IfThen(Boolean(vServiceData['MouseMultiselectInGrids']), '1', '0'));
-      vSettings.SetValue('Core', 'MarkRequiredFields', IfThen(Boolean(vServiceData['MarkRequiredFields']), '1', '0'));
-    end;
+    AInteractor.UIBuilder.Navigate(AInteractor.RootView, 'modal', 'OptionsForm', '', nil, 'Опции', procedure(const AResult: TDialogResult)
+      begin
+        if AResult = drOk then
+        begin
+          vSettings.SetValue('Core', 'ShowHorzLines', IfThen(Boolean(vServiceData['ShowHorzLinesInGrids']), '1', '0'));
+          vSettings.SetValue('Core', 'ShowBordersForDisabled', IfThen(Boolean(vServiceData['ShowBordersForDisabled']), '1', '0'));
+          vSettings.SetValue('Core', 'MouseMultiselectInGrids', IfThen(Boolean(vServiceData['MouseMultiselectInGrids']), '1', '0'));
+          vSettings.SetValue('Core', 'MarkRequiredFields', IfThen(Boolean(vServiceData['MarkRequiredFields']), '1', '0'));
+        end;
+      end);
 
     Exit;
   end
@@ -1835,13 +1897,17 @@ begin
       end
       else if AActionName = 'LoadDocument' then
       begin
-        vFileName := vEntity['FullPathName'];
-        if TPresenter(AInteractor.Presenter).ShowOpenDialog(vFileName, '', '', '', '') then
-          TUserSession(AInteractor.Session).AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
-            begin
-              vEntity._SetFieldValue(AHolder, 'FullPathName', vFileName);
-              Result := True;
-            end, AParentHolder);
+        TPresenter(AInteractor.Presenter).ShowOpenDialog(vEntity['FullPathName'], '', '', '', '',
+          procedure(const AResult: TDialogResult; const AText: string)
+          begin
+            if AResult <> drOk then
+              Exit;
+            TUserSession(AInteractor.Session).AtomicModification(nil, function(const AHolder: TChangeHolder): Boolean
+              begin
+                vEntity._SetFieldValue(AHolder, 'FullPathName', AText);
+                Result := True;
+              end, AParentHolder);
+          end);
       end
       else if AActionName = 'ClearDocument' then
       begin

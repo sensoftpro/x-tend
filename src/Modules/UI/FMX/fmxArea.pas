@@ -996,7 +996,13 @@ begin
   if FIsForm or not Assigned(AParent) then
     TControl(FControl).Parent := nil
   else if not Assigned(TControl(FControl).Parent) then
-    TControl(FControl).Parent := TFmxObject(GetRealControl(AParent));
+  begin
+    try
+      TControl(FControl).Parent := TFmxObject(GetRealControl(AParent));
+    except
+      // Fails after CloseAllPages
+    end;
+  end;
 end;
 
 procedure TFMXControl.SetTabOrder(const ATabOrder: Integer);

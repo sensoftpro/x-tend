@@ -1692,8 +1692,13 @@ begin
 
   cxExportPivotGridDataToExcel(vFileName, FPivot);
 
-  if FileExists(vFileName) and (TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
-    TPresenter(FPresenter).OpenFile(vFileName);
+  if FileExists(vFileName) then
+    TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?', False,
+      procedure(const AResult: TDialogResult)
+      begin
+        if AResult = drYes then
+          TPresenter(FPresenter).OpenFile(vFileName);
+      end);
 end;
 
 procedure TPivotGrid.FillGrid;
@@ -3250,8 +3255,13 @@ begin
 
   ExportGridToCSV(vFileName, FGrid, True, FMasterTableView.Controller.SelectedRowCount < 2, ';', 'csv');
 
-  if FileExists(vFileName) and (TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
-    TPresenter(FPresenter).OpenFile(vFileName);
+  if FileExists(vFileName) then
+    TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?', False,
+      procedure(const AResult: TDialogResult)
+      begin
+        if AResult = drYes then
+          TPresenter(FPresenter).OpenFile(vFileName);
+      end);
 end;
 
 procedure TGridEditor.ExportToExcel;
@@ -3271,7 +3281,6 @@ procedure TGridEditor.ExportToExcel;
 
       if Result then
         AFileName := ChangeFileExt(vSaveDialog.FileName, '.xls');
-
     finally
       vSaveDialog.Free;
     end;
@@ -3285,8 +3294,13 @@ begin
 
   ExportGridToExcel(vFileName, FGrid, True, FMasterTableView.Controller.SelectedRowCount < 2, False);
 
-  if FileExists(vFileName) and (TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?') = drYes) then
-    TPresenter(FPresenter).OpenFile(vFileName);
+  if FileExists(vFileName) then
+    TPresenter(FPresenter).ShowYesNoDialog('Export', 'Хотите открыть этот файл?', False,
+      procedure(const AResult: TDialogResult)
+      begin
+        if AResult = drYes then
+          TPresenter(FPresenter).OpenFile(vFileName);
+      end);
 end;
 
 function TGridEditor.FindColumnByFieldName(const AFieldName: string): TcxGridColumn;

@@ -1,6 +1,6 @@
 object UniMainModule: TUniMainModule
+  BrowserOptions = [boDisableMouseRightClick]
   OldCreateOrder = False
-  OnCreate = UniGUIMainModuleCreate
   MonitoredKeys.Keys = <>
   Height = 38
   Width = 132

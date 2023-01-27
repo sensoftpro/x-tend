@@ -42,6 +42,9 @@ uses
 type
   TLabelPosition = (lpTop, lpLeft);
 
+  TCloseProc = reference to procedure(const AResult: TDialogResult);
+  TCloseTextProc = reference to procedure(const AResult: TDialogResult; const AText: string);
+
   TUIBuilder = class;
   TUIArea = class;
 
@@ -197,7 +200,8 @@ type
     FParams: TStrings;
     FIsService: Boolean;
     FUpdateCount: Integer;
-    FOnClose: TProc;
+    FOnClose: TCloseProc;
+    FIsClosing: Boolean;
     function GetArea(const AIndex: Integer): TUIArea;
     function GetCount: Integer;
     function GetPresenter: TObject;
@@ -216,7 +220,7 @@ type
     function GetName: string;
   private
     procedure DoProcessChilds(const AParent: TUIArea; const AView: TView; const ANavItem: TNavigationItem);
-    function DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string = ''; const AOnClose: TProc = nil): TUIArea;
+    function DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string = ''; const AOnClose: TCloseProc = nil): TUIArea;
     function DoCreateChildAction(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
     function DoCreateChildList(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
     function DoCreateChildNavigation(const ALayout: TLayout; const AView: TView; const AParams: string = ''): TUIArea;
@@ -240,13 +244,14 @@ type
     procedure Clear;
     procedure Release;
     procedure ProcessAreaClick(const AArea: TUIArea);
-    function CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TProc = nil): TUIArea;
+    function CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TCloseProc = nil): TUIArea;
 
     procedure AddArea(const AArea: TUIArea);
     procedure RemoveArea(var AArea: TUIArea);
-    procedure Close(const AModalResult: Integer);
+    procedure Close(const AModalResult: Integer = mrOk);
     function TextHierarchy(const AIndent: string = ''): string;
     function AreaById(const AId: string; const ARecoursive: Boolean = True): TUIArea;
+    function Contains(const AArea: TUIArea): Boolean;
     procedure ExecuteUIAction(const AView: TView);
     procedure UnbindContent(const AForceUnbind: Boolean = False);
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil);
@@ -300,7 +305,8 @@ type
     property ThisHolder: TObject read FHolder;
     property TabOrder: Integer read GetTabOrder;
     property TabStop: Boolean read GetTabStop;
-    property OnClose: TProc read FOnClose write FOnClose;
+    property OnClose: TCloseProc read FOnClose write FOnClose;
+    property IsClosing: Boolean read FIsClosing;
   end;
 
   TUIAreaComparer = class(TComparer<TUIArea>)
@@ -345,9 +351,10 @@ type
     procedure ApplyLayout(const AArea: TUIArea; const AView: TView; const ALayoutName: string; const AParams: string);
     procedure CreateChildAreas(const AArea: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string);
 
-    function Navigate(const AView: TView; const AAreaName, ALayoutName: string;
-      const AOptions: string = ''; const AChangeHolder: TObject = nil; const ACaption: string = '';
-      const AOnClose: TProc = nil): TDialogResult;
+    // Возвращает False, если не удолось открыть требуемый лейаут
+    procedure Navigate(const AView: TView; const AAreaName, ALayoutName: string;
+      const AOptions: string = ''; const AChangeHolder: TObject = nil;
+      const ACaption: string = ''; const AOnClose: TCloseProc = nil);
 
     procedure StoreImageIndex(const AImageID, AImageIndex: Integer);
     function GetImageIndex(const AImageID: Integer): Integer;
@@ -663,7 +670,10 @@ begin
   FLayouts := TLayouts.Create(Self);
 
   FImageMap := TDictionary<Integer, Integer>.Create;
-  FImages := TObjectDictionary<Integer, TObject>.Create([doOwnsValues]);
+  if not SameText(TPresenter(FPresenter).Name,'Web.UniGUI') then
+    FImages := TObjectDictionary<Integer, TObject>.Create([doOwnsValues])
+  else
+    FImages := TObjectDictionary<Integer, TObject>.Create;
 
   FIsMDIStyle := SameText(TDomain(FDomain).Settings.GetValue('Core', 'Layout'), 'mdi') ;
 end;
@@ -778,16 +788,15 @@ begin
   ALayoutName := vLayout;
 end;
 
-function TUIBuilder.Navigate(const AView: TView; const AAreaName, ALayoutName: string;
+procedure TUIBuilder.Navigate(const AView: TView; const AAreaName, ALayoutName: string;
   const AOptions: string = ''; const AChangeHolder: TObject = nil;
-  const ACaption: string = ''; const AOnClose: TProc = nil): TDialogResult;
+  const ACaption: string = ''; const AOnClose: TCloseProc = nil);
 var
   vInteractor: TInteractor;
   vFormLayout: TLayout;
   vLayoutName: string;
   vAreaName: string;
   vViewName: string;
-  vLastCurrentArea: TUIArea;
   vUIArea: TUIArea;
   vTabArea: TUIArea;
   vServiceLayout: TLayout;
@@ -796,9 +805,8 @@ var
   vPageID: string;
   vImageID: Integer;
   vDefaultCaption: string;
-  vIsMainForm: Boolean;
   vParams: TStrings;
-  vOptions: string;
+  vCaption: string;
 
   function ExtractValueFromStrings(const AList: TStrings; const AKey: string; const ADefault: string = ''): string;
   begin
@@ -810,8 +818,7 @@ var
 begin
   ///  AAreaName - идентификатор области, указывающий на область для заполнения
   ///  ALayoutName - имя лэйаута, которое будет использовано для заполнения области
-  Result := drNone;
-  if AAreaName = 'free' then
+  if (AAreaName = 'free') and SameText(TPresenter(FPresenter).Name, 'Web.UniGUI') then
     Exit;
 
   if Assigned(AView) then
@@ -821,7 +828,6 @@ begin
     Exit;
   end;
 
-  /// Нужно учитывать область, которая останется владельцем
   vLayoutName := ALayoutName;
 
   Assert(AView.DefinitionKind in [dkDomain, dkEntity, dkAction, dkObjectField, dkCollection], 'Показываем непонятно что');
@@ -842,8 +848,7 @@ begin
   if (vAreaName = '') or (vAreaName = 'float') or (vAreaName = 'free')
     or (vAreaName = 'child') or (vAreaName = 'modal') then
   begin
-    vIsMainForm := False;
-    vLastCurrentArea := vInteractor.CurrentArea;
+    vInteractor.AreaStack.Push(vInteractor.CurrentArea);
 
     vFormLayout := FLayouts.CreateSimpleLayout(lkFrame);
     vFormLayout.Caption := ACaption;
@@ -851,79 +856,115 @@ begin
     vFormLayout.AreaKind := akForm;
 
     vUIArea := TPresenter(FPresenter).CreateArea(vInteractor.CurrentArea, AView, vFormLayout, '', AOnClose);
-    vUIArea.SetHolder(AChangeHolder);
-    vUIArea.BeginUpdate;
-    try
-      if {not Assigned(vInteractor.CurrentArea) or} (vAreaName = '') then
-      begin
-        vInteractor.RootArea := vUIArea;
-        ApplyLayout(vUIArea, AView, vLayoutName, AOptions);
-        vIsMainForm := True;
-      end
-      else begin
-        if Assigned(vInteractor.CurrentArea) then
-        begin
-          if vInteractor.CurrentArea.FAreas.IndexOf(vUIArea) >= 0 then
-          begin
-            Result := TPresenter(FPresenter).ShowUIArea(vInteractor, vAreaName, AOptions, vUIArea);
-            Exit;
-          end;
 
-          vInteractor.CurrentArea.AddArea(vUIArea);
-          ApplyLayout(vUIArea, AView, vLayoutName, AOptions);
-          if vAreaName = 'child' then
+    if ((vAreaName = 'float') or (vAreaName = 'free')) and Assigned(vInteractor.RootArea)
+      and vInteractor.RootArea.Contains(vUIArea) then
+    begin
+      // TODO Activate only?
+      TPresenter(FPresenter).ShowUIArea(vUIArea, vAreaName, ACaption);
+      Exit;
+    end;
+
+    vUIArea.SetHolder(AChangeHolder);
+
+    // Main (application) form
+    if vAreaName = '' then
+    begin
+      vUIArea.BeginUpdate;
+      try
+        vInteractor.RootArea := vUIArea;
+        vInteractor.CurrentArea := vUIArea;
+        ApplyLayout(vUIArea, AView, vLayoutName, AOptions);
+
+        TPresenter(FPresenter).ShowUIArea(vUIArea, vAreaName, ACaption);
+
+        if vInteractor.DefaultParams <> '' then
+        begin
+          vParams := CreateDelimitedList(vInteractor.DefaultParams, '&');
+          try
+            vViewName := ExtractValueFromStrings(vParams, 'View');
+            vLayoutName := ExtractValueFromStrings(vParams, 'Layout');
+            if (vViewName <> '') or (vLayoutName <> '') then
+              Navigate(vInteractor.RootView.BuildView(vViewName), 'WorkArea', vLayoutName, '', nil, ExtractValueFromStrings(vParams, 'Caption'));
+          finally
+            FreeAndNil(vParams);
+            vInteractor.DefaultParams := '';
+          end;
+        end;
+      finally
+        vUIArea.EndUpdate;
+      end;
+    end
+    else if (vAreaName = 'float') or (vAreaName = 'free') then
+    begin
+      vUIArea.BeginUpdate;
+      try
+        if Assigned(vInteractor.RootArea) then
+          vInteractor.RootArea.AddArea(vUIArea)
+        else
+          vInteractor.RootArea := vUIArea;
+        ApplyLayout(vUIArea, AView, vLayoutName, AOptions);
+      finally
+        vUIArea.EndUpdate;
+      end;
+
+      TPresenter(FPresenter).ShowUIArea(vUIArea, vAreaName, ACaption);
+    end
+    else if (vAreaName = 'child') or (vAreaName = 'modal') then
+    begin
+      if ACaption = '' then
+      begin
+        // Definition может быть от листового поля
+        if Assigned(AView.Definition) then
+        begin
+          if AView.DefinitionKind = dkObjectField then
+            vCaption := TDomain(vInteractor.Domain).TranslateFieldDef(TFieldDef(AView.Definition))
+          else
+            vCaption := TDomain(vInteractor.Domain).TranslateDefinition(TDefinition(AView.Definition));
+
+          if (Pos(AOptions, 'NoExtCaption') < 1) and (AAreaName = 'child') then
           begin
-            vServiceLayout := FLayouts.CreateSimpleLayout(lkPanel);
-            vServiceLayout.Height := cServiceAreaHeight;
-            vServiceLayout.Align := lalBottom;
-            vServiceArea := vUIArea.DoCreateChildArea(vServiceLayout, vInteractor.RootView);
-            vUIArea.AddArea(vServiceArea);
-            if AView.State >= vsSelectOnly {and Assigned(AChangeHolder) - у параметров нет холдера} then
-              ApplyLayout(vServiceArea, vUIArea.View, 'OkCancel', '')
+            if AView.DefinitionKind = dkAction then
+              vCaption := 'Параметры: ' + vCaption
+            else if AView.State >= vsSelectOnly {and Assigned(vArea.Holder) - у параметров нет холдера} then
+              vCaption := 'Редактирование: ' + vCaption
             else
-              ApplyLayout(vServiceArea, vUIArea.View, 'Close', '');
+              vCaption := 'Просмотр: ' + vCaption;
           end;
         end
-        else begin
-          vInteractor.RootArea := vUIArea;
-          ApplyLayout(vUIArea, AView, vLayoutName, AOptions);
-        end;
-      end;
+        else
+          vCaption := TDomain(vInteractor.Domain).AppTitle;
+      end
+      else
+        vCaption := ACaption;
 
-      if (vAreaName <> 'float') and (vAreaName <> 'free') then
-        vInteractor.CurrentArea := vUIArea;
-    finally
-      vUIArea.EndUpdate;
-    end;
-
-    vOptions := AOptions;
-    if ACaption <> '' then
-    begin
-      if vOptions <> '' then
-        vOptions := vOptions + '&';
-      vOptions := vOptions + 'Caption=' + ACaption;
-    end;
-
-    Result := TPresenter(FPresenter).ShowUIArea(vInteractor, vAreaName, vOptions, vUIArea);
-    if Result > drNone then
-    begin
-      vInteractor.LastArea := nil;
-      vInteractor.CurrentArea := vLastCurrentArea;
-    end;
-
-    if vIsMainForm and (vInteractor.DefaultParams <> '') then
-    begin
-      vParams := CreateDelimitedList(vInteractor.DefaultParams, '&');
+      vUIArea.BeginUpdate;
       try
-        vViewName := ExtractValueFromStrings(vParams, 'View');
-        vLayoutName := ExtractValueFromStrings(vParams, 'Layout');
-        if (vViewName <> '') or (vLayoutName <> '') then
-          Navigate(vInteractor.RootView.BuildView(vViewName), 'WorkArea', vLayoutName, '', nil, ExtractValueFromStrings(vParams, 'Caption'));
+        if Assigned(vInteractor.CurrentArea) then
+          vInteractor.CurrentArea.AddArea(vUIArea);
+        vInteractor.CurrentArea := vUIArea;
+        ApplyLayout(vUIArea, AView, vLayoutName, AOptions);
+
+        if vAreaName = 'child' then
+        begin
+          vServiceLayout := FLayouts.CreateSimpleLayout(lkPanel);
+          vServiceLayout.Height := cServiceAreaHeight;
+          vServiceLayout.Align := lalBottom;
+          vServiceArea := vUIArea.DoCreateChildArea(vServiceLayout, vInteractor.RootView);
+          vUIArea.AddArea(vServiceArea);
+          if AView.State >= vsSelectOnly {and Assigned(AChangeHolder) - у параметров нет холдера} then
+            ApplyLayout(vServiceArea, vUIArea.View, 'OkCancel', '')
+          else
+            ApplyLayout(vServiceArea, vUIArea.View, 'Close', '');
+        end;
       finally
-        FreeAndNil(vParams);
-        vInteractor.DefaultParams := '';
+        vUIArea.EndUpdate;
       end;
-    end;
+
+      TPresenter(FPresenter).ShowUIArea(vUIArea, vAreaName, ACaption);
+    end
+    else
+      Assert(False, 'Form style [' + vAreaName + '] is not supported');
   end
   // Creation of an internal area
   else begin
@@ -1163,10 +1204,13 @@ begin
   // Обработка сохранения данных при очистке области
   if Assigned(FHolder) then
   begin
-    if TChangeHolder(FHolder).IsModified then
-      TUserSession(FView.Session).Save(TChangeHolder(FHolder))
-    else
-      TUserSession(FView.Session).Cancel(TChangeHolder(FHolder));
+    if TUserSession(TChangeHolder(FHolder).Session).IsValid then
+    begin
+      if TChangeHolder(FHolder).IsModified then
+        TUserSession(FView.Session).Save(TChangeHolder(FHolder))
+      else
+        TUserSession(FView.Session).Cancel(TChangeHolder(FHolder));
+    end;
     FHolder := nil;
   end;
 
@@ -1199,9 +1243,15 @@ begin
   FInteractor := nil;
 end;
 
-procedure TUIArea.Close(const AModalResult: Integer);
+procedure TUIArea.Close(const AModalResult: Integer = mrOk);
 begin
+  FIsClosing := True;
   FNativeControl.DoClose(AModalResult);
+end;
+
+function TUIArea.Contains(const AArea: TUIArea): Boolean;
+begin
+  Result := FAreas.Contains(AArea);
 end;
 
 constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string = '');
@@ -1215,6 +1265,7 @@ begin
   FIsService := ALayout.AreaKind = akForm;
   FInitialMenu := nil;
   FUpdateCount := 0;
+  FIsClosing := False;
 
   FInternalParams := AParams;
   FCreateParams := nil;
@@ -1272,7 +1323,7 @@ begin
     FNativeControl.CreateCaption(FFieldDef);
 end;
 
-function TUIArea.CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TProc = nil): TUIArea;
+function TUIArea.CreateChildArea(const AChildView: TView; const ALayout: TLayout; const AParams: string; const AOnClose: TCloseProc = nil): TUIArea;
 var
   vView: TView;
   vDefaultViewName: string;
@@ -1482,7 +1533,7 @@ begin
 end;
 
 function TUIArea.DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string;
-  const AOnClose: TProc): TUIArea;
+  const AOnClose: TCloseProc): TUIArea;
 begin
   Result := TPresenter(FUIBuilder.Presenter).CreateArea(Self, AView, ALayout, AParams, AOnClose);
 end;
@@ -1697,33 +1748,34 @@ begin
       until Assigned(vRefArea) or not Assigned(vCurArea);
     end;
 
-    if Assigned(vRefArea) then
+    if not Assigned(vRefArea) then
+      Exit;
+
+    // Ввести параметры
+    vInteractor := TInteractor(AView.Interactor);
+    vAction := TActionDef(AView.Definition);
+    vParams := TEntity(AView.DomainObject);
+
+    if Assigned(vParams) then
     begin
-      // Ввести параметры
-      vInteractor := TInteractor(AView.Interactor);
-      vAction := TActionDef(AView.Definition);
-      vParams := TEntity(AView.DomainObject);
-
-      vNeedClearParams := False;
-      try
-        if Assigned(vParams) then
-        begin
-          vVisibleFieldCount := vParams.VisibleFieldCount(vInteractor.Session);
-          vNeedShowParams := (vVisibleFieldCount > 0) and vAction.HasFlag(ccAlwaysShowParameters);
-          if not vParams.IsValid or vNeedShowParams then
+      vVisibleFieldCount := vParams.VisibleFieldCount(vInteractor.Session);
+      vNeedShowParams := (vVisibleFieldCount > 0) and vAction.HasFlag(ccAlwaysShowParameters);
+      if not vParams.IsValid or vNeedShowParams then
+      begin
+        // Showing parameters dialog
+        vNeedClearParams := not vParams.IsValid and not vNeedShowParams;
+        vInteractor.AtomicEditParams(AView, '', '', procedure(const AResult: TDialogResult)
           begin
-            vNeedClearParams := not vParams.IsValid and not vNeedShowParams;
-            if not vInteractor.AtomicEditParams(AView) then
-              Exit;
-          end;
-        end;
-
-        vRefArea.DoExecuteUIAction(AView);
-      finally
-        if vNeedClearParams then
-          vParams.ResetToDefault(TUserSession(AView.Session).NullHolder);
+            if AResult = drOk then
+              vRefArea.DoExecuteUIAction(AView);
+            if vNeedClearParams then
+              vParams.ResetToDefault(TUserSession(AView.Session).NullHolder);
+          end);
+        Exit;
       end;
     end;
+
+    vRefArea.DoExecuteUIAction(AView);
   end
   else begin
     vIsSlave := (AView.Name = 'Save') or SameText(QueryParameter('place'), 'embedded')
@@ -2265,7 +2317,10 @@ destructor TNativeControl.Destroy;
 begin
   DoBeforeFreeControl;
 
-  FreeAndNil(FCaption);
+  if not SameText(TPresenter(FPresenter).Name, 'Web.UniGUI') then
+    FreeAndNil(FCaption)
+  else
+    FCaption := nil;
 
   FOwner := nil;
   FParent := nil;
@@ -2648,8 +2703,13 @@ end;
 
 procedure TNativeControlHolder.UnbindContent(const AForceUnbind: Boolean);
 begin
-  if (AForceUnbind or FIsAutoReleased) and not FIsForm then
-    FControl := nil;
+  if (AForceUnbind or FIsAutoReleased) then
+  begin
+    if not FIsForm then
+      FControl := nil
+    else if FLayout.StyleName <> 'modal' then
+      FControl := nil;
+  end;
 end;
 
 end.

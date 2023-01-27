@@ -185,28 +185,48 @@ begin
     Exit;
 
   vInputParams := TEntity.Create(AInteractor.Domain, AReport);
-  try
-    vInputParams.SubscribeFields(vDomain.DomainHolder);
-    if not ((vInputParams.VisibleFieldCount(AInteractor.Session) > 0)
-      and not AInteractor.EditParams(vInputParams)) then
-    begin
-      vReportData := TReportDataClass(vModuleInfo.ModuleClass).Create(
-        AInteractor.Session, AReport, AContextEntity, vInputParams);
-      try
-        if AReport.OutputFileMask = '' then
-          vFileName := 'Report' + FormatDateTime('ddmmyyyy_hhnnss', Now)
-        else
-          vFileName := EscapeFileName(Trim(vReportData.FillReportData(AReport.OutputFileMask))) +
-            '_' + FormatDateTime('ddmmyyyy', Now);
+  vInputParams.SubscribeFields(vDomain.DomainHolder);
+  if vInputParams.VisibleFieldCount(AInteractor.Session) = 0 then
+  begin
+    vReportData := TReportDataClass(vModuleInfo.ModuleClass).Create(
+      AInteractor.Session, AReport, AContextEntity, vInputParams);
+    try
+      if AReport.OutputFileMask = '' then
+        vFileName := 'Report' + FormatDateTime('ddmmyyyy_hhnnss', Now)
+      else
+        vFileName := EscapeFileName(Trim(vReportData.FillReportData(AReport.OutputFileMask))) +
+          '_' + FormatDateTime('ddmmyyyy', Now);
 
-        AReport.Content.Position := 0;
-        vReportData.DoShowReport(AReport.Content, vFileName);
-      finally
-        FreeAndNil(vReportData);
-      end;
+      AReport.Content.Position := 0;
+      vReportData.DoShowReport(AReport.Content, vFileName);
+    finally
+      FreeAndNil(vReportData);
+      FreeAndNil(vInputParams);
     end;
-  finally
-    FreeAndNil(vInputParams);
+  end
+  else begin
+    AInteractor.EditParams(vInputParams, '', '', procedure(const AResult: TDialogResult)
+      begin
+        if AResult = drOk then
+        begin
+          vReportData := TReportDataClass(vModuleInfo.ModuleClass).Create(
+            AInteractor.Session, AReport, AContextEntity, vInputParams);
+          try
+            if AReport.OutputFileMask = '' then
+              vFileName := 'Report' + FormatDateTime('ddmmyyyy_hhnnss', Now)
+            else
+              vFileName := EscapeFileName(Trim(vReportData.FillReportData(AReport.OutputFileMask))) +
+                '_' + FormatDateTime('ddmmyyyy', Now);
+
+            AReport.Content.Position := 0;
+            vReportData.DoShowReport(AReport.Content, vFileName);
+          finally
+            FreeAndNil(vReportData);
+          end;
+        end;
+
+        FreeAndNil(vInputParams);
+      end);
   end;
 end;
 

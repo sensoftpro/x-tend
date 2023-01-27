@@ -40,7 +40,7 @@ uses
   ExtCtrls, Types, ComCtrls, SysUtils, Windows, Graphics,
   Variants, Controls, Forms, Mask, Menus,
 
-  uDefinition, uPresenter, uInteractor, uView, uSettings,
+  uDefinition, uPresenter, uInteractor, uSession, uView, uSettings,
 
   DebugInfoForm, uUIBuilder, uLayout;
 
@@ -68,15 +68,19 @@ type
     procedure DoStop; override;
 
     function AreaFromSender(const ASender: TObject): TUIArea; override;
-    function DoLogin(const ADomain: TObject): TInteractor; override;
+    procedure DoLogin(const ADomain: TObject); override;
     procedure DoLogout(const AInteractor: TInteractor); override;
 
     function GetNativeControlClass: TNativeControlClass; override;
+    procedure CreateMainForm(const ASession: TUserSession); override;
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); override;
-    function DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult; override;
+    procedure DoShowDialog(const ACaption, AText: string; const ADialogActions:
+      TDialogResultSet; const AOnClose: TCloseProc = nil); override;
     procedure DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False); override;
-    function DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean; override;
-    function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; override;
+    procedure DoShowOpenDialog(const AFileName: string; const ATitle, AFilter,
+      ADefaultExt, ADefaultDir: string; const AOnClose: TCloseTextProc = nil); override;
+    procedure DoShowSaveDialog(const AFileName: string; const ATitle, AFilter,
+      ADefaultExt: string; const AOnClose: TCloseTextProc = nil); override;
     procedure DoSetCursor(const ACursorType: TCursorType); override;
 
     procedure DoArrangePages(const AInteractor: TInteractor; const AArrangeKind: TWindowArrangement); override;
@@ -95,8 +99,9 @@ type
   public
     function CreateTempControl: TObject; override; // DFM
 
-    function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
-    function ShowPage(const AInteractor: TInteractor; const APageType: string; const AParams: TObject = nil): TDialogResult; override;
+    procedure ShowUIArea(const AArea: TUIArea; const AAreaName: string; const ACaption: string); override;
+    procedure ShowPage(const AInteractor: TInteractor; const APageType: string;
+      const AParams: TObject = nil; const AOnClose: TCloseProc = nil); override;
   end;
 
 procedure CopyFontSettings(const AFont: TFont; const ALayout: TLayout);
@@ -112,7 +117,7 @@ implementation
 uses
   Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX, JPEG, PngImage, GIFImg, ImgList,
   uPlatform, uModule, uDomain, uUtils, uConfiguration, uChangeManager, uIcon,
-  uEntity, uEntityList, vclArea, uSession, uCollection;
+  uEntity, uEntityList, vclArea, uCollection;
 
 type
   TCrackedWinControl = class(TWinControl) end;
@@ -899,6 +904,19 @@ begin
     Assert(False, 'Пустой класс для лэйаута');
 end;
 
+procedure TWinVCLPresenter.CreateMainForm(const ASession: TUserSession);
+begin
+  inherited CreateMainForm(ASession);
+
+  if Assigned(ASession) and Assigned(ASession.Interactor) then
+  begin
+    if Assigned(FDebugForm) then
+      FDebugForm.AddInteractor(TInteractor(ASession.Interactor));
+    if FStartParameter <> '' then
+      TDomain(ASession.Domain).ExecuteDefaultAction(ASession, FStartParameter);
+  end;
+end;
+
 function TWinVCLPresenter.CreateTempControl: TObject;
 begin
   Result := TFrame.Create(nil);
@@ -1109,14 +1127,9 @@ begin
   end;
 end;
 
-function TWinVCLPresenter.DoLogin(const ADomain: TObject): TInteractor;
+procedure TWinVCLPresenter.DoLogin(const ADomain: TObject);
 begin
-  Result := inherited DoLogin(ADomain);
-  if not Assigned(Result) then
-    Exit;
-
-  if Assigned(FDebugForm) then
-    FDebugForm.AddInteractor(Result);
+  inherited DoLogin(ADomain);
 end;
 
 procedure TWinVCLPresenter.DoLogout(const AInteractor: TInteractor);
@@ -1126,11 +1139,9 @@ begin
     FDebugForm.RemoveInteractor(AInteractor);
 end;
 
-function TWinVCLPresenter.ShowPage(const AInteractor: TInteractor; const APageType: string;
-  const AParams: TObject = nil): TDialogResult;
+procedure TWinVCLPresenter.ShowPage(const AInteractor: TInteractor; const APageType: string;
+  const AParams: TObject = nil; const AOnClose: TCloseProc = nil);
 begin
-  Result := drNone;
-
   if (APageType = 'debug') then
   begin
     if _Platform.DeploymentType = 'dev' then
@@ -1145,15 +1156,16 @@ begin
       FDebugForm.UpdateDebugInfo;
     end;
   end;
+
+  if Assigned(AOnClose) then
+    AOnClose(drOk);
 end;
 
-function TWinVCLPresenter.ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult;
+procedure TWinVCLPresenter.ShowUIArea(const AArea: TUIArea;
+  const AAreaName: string; const ACaption: string);
 var
-  vView: TView;
   vForm: TForm;
-  vCaption: string;
 begin
-  Result := drNone;
   if (AAreaName = '') or (AAreaName = 'float') or (AAreaName = 'free') then
   begin
     vForm := TForm(GetRealControl(AArea));
@@ -1162,50 +1174,8 @@ begin
   else if (AAreaName = 'child') or (AAreaName = 'modal') then
   begin
     vForm := TForm(GetRealControl(AArea));
-    vForm.ShowHint := True;
-    vView := AArea.View;
-
-    vCaption := GetUrlParam(AOptions, 'Caption', '');
-
-    if vCaption = '' then
-    begin
-      // Definition может быть от листового поля
-      if Assigned(vView.Definition) then
-      begin
-        if vForm.Caption = '' then
-        begin
-          if vView.DefinitionKind = dkObjectField then
-            vForm.Caption := TDomain(AInteractor.Domain).TranslateFieldDef(TFieldDef(vView.Definition))
-          else
-            vForm.Caption := TDomain(AInteractor.Domain).TranslateDefinition(TDefinition(vView.Definition));
-
-          if (Pos(AOptions, 'NoExtCaption') < 1) and (AAreaName = 'child') then
-          begin
-            if vView.DefinitionKind = dkAction then
-              vForm.Caption := 'Параметры: ' + vForm.Caption
-            else if vView.State >= vsSelectOnly {and Assigned(vArea.Holder) - у параметров нет холдера} then
-              vForm.Caption := 'Редактирование: ' + vForm.Caption
-            else
-              vForm.Caption := 'Просмотр: ' + vForm.Caption;
-          end;
-        end;
-      end
-      else
-        vForm.Caption := TDomain(AInteractor.Domain).AppTitle;
-    end
-    else
-      vForm.Caption := vCaption;
-
-    try
-      Result := ModalResultToDialogResult(vForm.ShowModal);
-    finally
-      AArea.SetHolder(nil);
-      if Assigned(AArea.Parent) then
-        AArea.Parent.RemoveArea(AArea)
-      else
-        AArea.Release;
-      vForm.Free;
-    end;
+    vForm.Caption := ACaption;
+    vForm.ShowModal;
   end;
 end;
 
@@ -1303,17 +1273,16 @@ end;
 procedure TWinVCLPresenter.DoRun(const AParameter: string);
 var
   vDomain: TDomain;
-  vInteractor: TInteractor;
 begin
+  inherited DoRun(AParameter);
+
   Application.Title := cPlatformTitle;
   Application.Initialize;
 
   Application.OnShortCut := OnShortCut;
 
   vDomain := _Platform.Domains[0];
-  vInteractor := Login(vDomain);
-  if Assigned(vInteractor) and (AParameter <> '') then
-    vDomain.ExecuteDefaultAction(TUserSession(vInteractor.Session), AParameter);
+  Login(vDomain);
 
   Application.HintHidePause := -1;
   Application.Run;
@@ -1324,9 +1293,11 @@ begin
   Screen.Cursor := cCursors[ACursorType];
 end;
 
-function TWinVCLPresenter.DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
+procedure TWinVCLPresenter.DoShowDialog(const ACaption, AText: string;
+  const ADialogActions: TDialogResultSet; const AOnClose: TCloseProc);
 var
   vRes: Integer;
+  vResult: TDialogResult;
   vFlags: Integer;
 begin
   if drOk in ADialogActions then
@@ -1338,23 +1309,26 @@ begin
     else
       vFlags := MB_YESNO or MB_ICONQUESTION;
   end
-  else begin
-    Result := drCancel;
+  else
     Exit;
-  end;
 
   vRes := Application.MessageBox(PChar(AText), PChar(ACaption), vFlags); //MAKELANGID(LANG_NEUTRAL, SUBLANG_NEUTRAL));
     //MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US)); //MAKELANGID(LANG_FRENCH, SUBLANG_FRENCH));
-  if vRes = IDOK then
-    Result := drOk
-  else if vRes = IDYES then
-    Result := drYes
-  else if vRes = IDNO then
-    Result := drNo
-  else if vRes = IDCANCEL then
-    Result := drCancel
-  else
-    Result := drNone;
+
+  if Assigned(AOnClose) then
+  begin
+    if vRes = IDOK then
+      vResult := drOk
+    else if vRes = IDYES then
+      vResult := drYes
+    else if vRes = IDNO then
+      vResult := drNo
+    else if vRes = IDCANCEL then
+      vResult := drCancel
+    else
+      vResult := drNone;
+    AOnClose(vResult);
+  end;
 end;
 
 procedure TWinVCLPresenter.DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType);
@@ -1369,45 +1343,64 @@ begin
     //MAKELANGID(LANG_ENGLISH, SUBLANG_ENGLISH_US));
 end;
 
-function TWinVCLPresenter.DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt,
-  ADefaultDir: string): Boolean;
+procedure TWinVCLPresenter.DoShowOpenDialog(const AFileName: string; const ATitle,
+  AFilter, ADefaultExt, ADefaultDir: string; const AOnClose: TCloseTextProc);
 var
   vOpenDialog: TOpenDialog;
+  vFileName: string;
 begin
+  if not Assigned(AOnClose) then
+    Exit;
+
+  vFileName := AFileName;
   vOpenDialog := TOpenDialog.Create(nil);
   try
     if ATitle <> '' then
       vOpenDialog.Title := ATitle;
     vOpenDialog.Filter := AFilter;
     vOpenDialog.DefaultExt := ADefaultExt;
-    vOpenDialog.FileName := AFileName;
+    vOpenDialog.FileName := vFileName;
     vOpenDialog.Options := vOpenDialog.Options + [ofFileMustExist, ofPathMustExist];
     if ADefaultDir <> '' then
       vOpenDialog.InitialDir := ADefaultDir
-    else if AFileName <> '' then
-      vOpenDialog.InitialDir := ExtractFilePath(AFileName);
+    else if vFileName <> '' then
+      vOpenDialog.InitialDir := ExtractFilePath(vFileName);
 
-    Result := vOpenDialog.Execute;
-    if Result then
-      AFileName := vOpenDialog.FileName;
+    if vOpenDialog.Execute then
+    begin
+      vFileName := vOpenDialog.FileName;
+      AOnClose(drOk, vFileName);
+    end
+    else
+      AOnClose(drCancel, vFileName);
   finally
     FreeAndNil(vOpenDialog);
   end;
 end;
 
-function TWinVCLPresenter.DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean;
+procedure TWinVCLPresenter.DoShowSaveDialog(const AFileName: string; const ATitle,
+  AFilter, ADefaultExt: string; const AOnClose: TCloseTextProc);
 var
   vSaveDialog: TSaveDialog;
+  vFileName: string;
 begin
+  if not Assigned(AOnClose) then
+    Exit;
+
+  vFileName := AFileName;
   vSaveDialog := TSaveDialog.Create(nil);
   try
     vSaveDialog.Title := ATitle;
     vSaveDialog.Filter := AFilter;
     vSaveDialog.DefaultExt := ADefaultExt;
-    vSaveDialog.FileName := AFileName;
-    Result := vSaveDialog.Execute;
-    if Result then
-      AFileName := vSaveDialog.FileName;
+    vSaveDialog.FileName := vFileName;
+    if vSaveDialog.Execute then
+    begin
+      vFileName := vSaveDialog.FileName;
+      AOnClose(drOk, vFileName);
+    end
+    else
+      AOnClose(drCancel, vFileName);
   finally
     FreeAndNil(vSaveDialog);
   end;

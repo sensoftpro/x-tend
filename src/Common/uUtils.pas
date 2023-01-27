@@ -56,8 +56,11 @@ function DefineNameCase(const ASurName, AFirstName, APatronymicName: string;
 //function DeleteFileToRecycleBin(const FileName: string): Integer;
 
 // Работа с Base64
-function EncodeBase64(const AInput: string): string;
+//function EncodeBase64(const AInput: TStream): string; overload;
+function EncodeBase64(const AInput: string): string; //overload;
+
 function DecodeBase64(const AInput: string): string;
+function DecodeFromBase64(const AInput: string): TStream;
 
 function MoneyToStringEng(const AMoney: Currency; const ACurrName, ACentName: string): string;
 
@@ -986,6 +989,25 @@ begin
   vEncoder := TBase64Encoding.Create(0);
   try
     Result := vEncoder.Decode(AInput);
+  finally
+    vEncoder.Free;
+  end;
+end;
+
+function DecodeFromBase64(const AInput: string): TStream;
+var
+  vEncoder: TBase64Encoding;
+  vData: TBytes;
+  vInput: TBytes;
+begin
+  //if Length(AInput) > 0 then
+  vEncoder := TBase64Encoding.Create(0);
+  vInput := vEncoder.DecodeStringToBytes(AInput);
+
+  Result := TMemoryStream.Create;
+  try
+    vData := vEncoder.Decode(vInput);
+    Result.WriteData(vData, Length(vData));
   finally
     vEncoder.Free;
   end;

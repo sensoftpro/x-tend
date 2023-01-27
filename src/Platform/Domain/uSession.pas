@@ -53,16 +53,16 @@ type
   TUserSession = class
   private
     [Weak] FDomain: TObject;
-    { TODO -owa : Подумать: Для одной сессии может быть несколько интеракторов? }
-    [Weak] FInteractor: TObject;
     [Weak] FUser: TEntity;
+    { TODO -owa : Подумать: Для одной сессии может быть несколько интеракторов? }
+    FInteractor: TObject;
     FIsAdmin: Boolean;
+    FIsValid: Boolean;
 
     FHolders: TObjectList<TChangeHolder>;
     FAnemicHolder: TChangeHolder;
 
     function GetCurrentUserName: string;
-    procedure SetInteractor(const Value: TObject);
 
     procedure InternalReleaseChangeHolder(const AHolder: TChangeHolder; const AResult: Boolean;
       const ASkipLogging: Boolean = False);
@@ -89,13 +89,15 @@ type
     procedure ReloadDomainChanges(const AHolder: TChangeHolder);
 
     function GetUIState(const AObjectName: string; const AContextState: TState): TViewState;
+    procedure AddInteractor(const AInteractor: TObject);
 
     property Holders: TObjectList<TChangeHolder> read FHolders;
     property NullHolder: TChangeHolder read FAnemicHolder;
     property CurrentUser: TEntity read FUser;
     property CurrentUserName: string read GetCurrentUserName;
     property IsAdmin: Boolean read FIsAdmin;
-    property Interactor: TObject read FInteractor write SetInteractor;
+    property IsValid: Boolean read FIsValid;
+    property Interactor: TObject read FInteractor;
     property Domain: TObject read FDomain;
   end;
 
@@ -277,6 +279,11 @@ end;
 
 { TUserSession }
 
+procedure TUserSession.AddInteractor(const AInteractor: TObject);
+begin
+  FInteractor := AInteractor;
+end;
+
 function TUserSession.AtomicExecute(const ATask: TTaskHandle; const AExecutionProc: TAtomicExecutionProc): Boolean;
 begin
   try
@@ -351,6 +358,8 @@ begin
 
   FHolders := TObjectList<TChangeHolder>.Create;
   FAnemicHolder := TChangeHolder.Create(Self, nil, True);
+  FInteractor := nil;
+  FIsValid := True;
 
   if Assigned(FUser) then
   begin
@@ -368,12 +377,16 @@ begin
   if Assigned(FUser) then
     RegisterUserStatus(Self, FUser, False);
 
+  FIsValid := False;
   FDomain := nil;
   FUser := nil;
-  FreeAndNil(FAnemicHolder);
+
+  FreeAndNil(FInteractor);
+
   for i := FHolders.Count - 1 downto 0 do
     FHolders[i].RevertChanges;
   FreeAndNil(FHolders);
+  FreeAndNil(FAnemicHolder);
 
   inherited Destroy;
 end;
@@ -507,14 +520,6 @@ begin
     end);
   if Assigned(FInteractor) then
     TInteractor(FInteractor).PrintHierarchy;
-end;
-
-procedure TUserSession.SetInteractor(const Value: TObject);
-begin
-  // Это нужно, если к одной сессии может подключиться несколько интеракторов
-  FInteractor := Value;
-  if FInteractor = nil then
-    TDomain(FDomain).Logout(Self);
 end;
 
 { TUserSessions }

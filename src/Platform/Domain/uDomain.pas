@@ -481,8 +481,11 @@ begin
   FScheduler.CancelAll;
   FreeAndNil(FScheduler);
 
-  FreeAndNil(FDomainInteractor);
+  FreeAndNil(FSessions);
+
   FreeAndNil(FUIBuilder);
+
+  FreeAndNil(FDataLock);
 
   // Модули должны очищаться в обратном порядке
   FreeAndNil(FModules);
@@ -504,10 +507,6 @@ begin
   FreeAndNil(FSettings);
   FreeAndNil(FUserSettings);
   FreeAndNil(FTranslator);
-
-  FreeAndNil(FSessions);
-
-  FreeAndNil(FDataLock);
 
   FConfiguration := nil;
 
@@ -1084,7 +1083,6 @@ begin
   vProgressData._SetFieldValue(FDomainHolder, 'ProgressInfo', vInfo);
 
   if not Assigned(TInteractor(FDomainInteractor).RootArea) then
-    /////TODO Need another kind of form
     FUIBuilder.Navigate(TInteractor(FDomainInteractor).RootView, 'free', 'SplashForm')
   else if AProgress = 100 then
   begin

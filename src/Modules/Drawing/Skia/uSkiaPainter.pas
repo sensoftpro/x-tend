@@ -139,7 +139,7 @@ type
   TSkiaScene = class(TScene)
   private
     FPanel: TMyPanel;
-    FContainer: TDrawContainer;
+    FContainer: TWinDrawContainer;
 
     FDrawBufferDC: HDC;
     FSurface: ISkSurface;
@@ -174,7 +174,7 @@ uses
 
 constructor TSkiaPainter.Create(const AScene: TObject; const AContainer: TObject);
 var
-  vContainer: TDrawContainer absolute AContainer;
+  vContainer: TWinDrawContainer absolute AContainer;
 begin
   inherited Create(AScene, AContainer);
   FContext := TDrawContext.Create(0, 0);
@@ -670,7 +670,7 @@ end;
 function TSkiaScene.DoCreateScene(const APlaceholder: TObject): TPainter;
 var
   vControl: TWinControl absolute APlaceholder;
-  vContainer: TDrawContainer;
+  vContainer: TWinDrawContainer;
 begin
   FDrawBufferDC := 0;
 
@@ -695,7 +695,7 @@ begin
   FPanel.DoubleBuffered := True;
   FPanel.TabStop := True;
 
-  vContainer := TDrawContainer.Create(FPanel.Handle, FPanel.Canvas, FPanel.ClientWidth, FPanel.ClientHeight);
+  vContainer := TWinDrawContainer.Create(FPanel.Handle, FPanel.Canvas, FPanel.ClientWidth, FPanel.ClientHeight);
   try
     Result := CreatePainter(vContainer);
   finally

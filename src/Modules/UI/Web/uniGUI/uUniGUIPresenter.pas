@@ -58,22 +58,13 @@ type
   end;
 
   TUniMainModule = class(TUniGUIMainModule)
-    procedure UniGUIMainModuleCreate(Sender: TObject);
-  private
-    FInteractor: TInteractor;
-  public
-    property Interactor: TInteractor read FInteractor;
   end;
 
   TUniMainForm = class(TUniForm)
-    UniLabel1: TUniLabel;
-    UniEdit1: TUniEdit;
-    UniButton1: TUniButton;
-    procedure UniButton1Click(Sender: TObject);
-    procedure UniFormBeforeShow(Sender: TObject);
+    procedure UniFormCreate(Sender: TObject);
+    procedure UniFormDestroy(Sender: TObject);
   private
     FInteractor: TInteractor;
-  public
   end;
 
 type
@@ -85,20 +76,23 @@ type
   protected
     procedure OnShortCut(var Msg: TWMKey; var Handled: Boolean);
     procedure OnChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
+    procedure OnMenuItemCheck(Sender: TObject);
   protected
     procedure DoRun(const AParameter: string); override;
     {}procedure DoUnfreeze; override;
     {}procedure DoStop; override;
 
-    {}function DoLogin(const ADomain: TObject): TInteractor; override;
+    procedure DoLogin(const ADomain: TObject); override;
     procedure DoLogout(const AInteractor: TInteractor); override;
 
     function GetNativeControlClass: TNativeControlClass; override;
     procedure DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType); override;
-    function DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult; override;
+    procedure DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet; const AOnClose: TCloseProc = nil); override;
     procedure DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False); override;
-    function DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt, ADefaultDir: string): Boolean; override;
-    function DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean; override;
+    procedure DoShowOpenDialog(const AFileName: string; const ATitle, AFilter,
+      ADefaultExt, ADefaultDir: string; const AOnClose: TCloseTextProc = nil); override;
+    procedure DoShowSaveDialog(const AFileName: string; const ATitle, AFilter,
+      ADefaultExt: string; const AOnClose: TCloseTextProc = nil); override;
     {}procedure DoSetCursor(const ACursorType: TCursorType); override;
     procedure DoCloseAllPages(const AInteractor: TInteractor); override;
     function CreateControl(const AParent: TUIArea; const AView: TView; const ALayout: TLayout;
@@ -109,32 +103,13 @@ type
 
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
   public
-    function ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult; override;
+    procedure ShowUIArea(const AArea: TUIArea; const AAreaName: string; const ACaption: string); override;
   end;
-
-{  TUniArea = class(TUIArea)
-  protected
-    FControl: TUniControl;
-    procedure DoClose(const AModalResult: Integer); override;
-    function DoCreateChildArea(const ALayout: TObject; const AView: TView; const AParams: string = '';
-      const AOnClose: TProc = nil): TUIArea; override;
-    function DoCreateChildAction(const ALayout: TObject; const AView: TView; const AParams: string = ''): TUIArea; override;
-    function AreaFromSender(const ASender: TObject): TUIArea; override;
-    procedure AppendServiceArea(const ALayoutName: string); override;
-    procedure PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer); override;
-    procedure SetViewState(const AValue: TViewState); override;
-  public
-    constructor Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean = False;
-      const AControl: TObject = nil; const ALayout: TObject = nil; const AParams: string = ''); override;
-    destructor Destroy; override;
-  end;  }
 
 procedure CopyFontSettings(const AFont: TUniFont; const ALayout: TLayout);
 procedure CopyMargins(const AControl: TUniControl; const ALayout: TLayout);
 procedure CopyPadding(const AControl: TUniControl; const ALayout: TLayout);
 procedure CopyConstraints(const AConstraints: TSizeConstraints; const ALayout: TLayout);
-//procedure CopyPenSettings(const APen: TUniPen; const ALayout: TLayout);
-//procedure CopyBrushSettings(const ABrush: TUniBrush; const ALayout: TLayout);
 
 implementation
 
@@ -145,10 +120,11 @@ uses
 
 {$R ServerModule.dfm}
 {$R MainModule.dfm}
-{$R Main.dfm} // Это необязательный ресурс
+{$R Main.dfm}
 
 type
   TCrackedUniControl = class(TUniControl) end;
+  TCrackedNativeControlHolder = class(TNativeControlHolder) end;
 
 procedure CopyFontSettings(const AFont: TUniFont; const ALayout: TLayout);
 begin
@@ -196,46 +172,9 @@ begin
   OnBeforeInit := TUniGUIPresenter(_Platform.Presenter).UniServerModuleBeforeInit;
 end;
 
-{ TUniMainModule }
-
-procedure TUniMainModule.UniGUIMainModuleCreate(Sender: TObject);
-var
-  vDomain: TDomain;
-  vSession: TUserSession;
-  vUsers: TEntityList;
-begin
-  vDomain := _Platform.Domains[0];
-
-  vUsers := TEntityList.Create(vDomain, vDomain.DomainSession);
-  vDomain.GetEntityList(vDomain.DomainSession, vDomain.Configuration['SysUsers'], vUsers, '');
-  try
-    if vUsers.Count > 0 then
-      vSession := vDomain.Sessions.AddSession(vUsers[0])
-    else
-      vSession := vDomain.DomainSession;
-  finally
-    FreeAndNil(vUsers);
-  end;
-
-  FInteractor := TInteractor.Create(_Platform.Presenter, vSession);
-  //FInteractor.UIBuilder.SetRootArea(TWebArea.Create(nil, nil, '', Self));
-end;
-
 { TUniMainForm }
 
-procedure TUniMainForm.UniButton1Click(Sender: TObject);
-begin
-  with TUniEdit.Create(Self) do
-  begin
-    Parent := Self;
-    Left := 20;
-    Top := 23;
-    Width := 200;
-    Text := 'Кошка';
-  end;
-end;
-
-procedure TUniMainForm.UniFormBeforeShow(Sender: TObject);
+procedure TUniMainForm.UniFormCreate(Sender: TObject);
 var
   vPresenter: TUniGUIPresenter;
   vDomain: TDomain;
@@ -255,11 +194,14 @@ var
     else
       Result := ADefault;
   end;
+
 begin
-  FInteractor := TUniMainModule(UniApplication.UniMainModule).Interactor;
-  //vPresenter := TUniGUIPresenter(FInteractor.Presenter);
-  vSession := TUserSession(FInteractor.Session);
-  vDomain := TDomain(FInteractor.Domain);
+  vDomain := _Platform.Domains[0];
+  vSession := vDomain.Sessions.AddSession(nil);
+  vPresenter := TUniGUIPresenter(_Platform.Presenter);
+
+  FInteractor := TInteractor.Create(vPresenter, vSession);
+
   vView := FInteractor.RootView;
 
   vMainFormName := vDomain.Settings.GetValue('Core', 'MainForm', '');
@@ -269,19 +211,21 @@ begin
   //if FInteractor.Layout = 'mdi' then
   //  PageMode := True;
 
-  //OnClose := vPresenter.DoMainFormClose;
+  OnClose := vPresenter.DoMainFormClose;
   //OnShow := vPresenter.DoMainFormShow;
   Position := poScreenCenter;
   Caption := vDomain.AppTitle + ' (' + vSession.CurrentUserName + ')';
   ShowHint := True;
 
-  vFormLayout := FInteractor.UIBuilder.Layouts.CreateSimpleLayout(lkFrame);
+  vFormLayout := vDomain.UIBuilder.Layouts.CreateSimpleLayout(lkFrame);
   vFormLayout.Caption := Caption;
   vFormLayout.StyleName := '';
   vFormLayout.AreaKind := akForm;
 
   vUIArea := TUIArea.Create(nil, vView, vFormLayout);
+  TCrackedNativeControlHolder(vUIArea.NativeControl).SetControl(Self);
   FInteractor.RootArea := vUIArea;
+  FInteractor.CurrentArea := vUIArea;
   FInteractor.UIBuilder.ApplyLayout(vUIArea, vView, vMainFormName, '');
 
   if FInteractor.DefaultParams <> '' then
@@ -298,17 +242,12 @@ begin
       FInteractor.DefaultParams := '';
     end;
   end;
+end;
 
-  {with TUniEdit.Create(Self) do
-  begin
-    Parent := Self;
-    Left := 300;
-    Top := 200;
-    Width := 400;
-    Text := 'Эгегей';
-  end;
-
-  ShowToast('Привет');}
+procedure TUniMainForm.UniFormDestroy(Sender: TObject);
+begin
+  if Assigned(FInteractor) and Assigned(FInteractor.Presenter) then
+    TPresenter(FInteractor.Presenter).Logout(FInteractor);
 end;
 
 { TUniGUIPresenter }
@@ -354,7 +293,9 @@ begin
     vPanel.Align := TAlign(ALayout.Align);
     vPanel.Hint := ALayout.Hint;
     vPanel.Visible := ALayout.State > vsHidden;
-    vPanel.Color := ColorToAlphaColor(ALayout.Brush.Color);
+    vPanel.Color := AlphaColorToColor(ALayout.Brush.Color);
+    vPanel.ParentColor := False;
+    vPanel.ParentBackground := False;
     CopyMargins(vPanel, ALayout);
     CopyConstraints(vPanel.Constraints, ALayout);
 
@@ -453,6 +394,12 @@ begin
       if vParentControl is TUniPageControl then
         vTab.PageControl := TUniPageControl(vParentControl);
 
+      if AParent = vInteractor.PagedArea then
+      begin
+        vTab.Closable := True;
+        vTab.OnClose := OnTabClose;
+      end;
+
       Result := vTab;
     end;
   end
@@ -491,13 +438,13 @@ begin
       vPC.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
       vPC.Images := TUniCustomImageList(vUIBuilder.Images[16]);
       if vParams.Values['PageLayout'] = 'Top' then
-      else
+      else begin
+        vPC.ClientEvents.Enabled := True;
         vPC.ClientEvents.UniEvents.Append(
-          'tabPanel.beforeInit=function tabPanel.beforeInit(sender, config){sender.tabPosition = "bottom"}');
-      //vPC.OnCanClose := OnPCCanClose;
+          'tabPanel.beforeInit=function tabPanel.beforeInit(sender, config){config.tabPosition = ''bottom''}');
+      end;
       vPC.Align := TAlign(ALayout.Align);
       vPC.Anchors := ALayout.Anchors;
-      //CopyFontSettings(vPC.Font, ALayout);
 
       ALayout.Name := '-pages-';
       Result := vPC;
@@ -563,11 +510,7 @@ begin
 
     if ALayout.StyleName = '' then
     begin
-      vForm := FormInstance;
-
-      vForm.OnClose := DoMainFormClose;
-      vForm.Position := poScreenCenter;
-      vForm.Caption := vDomain.AppTitle + ' (' + TUserSession(vInteractor.Session).CurrentUserName + ')';
+      vForm := nil;
     end
     // второстепенная автономная форма
     else if ALayout.StyleName = 'float' then
@@ -613,7 +556,7 @@ begin
       vForm.OnKeyDown := OnChildFormKeyDown;
       vForm.KeyPreview := True;
       vForm.BorderIcons := [biSystemMenu];
-      vForm.Position := poMainFormCenter;
+      vForm.Position := poScreenCenter;
       vForm.Font.Size := 12;
       vForm.BorderStyle := bsSingle;  // for layouted form this property will be changed when assigned cEditFormResizable flag in Tag
     end;
@@ -621,7 +564,7 @@ begin
     if vForm = nil then
       Exit(nil);
 
-    vForm.Color := clBtnFace;
+    vForm.Color := TColorRec.SysBtnFace;
     vForm.ShowHint := True;
     Assert(not Assigned(vForm.OnShow), 'vForm.OnShow already assigned');
     vForm.OnShow := DoOnFormShow;
@@ -645,14 +588,20 @@ begin
         vMenuItem.Hint := ALayout.Caption;
         vMenuItem.ImageIndex := AParent.GetImageID(ALayout.ImageID);
         vMenuItem.OnClick := AParent.OnAreaClick;
+
+        if (AView.DefinitionKind = dkAction) and TDefinition(AView.Definition).FieldExists('IsChecked')
+        then begin
+          vMenuItem.AutoCheck := False;
+          vMenuItem.CheckItem := True;
+          vMenuItem.OnCheck := OnMenuItemCheck;
+          vMenuItem.HideOnClick := True;
+        end;
+
         if ALayout is TNavigationItem then
         begin
           vMenuItem.RadioItem := TNavigationItem(ALayout).RadioItem;
           vMenuItem.GroupIndex := TNavigationItem(ALayout).GroupIndex;
         end;
-
-        if Assigned(AView.DomainObject) and TEntity(AView.DomainObject).FieldExists('IsChecked') then
-          vMenuItem.AutoCheck := True;
       end
       else if ALayout.StyleName = 'select' then
       begin
@@ -715,7 +664,7 @@ begin
     vPlaceholder.PixelFormat := pf32bit;
     vResDiv8 := Max(ASize div 8, 1);
     vPlaceholder.Canvas.Pen.Width := 1;
-    vPlaceholder.Canvas.Pen.Color := clGray;
+    vPlaceholder.Canvas.Pen.Color := TColorRec.Gray;
     vPlaceholder.Canvas.Rectangle(vResDiv8, vResDiv8, ASize - vResDiv8, ASize - vResDiv8);
 
     Result := TMemoryStream.Create;
@@ -732,23 +681,26 @@ end;
 
 procedure TUniGUIPresenter.OnChildFormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 var
-  vForm: TForm;
   vHandled: Boolean;
 begin
   vHandled := False;
   DoChildFormKeyDown(Sender, Shift, Key, vHandled);
   if vHandled then
     Exit;
+end;
 
-  vForm := TForm(Sender);
-
-  if Key = vkReturn then
-  begin
-    //if vForm.ControlCount < 3 then
-    //  FForm.ModalResult := mrOk else
-    if (not (ssShift in Shift)) and (not (vForm.ActiveControl is TMemo))then
-      PostMessage(vForm.Handle, WM_NEXTDLGCTL, 0, 0);
-  end;
+procedure TUniGUIPresenter.OnMenuItemCheck(Sender: TObject);
+var
+  vMenuItem: TUniMenuItem;
+  vMenu: TUniPopupMenu;
+begin
+  vMenuItem := TUniMenuItem(Sender);
+  if vMenuItem.GetParentMenu is TUniPopupMenu then
+    vMenu := TUniPopupMenu(vMenuItem.GetParentMenu)
+  else
+    vMenu := nil;
+  vMenuItem.OnClick(Sender);
+  vMenu.CloseMenu;
 end;
 
 procedure TUniGUIPresenter.OnShortCut(var Msg: TWMKey; var Handled: Boolean);
@@ -768,14 +720,9 @@ begin
     Exit;
 end;
 
-function TUniGUIPresenter.DoLogin(const ADomain: TObject): TInteractor;
-var
-  vDomain: TDomain absolute ADomain;
+procedure TUniGUIPresenter.DoLogin(const ADomain: TObject);
 begin
-  //SetApplicationUI(vDomain.AppTitle, vDomain.Configuration.IconFileName);
-//  Result.UIBuilder.Navigate(nil, '', vMainFormName, ''{, Result.UIHolder});
-
-  Result := nil;
+  inherited DoLogin(ADomain);
 end;
 
 procedure TUniGUIPresenter.DoLogout(const AInteractor: TInteractor);
@@ -783,73 +730,30 @@ begin
   inherited DoLogout(AInteractor);
 end;
 
-function TUniGUIPresenter.ShowUIArea(const AInteractor: TInteractor; const AAreaName: string; const AOptions: string; var AArea: TUIArea): TDialogResult;
-//var
-//  vView: TView;
-//  vForm: TForm;
-//  vCaption: string;
+procedure TUniGUIPresenter.ShowUIArea(const AArea: TUIArea;
+  const AAreaName: string; const ACaption: string);
+var
+  vForm: TUniForm;
 begin
-(*  Result := drNone;
-  if (AAreaName = '') or (AAreaName = 'float') or (AAreaName = 'free') then
+  if (AAreaName = 'float') or (AAreaName = 'free') then
   begin
-    vForm := TForm(GetNativeControl(AArea));
+    vForm := TUniForm(GetRealControl(AArea));
     vForm.Show;
   end
   else if (AAreaName = 'child') or (AAreaName = 'modal') then
   begin
-    vForm := TForm(GetNativeControl(AArea));
-    vForm.ShowHint := True;
-    vView := AArea.View;
-
-    vCaption := GetUrlParam(AOptions, 'Caption', '');
-
-    if vCaption = '' then
-    begin
-      // Definition может быть от листового поля
-      if Assigned(vView.Definition) then
-      begin
-        if vForm.Caption = '' then
-        begin
-          if vView.DefinitionKind = dkObjectField then
-            vForm.Caption := TDomain(AInteractor.Domain).TranslateFieldDef(TFieldDef(vView.Definition))
-          else
-            vForm.Caption := TDomain(AInteractor.Domain).TranslateDefinition(TDefinition(vView.Definition));
-
-          if (Pos(AOptions, 'NoExtCaption') < 1) and (AAreaName = 'child') then
-          begin
-            if vView.DefinitionKind = dkAction then
-              vForm.Caption := 'Параметры: ' + vForm.Caption
-            else if vView.State >= vsSelectOnly {and Assigned(vArea.Holder) - у параметров нет холдера} then
-              vForm.Caption := 'Редактирование: ' + vForm.Caption
-            else
-              vForm.Caption := 'Просмотр: ' + vForm.Caption;
-          end;
-        end;
-      end
-      else
-        vForm.Caption := TDomain(AInteractor.Domain).AppTitle;
-    end
-    else
-      vForm.Caption := vCaption;
-
-    try
-      Result := ModalResultToDialogResult(vForm.ShowModal);
-    finally
-      AArea.SetHolder(nil);
-      if Assigned(AArea.Parent) then
-        AArea.Parent.RemoveArea(AArea)
-      else
-        AArea.Release;
-      vForm.Free;
-    end;
-  end;*)
-  Result := drNone;
+    vForm := TUniForm(GetRealControl(AArea));
+    vForm.Caption := ACaption;
+    vForm.ShowModal;
+  end;
 end;
 
 procedure TUniGUIPresenter.UniServerModuleBeforeInit(Sender: TObject);
 begin
   // Иконку в рантайме пока можно установить только так
-  TUniServerModule(Sender).Favicon.LoadFromFile(_Platform.Domains[0].Configuration.IconFileName);
+  FServerModule := TUniServerModule(Sender);
+  FServerModule.Favicon.LoadFromFile(_Platform.Domains[0].Configuration.IconFileName);
+
   //TUniServerModule(Sender).MainFormDisplayMode := mfPage;
 end;
 
@@ -905,9 +809,6 @@ begin
 end;
 
 procedure TUniGUIPresenter.DoRun(const AParameter: string);
-var
-  vDomain: TDomain;
-  vInteractor: TInteractor;
 begin
   Application.Title := cPlatformTitle;
   Application.Initialize;
@@ -915,11 +816,6 @@ begin
   TUniServerModule.Create(Application);
 
   Application.OnShortCut := OnShortCut;
-
-  vDomain := _Platform.Domains[0];
-  vInteractor := Login(vDomain);
-  if Assigned(vInteractor) and (AParameter <> '') then
-    vDomain.ExecuteDefaultAction(TUserSession(vInteractor.Session), AParameter);
 
   Application.Run;
 end;
@@ -929,9 +825,9 @@ begin
 { TODO -owa : Эта операция должна делаться открытием модальной формы со статусом }
 end;
 
-function TUniGUIPresenter.DoShowDialog(const ACaption, AText: string; const ADialogActions: TDialogResultSet): TDialogResult;
+procedure TUniGUIPresenter.DoShowDialog(const ACaption, AText: string;
+  const ADialogActions: TDialogResultSet; const AOnClose: TCloseProc);
 var
-  vRes: Integer;
   vButtons: TMsgDlgButtons;
 begin
   vButtons := [];
@@ -944,24 +840,33 @@ begin
   if drCancel in ADialogActions then
     vButtons := vButtons + [mbCancel];
   if vButtons = [] then
-    Exit(drCancel);
+    Exit;
 
-  vRes := FormInstance.MessageDlg(AText, mtConfirmation, vButtons);
-  if vRes = IDOK then
-    Result := drOk
-  else if vRes = IDYES then
-    Result := drYes
-  else if vRes = IDNO then
-    Result := drNo
-  else if vRes = IDCANCEL then
-    Result := drCancel
-  else
-    Result := drNone;
+  FormInstance.MessageDlg(AText, mtConfirmation, vButtons, procedure(Sender: TComponent; AResult: Integer)
+    var
+      vRes: TDialogResult;
+    begin
+      if not Assigned(AOnClose) then
+        Exit;
+
+      if AResult = IDOK then
+        vRes := drOk
+      else if AResult = IDYES then
+        vRes := drYes
+      else if AResult = IDNO then
+        vRes := drNo
+      else if AResult = IDCANCEL then
+        vRes := drCancel
+      else
+        vRes := drNone;
+
+      AOnClose(vRes);
+    end);
 end;
 
 procedure TUniGUIPresenter.DoShowMessage(const ACaption, AText: string; const AMessageType: TMessageType);
 begin
-  TUniMainForm(TUniMainModule(UniApplication.UniMainModule).GetFormInstance(TUniMainForm)).ShowMessage(AText);
+  //FormInstance.ShowMessage(AText);
   case AMessageType of
     msInfo: FormInstance.MessageDlg(AText, mtInformation, [mbOk]);
     msWarning: FormInstance.MessageDlg(AText, mtWarning, [mbOk]);
@@ -971,11 +876,10 @@ begin
   end;
 end;
 
-function TUniGUIPresenter.DoShowOpenDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt,
-  ADefaultDir: string): Boolean;
+procedure TUniGUIPresenter.DoShowOpenDialog(const AFileName: string; const ATitle,
+  AFilter, ADefaultExt, ADefaultDir: string; const AOnClose: TCloseTextProc);
 begin
 //  Upload
-  Result := False;
 
 // From UI
 //  UniFileUpload1: TUniFileUpload;
@@ -1021,10 +925,10 @@ begin
 //end;
 end;
 
-function TUniGUIPresenter.DoShowSaveDialog(var AFileName: string; const ATitle, AFilter, ADefaultExt: string): Boolean;
+procedure TUniGUIPresenter.DoShowSaveDialog(const AFileName: string; const ATitle,
+  AFilter, ADefaultExt: string; const AOnClose: TCloseTextProc);
 begin
 //  Download
-  Result := False;
 
 // Загрузка через UniLabel
 //  FName:='demo'+FormatDateTime('hhnnss', Time)+'.txt';
@@ -1070,58 +974,6 @@ begin
   // Настройка серверных сообщений
   FServerModule.ServerMessages.TerminateMessage := 'Вот и всё... До новых встреч!';
 end;
-
-(*{ TUniArea }
-
-procedure TUniArea.AppendServiceArea(const ALayoutName: string);
-begin
-
-end;
-
-function TUniArea.AreaFromSender(const ASender: TObject): TUIArea;
-begin
-  if Assigned(ASender) and (ASender is TComponent) then
-    Result := TUIArea(TComponent(ASender).Tag)
-  else
-    Result := nil;
-end;
-
-constructor TUniArea.Create(const AParent: TUIArea; const AView: TView; const AId: string; const AIsService: Boolean;
-  const AControl, ALayout: TObject; const AParams: string);
-begin
-  inherited Create(AParent, AView, AId, AIsService, AControl, ALayout, AParams);
-end;
-
-destructor TUniArea.Destroy;
-begin
-  inherited Destroy;
-end;
-
-procedure TUniArea.DoClose(const AModalResult: Integer);
-begin
-
-end;
-
-function TUniArea.DoCreateChildAction(const ALayout: TObject; const AView: TView; const AParams: string): TUIArea;
-begin
-
-end;
-
-function TUniArea.DoCreateChildArea(const ALayout: TObject; const AView: TView; const AParams: string;
-  const AOnClose: TProc): TUIArea;
-begin
-
-end;
-
-procedure TUniArea.PlaceIntoBounds(const ALeft, ATop, AWidth, AHeight: Integer);
-begin
-  FControl.SetBounds(ALeft, ATop, AWidth, AHeight);
-end;
-
-procedure TUniArea.SetViewState(const AValue: TViewState);
-begin
-
-end; *)
 
 initialization
 

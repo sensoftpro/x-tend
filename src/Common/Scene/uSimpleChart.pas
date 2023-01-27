@@ -721,6 +721,11 @@ var
   X: Single;
   vWidth: Single;
 begin
+  if PtInRect(FChartSelectionArea, ClientPos) then
+    FMousePos := ClientPos
+  else
+    FMousePos := Point(-1, -1);
+
   if Button <> TMouseButton.mbLeft then
     Exit;
 
@@ -838,6 +843,11 @@ end;
 procedure TSimpleChart.HandleMouseUp(Button: TMouseButton; Shift: TShiftState; ClientPos: TPointF;
   var AHandled: Boolean);
 begin
+  if PtInRect(FChartSelectionArea, ClientPos) then
+    FMousePos := ClientPos
+  else
+    FMousePos := Point(-1, -1);
+
   if Button <> TMouseButton.mbLeft then
     Exit;
 

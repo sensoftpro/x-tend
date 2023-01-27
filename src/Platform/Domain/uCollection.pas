@@ -845,6 +845,9 @@ var
   i: Integer;
   vListener: TObject;
 begin
+  if not TUserSession(TChangeHolder(AHolder).Session).IsValid then
+    Exit;
+
   vMessage.Msg := DM_DOMAIN_CHANGED;
   vMessage.Kind := AChangeKind;
   vMessage.Sender := Self;

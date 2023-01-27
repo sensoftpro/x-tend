@@ -217,7 +217,7 @@ end;
 
 constructor TOpenGLPainter.Create(const AScene: TObject; const AContainer: TObject);
 var
-  vContainer: TDrawContainer absolute AContainer;
+  vContainer: TWinDrawContainer absolute AContainer;
 begin
   inherited Create(AScene, AContainer);
   InitOpenGL;
@@ -782,7 +782,7 @@ end;
 
 function TOpenGLScene.CreatePainter(const AContainer: TObject): TPainter;
 var
-  vContainer: TDrawContainer absolute AContainer;
+  vContainer: TWinDrawContainer absolute AContainer;
 begin
   Result := TOpenGLPainter.Create(Self, AContainer);
   FStaticContext := TOpenGLDrawContext.Create(vContainer.Width, vContainer.Height);
@@ -798,7 +798,7 @@ end;
 function TOpenGLScene.DoCreateScene(const APlaceholder: TObject): TPainter;
 var
   vControl: TWinControl absolute APlaceholder;
-  vContainer: TDrawContainer;
+  vContainer: TWinDrawContainer;
 begin
   FDrawBufferDC := 0;
 
@@ -823,7 +823,7 @@ begin
   FPanel.DoubleBuffered := True;
   FPanel.TabStop := True;
 
-  vContainer := TDrawContainer.Create(FPanel.Handle, FPanel.Canvas, FPanel.ClientWidth, FPanel.ClientHeight);
+  vContainer := TWinDrawContainer.Create(FPanel.Handle, FPanel.Canvas, FPanel.ClientWidth, FPanel.ClientHeight);
   try
     Result := CreatePainter(vContainer);
   finally

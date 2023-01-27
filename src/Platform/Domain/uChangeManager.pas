@@ -651,24 +651,32 @@ begin
         vChangedEntity.Fields.Remove(vFieldName);
       end;
     else
-      begin
-        if Assigned(AInteractor) and (TInteractor(AInteractor).ShowYesNoDialog(
-          TDomain(FDomain).Translate('txtVersionsConflict', 'Конфликт версий'),
-          Format(AContext, [vFieldName, vEntityName, vIncomingValue, vThisValue]), False) = drYes)
-        then begin
-          //В пользу своих изменений
-          jPair := AFields.RemovePair(vFieldName);
-          FreeAndNil(jPair);
-        end
-        else
-          //В пользу пришедших изменений
-          vChangedEntity.Fields.Remove(vFieldName);
+      if not Assigned(AInteractor) then
+        vChangedEntity.Fields.Remove(vFieldName)
+      else begin
+        TInteractor(AInteractor).ShowYesNoDialog(TDomain(FDomain).Translate('txtVersionsConflict', 'Конфликт версий'),
+          Format(AContext, [vFieldName, vEntityName, vIncomingValue, vThisValue]), False,  procedure(const AResult: TDialogResult)
+          begin
+            if AResult = drYes then
+            begin
+              //В пользу своих изменений
+              jPair := AFields.RemovePair(vFieldName);
+              FreeAndNil(jPair);
+            end
+            else
+              //В пользу пришедших изменений
+              vChangedEntity.Fields.Remove(vFieldName);
+
+            if vChangedEntity.FieldCount <= 0 then
+              FChangedEntities.Remove(vChangedEntity);
+          end);
+        Exit;
       end;
     end;
   end;
 
   if vChangedEntity.FieldCount <= 0 then
-    DeleteChangedEntity(vIndex);
+    FChangedEntities.Remove(vChangedEntity);
 end;
 
 procedure TChangeHolder.RegisterEntityCreating(const AEntity: TEntity);
