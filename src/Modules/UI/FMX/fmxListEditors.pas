@@ -664,6 +664,8 @@ end;
 
 procedure TFMXGridEditor.DoOnColumnSizeChanged(Sender: TObject);
 begin
+  if ParentInUpdate then Exit;
+  // todo: порешать на какие правильные события подвязаться для сохранения информации по колонкам, сейчас слишком часто вызывается сохранение
   SaveColumnWidths;
 end;
 

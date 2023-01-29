@@ -131,6 +131,7 @@ type
     function GetDisplayFormat(const AFieldDef: TFieldDef; const AEntity: TEntity): string;
     function GetFormat: string;
     function GetRealControl(const AArea: TUIArea): TObject;
+    function ParentInUpdate: Boolean;
   public
     constructor Create(const AOwner: TUIArea; const AParams: string = ''); virtual;
     destructor Destroy; override;
@@ -462,6 +463,11 @@ begin
   vLayoutExt := IfThen(vCanLoadFromDFM, LAYOUT_DFM_EXT, '.jlt');
 
   vFileName := TDomain(FUIBuilder.Domain).Configuration.FindLayoutFile(ALayoutName, vLayoutExt, vPostfix);
+  if vFileName = '' then
+  begin
+    vFileName := GetPlatformDir + PathDelim + 'res' + PathDelim + 'layouts' + PathDelim + ALayoutName + vLayoutExt;
+    if not TFile.Exists(vFileName) then vFileName := '';
+  end;
 
   if FItems.TryGetValue(vFileName, Result) then
   begin
@@ -2521,6 +2527,11 @@ end;
 function TNativeControl.IndexOfSender(const ASender: TObject): Integer;
 begin
   Result := -1;
+end;
+
+function TNativeControl.ParentInUpdate: Boolean;
+begin
+  Result := FOwner.ParentInUpdate;
 end;
 
 procedure TNativeControl.PlaceLabel;
