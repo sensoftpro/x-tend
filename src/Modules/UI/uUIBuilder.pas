@@ -37,7 +37,7 @@ interface
 
 uses
   Classes, Types, Generics.Collections, Generics.Defaults, UITypes, SysUtils,
-  uConsts, uView, uDefinition, uEntity, uSession, uLayout;
+  uConsts, uView, uDefinition, uEntity, uSession, uScene, uLayout;
 
 type
   TLabelPosition = (lpTop, lpLeft);
@@ -175,6 +175,12 @@ type
       const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 
     property Control: TObject read FControl;
+  end;
+
+  TDomainSceneObject = class(TSceneObject)
+  protected
+    procedure UpdateBinding(const ABinding: TObject); virtual;
+    procedure ExecuteUIAction(const AArea: TUIArea; const AView: TView); Virtual;
   end;
 
   TUIArea = class
@@ -2720,6 +2726,17 @@ begin
     else if FLayout.StyleName <> 'modal' then
       FControl := nil;
   end;
+end;
+
+{ TDomainSceneObject }
+
+procedure TDomainSceneObject.ExecuteUIAction(const AArea: TUIArea;
+  const AView: TView);
+begin
+end;
+
+procedure TDomainSceneObject.UpdateBinding(const ABinding: TObject);
+begin
 end;
 
 end.
