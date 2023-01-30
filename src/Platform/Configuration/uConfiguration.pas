@@ -74,7 +74,6 @@ type
     FReactionDefs: TObjectList<TReactionDef>;
     FResFolders: TStrings;
     procedure LoadDataFromFiles(const ADirectory: string);
-    procedure LoadLayoutsToCache;
     function GetDefinitionByName(const AName: string): TDefinition;
     procedure CreateReactionChains;
   protected
@@ -291,28 +290,17 @@ end;
 
 function TConfiguration.FindLayoutFile(const ARelativeFilePath, AExtension, APostfix: string): string;
 var
-  vLocalLayoutFile: string;
-  vRemoteLayoutFile: string;
+  vLayoutFile: string;
 begin
-  vLocalLayoutFile := TPath.Combine(FCacheDir, 'layouts' + PathDelim + ARelativeFilePath);
-  if (APostfix <> '') and FileExists(vLocalLayoutFile + APostfix + AExtension) then
-    Result := vLocalLayoutFile + APostfix + AExtension
-  else if FileExists(vLocalLayoutFile + AExtension) then
-    Result := vLocalLayoutFile + AExtension
-  else if FCacheDir = FConfigurationDir then
+  if FCacheDir = FConfigurationDir then
     Result := ''
-  else begin
-    vRemoteLayoutFile := TPath.Combine(FConfigurationDir, 'layouts' + PathDelim + ARelativeFilePath);
-    if (APostfix <> '') and FileExists(vRemoteLayoutFile + APostfix + AExtension) then
-    begin
-      Result := vRemoteLayoutFile + APostfix + AExtension;
-      TFile.Copy(Result, vLocalLayoutFile + APostfix + AExtension, True);
-    end
-    else if FileExists(vRemoteLayoutFile + AExtension) then
-    begin
-      Result := vRemoteLayoutFile + AExtension;
-      TFile.Copy(Result, vLocalLayoutFile + AExtension, True);
-    end
+  else
+  begin
+    vLayoutFile := TPath.Combine(FConfigurationDir, 'layouts' + PathDelim + ARelativeFilePath);
+    if (APostfix <> '') and FileExists(vLayoutFile + APostfix + AExtension) then
+      Result := vLayoutFile + APostfix + AExtension
+    else if FileExists(vLayoutFile + AExtension) then
+      Result := vLayoutFile + AExtension
     else
       Result := '';
   end;
@@ -374,8 +362,6 @@ begin
     FIcons.Load(vResourcesDir);
 
   LoadDataFromFiles(FConfigurationDir);
-  if FConfigurationDir <> FCacheDir then
-    LoadLayoutsToCache;
 
   FRootDefinition := GetDefinitionByName('SysDefinitions');
 end;
@@ -427,69 +413,6 @@ begin
     until SysUtils.FindNext(vSearchRec) <> 0;
 
     SysUtils.FindClose(vSearchRec);
-  end;
-end;
-
-procedure TConfiguration.LoadLayoutsToCache;
-var
-  vLayoutsDir: string;
-  vResourcesDir: string;
-  vUserSettings: TIniSettings;
-  vFileName: string;
-  vFullName: string;
-  vFiles: TStrings;
-
-  procedure LoadLayoutsFromDir(const ADirectory: string);
-  var
-    vScanningDir: string;
-    vFullFileName: string;
-  begin
-    vScanningDir := TPath.Combine(ADirectory, 'layouts');
-    if TDirectory.Exists(vScanningDir) then
-      for vFullFileName in TDirectory.GetFiles(vScanningDir, '*.dfm', TSearchOption.soTopDirectoryOnly) do
-        try
-          vFileName := TPath.GetFileName(vFullFileName);
-          if vFiles.IndexOf(vFileName) < 0 then
-            vFiles.Add(vFileName);
-          TFile.Copy(vFullFileName, TPath.Combine(vLayoutsDir, vFileName), True);
-        except
-        end;
-  end;
-begin
-  vLayoutsDir := TPath.Combine(FCacheDir, 'layouts');
-  ForceDirectories(vLayoutsDir);
-  vUserSettings := TIniSettings.Create(TPath.Combine(FCacheDir, 'settings.ini'));
-  try
-  {$IFNDEF DEBUG}
-    if SameText(vUserSettings.GetValue('Core', 'UIVersion', ''), FVersion.ToString) then
-      Exit;
-  {$ENDIF}
-
-    // Перенос файлов из bin в локальную папку
-    vFiles := TStringList.Create;
-
-    LoadLayoutsFromDir(TPath.Combine(GetPlatformDir, 'res'));
-
-    for vResourcesDir in FResFolders do
-      LoadLayoutsFromDir(vResourcesDir);
-
-    LoadLayoutsFromDir(FConfigurationDir);
-
-    // Очистка неиспользуемых файлов
-    if TDirectory.Exists(vLayoutsDir) then
-      for vFullName in TDirectory.GetFiles(vLayoutsDir, '*.dfm', TSearchOption.soTopDirectoryOnly) do
-        try
-          vFileName := TPath.GetFileName(vFullName);
-          if (vFiles.IndexOf(vFileName) < 0) then
-            TFile.Delete(vFullName);
-        except
-        end;
-
-    FreeAndNil(vFiles);
-
-    vUserSettings.SetValue('Core', 'UIVersion', FVersion.ToString);
-  finally
-    vUserSettings.Free;
   end;
 end;
 

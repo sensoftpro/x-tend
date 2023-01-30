@@ -37,7 +37,7 @@ interface
 
 uses
   Classes, Types, Generics.Collections, Generics.Defaults, UITypes, SysUtils,
-  uConsts, uView, uDefinition, uEntity, uSession, uLayout;
+  uConsts, uView, uDefinition, uEntity, uSession, uScene, uLayout;
 
 type
   TLabelPosition = (lpTop, lpLeft);
@@ -131,6 +131,7 @@ type
     function GetDisplayFormat(const AFieldDef: TFieldDef; const AEntity: TEntity): string;
     function GetFormat: string;
     function GetRealControl(const AArea: TUIArea): TObject;
+    function ParentInUpdate: Boolean;
   public
     constructor Create(const AOwner: TUIArea; const AParams: string = ''); virtual;
     destructor Destroy; override;
@@ -174,6 +175,12 @@ type
       const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 
     property Control: TObject read FControl;
+  end;
+
+  TDomainSceneObject = class(TSceneObject)
+  protected
+    procedure UpdateBinding(const ABinding: TObject); virtual;
+    procedure ExecuteUIAction(const AArea: TUIArea; const AView: TView); Virtual;
   end;
 
   TUIArea = class
@@ -462,6 +469,11 @@ begin
   vLayoutExt := IfThen(vCanLoadFromDFM, LAYOUT_DFM_EXT, '.jlt');
 
   vFileName := TDomain(FUIBuilder.Domain).Configuration.FindLayoutFile(ALayoutName, vLayoutExt, vPostfix);
+  if vFileName = '' then
+  begin
+    vFileName := GetPlatformDir + PathDelim + 'res' + PathDelim + 'layouts' + PathDelim + ALayoutName + vLayoutExt;
+    if not TFile.Exists(vFileName) then vFileName := '';
+  end;
 
   if FItems.TryGetValue(vFileName, Result) then
   begin
@@ -2523,6 +2535,11 @@ begin
   Result := -1;
 end;
 
+function TNativeControl.ParentInUpdate: Boolean;
+begin
+  Result := FOwner.ParentInUpdate;
+end;
+
 procedure TNativeControl.PlaceLabel;
 begin
 end;
@@ -2709,6 +2726,17 @@ begin
     //else if FLayout.StyleName <> 'modal' then
       FControl := nil;
   end;
+end;
+
+{ TDomainSceneObject }
+
+procedure TDomainSceneObject.ExecuteUIAction(const AArea: TUIArea;
+  const AView: TView);
+begin
+end;
+
+procedure TDomainSceneObject.UpdateBinding(const ABinding: TObject);
+begin
 end;
 
 end.
