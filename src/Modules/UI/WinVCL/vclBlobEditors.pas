@@ -39,26 +39,25 @@ uses
   uUIBuilder, vclArea, uScene, uSimpleChart, uLayout, uView;
 
 type
-  TVCLCommonSceneArea = class(TVCLControl)
+  TVCLCanvasArea = class(TVCLControl)
   protected
     FScene: TScene;
     procedure DoActivate(const AAreaState: string = ''); override;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoDisableContent; override;
     procedure DoBeforeFreeControl; override;
-    procedure FillEditor; override;
     procedure RefillArea(const AKind: Word); override;
   end;
 
-  TVCLChartArea = class(TVCLCommonSceneArea)
+  TVCLChartArea = class(TVCLCanvasArea)
   protected
     FChart: TSimpleChart;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
   end;
 
-  TVCLSceneArea = class(TVCLCommonSceneArea)
+  TVCLSceneArea = class(TVCLCanvasArea)
   protected
-    FChart: TDomainSceneObject;
+    FSceneObject: TDomainSceneObject;
     procedure RefillArea(const AKind: Word); override;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoExecuteUIAction(const AView: TView); override;
@@ -67,23 +66,22 @@ type
 implementation
 
 uses
-  Types,
   uPlatform, uModule, uDomain, uDrawStyles, uWinVCLPresenter, vclScene, uPresenter, uConfiguration, uConsts;
 
 { TVCLSceneArea }
 
-procedure TVCLCommonSceneArea.DoActivate(const AAreaState: string);
+procedure TVCLCanvasArea.DoActivate(const AAreaState: string);
 begin
   inherited;
   FScene.Activate;
 end;
 
-procedure TVCLCommonSceneArea.DoBeforeFreeControl;
+procedure TVCLCanvasArea.DoBeforeFreeControl;
 begin
   FScene.Free;
 end;
 
-function TVCLCommonSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+function TVCLCanvasArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vDomain: TDomain;
   vModuleInfo: TModuleInfo;
@@ -97,20 +95,12 @@ begin
   Result := TWinScene(FScene).Panel;
 end;
 
-procedure TVCLCommonSceneArea.DoDisableContent;
+procedure TVCLCanvasArea.DoDisableContent;
 begin
   FScene.Enabled := False;
 end;
 
-procedure TVCLCommonSceneArea.FillEditor;
-begin
-  inherited;
-  // FView
-  // FFieldDef
-  // FControl.Control
-end;
-
-procedure TVCLCommonSceneArea.RefillArea(const AKind: Word);
+procedure TVCLCanvasArea.RefillArea(const AKind: Word);
 begin
   if AKind <> dckNameChanged then
     FScene.Repaint;
@@ -122,23 +112,27 @@ type
   TCrackedDomainSceneObject = class(TDomainSceneObject) end;
 
 function TVCLSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vObjectClass: TDomainSceneObjectClass;
 begin
   Result := inherited DoCreateControl(AParent, ALayout);
-  //FId := 'FinanceChart';
-  // find scene object class
-  FChart := TDomainSceneObject.Create(FScene, nil, FScene.ClientRect);
+  vObjectClass := TPresenter.GetSceneObjectClass(ALayout.Id);
+  if Assigned(vObjectClass) then
+    FSceneObject := vObjectClass.Create(FOwner, FScene)
+  else
+    Assert(False, 'Class of scene object for name "' + ALayout.Id + '" is not supported');
 end;
 
 procedure TVCLSceneArea.DoExecuteUIAction(const AView: TView);
 begin
-  TCrackedDomainSceneObject(FChart).ExecuteUIAction(FOwner, AView);
+  TCrackedDomainSceneObject(FSceneObject).ExecuteUIAction(FOwner, AView);
 end;
 
 procedure TVCLSceneArea.RefillArea(const AKind: Word);
 begin
   if AKind = dckNameChanged then
     Exit;
-  TCrackedDomainSceneObject(FChart).UpdateBinding(Self);
+  TCrackedDomainSceneObject(FSceneObject).UpdateBinding(Self);
   inherited RefillArea(AKind);
 end;
 
@@ -154,6 +148,6 @@ end;
 initialization
 
 TPresenter.RegisterControlClass('Windows.VCL', uiComplexEdit, 'chart', TVCLChartArea);
-TPresenter.RegisterControlClass('Windows.VCL', uiEntityEdit, 'scene', TVCLCommonSceneArea);
+TPresenter.RegisterControlClass('Windows.VCL', uiEntityEdit, 'scene', TVCLSceneArea);
 
 end.

@@ -188,10 +188,14 @@ type
   private
     class var RegisteredCanvasClasses: TObjectDictionary<string, TDictionary<string, TClass>>;
     class var RegisteredControlClasses: TObjectDictionary<string, TObjectDictionary<string, TControlClassInfo>>;
+    class var RegisteredSceneObjectClasses: TDictionary<string, TDomainSceneObjectClass>;
   public
     class procedure RegisterCanvasClass(const APresenterName: string; const ACanvasTypeName: string; const ACanvasClass: TClass);
     class procedure RegisterControlClass(const APresenterName: string; const AControlType: TUIItemType;
       const AStyleName: string; const AControlClass: TNativeControlClass);
+    class procedure RegisterSceneObjectClass(const AName: string; const ASceneObjectClass: TDomainSceneObjectClass);
+
+    class function GetSceneObjectClass(const AName: string): TDomainSceneObjectClass;
   private
     FNativeControlClass: TNativeControlClass;
 
@@ -318,7 +322,7 @@ uses
 
 type
   TLoginedProc = procedure(const AInteractor: TInteractor) of object;
-  TBeforeUIClosingProc = procedure(const AInteractor: TInteractor; const AOnClose: TCloseProc) of object;
+  TBeforeUIClosingFunc = function(const AInteractor: TInteractor; const AOnClose: TCloseProc): TCloseAction of object;
 
 { TPresenter }
 
@@ -1181,6 +1185,11 @@ begin
       if Assigned(vArea.Parent) then
         vArea.Parent.RemoveArea(vArea);
 
+      if SameText(FName, 'Web.UniGUI') then
+        Action := TCloseAction.caFree
+      else
+        Action := TCloseAction.caNone;
+
       if Assigned(vInteractor.UIBuilder) then
         vInteractor.PrintHierarchy;
     end
@@ -1322,13 +1331,15 @@ begin
     Exit;
   end;
 
-  Action := TCloseAction.caNone;
-  TBeforeUIClosingProc(TConfiguration(vInteractor.Configuration).
-    BeforeUIClosingProc)(vInteractor, procedure(const AResult: TDialogResult)
+  Action := TBeforeUIClosingFunc(TConfiguration(vInteractor.Configuration).
+    BeforeUIClosingFunc)(vInteractor, procedure(const AResult: TDialogResult)
     begin
       if AResult = drYes then
         vArea.Close(mrNone);
     end);
+
+  if not SameText(FName, 'Web.UniGUI') then
+    Action := TCloseAction.caNone;
 end;
 
 procedure TPresenter.DoOnFormShow(Sender: TObject);
@@ -1530,6 +1541,12 @@ begin
     Result := nil;
 end;
 
+class function TPresenter.GetSceneObjectClass(const AName: string): TDomainSceneObjectClass;
+begin
+  if not RegisteredSceneObjectClasses.TryGetValue(AName.ToLowerInvariant, Result) then
+    Result := nil;
+end;
+
 function TPresenter.GetWidthByType(const AWidth: Integer; const AFieldDef: TFieldDef): Integer;
 begin
   case AFieldDef.Kind of
@@ -1705,6 +1722,12 @@ begin
 
   vClassInfo := TControlClassInfo.Create(AControlType, vStyleName, AControlClass);
   vClassesList.Add(vClassName, vClassInfo);
+end;
+
+class procedure TPresenter.RegisterSceneObjectClass(const AName: string;
+  const ASceneObjectClass: TDomainSceneObjectClass);
+begin
+  RegisteredSceneObjectClasses.AddOrSetValue(Aname.ToLowerInvariant, ASceneObjectClass);
 end;
 
 procedure TPresenter.RestoreUILayout(const AInteractor: TInteractor;
@@ -1900,10 +1923,12 @@ initialization
 
 TPresenter.RegisteredCanvasClasses := TObjectDictionary<string, TDictionary<string, TClass>>.Create([doOwnsValues]);
 TPresenter.RegisteredControlClasses := TObjectDictionary<string, TObjectDictionary<string, TControlClassInfo>>.Create([doOwnsValues]);
+TPresenter.RegisteredSceneObjectClasses := TDictionary<string, TDomainSceneObjectClass>.Create;
 
 finalization
 
 FreeAndNil(TPresenter.RegisteredCanvasClasses);
 FreeAndNil(TPresenter.RegisteredControlClasses);
+FreeAndNil(TPresenter.RegisteredSceneObjectClasses);
 
 end.

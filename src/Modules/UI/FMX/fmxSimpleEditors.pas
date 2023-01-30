@@ -1028,6 +1028,9 @@ TPresenter.RegisterControlClass('FMX', uiFloatEdit, '', TFMXFloatFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiFloatEdit, 'simple', TFMXFloatFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiFloatEdit, 'info', TFMXTextInfo);
 
+TPresenter.RegisterControlClass('FMX', uiCurrencyEdit, '', TFMXFloatFieldEditor);
+TPresenter.RegisterControlClass('FMX', uiCurrencyEdit, 'simple', TFMXFloatFieldEditor);
+
 TPresenter.RegisterControlClass('FMX', uiDateEdit, '', TFMXDateFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiDateEdit, 'time', TFMXTimeFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiDateEdit, 'info', TFMXTextInfo);

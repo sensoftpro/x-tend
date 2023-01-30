@@ -73,7 +73,7 @@ type
 implementation
 
 uses
-  fmxScene;
+  fmxScene, uModule;
 
 function MulDiv(ANumber, ANumerator, ADenominator: Integer): Integer;
 begin
@@ -537,5 +537,9 @@ procedure TFMXContext.SaveToFile(const AFileName: string);
 begin
   FBitmap.SaveToFile(AFileName, nil);
 end;
+
+initialization
+
+TBaseModule.RegisterModule('Painting', '', 'FMX', TFMXScene);
 
 end.

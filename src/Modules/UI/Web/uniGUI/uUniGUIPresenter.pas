@@ -533,26 +533,26 @@ begin
     // второстепенная автономная форма
     else if ALayout.StyleName = 'float' then
     begin
-      vArea := nil;
-      if Assigned(AParent) then
+      //vArea := nil;
+      if Assigned(vInteractor.RootArea) then
       begin
-        for i := 0 to AParent.Count - 1 do
+        for i := 0 to vInteractor.RootArea.Count - 1 do
         begin
-          vArea := AParent.Areas[i];
-          if (vArea.View = AView) and (GetRealControl(vArea) is TForm) then
+          vArea := vInteractor.RootArea.Areas[i];
+          if (vArea.View = AView) and (GetRealControl(vArea) is TUniForm) then
             Exit(vArea);
         end;
       end;
 
-      vForm := TUniForm.Create(nil);
+      vForm := TUniForm.Create(UniApplication);
 
       vForm.OnClose := DoFloatFormClose;
-      vForm.Position := poMainFormCenter;
+      vForm.Position := poScreenCenter;
       vForm.Font.Size := 12;
       vForm.Caption := ALayout.Caption;
       vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
-      if (AView.DefinitionKind in [dkCollection, dkAction, dkEntity]) then
-        TDragImageList(vUIBuilder.Images[16]).GetIcon(vArea.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
+      //if (AView.DefinitionKind in [dkCollection, dkAction, dkEntity]) then
+      //  TDragImageList(vUIBuilder.Images[16]).GetIcon(vArea.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
     end
     // автономная форма со свободным отображением
     else if ALayout.StyleName = 'free' then

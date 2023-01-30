@@ -179,9 +179,15 @@ type
 
   TDomainSceneObject = class(TSceneObject)
   protected
+    FOwner: TUIArea;
     procedure UpdateBinding(const ABinding: TObject); virtual;
     procedure ExecuteUIAction(const AArea: TUIArea; const AView: TView); Virtual;
+  public
+    constructor Create(const AOwner: TUIArea; const AScene: TScene); virtual;
+    destructor Destroy; override;
   end;
+
+  TDomainSceneObjectClass = class of TDomainSceneObject;
 
   TUIArea = class
   private
@@ -576,24 +582,29 @@ begin
     end;
   end;
 
-  for vFieldDef in vDefinition.Fields do
-  begin
-    vView := AView.BuildView(vFieldDef.Name);
-    if Assigned(vView) then
+  AView.AddListener(nil);
+  try
+    for vFieldDef in vDefinition.Fields do
     begin
-      if not TInteractor(AView.Interactor).NeedSkipField(nil, vFieldDef) and (vFieldDef.Kind <> fkComplex) then
+      vView := AView.BuildView(vFieldDef.Name);
+      if Assigned(vView) then
       begin
-        vLayout := CreateSimpleLayout(lkPanel);
-        vLayout.Caption := vFieldDef.Name;
-        vLayout.Left := 0;
-        vLayout.Top := 0;
-        vLayout.Width := cDefaultColumnWidth;
-        vLayout.Height := CalcLayoutPositionCount(vFieldDef.Kind, vFieldDef.StyleName) * (vOneRowHeight + cBetweenRows) - cBetweenRows;
-        Result.Add(vLayout);
-      end
-      else
-        vView.CleanView;
+        if not TInteractor(AView.Interactor).NeedSkipField(nil, vFieldDef) and (vFieldDef.Kind <> fkComplex) then
+        begin
+          vLayout := CreateSimpleLayout(lkPanel);
+          vLayout.Caption := vFieldDef.Name;
+          vLayout.Left := 0;
+          vLayout.Top := 0;
+          vLayout.Width := cDefaultColumnWidth;
+          vLayout.Height := CalcLayoutPositionCount(vFieldDef.Kind, vFieldDef.StyleName) * (vOneRowHeight + cBetweenRows) - cBetweenRows;
+          Result.Add(vLayout);
+        end
+        else
+          vView.CleanView;
+      end;
     end;
+  finally
+    AView.RemoveListener(nil);
   end;
 
   Result.ArrangeChildAreas;
@@ -1296,6 +1307,8 @@ begin
     TrySubscribeView;
 
   ALayout.Params := AParams;
+  if Assigned(FCreateParams) then
+    ALayout.Id := FCreateParams.Values['Id'];
 
   if (ALayout.AreaKind = akField) and (AView.DefinitionKind <> dkEntity) then
   begin
@@ -2729,6 +2742,18 @@ begin
 end;
 
 { TDomainSceneObject }
+
+constructor TDomainSceneObject.Create(const AOwner: TUIArea; const AScene: TScene);
+begin
+  FOwner := AOwner;
+  inherited Create(AScene, nil, AScene.ClientRect);
+end;
+
+destructor TDomainSceneObject.Destroy;
+begin
+  FOwner := nil;
+  inherited Destroy;
+end;
 
 procedure TDomainSceneObject.ExecuteUIAction(const AArea: TUIArea;
   const AView: TView);

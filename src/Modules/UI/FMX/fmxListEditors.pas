@@ -81,6 +81,24 @@ type
 //    destructor Destroy; override;
   end;
 
+  TFMXEntityListSelectorMTM = class(TFMXControl) // many to many link
+  private
+    FListBox: TGroupBox;
+    FEntityList: TEntityList;
+    FTransitFieldDef: TObjectFieldDef;
+    FTransitDefinition: TDefinition;
+    FFilterName: string;
+    procedure FillList;
+    procedure OnClickCheck(Sender: TObject);
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoBeforeFreeControl; override;
+    procedure FillEditor; override;
+//    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+    procedure DoOnChange; override;
+    procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
+  end;
+
 implementation
 
 uses
@@ -759,7 +777,185 @@ begin
   end;
 end;
 
+{ TFMXEntityListSelectorMTM }
+
+procedure TFMXEntityListSelectorMTM.DoBeforeFreeControl;
+begin
+  inherited;
+  FreeAndNil(FEntityList);
+end;
+
+function TFMXEntityListSelectorMTM.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vListFieldDef: TListFieldDef;
+  vTransitFieldName: string;
+  vParentEntity: TEntity;
+  vTransitContentType: string;
+  vTransitDefinitionName: string;
+  vTransitFieldDef: TFieldDef;
+  vInteractor: TInteractor;
+begin
+  inherited;
+  FListBox := TGroupBox.Create(nil);
+  Result := FListBox;
+  Assert(FView.Definition is TListFieldDef, 'FView.Definition не является TListFieldDef');
+  vListFieldDef := TListFieldDef(FView.Definition);
+  FFilterName := GetUrlParam(vListFieldDef.StyleName, 'filter', '');
+  vTransitFieldName := GetUrlParam(vListFieldDef.StyleName, 'transit');
+  Assert(Length(vTransitFieldName) > 0, 'Не задано транзитное поле. Параметр transit.');
+  Assert(vListFieldDef._ContentDefinition.FieldExists(vTransitFieldName), 'Указанное имя транзитного поля не существует: ' + vTransitFieldName);
+
+  vTransitFieldDef := vListFieldDef._ContentDefinition.FieldByName(vTransitFieldName);
+  Assert(vTransitFieldDef is TObjectFieldDef, 'Указанное транзитное поле не является TObjectFieldDef');
+
+  FTransitFieldDef := TObjectFieldDef(vTransitFieldDef);
+  FTransitDefinition := FTransitFieldDef._ContentDefinition;
+  if FTransitDefinition.Name = '~' then
+  begin
+    vTransitContentType := { FTransitFieldDef.ContentTypeLocator; // } GetUrlParam(vListFieldDef.StyleName, 'contentType');
+    if (FView.ParentDomainObject is TEntity) and (Length(vTransitContentType) > 0) then
+    begin
+      vParentEntity := TEntity(FView.ParentDomainObject);
+      try
+        vTransitDefinitionName := vParentEntity[vTransitContentType];
+        FTransitDefinition := TDomain(FDomain).Configuration.DefinitionByName[vTransitDefinitionName];
+      except
+        Assert(False, 'Неверно указан тип для транзитного поля: ' + vTransitDefinitionName);
+      end;
+    end;
+  end;
+
+  vInteractor := TInteractor(FView.Interactor);
+
+  FEntityList := TEntityList.Create(vInteractor.Domain, vInteractor.Session);
+
+  //FListBox.OnClickCheck := OnClickCheck;
+end;
+
+procedure TFMXEntityListSelectorMTM.DoOnChange;
+begin
+  inherited;
+
+end;
+
+procedure TFMXEntityListSelectorMTM.FillEditor;
+begin
+  inherited;
+
+end;
+
+procedure TFMXEntityListSelectorMTM.FillList;
+var
+  i: Integer;
+  vItem: TCheckBox;
+  vSelectedList: TEntityList;
+  vList: TList<TEntity>;
+  vSelectedIndex: Integer;
+  vEntity, vParentParameter: TEntity;
+begin
+  TDomain(FDomain).GetEntityList(FView.Session, FTransitDefinition, FEntityList, '');
+
+  vSelectedList := TEntityList(FView.DomainObject);
+  vList := TList<TEntity>.Create;
+  try
+    for i := 0 to vSelectedList.Count - 1 do
+      vList.Add(vSelectedList[i].ExtractEntity(FTransitFieldDef.Name));
+
+    FListBox.DeleteChildren;
+    vParentParameter := nil;
+    if FView.ParentDomainObject is TEntity then
+    begin
+      vParentParameter := TEntity(FView.ParentDomainObject);
+      if vParentParameter.FieldExists(FFilterName) then
+        vParentParameter := vParentParameter.ExtractEntity(FFilterName)
+      else
+        vParentParameter := nil;
+    end;
+
+    for i := 0 to FEntityList.Count - 1 do
+    begin
+      vEntity := FEntityList[i];
+      if Assigned(vParentParameter) and (vEntity.ExtractEntity(FFilterName) <> vParentParameter) then
+        Continue;
+
+      vItem := TCheckBox.Create(nil);
+      vItem.Align := TAlignLayout.Top;
+
+      if not Assigned(FCreateParams) or (FCreateParams.Values['DisplayName'] = '') then
+        vItem.Text := vEntity.DisplayName
+      else
+        vItem.Text := vEntity[FCreateParams.Values['DisplayName']];
+
+      vSelectedIndex := vList.IndexOf(vEntity);
+      vItem.IsChecked := vSelectedIndex >= 0;
+      if vItem.IsChecked then
+        vItem.TagObject := vSelectedList[vSelectedIndex]
+      else
+        vItem.TagObject := FEntityList[i];
+
+      vItem.OnChange := OnClickCheck;
+      FListBox.AddObject(vItem);
+    end;
+
+  finally
+    FreeAndNil(vList);
+  end;
+end;
+
+procedure TFMXEntityListSelectorMTM.OnClickCheck(Sender: TObject);
+var
+  vEntity: TEntity;
+  vItem: TCheckBox absolute Sender;
+begin
+  if not Assigned(FListBox.Children) then Exit;
+
+  vEntity := TEntity(vItem.TagObject);
+
+  if vItem.IsChecked then
+  begin
+    Assert(vEntity.Definition.IsDescendantOf(FEntityList.MainDefinition.Name), 'К записи привязан объект неправильного типа');
+    TUserSession(FView.Session).AtomicModification(nil,
+      function(const AHolder: TChangeHolder): Boolean
+      var
+        vTransitEntity: TEntity;
+      begin
+        vTransitEntity := TEntityList(FView.DomainObject).AddEntity(AHolder, '', FTransitFieldDef.Name, [NativeInt(vEntity)]);
+        // vTransitEntity._SetFieldEntity(AHolder, FTransitField.Name, vEntity);
+        vItem.TagObject := vTransitEntity;
+        Result := True;
+      end, TChangeHolder(FOwner.Holder));
+  end
+  else
+  begin
+    Assert(vEntity.Definition.IsDescendantOf(TEntityList(FView.DomainObject).MainDefinition.Name), 'К записи привязан объект неправильного типа');
+    vItem.TagObject := vEntity.ExtractEntity(FTransitFieldDef.Name);
+    TUserSession(FView.Session).AtomicModification(nil,
+      function(const AHolder: TChangeHolder): Boolean
+      begin
+        TEntityList(FView.DomainObject).RemoveEntity(AHolder, vEntity);
+        Result := True;
+      end, TChangeHolder(FOwner.Holder));
+  end;
+end;
+
+//procedure TFMXEntityListSelectorMTM.SwitchChangeHandlers(const AHandler: TNotifyEvent);
+//begin
+//  inherited;
+//  if Assigned(AHandler) then
+//    FListBox.OnClickCheck := OnClickCheck
+//  else
+//    FListBox.OnClickCheck := nil;
+//end;
+
+procedure TFMXEntityListSelectorMTM.UpdateArea(const AKind: Word; const AParameter: TEntity);
+begin
+  FillList;
+end;
+
 initialization
+
+TPresenter.RegisterControlClass('FMX', uiListEdit, '', TFMXGridEditor);
+TPresenter.RegisterControlClass('FMX', uiListEdit, 'mtm', TFMXEntityListSelectorMTM);
 
 TPresenter.RegisterControlClass('FMX', uiCollection, '', TFMXGridEditor);
 

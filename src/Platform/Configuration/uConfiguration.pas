@@ -92,7 +92,7 @@ type
     FFullTextFunc: TMethod;
     FCheckFieldFunc: TMethod;
     FLoginedProc: TMethod;
-    FBeforeUIClosingProc: TMethod;
+    FBeforeUIClosingFunc: TMethod;
     FCalculateStyleFunc: TMethod;
     FCanChangeFieldFunc: TMethod;
     FGetParamValueFunc: TMethod;
@@ -150,7 +150,7 @@ type
     property FullTextFunc: TMethod read FFullTextFunc;
     property CheckFieldFunc: TMethod read FCheckFieldFunc;
     property LoginedProc: TMethod read FLoginedProc;
-    property BeforeUIClosingProc: TMethod read FBeforeUIClosingProc;
+    property BeforeUIClosingFunc: TMethod read FBeforeUIClosingFunc;
     property CalculateStyleFunc: TMethod read FCalculateStyleFunc;
     property CanChangeFieldFunc: TMethod read FCanChangeFieldFunc;
     property GetParamValueFunc: TMethod read FGetParamValueFunc;

@@ -35,7 +35,7 @@ type
 implementation
 
 uses
-  Windows, uCommonVCLPainter, uniPanel;
+  Windows, uCommonVCLPainter, uniPanel, uniGUIForm, uModule;
 
 type
   TCrackedUniCanvas = class(TUniCanvas) end;
@@ -59,7 +59,10 @@ var
   vControl: TUniControl absolute APlaceholder;
   vContainer: TDrawContainer;
 begin
-  TUniPanel(vControl).OnResize := DoResize;
+  if APlaceholder is TUniForm then
+    TUniForm(APlaceholder).OnResize := OnResize
+  else if APlaceholder is TUniPanel then
+    TUniPanel(APlaceholder).OnResize := DoResize;
   FPanel := TUniCanvas.Create(vControl);
   FPanel.Align := alClient;
   FPanel.Constraints.MinWidth := 200;
@@ -159,5 +162,9 @@ begin
   else
     FPanel.OnAlignPosition := nil;
 end;
+
+initialization
+
+TBaseModule.RegisterModule('Painting', '', 'UniGUI', TUniGUIScene);
 
 end.

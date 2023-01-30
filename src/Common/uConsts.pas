@@ -355,11 +355,13 @@ function GetPlatformDir: string;
 function GetCommonDir: string;
 function GetDesktopDir: string;
 
+function IsOnline: Boolean;
+
 implementation
 
 uses
 {$IFDEF MSWINDOWS}
-  WinApi.Windows, WinApi.ShlObj,
+  WinApi.Windows, WinApi.ShlObj, WinApi.Wininet,
 {$ENDIF}
   IOUtils, SysUtils;
 
@@ -369,6 +371,18 @@ uses
 ////begin
 ////  _system(PAnsiChar('open ' + AnsiString(AFileName)))
 ////end;
+
+function IsOnline: Boolean;
+{$IFDEF MSWINDOWS}
+var
+  lpdwConnectionTypes: DWORD;
+begin
+  Result := InternetGetConnectedState(@lpdwConnectionTypes, 0);
+{$ELSE}
+begin
+  Result := True;
+{$ENDIF}
+end;
 
 function GetBinDir: string;
 begin

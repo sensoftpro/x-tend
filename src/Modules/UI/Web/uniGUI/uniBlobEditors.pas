@@ -36,10 +36,10 @@ unit uniBlobEditors;
 interface
 
 uses
-  uUIBuilder, uniArea, uScene, uSimpleChart, uLayout;
+  uUIBuilder, uniArea, uScene, uSimpleChart, uLayout, uView;
 
 type
-  TUniGUISceneArea = class(TUniGUIControl)
+  TUniGUICanvasArea = class(TUniGUIControl)
   protected
     FScene: TScene;
     procedure DoActivate(const AAreaState: string = ''); override;
@@ -49,10 +49,18 @@ type
     procedure RefillArea(const AKind: Word); override;
   end;
 
-  TUniGUIChartArea = class(TUniGUISceneArea)
+  TUniGUIChartArea = class(TUniGUICanvasArea)
   protected
     FChart: TSimpleChart;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+  end;
+
+  TUniGUISceneArea = class(TUniGUICanvasArea)
+  protected
+    FSceneObject: TDomainSceneObject;
+    procedure RefillArea(const AKind: Word); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoExecuteUIAction(const AView: TView); override;
   end;
 
 implementation
@@ -61,39 +69,39 @@ uses
   uPlatform, uModule, uDomain, uDrawStyles, uPresenter, uConfiguration, uConsts,
   uUniGUIPresenter, uniScene;
 
-{ TUniGUISceneArea }
+{ TUniGUICanvasArea }
 
-procedure TUniGUISceneArea.DoActivate(const AAreaState: string);
+procedure TUniGUICanvasArea.DoActivate(const AAreaState: string);
 begin
   inherited;
   FScene.Activate;
 end;
 
-procedure TUniGUISceneArea.DoBeforeFreeControl;
+procedure TUniGUICanvasArea.DoBeforeFreeControl;
 begin
   FScene.Free;
 end;
 
-function TUniGUISceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
-//var
-  //vDomain: TDomain;
-  //vModuleInfo: TModuleInfo;
+function TUniGUICanvasArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vDomain: TDomain;
+  vModuleInfo: TModuleInfo;
 begin
-  //vDomain := TDomain(FView.Domain);
+  vDomain := TDomain(FView.Domain);
   // Domain oriented code
   //vModuleName := _Platform.ResolveModulename(vDomain.Settings, 'ChartPainter');
   //vSceneClass := TSceneClass(TPresenter(FPresenter).GetCanvasClass(vModuleName);
-  //vModuleInfo := _Platform.ResolveModuleInfo(vDomain.Settings, 'ChartPainter', 'Painting');
-  FScene := TUniGUIScene.Create(GetRealControl(AParent));
+  vModuleInfo := _Platform.ResolveModuleInfo(vDomain.Settings, 'ChartPainter', 'Painting');
+  FScene := TSceneClass(vModuleInfo.ModuleClass).Create(GetRealControl(AParent));
   Result := TUniGUIScene(FScene).Control;
 end;
 
-procedure TUniGUISceneArea.DoDisableContent;
+procedure TUniGUICanvasArea.DoDisableContent;
 begin
   FScene.Enabled := False;
 end;
 
-procedure TUniGUISceneArea.RefillArea(const AKind: Word);
+procedure TUniGUICanvasArea.RefillArea(const AKind: Word);
 begin
   if AKind <> dckNameChanged then
     FScene.Repaint;
@@ -108,8 +116,40 @@ begin
   FChart := TDataChart.Create(FScene, nil);
 end;
 
+{ TUniGUISceneArea }
+
+type
+  TCrackedDomainSceneObject = class(TDomainSceneObject) end;
+
+function TUniGUISceneArea.DoCreateControl(const AParent: TUIArea;
+  const ALayout: TLayout): TObject;
+var
+  vObjectClass: TDomainSceneObjectClass;
+begin
+  Result := inherited DoCreateControl(AParent, ALayout);
+  vObjectClass := TPresenter.GetSceneObjectClass(ALayout.Id);
+  if Assigned(vObjectClass) then
+    FSceneObject := vObjectClass.Create(FOwner, FScene)
+  else
+    Assert(False, 'Class of scene object for name "' + ALayout.Id + '" is not supported');
+end;
+
+procedure TUniGUISceneArea.DoExecuteUIAction(const AView: TView);
+begin
+  TCrackedDomainSceneObject(FSceneObject).ExecuteUIAction(FOwner, AView);
+end;
+
+procedure TUniGUISceneArea.RefillArea(const AKind: Word);
+begin
+  if AKind = dckNameChanged then
+    Exit;
+  TCrackedDomainSceneObject(FSceneObject).UpdateBinding(Self);
+  inherited RefillArea(AKind);
+end;
+
 initialization
 
 TPresenter.RegisterControlClass('Web.UniGUI', uiComplexEdit, 'chart', TUniGUIChartArea);
+TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'scene', TUniGUISceneArea);
 
 end.

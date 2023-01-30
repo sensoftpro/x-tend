@@ -36,10 +36,10 @@ unit fmxBlobEditors;
 interface
 
 uses
-  uUIBuilder, fmxArea, uScene, uSimpleChart, uLayout;
+  uUIBuilder, fmxArea, uScene, uSimpleChart, uLayout, uView;
 
 type
-  TFMXSceneArea = class(TFMXControl)
+  TFMXCanvasArea = class(TFMXControl)
   protected
     FScene: TScene;
     procedure DoActivate(const AAreaState: string = ''); override;
@@ -49,10 +49,18 @@ type
     procedure RefillArea(const AKind: Word); override;
   end;
 
-  TFMXChartArea = class(TFMXSceneArea)
+  TFMXChartArea = class(TFMXCanvasArea)
   protected
     FChart: TSimpleChart;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+  end;
+
+  TFMXSceneArea = class(TFMXCanvasArea)
+  protected
+    FSceneObject: TDomainSceneObject;
+    procedure RefillArea(const AKind: Word); override;
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoExecuteUIAction(const AView: TView); override;
   end;
 
 implementation
@@ -61,39 +69,39 @@ uses
   uPlatform, uModule, uDomain, uDrawStyles, uPresenter, uConfiguration, uConsts,
   uFMXPresenter, fmxScene;
 
-{ TFMXSceneArea }
+{ TFMXCanvasArea }
 
-procedure TFMXSceneArea.DoActivate(const AAreaState: string);
+procedure TFMXCanvasArea.DoActivate(const AAreaState: string);
 begin
   inherited;
   FScene.Activate;
 end;
 
-procedure TFMXSceneArea.DoBeforeFreeControl;
+procedure TFMXCanvasArea.DoBeforeFreeControl;
 begin
   FScene.Free;
 end;
 
-function TFMXSceneArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
-//var
-  //vDomain: TDomain;
-  //vModuleInfo: TModuleInfo;
+function TFMXCanvasArea.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vDomain: TDomain;
+  vModuleInfo: TModuleInfo;
 begin
-  //vDomain := TDomain(FView.Domain);
+  vDomain := TDomain(FView.Domain);
   // Domain oriented code
   //vModuleName := _Platform.ResolveModulename(vDomain.Settings, 'ChartPainter');
   //vSceneClass := TSceneClass(TPresenter(FPresenter).GetCanvasClass(vModuleName);
-  //vModuleInfo := _Platform.ResolveModuleInfo(vDomain.Settings, 'ChartPainter', 'Painting');
-  FScene := TFMXScene.Create(GetRealControl(AParent));
+  vModuleInfo := _Platform.ResolveModuleInfo(vDomain.Settings, 'ChartPainter', 'Painting');
+  FScene := TSceneClass(vModuleInfo.ModuleClass).Create(GetRealControl(AParent));
   Result := TFMXScene(FScene).Control;
 end;
 
-procedure TFMXSceneArea.DoDisableContent;
+procedure TFMXCanvasArea.DoDisableContent;
 begin
   FScene.Enabled := False;
 end;
 
-procedure TFMXSceneArea.RefillArea(const AKind: Word);
+procedure TFMXCanvasArea.RefillArea(const AKind: Word);
 begin
   if AKind <> dckNameChanged then
     FScene.Repaint;
@@ -108,8 +116,40 @@ begin
   FChart := TDataChart.Create(FScene, nil);
 end;
 
+{ TFMXSceneArea }
+
+type
+  TCrackedDomainSceneObject = class(TDomainSceneObject) end;
+
+function TFMXSceneArea.DoCreateControl(const AParent: TUIArea;
+  const ALayout: TLayout): TObject;
+var
+  vObjectClass: TDomainSceneObjectClass;
+begin
+  Result := inherited DoCreateControl(AParent, ALayout);
+  vObjectClass := TPresenter.GetSceneObjectClass(ALayout.Id);
+  if Assigned(vObjectClass) then
+    FSceneObject := vObjectClass.Create(FOwner, FScene)
+  else
+    Assert(False, 'Class of scene object for name "' + ALayout.Id + '" is not supported');
+end;
+
+procedure TFMXSceneArea.DoExecuteUIAction(const AView: TView);
+begin
+  TCrackedDomainSceneObject(FSceneObject).ExecuteUIAction(FOwner, AView);
+end;
+
+procedure TFMXSceneArea.RefillArea(const AKind: Word);
+begin
+  if AKind = dckNameChanged then
+    Exit;
+  TCrackedDomainSceneObject(FSceneObject).UpdateBinding(Self);
+  inherited RefillArea(AKind);
+end;
+
 initialization
 
 TPresenter.RegisterControlClass('FMX', uiComplexEdit, 'chart', TFMXChartArea);
+TPresenter.RegisterControlClass('FMX', uiEntityEdit, 'scene', TFMXSceneArea);
 
 end.

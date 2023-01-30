@@ -193,6 +193,7 @@ var
   vSplitter: TSplitter;
   vMenu: TPopupMenu;
   vMenuItem: TMenuItem;
+  vBevelPanel: TPanel;
   vForm: TForm;
   i: Integer;
   vArea: TUIArea;
@@ -241,8 +242,8 @@ begin
     begin
       if AView.DefinitionKind = dkCollection then
         vLabel.Text := AParent.GetTranslation(TDefinition(AView.Definition))
-      //else if AView.DefinitionKind in [dkListField..dkComplexField] then
-      //  vLabel.Caption := AParent.GetTranslation(TFieldDef(AView.Definition))
+      else if AView.DefinitionKind in [dkListField..dkComplexField] then
+        vLabel.Text := AParent.GetFieldTranslation(TFieldDef(AView.Definition))
       else
         vLabel.Text := ALayout.Caption;
     end
@@ -309,6 +310,17 @@ begin
       ALayout.Id := ALayout.Name;
       Result := vTab;
     end;
+  end
+  else if ALayout.Kind = lkBevel then
+  begin
+    vBevelPanel := TPanel.Create(nil);
+    vBevelPanel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+    vBevelPanel.Align := AlignToAlignLayout(ALayout.Align);
+    vBevelPanel.StyleLookup := 'pushpanel';
+    CopyMargins(vBevelPanel, ALayout);
+
+    ALayout.Id := '-bevel-';
+    Result := vBevelPanel;
   end
   else if ALayout.Kind = lkSplitter then
   begin
@@ -511,7 +523,7 @@ begin
     end;
   end
   else if ALayout.Kind <> lkNone then
-    Result := nil
+    Assert(False, 'Класс №' + IntToStr(Integer(ALayout.Kind)) + ' не реализован' )
   else
     Assert(False, 'Пустой класс для лэйаута');
 end;

@@ -133,7 +133,7 @@ type
   protected
     FInclusions: TObjectList<TInclusion>;
     function DoExecuteDefaultAction(const ASession: TUserSession; const AParams: string): Boolean; virtual;
-    procedure DoBeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc); virtual;
+    function DoBeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc): TCloseAction; virtual;
   protected
     constructor Create(const AConfiguration: TObject); override;
   public
@@ -159,7 +159,7 @@ type
     function CalculateStyle(const AViewName: string; const AEntity: TEntity): TColor;
     function CanChangeField(const AView: TView; const AEntity: TEntity;
       const AFieldName: string; const ANewValue: Variant): Boolean;
-    procedure BeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc);
+    function BeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc): TCloseAction;
     function CheckActionFlags(const AView: TView): TViewState;
     function ExecuteAction(const AView: TView; const AParentHolder: TChangeHolder): Boolean;
     function ExecuteCommand(const AExecutor: TObject; const ATask: TTaskHandle; const AFiber, ACommand: TObject): Boolean;
@@ -314,9 +314,9 @@ begin
   DoBeforeEntitySaving(AHolder, AEntity);
 end;
 
-procedure TScript.BeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc);
+function TScript.BeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc): TCloseAction;
 begin
-  DoBeforeUIClosing(AInteractor, AOnClose);
+  Result := DoBeforeUIClosing(AInteractor, AOnClose);
 end;
 
 function TScript.CalculateStyle(const AViewName: string; const AEntity: TEntity): TColor;
@@ -857,8 +857,9 @@ begin
   inherited Destroy;
 end;
 
-procedure TScript.DoBeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc);
+function TScript.DoBeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc): TCloseAction;
 begin
+  Result := TCloseAction.caNone;
   AInteractor.ShowYesNoDialog('Подтвердите', 'Вы действительно хотите выйти?', False, AOnClose);
 end;
 
@@ -1509,7 +1510,6 @@ const
     vMasterEntity: TEntity;
     vSession: TUserSession;
     vHolder: TChangeHolder;
-    vResult: Boolean;
   begin
     if Assigned(AParams) then
       vDefinitionIndex := Max(0, AParams['SelectedIndex'])
@@ -1544,7 +1544,7 @@ const
           AView.Parent.SetDomainObject(vNewEntity);
         vSession.DomainWrite(procedure
           begin
-            vSession.ReleaseChangeHolder(vHolder, vResult);
+            vSession.ReleaseChangeHolder(vHolder, AResult = drOk);
           end);
       end);
   end;

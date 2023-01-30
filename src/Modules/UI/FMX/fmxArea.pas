@@ -88,6 +88,7 @@ type
   TFMXButton = class(TFMXControl)
   private
     FTypeSelectionMenu: TPopupMenu;
+    procedure ShowPopup(Sender: TObject);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
@@ -427,9 +428,15 @@ begin
     vButton.WordWrap := True;
   end;
 
-  if (vActionDef.Name = 'Add') and Assigned(FView.ParentDomainObject) and (FView.ParentDomainObject is TEntityList) then
+  if (vActionDef.Name = 'Add') and (FView.ParentDomainObject is TEntityList) then
+    vDefinitions := TEntityList(FView.ParentDomainObject).ContentDefinitions
+  else if (vActionDef.Name = 'Create') and (FView.Parent.DefinitionKind = dkObjectField) then
+    vDefinitions := TEntityFieldDef(FView.Parent.Definition).ContentDefinitions
+  else
+    vDefinitions := nil;
+
+  if Assigned(vDefinitions) then
   begin
-    vDefinitions := TEntityList(FView.ParentDomainObject).ContentDefinitions;
     if vDefinitions.Count > 1 then
     begin
       FTypeSelectionMenu := TPopupMenu.Create(nil);
@@ -446,12 +453,9 @@ begin
         vMenuItem.OnClick := FOwner.OnActionMenuSelected;
         FTypeSelectionMenu.AddObject(vMenuItem);
       end;
-      //vButton.DropDownMenu := FTypeSelectionMenu;
-      //vButton.Style := bsSplitButton;
-      //vButton.ImageMargins.Left := 4;
-      //vButton.ImageMargins.Top := 4;
-      //vButton.ImageMargins.Right := 4;
-      //vButton.ImageMargins.Bottom := 4;
+      vButton.PopupMenu := FTypeSelectionMenu;
+      FTypeSelectionMenu.Parent := vButton;
+      vButton.OnClick := ShowPopup;
       ALayout.Width := 42;
     end
     else begin
@@ -487,6 +491,14 @@ begin
 
   vButton.Text := GetTranslation(vActionDef);
   vButton.Hint := vButton.Text;
+end;
+
+procedure TFMXButton.ShowPopup(Sender: TObject);
+var
+  vPos: TPointF;
+begin
+  vPos := TControl(Sender).LocalToScreen(TControl(Sender).Position.Point);
+  TButton(Sender).PopupMenu.Popup(vPos.X, vPos.Y);
 end;
 
 { TFMXLink }

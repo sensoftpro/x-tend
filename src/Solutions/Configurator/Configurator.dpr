@@ -99,6 +99,7 @@ uses
   fmxScene in '..\..\Modules\UI\FMX\fmxScene.pas',
   fmxBlobEditors in '..\..\Modules\UI\FMX\fmxBlobEditors.pas',
   fmxSimpleEditors in '..\..\Modules\UI\FMX\fmxSimpleEditors.pas',
+  fmxEntityEditors in '..\..\Modules\UI\FMX\fmxEntityEditors.pas',
   fmxListEditors in '..\..\Modules\UI\FMX\fmxListEditors.pas',
   // Painters: FMX
   uFMXPainter in '..\..\Modules\Drawing\FMX\uFMXPainter.pas',
@@ -111,6 +112,7 @@ uses
   uCommonVCLPainter in '..\..\Modules\Drawing\VCL\uCommonVCLPainter.pas',
   uniScene in '..\..\Modules\UI\Web\uniGUI\uniScene.pas',
   uniBlobEditors in '..\..\Modules\UI\Web\uniGUI\uniBlobEditors.pas',
+  uniSimpleEditors in '..\..\Modules\UI\Web\uniGUI\uniSimpleEditors.pas',
 {$ENDIF}
 {$ENDIF}
 {$ENDIF}
