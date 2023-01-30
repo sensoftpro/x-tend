@@ -58,7 +58,7 @@ type
     constructor Create(const AStorage: TStorage; const ATableName: string);
     destructor Destroy; override;
 
-    procedure AddParameter(const AName: string; const AValue: Variant;  const AFieldKind: TFieldKind;
+    procedure AddParameter(const AName: string; const AValue: Variant; const AFieldKind: TFieldKind;
       const AIsKey: Boolean = False); virtual;
     procedure AddBlobParameter(const AName: string; const AValue: TStream); virtual;
 

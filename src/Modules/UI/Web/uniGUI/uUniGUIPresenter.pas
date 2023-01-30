@@ -200,6 +200,8 @@ begin
   vSession := vDomain.Sessions.AddSession(nil);
   vPresenter := TUniGUIPresenter(_Platform.Presenter);
 
+  vPresenter.SetApplicationUI(vDomain.AppTitle, vDomain.Configuration.IconFileName);
+
   FInteractor := TInteractor.Create(vPresenter, vSession);
 
   vView := FInteractor.RootView;
@@ -402,6 +404,22 @@ begin
 
       Result := vTab;
     end;
+  end
+  else if ALayout.Kind = lkBevel then
+  begin
+    vPanel := TUniPanel.Create(vOwner);
+    vPanel.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+    vPanel.Anchors := ALayout.Anchors;
+    vPanel.Align := TAlign(ALayout.Align);
+    CopyMargins(vPanel, ALayout);
+
+    case ALayout.Bevel_Style of
+      lbsLowered: vPanel.BorderStyle := TUniBorderStyle.ubsFrameLowered;
+      lbsRaised: vPanel.BorderStyle := TUniBorderStyle.ubsFrameRaised;
+    end;
+
+    ALayout.Id := '-bevel-';
+    Result := vPanel;
   end
   else if ALayout.Kind = lkSplitter then
   begin

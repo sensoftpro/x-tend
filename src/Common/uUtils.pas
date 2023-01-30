@@ -154,6 +154,7 @@ type
     FMajor: Byte;
     FMinor: Byte;
     FRelease: Word;
+    FBuild: Word;
     class function Compare(Val1, Val2: TVersion): Integer; static;
     class function CompareWithStr(Val1: TVersion; Val2: string): Integer; static;
     procedure StrToVersion(const s: string);
@@ -1465,6 +1466,9 @@ begin
   if Result <> 0 then
     Exit;
   Result := Val1.FRelease - Val2.FRelease;
+  if Result <> 0 then
+    Exit;
+  Result := Val1.FBuild - Val2.FBuild;
 end;
 
 class function TVersion.CompareWithStr(Val1: TVersion; Val2: string): Integer;
@@ -1522,7 +1526,7 @@ end;
 
 function TVersion.IsValid: Boolean;
 begin
-  Result := (FMajor > 0) or (FMinor > 0) or (FRelease > 0);
+  Result := (FMajor > 0) or (FMinor > 0) or (FRelease > 0) or (FBuild > 0);
 end;
 
 class operator TVersion.LessThan(Val1, Val2: TVersion): Boolean;
@@ -1559,7 +1563,7 @@ procedure TVersion.StrToVersion(const s: string);
 var
   vList: TStrings;
 begin
-  FMajor := 0; FMinor := 0; FRelease := 0;
+  FMajor := 0; FMinor := 0; FRelease := 0; FBuild := 0;
   vList := CreateDelimitedList(s, '.');
   try
     if vList.Count > 0 then
@@ -1568,6 +1572,8 @@ begin
       FMinor := StrToIntDef(vList[1], 0);
     if vList.Count > 2 then
       FRelease := StrToIntDef(vList[2], 0);
+    if vList.Count > 3 then
+      FBuild := StrToIntDef(vList[3], 0);
   finally
     FreeAndNil(vList);
   end;
@@ -1580,7 +1586,12 @@ end;
 
 function TVersion.VersionToStr: string;
 begin
-  Result := Format('%d.%d.%d', [FMajor, FMinor, FRelease]);
+  if FBuild > 0 then
+    Result := Format('%d.%d.%d.%d', [FMajor, FMinor, FRelease, FBuild])
+  else if FRelease > 0 then
+    Result := Format('%d.%d.%d', [FMajor, FMinor, FRelease])
+  else
+    Result := Format('%d.%d', [FMajor, FMinor]);
 end;
 
 end.

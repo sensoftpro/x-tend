@@ -2704,9 +2704,9 @@ procedure TNativeControlHolder.UnbindContent(const AForceUnbind: Boolean);
 begin
   if (AForceUnbind or FIsAutoReleased) then
   begin
-    if not FIsForm then
-      FControl := nil
-    else if FLayout.StyleName <> 'modal' then
+    //if not FIsForm then
+      //FControl := nil
+    //else if FLayout.StyleName <> 'modal' then
       FControl := nil;
   end;
 end;

@@ -949,36 +949,36 @@ begin
           vFileName := vParams[vField.FieldName];
           if SameText(vMode, 'save') then
           begin
-            // REDO
-            {TPresenter(vInteractor.Presenter).ShowSaveDialog(vFileName, 'Выберите файл', vFilter, vDefaultExt,
-              procedure(const AResult: Boolean)
+            // CHECK
+            TPresenter(vInteractor.Presenter).ShowSaveDialog(vFileName, 'Выберите файл', vFilter, vDefaultExt,
+              procedure(const AResult: TDialogResult; const AText: string)
               begin
-                if AResult then
+                if AResult = drOk then
                 begin
-                  vParams._SetFieldValue(vSession.NullHolder, vField.FieldName, vFileName);
+                  vParams._SetFieldValue(vSession.NullHolder, vField.FieldName, AText);
                   ExecutePreparedAction(AView, AParentHolder);
                 end;
 
                 if vNeedClearParams then
                   vParams.ResetToDefault(vSession.NullHolder);
-              end);}
+              end);
 
             Exit;
           end
           else begin
-            // REDO
-            {TPresenter(vInteractor.Presenter).ShowOpenDialog(vFileName, 'Выберите файл', vFilter, vDefaultExt, '',
-              procedure(const AResult: Boolean)
+            // CHECK
+            TPresenter(vInteractor.Presenter).ShowOpenDialog(vFileName, 'Выберите файл', vFilter, vDefaultExt, '',
+              procedure(const AResult: TDialogResult; const AText: string)
               begin
-                if AResult then
+                if AResult = drOk then
                 begin
-                  vParams._SetFieldValue(vSession.NullHolder, vField.FieldName, vFileName);
+                  vParams._SetFieldValue(vSession.NullHolder, vField.FieldName, AText);
                   ExecutePreparedAction(AView, AParentHolder);
                 end;
 
                 if vNeedClearParams then
                   vParams.ResetToDefault(vSession.NullHolder);
-              end);}
+              end);
 
             Exit;
           end;

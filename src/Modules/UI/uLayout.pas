@@ -1302,51 +1302,6 @@ var
   vChild: TLayout;
   i: Integer;
 begin
-(*
-
-  if FKind = lkAction then
-  begin
-    Result.StoreBoolean('button_show_caption', FButton_ShowCaption);
-    Result.StoreBoolean('button_flat', FButton_Flat);
-  end
-  else if FKind = lkShape then
-  begin
-    Result.StoreString('shape_type', cShapeTypeNames[FShape_Type]);
-  end
-  else if FKind = lkImage then
-  begin
-    Result.StoreBoolean('stretch', FImage_Stretch);
-    Result.StoreBoolean('proportional', FImage_Proportional);
-    Result.StoreBoolean('center', FImage_Center);
-    if Assigned(FImage_Picture) then
-      Result.StoreString('picture', BinaryToText(FImage_Picture));
-  end
-  else if FKind = lkPages then
-  begin
-    Result.StoreString('page_style', cPageStyleNames[FPage_Style]);
-    Result.StoreString('page_position', cPagePositionNames[FPage_Position]);
-    Result.StoreInteger('page_height', FPage_Height);
-    Result.StoreInteger('page_width', FPage_Width);
-  end
-  else if FKind = lkBevel then
-  begin
-    Result.StoreString('bevel_style', cBevelStyleNames[FBevel_Style]);
-    Result.StoreString('bevel_shape', cBevelShapeNames[FBevel_Shape]);
-  end;
-
-  if Assigned(FMenu) then
-    Result.AddPair('menu', FMenu.InternalSave);
-
-  if FItems.Count = 0 then
-    Exit;
-
-  jChildren := TJSONArray.Create;
-  for i := 0 to FItems.Count - 1 do
-    jChildren.Add(FItems[i].InternalSave);
-
-  Result.AddPair('items', jChildren);
-*)
-
   FKind := StrToLayoutKind(AJSON.ExtractString('kind'));
   FStyleName := AJSON.ExtractString('style_name');
   FLeft := AJSON.ExtractInteger('left');
@@ -1507,12 +1462,10 @@ begin
   Result.AddPair('brush', FBrush.InternalSave);
   Result.AddPair('font', FFont.InternalSave);
 
-  if FKind = lkAction then
-  begin
-    Result.StoreBoolean('button_show_caption', FButton_ShowCaption);
-    Result.StoreBoolean('button_flat', FButton_Flat);
-  end
-  else if FKind = lkShape then
+  Result.StoreBoolean('button_show_caption', FButton_ShowCaption);
+  Result.StoreBoolean('button_flat', FButton_Flat);
+
+  if FKind = lkShape then
   begin
     Result.StoreString('shape_type', cShapeTypeNames[FShape_Type]);
   end

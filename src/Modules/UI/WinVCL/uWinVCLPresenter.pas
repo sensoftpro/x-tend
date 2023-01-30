@@ -1176,6 +1176,7 @@ begin
     vForm := TForm(GetRealControl(AArea));
     vForm.Caption := ACaption;
     vForm.ShowModal;
+    vForm.Free;
   end;
 end;
 

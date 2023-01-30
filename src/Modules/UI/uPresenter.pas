@@ -995,6 +995,7 @@ var
   i: Integer;
   vCloseProc: TCloseProc;
   vModalResult: TModalResult;
+  vResultAction: TCloseAction;
 
   function GetUnfilledRequiredFields(const AArea: TUIArea; var AFields: string): Boolean;
   var
@@ -1063,6 +1064,7 @@ begin
   if vModalResult = mrNone then
     vModalResult := mrCancel;
   Action := TCloseAction.caNone;
+  vResultAction := TCloseAction.caNone;
 
   if vArea.IsClosing or (vModalResult = mrOk)
     or not Assigned(vHolder) or not vHolder.IsVisibleModified then
@@ -1081,12 +1083,12 @@ begin
     if vModalResult = mrOk then
     begin
       if DoValidation then
-        Action := TCloseAction.caFree;
+        vResultAction := TCloseAction.caFree;
     end
     else if vModalResult = mrCancel then
-      Action := TCloseAction.caFree;
+      vResultAction := TCloseAction.caFree;
 
-    if Action = TCloseAction.caNone then
+    if vResultAction = TCloseAction.caNone then
       Exit;
 
     vCloseProc := vArea.OnClose;
@@ -1102,6 +1104,8 @@ begin
 
     if Assigned(vCloseProc) then
       vCloseProc(ModalResultToDialogResult(vModalResult));
+
+    Action := vResultAction;
   end
   else begin
     ShowYesNoDialog('Подтвердите', vInteractor.Translate('msgPromtSaveChanges',
@@ -1449,10 +1453,12 @@ end;
 
 function TPresenter.GetControlClass(const AControlType: TUIItemType;
   const AStyleName: string): TNativeControlClass;
+var
+  vTypeName, vStyleName: string;
 
-  function InternalGetControlClass(const APresenterName: string): TNativeControlClass;
+  function InternalGetControlClass(const APresenterName, ATypeName, AStyleName: string): TNativeControlClass;
   var
-    vTypeName, vStyleName: string;
+    vClassName: string;
     vClassInfo: TControlClassInfo;
     vClassesList: TObjectDictionary<string, TControlClassInfo>;
   begin
@@ -1460,25 +1466,18 @@ function TPresenter.GetControlClass(const AControlType: TUIItemType;
     if not RegisteredControlClasses.TryGetValue(APresenterName, vClassesList) then
       Exit;
 
-    vTypeName := cControlTypeNames[AControlType].ToLowerInvariant;
-    vStyleName := AStyleName.ToLowerInvariant;
+    if AStyleName = '' then
+      vClassName := ATypeName
+    else
+      vClassName := ATypeName + '_' + AStyleName;
 
-    if vStyleName = '' then
-    begin
-      if not vClassesList.TryGetValue(vTypeName, vClassInfo) then
-        vClassInfo := nil;
-    end
-    else if not vClassesList.TryGetValue(vTypeName + '_' + vStyleName, vClassInfo) then
-      if not vClassesList.TryGetValue(vTypeName, vClassInfo) then
-        vClassInfo := nil;
-
-    if Assigned(vClassInfo) then
+    if vClassesList.TryGetValue(vClassName, vClassInfo) then
       Result := vClassInfo.FControlClass
     else
       Result := nil;
   end;
 
-  function FindControlClass(const APresenterName: string): TNativeControlClass;
+  function FindControlClass(const APresenterName, ATypeName, AStyleName: string): TNativeControlClass;
   var
     vPresenterName: string;
     vModuleInfo: TModuleInfo;
@@ -1486,7 +1485,7 @@ function TPresenter.GetControlClass(const AControlType: TUIItemType;
     i: Integer;
   begin
     vPresenterName := APresenterName.ToLowerInvariant;
-    Result := InternalGetControlClass(vPresenterName);
+    Result := InternalGetControlClass(vPresenterName, ATypeName, AStyleName);
     if Assigned(Result) then
       Exit;
 
@@ -1498,7 +1497,7 @@ function TPresenter.GetControlClass(const AControlType: TUIItemType;
     try
       for i := 0 to vAncestors.Count - 1 do
       begin
-        Result := FindControlClass(Trim(vAncestors[i]));
+        Result := FindControlClass(Trim(vAncestors[i]), ATypeName, AStyleName);
         if Assigned(Result) then
           Exit;
       end;
@@ -1509,7 +1508,12 @@ function TPresenter.GetControlClass(const AControlType: TUIItemType;
     Result := nil;
   end;
 begin
-  Result := FindControlClass(FName);
+  vTypeName := cControlTypeNames[AControlType].ToLowerInvariant;
+  vStyleName := AStyleName.ToLowerInvariant;
+
+  Result := FindControlClass(FName, vTypeName, vStyleName);
+  if not Assigned(Result) and (vStyleName <> '') then
+    Result := FindControlClass(FName, vTypeName, '');
 end;
 
 function TPresenter.GetRealControl(const AArea: TUIArea): TObject;

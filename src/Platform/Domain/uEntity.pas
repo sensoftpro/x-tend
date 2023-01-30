@@ -460,7 +460,7 @@ begin
   if FUIState <> vNewState then
   begin
     FUIState := vNewState;
-    TEntity(FInstance).NotifyView(nil, dckViewStateChanged, nil, FieldName);
+    TEntity(FInstance).NotifyView(TDomain(FDomain).DomainHolder, dckViewStateChanged, nil, FieldName);
   end;
 end;
 

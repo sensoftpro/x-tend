@@ -87,18 +87,16 @@ begin
 end;
 
 function TLogger.AddMessage(const AMessage: string; const AMessageKind: TMessageKind): string;
-{$IFDEF DEBUG}
 var
   vFile: TFileStream;
   vBuffer: TBytes;
-{$ENDIF}
 begin
   Result := '';
   if not FEnabled then
     Exit;
   if (FLogMessageKind <> mkAny) and (AMessageKind <> FLogMessageKind) then
     Exit;
-{$IFDEF DEBUG}
+
   Result := FormatDateTime('hh:nn:ss.zzz', Now) + ' ' + cLogMessageTypes[AMessageKind] +
     ' ' + StringOfChar(' ', FLogIndentLevel * 2) + AMessage;
   if FileExists(FFileName) then
@@ -116,7 +114,6 @@ begin
   finally
     vFile.Free;
   end;
-{$ENDIF}
 end;
 
 constructor TLogger.Create(const ADomain: TObject; const AName: string);

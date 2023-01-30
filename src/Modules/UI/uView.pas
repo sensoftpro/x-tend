@@ -1029,7 +1029,8 @@ begin
   vMessage.Parameter := AParameter;
 
   for vListener in FListeners do
-    vListener.Dispatch(vMessage);
+    if Assigned(vListener) then
+      vListener.Dispatch(vMessage);
 end;
 
 function TView.QueryParameter(const AName: string; const ADefaultValue: string = ''): string;

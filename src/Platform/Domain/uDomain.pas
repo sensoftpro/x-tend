@@ -439,7 +439,7 @@ begin
   FAppTitle := FAppName + ' - ' + FConfiguration.Version.ToString;
 
   FNeedShowSplash := StrToBoolDef(ASettings.GetValue('Core', 'ShowSplash'), False);
-  FNeedShowSplash := True;
+  //FNeedShowSplash := True;
 
   FSessions := TUserSessions.Create(Self);
   FDomainSession := FSessions.AddSession(nil);
