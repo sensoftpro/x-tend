@@ -64,7 +64,7 @@ type
 implementation
 
 uses
-  Dialogs, Math, StrUtils, ShellAPI, UITypes, ActiveX, JPEG, PngImage,
+  Dialogs, Math, StrUtils, ShellAPI, UITypes, JPEG, PngImage,
   cxGraphics, dxGDIPlusClasses, cxImage, cxEdit, cxPC, cxLookAndFeels, cxLookAndFeelPainters, cxStyles, cxMemo,
   cxLabel, cxTextEdit, cxButtons, cxScrollBox, cxControls, cxSplitter,
 

@@ -109,12 +109,27 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TDEIntegerFlagsEditor = class(TDEEditor)
+  TDEIntegerFlagsEditor = class(TDEEditor) { не умеет быть прозрачным, имеет только свой серый фон, выглядит плохо на разных фонах}
   private
     FDisplayFlagCount: Integer;
     FCaptions: TStrings;
     procedure FillList;
     procedure CLBOnClickCheck(Sender: TObject; AIndex: Integer; APrevState, ANewState: TcxCheckBoxState);
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoBeforeFreeControl; override;
+    procedure FillEditor; override;
+    procedure DoOnChange; override;
+    procedure DoOnExit(Sender: TObject); override;
+    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+  end;
+
+  TDEIntegerFlagsEditor2 = class(TDEEditor) { построен на другом компоненте, который имеет прозрачный фон}
+  private
+    FDisplayFlagCount: Integer;
+    FCaptions: TStrings;
+    procedure FillList;
+    procedure OnClickCheck(Sender: TObject);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
@@ -364,7 +379,7 @@ uses
   Generics.Collections, TypInfo, Variants, SysUtils, Windows,
   Forms, Math, DateUtils, Messages, cxBlobEdit, cxImage, dxGDIPlusClasses, cxMaskEdit, cxMRUEdit,
   dxActivityIndicator, cxLookAndFeels, cxProgressBar, dxBreadcrumbEdit, cxCustomListBox, cxCheckListBox,
-  dxColorEdit, dxColorGallery, dxCoreGraphics, {CPort,}
+  dxColorEdit, dxColorGallery, dxCoreGraphics, cxCheckGroup,{CPort,}
 
   uConfiguration, uDomain, uInteractor, uPresenter, uWinVCLPresenter, uCollection, uConsts,
   uUtils, UITypes;
@@ -1034,7 +1049,7 @@ begin
 
   if ALayout.Kind = lkPanel then
   begin
-    if ALayout.Alignment = taCenter then
+    if ALayout.Alignment in [taCenter, taRightJustify] then
       TcxCheckBox(Result).AutoSize := False;
     TcxCheckBox(Result).Properties.Alignment := ALayout.Alignment;
   end;
@@ -1562,6 +1577,8 @@ end;
 function TDEFileNameFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vBase: TPanel;
+  vFieldDef: TFieldDef;
+  vStyleParams: TStrings;
 begin
   inherited;
 
@@ -1574,7 +1591,17 @@ begin
   FAction.Caption := '';
   FAction.ImageIndex := 23;
   if Assigned(FCreateParams) then
-    FAction.Dialog.Filter := FCreateParams.Values['filter'];
+    FAction.Dialog.Filter := FCreateParams.Values['filter']
+  else begin
+    vFieldDef := TFieldDef(FView.Definition);
+    vStyleParams := CreateDelimitedList(vFieldDef.StyleName, '&');
+    try
+      FAction.Dialog.Filter := vStyleParams.Values['filter'];
+      FAction.Dialog.DefaultExt := vStyleParams.Values['ext'];
+    finally
+      FreeAndNil(vStyleParams);
+    end;
+  end;
 
   FBtn := TcxButton.Create(nil);
   FBtn.Align := alRight;
@@ -2890,6 +2917,126 @@ begin
     TcxCheckListBox(FControl).OnClickCheck := nil;
 end;
 
+{ TDEIntegerFlagsEditor2 }
+
+procedure TDEIntegerFlagsEditor2.DoBeforeFreeControl;
+begin
+  inherited;
+  FreeAndNil(FCaptions);
+end;
+
+function TDEIntegerFlagsEditor2.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vHorzLayout: Boolean;
+begin
+  Result := TcxCheckGroup.Create(nil);
+  TcxCheckGroup(Result).Properties.OnChange := OnClickCheck;
+//  TcxCheckGroup(Result).Properties.ItemAlignment := taRightJustify;
+  TcxCheckGroup(Result).Alignment := alLeftTop;
+  TcxCheckGroup(Result).Transparent := True;
+  vHorzLayout := False;
+  FDisplayFlagCount := 8;
+
+  if Assigned(FCreateParams) then
+  begin
+    FDisplayFlagCount := Min(32, StrToIntDef(FCreateParams.Values['DisplayFlagCount'], 8));
+    if FCreateParams.IndexOfName('ItemCaptions') > -1 then
+      FCaptions := CreateDelimitedList(FCreateParams.Values['ItemCaptions'], ';');
+    vHorzLayout := StrToIntDef(FCreateParams.Values['HorzLayout'], 0) = 1;
+  end;
+
+  if vHorzLayout then
+    TcxCheckGroup(Result).Properties.Columns := FDisplayFlagCount;
+end;
+
+procedure TDEIntegerFlagsEditor2.DoOnChange;
+var
+  i: Integer;
+  vFlagsValue: Integer;
+  vCBState: TcxCheckBoxState;
+begin
+  vFlagsValue := 0;
+  for i := 0 to TcxCheckGroup(FControl).Properties.Items.Count - 1 do
+  begin
+    vCBState := TcxCheckGroup(FControl).States[i];
+    if vCBState = cbsChecked then
+      vFlagsValue := vFlagsValue or Integer(TcxCheckGroup(FControl).Properties.Items[i].Tag);
+  end;
+
+  SetFieldValue(vFlagsValue);
+end;
+
+procedure TDEIntegerFlagsEditor2.DoOnExit(Sender: TObject);
+begin
+  inherited;
+
+end;
+
+procedure TDEIntegerFlagsEditor2.FillEditor;
+var
+  vList: TcxCheckGroup;
+begin
+  FillList;
+
+  vList := TcxCheckGroup(FControl);
+  vList.Properties.ReadOnly := FView.State < vsSelectOnly;
+  vList.Enabled := not vList.Properties.ReadOnly;
+
+  if vList.Properties.ReadOnly then
+  begin
+    vList.Style.BorderStyle := ebsNone;//GetBoxDisabledBorderStyle;
+    vList.TabStop := False;
+  end
+  else begin
+    vList.Style.BorderStyle := ebsNone;
+    vList.TabStop := FOwner.TabStop;
+  end;
+end;
+
+procedure TDEIntegerFlagsEditor2.FillList;
+var
+  vList: TcxCheckGroup;
+  vListItem: TcxCheckGroupItem;
+  vBits, vBit: Integer;
+  i: Integer;
+begin
+  vList := TcxCheckGroup(FControl);
+  vBits := FView.FieldValue;
+  vList.Properties.Items.BeginUpdate;
+  try
+    vList.Properties.Items.Clear;
+    for i := 0 to FDisplayFlagCount - 1 do
+    begin
+      vListItem := vList.Properties.Items.Add;
+      if Assigned(FCaptions) and (i < FCaptions.Count) then
+        vListItem.Caption := FCaptions[i]
+      else
+        vListItem.Caption := IntToStr(i);
+      vBit := 1 shl i;
+      vListItem.Tag := vBit;
+      if (vBit and vBits) <> 0 then
+        vList.States[i] := cbsChecked
+      else
+        vList.States[i] := cbsUnchecked;
+    end;
+  finally
+    vList.Properties.Items.EndUpdate;
+  end;
+end;
+
+procedure TDEIntegerFlagsEditor2.OnClickCheck(Sender: TObject);
+begin
+  FOwner.OnChange(Sender);
+end;
+
+procedure TDEIntegerFlagsEditor2.SwitchChangeHandlers(const AHandler: TNotifyEvent);
+begin
+  if Assigned(AHandler) then
+    TcxCheckGroup(FControl).Properties.OnChange := OnClickCheck
+  else
+    TcxCheckGroup(FControl).Properties.OnChange := nil;
+end;
+
 initialization
 
 RegisterClasses([TdxBevel, TcxLabel, TcxTreeList, TcxTreeListColumn]);
@@ -2919,6 +3066,7 @@ TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'progress',
 TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'gauge', TDEGauge);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'pages', TDEPagesFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'flags', TDEIntegerFlagsEditor);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiIntegerEdit, 'flags2', TDEIntegerFlagsEditor2);
 
 TPresenter.RegisterControlClass('Windows.DevExpress', uiEnumEdit, '', TDEEnumEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiEnumEdit, 'radio', TDEEnumEditor);

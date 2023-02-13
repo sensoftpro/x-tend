@@ -696,7 +696,7 @@ begin
   Assert(not FImages.ContainsKey(AName), 'Объект с таким именем уже есть');
 
   if not TFile.Exists(AFileName) then
-    vFileName := 'res\images\' + AFileName
+    vFileName := 'res' + PathDelim + 'images' + PathDelim + AFileName
   else
     vFileName := AFileName;
   Result := TStyleImage.Create(AName, vFileName, ATransparent);

@@ -1468,8 +1468,6 @@ function TView.GetFieldValue: Variant;
 var
   vField: TBaseField;
 begin
-  if True then
-
   vField := GetField;
   if Assigned(vField) then
   begin

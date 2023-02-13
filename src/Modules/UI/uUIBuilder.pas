@@ -81,6 +81,7 @@ type
     procedure DoEndUpdate; virtual;
 
     function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; virtual;
+    procedure DoAfterSetParent(const AParent: TUIArea); virtual;
     procedure DoBeforeFreeControl; virtual;
     procedure FillEditor; virtual;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); virtual;
@@ -138,6 +139,7 @@ type
 
     procedure CreateCaption(const AFieldDef: TFieldDef);
     procedure CreateContent(const AContent: TObject); virtual;
+    procedure AfterSetParent(const AParent: TUIArea);
 
     property Owner: TUIArea read FOwner;
     property Parent: TUIArea read FParent write SetParent;
@@ -338,6 +340,7 @@ type
     constructor Create(const AUIBuilder: TUIBuilder);
     destructor Destroy; override;
 
+    function ApplyAbsentLayout(const ASourceLayout: TLayout = nil): TLayout;
     function CreateSimpleLayout(const ALayoutKind: TLayoutKind): TLayout;
     function GetLayout(const ALayoutName: string; const AView: TView): TLayout;
   end;
@@ -412,9 +415,24 @@ begin
   inherited;
 end;
 
+function TLayouts.ApplyAbsentLayout(const ASourceLayout: TLayout = nil): TLayout;
+begin
+  if not Assigned(ASourceLayout) then
+    Result := CreateSimpleLayout(lkShape)
+  else
+    Result := ASourceLayout;
+
+  Randomize;
+  Result.Kind := lkShape;
+  Result.ShowCaption := True;
+  Result.Pen.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+  Result.Pen.Width := 1;
+  Result.Brush.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+end;
+
 function TLayouts.CreateSimpleLayout(const ALayoutKind: TLayoutKind): TLayout;
 begin
-  if not (ALayoutKind in [lkFrame, lkPanel, lkPage, lkAction]) then
+  if not (ALayoutKind in [lkFrame, lkPanel, lkPage, lkAction, lkShape]) then
     Exit(nil);
 
   Result := TLayout.Create(ALayoutKind);
@@ -447,7 +465,13 @@ var
   vLayoutExt: string;
 begin
   if FNames.TryGetValue(ALayoutName, vFileName) then
-    Exit(FItems.Items[vFileName].Clone);
+  begin
+    if FItems.TryGetValue(vFileName, Result) then
+      Result := Result.Clone
+    else
+      Result := ApplyAbsentLayout;
+    Exit;
+  end;
 
   vPostfix := '';
   if Assigned(AView) and Assigned(AView.Interactor) then
@@ -505,10 +529,14 @@ begin
     Result := MakeDefaultLayout(AView, ALayoutName);
   end;
 
-  FNames.Add(ALayoutName, vFileName);
-  FItems.Add(vFileName, Result);
-
-  Result := Result.Clone;
+  if Assigned(Result) then
+  begin
+    FNames.Add(ALayoutName, vFileName);
+    FItems.Add(vFileName, Result);
+    Result := Result.Clone
+  end
+  else
+    Result := ApplyAbsentLayout;
 end;
 
 function TLayouts.MakeDefaultLayout(const AView: TView; const ALayoutName: string): TLayout;
@@ -558,7 +586,7 @@ begin
   if not Assigned(vDefinition) then
     Exit;
 
-  Result := CreateSimpleLayout(lkPanel);
+  Result := CreateSimpleLayout(lkFrame);
 
   vOneRowHeight := Result.Font.Size * 96 div 72 + 8;
 
@@ -1325,6 +1353,7 @@ begin
 
   FNativeControl := TPresenter(Presenter).CreateNativeControl(Self, AView, ALayout, uiUnknown, '', AParams);
   FNativeControl.Parent := FParent;
+  FNativeControl.AfterSetParent(FParent);
   FNativeControl.TabOrder := FLayout.TabOrder;
 
   FId := FLayout.Id;
@@ -1414,8 +1443,8 @@ begin
     else if vCaption = '' then
       Result := DoCreateChildArea(ALayout, FView)
     else begin
-      if Assigned(FView) then
-        vView := FView.BuildView(vCaption)
+      if Assigned(AChildView) then  // was FView
+        vView := AChildView.BuildView(vCaption)  // was FView
       else
         vView := nil;
 
@@ -2359,6 +2388,10 @@ procedure TNativeControl.DoActivate(const AUrlParams: string);
 begin
 end;
 
+procedure TNativeControl.DoAfterSetParent(const AParent: TUIArea);
+begin
+end;
+
 procedure TNativeControl.DoBeforeFreeControl;
 begin
 end;
@@ -2374,6 +2407,11 @@ end;
 function TNativeControl.DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject;
 begin
   Result := nil;
+end;
+
+procedure TNativeControl.AfterSetParent(const AParent: TUIArea);
+begin
+  DoAfterSetParent(AParent);
 end;
 
 procedure TNativeControl.DoDeinit;

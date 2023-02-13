@@ -128,7 +128,7 @@ type
   private
     FToolBar: TToolBar;
   protected
-    procedure SetParent(const AParent: TUIArea); override;
+    procedure DoAfterSetParent(const AParent: TUIArea); override;
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
@@ -171,6 +171,8 @@ type
 {$R PopupForm.dfm}
 {$R FloatForm.dfm}
 
+procedure LockControl(const AWinControl: TWinControl; const ALock: Boolean);
+
 implementation
 
 uses
@@ -191,8 +193,7 @@ begin
   else
   begin
     SendMessage(AWinControl.Handle, WM_SETREDRAW, 1, 0);
-    RedrawWindow(AWinControl.Handle, nil, 0,
-      RDW_ERASE or RDW_FRAME or RDW_INVALIDATE or RDW_ALLCHILDREN);
+    RedrawWindow(AWinControl.Handle, nil, 0, RDW_ERASE or RDW_FRAME or RDW_INVALIDATE or RDW_ALLCHILDREN);
   end;
 end;
 
@@ -389,16 +390,11 @@ begin
   end;
 end;
 
-procedure TVCLToolBarNavigation.SetParent(const AParent: TUIArea);
+procedure TVCLToolBarNavigation.DoAfterSetParent(const AParent: TUIArea);
 var
   vToolButton: TToolButton;
   i, vImageSize: Integer;
 begin
-  inherited SetParent(AParent);
-
-  if not Assigned(AParent) then
-    Exit;
-
   vImageSize := StrToIntDef(GetUrlParam(FParams, 'ImageSize'), 16);
   FToolBar.Images := TDragImageList(FUIBuilder.Images[vImageSize]);
   FToolBar.AutoSize := True;

@@ -114,7 +114,7 @@ procedure CopyConstraints(const AConstraints: TSizeConstraints; const ALayout: T
 implementation
 
 uses
-  Math, PngImage, UITypes, UniGUIVars, uniArea,
+  Math, PngImage, UITypes, IOUtils, UniGUIVars, uniArea,
   uniScrollBox, uniMainMenu, uniSplitter,
   uPlatform, uIcon, uModule, uConfiguration, uDomain, uEntityList, uSession, uUtils;
 
@@ -170,6 +170,8 @@ procedure TUniServerModule.FirstInit;
 begin
   InitServerModule(Self);
   OnBeforeInit := TUniGUIPresenter(_Platform.Presenter).UniServerModuleBeforeInit;
+  if TFile.Exists('CustomStyles.css') then
+    Self.CustomFiles.Add('CustomStyles.css');
 end;
 
 { TUniMainForm }
@@ -477,7 +479,12 @@ begin
       CopyFontSettings(vPanel.Font, ALayout);
       CopyPadding(vPanel, ALayout);
       if AView.DefinitionKind <> dkListField then
-        vPanel.BorderStyle := TUniBorderStyle.ubsOutset
+      begin
+        if ALayout.BorderStyle = lbsSingle then
+          vPanel.BorderStyle := TUniBorderStyle.ubsOutset
+        else
+          vPanel.BorderStyle := TUniBorderStyle.ubsNone;
+      end
       else
         vPanel.BorderStyle := TUniBorderStyle.ubsNone;
       vPanel.Color := AlphaColorToColor(ALayout.Color);
@@ -512,7 +519,12 @@ begin
     CopyPadding(vPanel, ALayout);
     CopyFontSettings(vPanel.Font, ALayout);
     if AView.DefinitionKind <> dkListField then
-      vPanel.BorderStyle := TUniBorderStyle.ubsOutset
+    begin
+      if ALayout.BorderStyle = lbsSingle then
+        vPanel.BorderStyle := TUniBorderStyle.ubsOutset
+      else
+        vPanel.BorderStyle := TUniBorderStyle.ubsNone;
+    end
     else
       vPanel.BorderStyle := TUniBorderStyle.ubsNone;
     vPanel.Color := AlphaColorToColor(ALayout.Color);

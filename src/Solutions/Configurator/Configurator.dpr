@@ -113,6 +113,8 @@ uses
   uniScene in '..\..\Modules\UI\Web\uniGUI\uniScene.pas',
   uniBlobEditors in '..\..\Modules\UI\Web\uniGUI\uniBlobEditors.pas',
   uniSimpleEditors in '..\..\Modules\UI\Web\uniGUI\uniSimpleEditors.pas',
+  uniEntityEditors in '..\..\Modules\UI\Web\uniGUI\uniEntityEditors.pas',
+  uniListEditors in '..\..\Modules\UI\Web\uniGUI\uniListEditors.pas',
 {$ENDIF}
 {$ENDIF}
 {$ENDIF}

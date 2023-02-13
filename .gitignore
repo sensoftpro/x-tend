@@ -22,3 +22,6 @@ bin/*.json
 *.drc
 /bin/Win32/*.exe
 /bin/Win64/*.exe
+*.jlt
+*.xtf
+*.o

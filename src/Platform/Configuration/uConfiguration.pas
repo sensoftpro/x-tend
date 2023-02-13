@@ -200,9 +200,9 @@ begin
   FCacheDir := TPath.Combine(TPath.GetCachePath, cProductCreator + PathDelim + FName);
   if not TDirectory.Exists(FCacheDir) then
     TDirectory.CreateDirectory(FCacheDir);
-{$ELSE} {$IFDEF  POSIX}
+{$ELSE} {$IFDEF POSIX}
+  FConfigurationDir := TPath.Combine(GetBinDir, 'Solutions' + PathDelim + FName);
   FCacheDir := '/tmp/Sensoft/Configuration';
-  FConfigurationDir := 'Solutions' + PathDelim + FName;
 {$ELSE}
   FConfigurationDir := TPath.GetHomePath;
   FCacheDir := TPath.GetCachePath;
@@ -399,7 +399,7 @@ begin
     if not DirectoryExists(vReportDirName) then
       Continue;
 
-    if SysUtils.FindFirst(vReportDirName + '\*.*', faAnyFile, vSearchRec) <> 0 then
+    if SysUtils.FindFirst(vReportDirName + PathDelim + '*.*', faAnyFile, vSearchRec) <> 0 then
       Continue;
 
     repeat

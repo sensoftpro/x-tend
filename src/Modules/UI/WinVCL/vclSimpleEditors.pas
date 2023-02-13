@@ -37,7 +37,7 @@ interface
 
 uses
   Classes, Types, Graphics, Controls, ExtCtrls, StdCtrls, Dialogs, ActnList, StdActns, ComCtrls, Vcl.CheckLst,
-  vclArea, uDefinition, uEnumeration, uUIBuilder, uView, uEntity, uLayout;
+  vclArea, uDefinition, uEnumeration, uUIBuilder, uView, uEntity, uLayout, uConsts;
 
 type
   TVCLTextInfo = class(TVCLControl)
@@ -114,7 +114,7 @@ type
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
-    procedure SetParent(const AParent: TUIArea); override;
+    procedure DoAfterSetParent(const AParent: TUIArea); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -147,7 +147,7 @@ type
   TVCLDateTimeFieldEditor = class(TVCLControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    procedure SetParent(const AParent: TUIArea); override;
+    procedure DoAfterSetParent(const AParent: TUIArea); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -254,6 +254,16 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
+  TVCLPanelFieldEditor = class(TVCLControl)
+  private
+    FReverse: Boolean;
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoAfterSetParent(const AParent: TUIArea); override;
+    procedure FillEditor; override;
+    procedure SetViewState(const AViewState: TViewState); override;
+  end;
+
   TVCLEnumFieldEditor = class(TVCLControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
@@ -271,7 +281,7 @@ type
   TVCLColorPicker = class(TVCLControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    procedure SetParent(const AParent: TUIArea); override;
+    procedure DoAfterSetParent(const AParent: TUIArea); override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -331,7 +341,7 @@ type
     procedure OnListViewData(Sender: TObject; Item: TListItem);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
-    procedure SetParent(const Value: TUIArea); override;
+    procedure DoAfterSetParent(const Value: TUIArea); override;
     procedure DoBeforeFreeControl; override;
     procedure FillEditor; override;
   end;
@@ -353,7 +363,7 @@ uses
   Generics.Collections, Variants, SysUtils, Windows,
   Forms, Math, DateUtils, Messages, VCL.Mask, WinXCtrls,
 
-  uConfiguration, uDomain, uInteractor, uPresenter, uWinVCLPresenter, uCollection, uConsts,
+  uConfiguration, uDomain, uInteractor, uPresenter, uWinVCLPresenter, uCollection,
   uUtils, UITypes, Samples.Gauges;
 
 { TVCLTextInfo }
@@ -481,15 +491,10 @@ begin
   FUpDown.Visible := vEdit.Visible and vEdit.Enabled;
 end;
 
-procedure TVCLIntegerFieldEditor.SetParent(const AParent: TUIArea);
+procedure TVCLIntegerFieldEditor.DoAfterSetParent(const AParent: TUIArea);
 begin
-  inherited SetParent(AParent);
-
-  if Assigned(AParent) then
-  begin
-    FUpDown.Parent := TWinControl(FControl).Parent;
-    FUpDown.Associate := TEdit(FControl);
-  end;
+  FUpDown.Parent := TWinControl(FControl).Parent;
+  FUpDown.Associate := TEdit(FControl);
 end;
 
 procedure TVCLIntegerFieldEditor.SwitchChangeHandlers(
@@ -1047,12 +1052,9 @@ begin
   end;
 end;
 
-procedure TVCLDateTimeFieldEditor.SetParent(const AParent: TUIArea);
+procedure TVCLDateTimeFieldEditor.DoAfterSetParent(const AParent: TUIArea);
 begin
-  inherited SetParent(AParent);
-
-  if Assigned(AParent) then
-    TDateTimePicker(FControl).Format := 'dd.MM.yyyy HH:mm:ss';
+  TDateTimePicker(FControl).Format := 'dd.MM.yyyy HH:mm:ss';
 end;
 
 procedure TVCLDateTimeFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
@@ -1076,6 +1078,8 @@ end;
 function TVCLFileNameFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vBase: TPanel;
+  vFieldDef: TFieldDef;
+  vStyleParams: TStrings;
 begin
   vBase := TPanel.Create(nil);
   vBase.BevelOuter := bvNone;
@@ -1086,7 +1090,17 @@ begin
   FAction.Caption := '';
   FAction.ImageIndex := 23;
   if Assigned(FCreateParams) then
-    FAction.Dialog.Filter := FCreateParams.Values['filter'];
+    FAction.Dialog.Filter := FCreateParams.Values['filter']
+  else begin
+    vFieldDef := TFieldDef(FView.Definition);
+    vStyleParams := CreateDelimitedList(vFieldDef.StyleName, '&');
+    try
+      FAction.Dialog.Filter := vStyleParams.Values['filter'];
+      FAction.Dialog.DefaultExt := vStyleParams.Values['ext'];
+    finally
+      FreeAndNil(vStyleParams);
+    end;
+  end;
 
   FBtn := TButton.Create(nil);
   FBtn.Align := alRight;
@@ -1926,9 +1940,8 @@ begin
   end;
 end;
 
-procedure TVCLColorPicker.SetParent(const AParent: TUIArea);
+procedure TVCLColorPicker.DoAfterSetParent(const AParent: TUIArea);
 begin
-  inherited SetParent(AParent);
   TColorBox(FControl).Style := [cbStandardColors, cbExtendedColors, cbSystemColors, cbCustomColor, cbPrettyNames];
 end;
 
@@ -2068,9 +2081,8 @@ begin
   Item.Caption := FData[FData.Count - Item.Index - 1];
 end;
 
-procedure TVCLLogEditor.SetParent(const Value: TUIArea);
+procedure TVCLLogEditor.DoAfterSetParent(const Value: TUIArea);
 begin
-  inherited;
   FListView.ViewStyle := vsReport;
 end;
 
@@ -2169,6 +2181,79 @@ begin
   TGauge(FControl).Progress := FView.FieldValue;
 end;
 
+{ TVCLPanelFieldEditor }
+
+procedure TVCLPanelFieldEditor.DoAfterSetParent(const AParent: TUIArea);
+begin
+  TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(FOwner, FParent.View, FLayout, '');
+end;
+
+function TVCLPanelFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vPanel: TPanel;
+begin
+  FNeedCreateCaption := False;
+
+  vPanel := TPanel.Create(nil);
+  Result := vPanel;
+  vPanel.DoubleBuffered := True;
+  vPanel.Width := ALayout.Width;
+  vPanel.Height := ALayout.Height;
+  vPanel.Left := ALayout.Left;
+  vPanel.Top := ALayout.Top;
+
+  CopyFontSettings(vPanel.Font, ALayout);
+  vPanel.Align := TAlign(ALayout.Align);
+  CopyMargins(vPanel, ALayout);
+  CopyPadding(vPanel, ALayout);
+  CopyConstraints(vPanel, ALayout);
+  vPanel.BevelInner := TPanelBevel(ALayout.BevelInner);
+  vPanel.BevelOuter := TPanelBevel(ALayout.BevelOuter);
+  vPanel.Anchors := ALayout.Anchors;
+
+  if Assigned(FCreateParams) then
+    FReverse := FCreateParams.Values['reverse'] = '1'
+  else
+    FReverse := False;  
+end;
+
+procedure TVCLPanelFieldEditor.FillEditor;
+var
+  vVisible: Boolean;
+  vValue: Variant;
+  vControl: TWinControl;
+begin
+  vValue := FView.FieldValue;
+  if VarIsNull(vValue) then
+    vVisible := True
+  else
+  begin
+    if TFieldDef(FView.Definition).Kind = fkBoolean then
+      vVisible := vValue
+    else
+      vVisible := True;
+  end;
+
+  if FReverse then
+    vVisible := not vVisible;
+
+  if vVisible then
+    LockControl(TPanel(FControl), True);
+  TPanel(FControl).Visible := vVisible;
+  if vVisible then
+    LockControl(TPanel(FControl), False);
+
+  vControl := TWinControl(GetRealControl(FParent)); // для обновления прокруток у scrollbox, если он подложен
+  vControl.Visible := False;
+  vControl.Realign;
+  vControl.Visible := True;
+end;
+
+procedure TVCLPanelFieldEditor.SetViewState(const AViewState: TViewState);
+begin
+// do nothing
+end;
+
 initialization
 
 TPresenter.RegisterControlClass('Windows.VCL', uiTextEdit, '', TVCLTextFieldEditor);
@@ -2212,6 +2297,7 @@ TPresenter.RegisterControlClass('Windows.VCL', uiBoolEdit, 'simple', TVCLBoolFie
 TPresenter.RegisterControlClass('Windows.VCL', uiBoolEdit, 'imaged_action', TVCLImagedAction);
 TPresenter.RegisterControlClass('Windows.VCL', uiBoolEdit, 'images', TVCLBoolImages);
 TPresenter.RegisterControlClass('Windows.VCL', uiBoolEdit, 'pages', TVCLPagesFieldEditor);
+TPresenter.RegisterControlClass('Windows.VCL', uiBoolEdit, 'panel', TVCLPanelFieldEditor);
 TPresenter.RegisterControlClass('Windows.VCL', uiBoolEdit, 'selected_caption', TVCLSelectedCaptionBoolFieldEditor);
 TPresenter.RegisterControlClass('Windows.VCL', uiColorEdit, '', TVCLColorEditor);
 TPresenter.RegisterControlClass('Windows.VCL', uiColorEdit, 'simple', TVCLColorPicker);

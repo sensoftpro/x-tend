@@ -38,7 +38,7 @@ interface
 uses
   Generics.Collections, uFastClasses, Classes, SyncObjs, uModule, uConsts, uConfiguration, uDefinition,
   uCollection, uEntity, uEntityList, uStorage, uSession, uChangeManager, uSettings, uLogger, uScheduler,
-  uTranslator, uJSON, uUtils, uView, uUIBuilder;
+  uTranslator, uJSON, uUtils, uView, uUIBuilder, uTask;
 
 type
   TDomainLock = class
@@ -125,9 +125,7 @@ type
     procedure NotifyError(const ACaption, AText: string);
 
     function Login(const AName, APassword: string): TUserSession;
-    //function LoginByRFID(const ARFID: string): TUserSession;
     procedure Logout(const ASession: TUserSession);
-    //procedure SetRFIDHandler(const ARFIDHandler: TRFIDReadEvent);
 
     procedure ExecuteDefaultAction(const ASession: TUserSession; const AParameter: string);
 
@@ -175,6 +173,9 @@ type
     function Log(const AMessage: string; const AMessageKind: TMessageKind = mkAny): string;
     function LogEnter(const AMessage: string): string;
     function LogExit(const AMessage: string): string;
+
+    function ExecuteTask(const AName: string; const AExecutionProc: TExecutionProc): TTaskHandle;
+    procedure ExecuteManagedTask(const AName: string; const AExecutionProc: TExecutionProc);
 
     property AppName: string read FAppName;
     property AppTitle: string read FAppTitle;
@@ -541,6 +542,31 @@ begin
   end;
 
   TExecuteDefaultActionFunc(FConfiguration.ExecuteDefaultActionFunc)(vSession, AParameter);
+end;
+
+procedure TDomain.ExecuteManagedTask(const AName: string; const AExecutionProc: TExecutionProc);
+var
+  vTaskEngine: TTaskEngine;
+begin
+  vTaskEngine := TTaskEngine(Module['TaskEngine']);
+  if Assigned(vTaskEngine) then
+    vTaskEngine.ExecuteManaged(AName, AExecutionProc)
+  else
+    AExecutionProc(nil);
+end;
+
+function TDomain.ExecuteTask(const AName: string; const AExecutionProc: TExecutionProc): TTaskHandle;
+var
+  vTaskEngine: TTaskEngine;
+begin
+  vTaskEngine := TTaskEngine(Module['TaskEngine']);
+  if Assigned(vTaskEngine) then
+    Result := vTaskEngine.Execute(AName, AExecutionProc)
+  else
+  begin
+    AExecutionProc(nil);
+    Result := nil;
+  end;
 end;
 
 function TDomain.FindEntities(const ADefinitionName: string; const ASession: TUserSession; const AQuery: string;
@@ -1240,15 +1266,6 @@ procedure TDomain.SetLanguage(const Value: string);
 begin
   FTranslator.Language := Value;
 end;
-
-{procedure TDomain.SetRFIDHandler(const ARFIDHandler: TRFIDReadEvent);
-var
-  vExtension: TBaseExtension;
-begin
-  vExtension := ResolveExtension('ProbePrepares');
-  if Assigned(vExtension) then
-    vExtension.SetRFIDHandler(ARFIDHandler);
-end;}
 
 procedure TDomain.Stop;
 begin

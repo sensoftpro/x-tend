@@ -87,7 +87,7 @@ uses
   Types, Graphics, Math, StrUtils, ComCtrls, Buttons,
   Generics.Defaults, Variants,
   cxGraphics, dxGDIPlusClasses, cxLabel, cxImage, cxEdit, cxTextEdit, cxPC,
-  cxLookAndFeels, cxButtons, cxScrollBox, cxControls, cxSplitter,
+  cxLookAndFeels, cxButtons, cxScrollBox, cxControls, cxSplitter, cxCheckBox,
 
   uDomain, uPresenter, uWinVCLPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
   vclSimpleEditors, uEntityList, uDomainUtils, uChangeManager;
@@ -439,6 +439,8 @@ begin
     TcxLabel(FControl).Properties.Alignment.Horz := AAlignment
   else if FControl.InheritsFrom(TcxTextEdit) then
     TcxTextEdit(FControl).Properties.Alignment.Horz := AAlignment
+  else if FControl.InheritsFrom(TcxCheckBox) then
+    TcxCheckBox(FControl).Properties.Alignment := AAlignment
   else
     inherited SetAlignment(AAlignment);
 end;

@@ -81,7 +81,7 @@ type
 implementation
 
 uses
-  SysUtils, Variants, uObjectField, uDomain, uCollection, uSession, uDomainUtils;
+  SysUtils, Variants, uObjectField, uDomain, uCollection, uSession, uDomainUtils, uDefinition;
 
 { TQueryExecutor }
 

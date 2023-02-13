@@ -97,22 +97,25 @@ begin
   if (FLogMessageKind <> mkAny) and (AMessageKind <> FLogMessageKind) then
     Exit;
 
-  Result := FormatDateTime('hh:nn:ss.zzz', Now) + ' ' + cLogMessageTypes[AMessageKind] +
-    ' ' + StringOfChar(' ', FLogIndentLevel * 2) + AMessage;
-  if FileExists(FFileName) then
-  begin
-    vFile := TFileStream.Create(FFileName, fmOpenWrite);
-    vFile.Position := vFile.Size;
-    vFile.Write(sLineBreak, Length(sLineBreak));
-  end
-  else
-    vFile := TFileStream.Create(FFileName, fmCreate);
-
+  Result := FormatDateTime('hh:nn:ss.zzz', Now) + ' ' + cLogMessageTypes[AMessageKind] + ' ' + StringOfChar(' ', FLogIndentLevel * 2) + AMessage;
   try
-    vBuffer := TEncoding.Default.GetBytes(Result);
-    vFile.WriteData(vBuffer, Length(Result));
-  finally
-    vFile.Free;
+    if FileExists(FFileName) then
+    begin
+      vFile := TFileStream.Create(FFileName, fmOpenWrite);
+      vFile.Position := vFile.Size;
+      vFile.Write(sLineBreak, Length(sLineBreak));
+    end
+    else
+      vFile := TFileStream.Create(FFileName, fmCreate);
+
+    try
+      vBuffer := TEncoding.Default.GetBytes(Result);
+      vFile.WriteData(vBuffer, Length(Result));
+    finally
+      vFile.Free;
+    end;
+  except
+    Result := 'Cannot save: ' + Result;
   end;
 end;
 

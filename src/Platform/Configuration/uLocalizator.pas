@@ -260,7 +260,7 @@ var
   vLanguage: TLanguage;
   vLangName: string;
 begin
-  if FindFirst(ADirName + '\*.lng', faAnyFile, vSearchEntry) = 0 then
+  if FindFirst(ADirName + PathDelim + '*.lng', faAnyFile, vSearchEntry) = 0 then
   try
     repeat
       if AnsiLowerCase(vSearchEntry.Name) = 'default.lng' then

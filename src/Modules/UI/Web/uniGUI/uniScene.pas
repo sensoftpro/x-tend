@@ -145,6 +145,7 @@ end;
 function TUniGUIScene.GetSceneRect: TRectF;
 begin
   Result := FPanel.BoundsRect;
+  Result.Offset(-Result.Left, -Result.Top);
 end;
 
 procedure TUniGUIScene.OnCanvasReady(Sender: TObject);

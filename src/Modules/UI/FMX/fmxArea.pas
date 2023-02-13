@@ -134,6 +134,18 @@ type
     procedure DoExecuteUIAction(const AView: TView); override;
   end;
 
+  TFMXNavBarNavigation = class(TFMXControl)
+  private
+    FNavBar: TPanel;
+    FNavBarGroup: TExpander;
+    FNavBarItem: TButton;
+    FLastPos: Single;
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
+      const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
+  end;
+
   TFMXForm = class(TForm)
   end;
 
@@ -843,7 +855,11 @@ end;
 
 function TFMXControl.GetBounds: TRect;
 begin
-  Result := TControl(FControl).BoundsRect.Round;
+  if FIsForm then
+    Result := TRect.Create(TForm(FControl).Left, TForm(FControl).Top,
+      TForm(FControl).Left + TForm(FControl).Width, TForm(FControl).Top + TForm(FControl).Height)
+  else
+    Result := TControl(FControl).BoundsRect.Round;
 end;
 
 function TFMXControl.GetFocused: Boolean;
@@ -904,6 +920,7 @@ begin
     Exit;
 
   vLabel := TLabel(FCaption);
+  vLabel.WordWrap := false;
   if FLabelPosition = lpTop then
   begin
     vLabel.Position.X := TControl(FControl).Position.X;
@@ -946,7 +963,9 @@ end;
 
 procedure TFMXControl.SetBounds(const Value: TRect);
 begin
-  if FControl is TControl then
+  if FIsForm then
+    TForm(FControl).SetBoundsF(Value.Left, Value.Top, Value.Width, Value.Height)
+  else if FControl is TControl then
     TControl(FControl).SetBounds(Value.Left, Value.Top, Value.Width, Value.Height);
 
   PlaceLabel;
@@ -1061,7 +1080,7 @@ begin
   if FIsForm then
     Exit;
 
-  if FControl is TControl then
+  if (FControl is TControl) and not (FControl is TAniIndicator) then
   begin
     TControl(FControl).Visible := AViewState > vsHidden;
     TControl(FControl).Enabled := AViewState > vsDisabled;
@@ -1080,6 +1099,53 @@ begin
     TLabel(FCaption).Visible := FShowCaption and (FOwner.View.State > vsHidden);
 end;
 
+{ TFMXNavBarNavigation }
+
+function TFMXNavBarNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+begin
+  FNavBar := TPanel.Create(nil);
+  FNavBarGroup := nil;
+  FNavBarItem := nil;
+
+  Result := FNavBar;
+end;
+
+function TFMXNavBarNavigation.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem; const ACaption,
+  AHint: string; const AImageIndex: Integer): TObject;
+var
+  vLastPos: Single;
+begin
+  if ANavItem.Level = 0 then
+  begin
+    vLastPos := 0;
+    if Assigned(FNavBarGroup) then
+      vLastPos := FNavBarGroup.Position.Y + FNavBarGroup.Height;
+    FNavBarGroup := TExpander.Create(nil);
+    FNavBarGroup.Align := TAlignLayout.Top;
+    FNavBarGroup.Position.Y := vLastPos;
+    FNavBarGroup.Height := 25;
+    FNavBarGroup.Text := ACaption;
+    FNavBarGroup.Hint := AHint;
+    FNavBarGroup.OnClick := nil;
+    FNavBar.AddObject(FNavBarGroup);
+    Result := FNavBarGroup;
+  end
+  else
+  begin
+    FNavBarItem := TButton.Create(nil);
+    FNavBarItem.Align := TAlignLayout.Top;
+    FNavBarItem.Position.Y := FNavBarGroup.Height;
+    FNavBarGroup.Height := FNavBarGroup.Height + FNavBarItem.Height;
+    FNavBarItem.Text := ACaption;
+    FNavBarItem.Hint := AHint;
+    FNavBarItem.Images := TImageList(FUIBuilder.Images[32]);
+    FNavBarItem.ImageIndex := AImageIndex;
+    FNavBarItem.OnClick := FOwner.OnAreaClick;
+    FNavBarGroup.AddObject(FNavBarItem);
+    Result := FNavBarItem;
+  end;
+end;
+
 initialization
 
 RegisterClasses([TLabel, TPanel, TSplitter, TImage, TMemo, TTabControl, TScrollBox, TShape, TPopupMenu]);
@@ -1088,6 +1154,7 @@ TPresenter.RegisterControlClass('FMX', uiNavigation, '', TFMXTreeViewNavigation)
 TPresenter.RegisterControlClass('FMX', uiNavigation, 'TreeView', TFMXTreeViewNavigation);
 TPresenter.RegisterControlClass('FMX', uiNavigation, 'MainMenu', TFMXMainMenuNavigation);
 TPresenter.RegisterControlClass('FMX', uiNavigation, 'ToolBar', TFMXToolBarNavigation);
+TPresenter.RegisterControlClass('FMX', uiNavigation, 'NavBar', TFMXNavBarNavigation);
 
 TPresenter.RegisterControlClass('FMX', uiAction, '', TFMXButton);
 TPresenter.RegisterControlClass('FMX', uiAction, 'link', TFMXLink);

@@ -196,7 +196,7 @@ begin
   if not DirectoryExists(vDirectory) then
     Exit;
 
-  if SysUtils.FindFirst(vDirectory + '\*.*', faNormal, vSearchRec) = 0 then
+  if SysUtils.FindFirst(vDirectory + PathDelim + '*.*', faNormal, vSearchRec) = 0 then
   begin
     repeat
       AddIcon(TPath.Combine(vDirectory, vSearchRec.Name));

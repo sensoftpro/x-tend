@@ -289,6 +289,9 @@ begin
     '}'+
     '#' + FTreeView.JSName + '_id .x-tree-view .x-grid-cell-inner-treecolumn{'+
     '  background-color: ' + uniColor2Web(AlphaColorToColor(ALayout.Color)) + ';'+
+    '}'+
+    '#' + FTreeView.JSName + '_id .x-tree-view .x-grid-cell-inner-treecolumn{'+
+    '  color: ' + uniColor2Web(AlphaColorToColor(ALayout.Font.Color)) + ';'+
     '}');
 
   ALayout.Id := 'TreeView';
@@ -316,6 +319,7 @@ begin
     vParentNode := nil;
 
   vTreeNode := FTreeView.Items.AddChild(vParentNode, ACaption);
+  vTreeNode.Font.Size := AParent.Layout.Font.Size;
   vTreeNode.ImageIndex := AImageIndex;
   vTreeNode.SelectedIndex := -1;
 
@@ -792,8 +796,8 @@ end;
 
 procedure TUniGUIControl.DoBeginUpdate;
 begin
-  if (not FIsForm) and (FControl is TUniControl) then
-    TCrackedUniControl(FControl).BeginUpdate;
+  if Assigned(FControl) and (TControl(FControl).Owner is TUniForm) then
+    TUniForm(TControl(FControl).Owner).SuspendLayouts;
 end;
 
 procedure TUniGUIControl.DoClose(const AModalResult: Integer);
@@ -842,13 +846,15 @@ end;
 
 procedure TUniGUIControl.DoEndUpdate;
 begin
-  if (not FIsForm) and (FControl is TUniControl) then
-    TCrackedUniControl(FControl).EndUpdate;
+  if Assigned(FControl) and (TControl(FControl).Owner is TUniForm) then
+    TUniForm(TControl(FControl).Owner).ResumeLayouts;
 end;
 
 function TUniGUIControl.ExtractOwner(const AUIArea: TUIArea): TComponent;
 begin
   Result := TComponent(GetRealControl(AUIArea));
+  if Assigned(Result) and not (Result is TUniForm) then
+    Result := Result.Owner;
 end;
 
 function TUniGUIControl.GetActiveChildArea: TUIArea;
@@ -963,7 +969,7 @@ begin
   if FLabelPosition = lpTop then
   begin
     vLabel.Left := TControl(FControl).Left;
-    vLabel.Top := TControl(FControl).Top - vLabel.Height - 4;
+    vLabel.Top := TControl(FControl).Top - vLabel.Height - 2;
     vLabel.AutoSize := True;
   end
   else if FLabelPosition = lpLeft then

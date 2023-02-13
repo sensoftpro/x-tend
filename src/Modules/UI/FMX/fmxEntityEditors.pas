@@ -59,10 +59,24 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
+  TFMXEntitySelector = class(TFMXControl)
+  private
+    FFlat: Boolean;
+    FEntities: TEntityList;
+    procedure FillList;
+    procedure CBOnInitPopup(Sender: TObject);
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoBeforeFreeControl; override;
+    procedure FillEditor; override;
+    procedure DoOnChange; override;
+    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+  end;
+
 implementation
 
 uses
-  FMX.Graphics, SysUtils, FMX.Controls, FMX.Types,
+  FMX.Graphics, SysUtils, FMX.Controls, FMX.Types, FMX.ListBox,
   uInteractor, uDomain, uChangeManager, uObjectField, uConsts, uSession,  Variants,
   uPresenter, StrUtils, uUtils, uEnumeration;
 
@@ -80,6 +94,7 @@ begin
 
   FreeAndNil(FEntities);
   FreeAndNil(FTextEdit);
+  FreeAndNil(FSelectButton);
 end;
 
 function TFMXEntityFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -203,7 +218,8 @@ begin
 
     FSelectButton.Items.Clear;
     for vEntity in FEntities do
-      FSelectButton.Items.AddObject(vEntity['Name'], vEntity);
+      if Assigned(vEntity) then
+        FSelectButton.Items.AddObject(vEntity['Name'], vEntity);
   finally
     TPresenter(vInteractor.Presenter).SetCursor(vPrevCursor);
   end;
@@ -232,9 +248,85 @@ begin
   end;
 end;
 
+{ TFMXEntitySelector }
+
+procedure TFMXEntitySelector.CBOnInitPopup(Sender: TObject);
+begin
+  FillList;
+end;
+
+procedure TFMXEntitySelector.DoBeforeFreeControl;
+begin
+  FreeAndNil(FEntities);
+end;
+
+function TFMXEntitySelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vInteractor: TInteractor;
+begin
+  vInteractor := TInteractor(FView.Interactor);
+  FEntities := TEntityList.Create(vInteractor.Domain, vInteractor.Session);
+
+  Result := TComboBox.Create(nil);
+  TComboBox(Result).OnPopup := CBOnInitPopup;
+
+  FFlat := (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone);
+end;
+
+procedure TFMXEntitySelector.DoOnChange;
+var
+  vEntity: TEntity;
+begin
+  vEntity := TEntity(TComboBox(FControl).Items.Objects[TComboBox(FControl).ItemIndex]);
+  SetFieldEntity(vEntity);
+end;
+
+procedure TFMXEntitySelector.FillEditor;
+var
+  vEdit: TComboBox;
+  vEntity: TEntity;
+begin
+  FillList;
+
+  vEdit := TComboBox(FControl);
+  vEntity := FView.FieldEntity;
+  if Assigned(vEntity) then
+  begin
+    vEdit.Enabled := True;
+    vEdit.ItemIndex := vEdit.Items.IndexOfObject(vEntity);
+  end
+  else
+    vEdit.Enabled := False;
+end;
+
+procedure TFMXEntitySelector.FillList;
+var
+  vField: TEntityField;
+  vEntity: TEntity;
+begin
+  TComboBox(FControl).Items.BeginUpdate;
+  try
+    TComboBox(FControl).Items.Clear;
+    vField := FView.ExtractEntityField;
+    vField.GetEntitiesForSelect(TInteractor(FView.Interactor).Session, FEntities);
+    for vEntity in FEntities do
+      TComboBox(FControl).Items.AddObject(SafeDisplayName(vEntity), vEntity);
+  finally
+    TComboBox(FControl).Items.EndUpdate;
+  end;
+end;
+
+procedure TFMXEntitySelector.SwitchChangeHandlers(const AHandler: TNotifyEvent);
+begin
+  inherited;
+  if Assigned(TComboBox(FControl)) then
+    TComboBox(FControl).OnChange := AHandler;
+end;
+
 initialization
 
 TPresenter.RegisterControlClass('FMX', uiEntityEdit, '', TFMXEntityFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiEntityEdit, 'simple', TFMXEntityFieldEditor);
+TPresenter.RegisterControlClass('FMX', uiEntityEdit, 'select', TFMXEntitySelector);
 
 end.

@@ -386,24 +386,23 @@ end;
 
 function GetBinDir: string;
 begin
-  Result := TPath.GetDirectoryName(ParamStr(0)) + '\..';
+  Result := TPath.GetDirectoryName(ParamStr(0)) + PathDelim + '..';
 end;
 
 function GetPlatformDir: string;
 begin
-{$IFDEF MSWINDOWS}
+{$IF DEFINED(MSWINDOWS) OR DEFINED(POSIX)}
   Result := GetBinDir;
+{$ELSEIF DEFINED(ANDROID)}
+  Result := TPath.GetPublicPath;
 {$ELSE}
   Result := TPath.Combine(TPath.GetHomePath, 'Common');
-{$ENDIF MSWINDOWS}
-{$IFDEF ANDROID}
-  Result := TPath.GetPublicPath;
-{$ENDIF ANDROID}
+{$ENDIF}
 end;
 
 function GetCommonDir: string;
 begin
-{$IFDEF MSWINDOWS}
+{$IF DEFINED(MSWINDOWS) OR DEFINED(POSIX)}
   Result := GetBinDir;
 {$ELSE}
   Result := TPath.Combine(TPath.GetSharedDocumentsPath, cProductCreator);
@@ -419,6 +418,8 @@ begin
 {$IFDEF MSWINDOWS}
   SHGetSpecialFolderPath(0, Buf, CSIDL_DESKTOP, False);
   Result := Buf;
+{$ELSEIF DEFINED(POSIX)}
+  Result := TPath.Combine(TPath.GetHomePath, 'Desktop');
 {$ELSE}
   Result := TPath.GetPublicPath;
 {$ENDIF}

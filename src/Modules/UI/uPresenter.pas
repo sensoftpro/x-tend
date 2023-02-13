@@ -939,13 +939,7 @@ begin
     Result.CreateContent(nil);
   end
   else begin
-    Randomize;
-    ALayout.Kind := lkShape;
-    ALayout.ShowCaption := True;
-    ALayout.Pen.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
-    ALayout.Pen.Width := 1;
-    ALayout.Brush.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);;
-
+    AArea.UIBuilder.Layouts.ApplyAbsentLayout(ALayout);
     Result := CreateAreaContent(AArea, AView, ALayout, vParams);
   end;
 end;

@@ -55,6 +55,8 @@ type
   private
     FDisplayFlagCount: Integer;
     FCaptions: TStrings;
+    FHorizontal: Boolean;
+    FItemWidth: Single;
     procedure FillList;
     procedure DoOnClick(Sender: TObject);
   protected
@@ -68,7 +70,7 @@ type
   private
     FEnum: TEnumeration;
     procedure FillList;
-    procedure CBOnInitPopup(Sender: TObject);
+//    procedure CBOnInitPopup(Sender: TObject);
     procedure DoOnClick(Sender: TObject);
     procedure DoChange(Sender: TObject);
   protected
@@ -111,7 +113,26 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
+  TFMXSelectedCaptionBoolFieldEditor = class(TFMXControl)
+  private
+    FSelected: Boolean;
+    FSelectBackColor, FDefaultTextColor: TColor;
+    procedure OnClick(Sender: TObject);
+    procedure UpdateView;
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure FillEditor; override;
+  end;
+
   TFMXPagesFieldEditor = class(TFMXControl)
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure FillEditor; override;
+    procedure DoOnChange; override;
+    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+  end;
+
+  TFMXColorEditor = class(TFMXControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -123,7 +144,7 @@ implementation
 
 uses
   FMX.ListBox, FMX.Types, FMX.Graphics, FMX.ExtCtrls, FMX.StdCtrls, FMX.Dialogs, FMX.Controls, FMX.ActnList, FMX.StdActns,
-  FMX.Edit, FMX.Memo, FMX.SpinBox, FMX.TabControl, FMX.Text, FMX.DateTimeCtrls, FMX.EditBox, FMX.NumberBox,
+  FMX.Edit, FMX.Memo, FMX.SpinBox, FMX.TabControl, FMX.Text, FMX.DateTimeCtrls, FMX.EditBox, FMX.NumberBox, FMX.Colors,
   uPresenter, uFMXPresenter, uInteractor, uUtils;
 
 { TFMXPagesFieldEditor }
@@ -347,7 +368,7 @@ end;
 
 procedure TFMXMemoFieldEditor.DoOnChange;
 begin
-  //âàæíî èñïîëüçîâàòü èìåííî EditingText, èíà÷å ïðè PostMessage(KeyDown) Value = Null
+  //Ð²Ð°Ð¶Ð½Ð¾ Ð¸ÑÐ¿Ð¾Ð»ÑŒÐ·Ð¾Ð²Ð°Ñ‚ÑŒ Ð¸Ð¼ÐµÐ½Ð½Ð¾ EditingText, Ð¸Ð½Ð°Ñ‡Ðµ Ð¿Ñ€Ð¸ PostMessage(KeyDown) Value = Null
   SetFieldValue(TMemo(FControl).Text);
 end;
 
@@ -389,10 +410,14 @@ begin
   if FFieldDef.StyleName = 'simple' then
     Result := TSpinBox.Create(nil)
   else
+  begin
     Result := TNumberBox.Create(nil);
+    TNumberBox(Result).VertIncrement := 0;
+  end;
 
   with TCustomEditBox(Result) do
   begin
+    HorzIncrement := 0;
     if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
       Max := TSimpleFieldDef(FFieldDef).MaxValue
     else
@@ -444,7 +469,7 @@ begin
   TCustomEditBox(FControl).OnChange := AHandler
 end;
 
-{ TDESpinner }
+{ TFMXSpinner }
 
 function TFMXSpinner.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
@@ -455,11 +480,11 @@ end;
 procedure TFMXSpinner.FillEditor;
 begin
   inherited;
-  TControl(FControl).Visible := FView.FieldValue > 0;
+  TAniIndicator(FControl).Visible := FView.FieldValue > 0;
   TAniIndicator(FControl).Enabled := TControl(FControl).Visible;
 end;
 
-{ TDEProgress }
+{ TFMXProgress }
 
 function TFMXProgress.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
@@ -485,11 +510,12 @@ var
 begin
   vFlagsValue := 0;
 
-  if not Assigned(TGroupBox(FControl).Children) then exit;
+  if not Assigned(TPanel(FControl).Children) then 
+    Exit;
 
-  for i := 0 to TGroupBox(FControl).Children.Count - 1 do
+  for i := 0 to TPanel(FControl).Children.Count - 1 do
   begin
-    vListItem := TCheckBox(TGroupBox(FControl).Children[i]);
+    vListItem := TCheckBox(TPanel(FControl).Children[i]);
     if vListItem.IsChecked then
       vFlagsValue := vFlagsValue or Integer(vListItem.Tag);
   end;
@@ -501,13 +527,13 @@ procedure TFMXIntegerFlagsEditor.DoBeforeFreeControl;
 begin
   inherited;
   FreeAndNil(FCaptions);
-  TGroupBox(FControl).DeleteChildren;
 end;
 
 function TFMXIntegerFlagsEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  Result := TGroupBox.Create(nil);
+  Result := TPanel.Create(nil);
 
+  FHorizontal := False;
   FDisplayFlagCount := 8;
 
   if Assigned(FCreateParams) then
@@ -515,28 +541,45 @@ begin
     FDisplayFlagCount := Min(32, StrToIntDef(FCreateParams.Values['DisplayFlagCount'], 8));
     if FCreateParams.IndexOfName('ItemCaptions') > -1 then
       FCaptions := CreateDelimitedList(FCreateParams.Values['ItemCaptions'], ';');
+    FHorizontal := StrToIntDef(FCreateParams.Values['HorzLayout'], 0) = 1;
   end;
+
+  if FHorizontal then
+    FItemWidth := ALayout.Width / FDisplayFlagCount;
 end;
 
 procedure TFMXIntegerFlagsEditor.FillEditor;
 begin
   FillList;
-  TGroupBox(FControl).Enabled := FView.State >= vsSelectOnly;
+  TPanel(FControl).Enabled := FView.State >= vsSelectOnly;
 end;
 
 procedure TFMXIntegerFlagsEditor.FillList;
 var
   vListItem: TCheckBox;
   vBits, vBit: Integer;
+  vLastPos: Single;
   i: Integer;
 begin
   vBits := FView.FieldValue;
+  vLastPos := 0;
 
-  TGroupBox(FControl).DeleteChildren;
+  TPanel(FControl).DeleteChildren;
   for i := 0 to FDisplayFlagCount - 1 do
   begin
     vListItem := TCheckBox.Create(nil);
-    vListItem.Align := TAlignLayout.Top;
+    if FHorizontal then
+    begin
+      vListItem.Align := TAlignLayout.Left;
+      vListItem.Position.X := vLastPos;
+      vListItem.Width := FItemWidth;
+      vLastPos := vListItem.Position.X + vListItem.Width + 1;
+    end else
+    begin
+      vListItem.Align := TAlignLayout.Top;
+      vListItem.Position.Y := vLastPos;
+      vLastPos := vListItem.Position.Y + vListItem.Height + 1;
+    end;
     if Assigned(FCaptions) and (i < FCaptions.Count) then
       vListItem.Text := FCaptions[i]
     else
@@ -545,7 +588,7 @@ begin
     vListItem.Tag := vBit;
     vListItem.IsChecked := (vBits and vListItem.Tag) <> 0;
     vListItem.OnChange := DoOnClick;
-    TGroupBox(FControl).AddObject(vListItem);
+    TPanel(FControl).AddObject(vListItem);
   end;
 end;
 
@@ -555,22 +598,22 @@ var
 begin
   inherited;
 
-  if not Assigned(TGroupBox(FControl).Children) then Exit;
+  if not Assigned(TPanel(FControl).Children) then Exit;
 
   if Assigned(AHandler) then
     for i := 0 to TGroupBox(FControl).Children.Count - 1 do
-      TCheckBox(TGroupBox(FControl).Children[i]).OnChange := DoOnClick
+      TCheckBox(TPanel(FControl).Children[i]).OnChange := DoOnClick
   else
     for i := 0 to TGroupBox(FControl).Children.Count - 1 do
-      TCheckBox(TGroupBox(FControl).Children[i]).OnChange := nil;
+      TCheckBox(TPanel(FControl).Children[i]).OnChange := nil;
 end;
 
 { TFMXEnumEditor }
 
-procedure TFMXEnumEditor.CBOnInitPopup(Sender: TObject);
-begin
-  FillList;
-end;
+//procedure TFMXEnumEditor.CBOnInitPopup(Sender: TObject);
+//begin
+//  FillList;
+//end;
 
 procedure TFMXEnumEditor.DoOnClick(Sender: TObject);
 begin
@@ -596,7 +639,7 @@ begin
   else
   begin
     Result := TComboBox.Create(nil);
-    TComboBox(Result).OnPopup := CBOnInitPopup;
+//    TComboBox(Result).OnPopup := CBOnInitPopup;
     TComboBox(Result).OnChange := DoChange;
   end;
 end;
@@ -610,13 +653,10 @@ end;
 
 procedure TFMXEnumEditor.DoChange;
 begin
-  if FFieldDef.StyleName <> 'radio' then
-  begin
-    if FFieldDef.HasFlag(cRequired) then
-      SetFieldValue(TComboBox(FControl).ItemIndex + 1)
-    else
-      SetFieldValue(TComboBox(FControl).ItemIndex);
-  end;
+  if FFieldDef.HasFlag(cRequired) then
+    SetFieldValue(TComboBox(FControl).ItemIndex + 1)
+  else
+    SetFieldValue(TComboBox(FControl).ItemIndex);
 end;
 
 procedure TFMXEnumEditor.FillEditor;
@@ -702,14 +742,22 @@ var
 begin
   inherited;
 
-  if not Assigned(TGroupBox(FControl).Children) then Exit;
-
-  if Assigned(AHandler) then
-    for i := 0 to TGroupBox(FControl).Children.Count - 1 do
-      TCheckBox(TGroupBox(FControl).Children[i]).OnChange := DoOnClick
-  else
-    for i := 0 to TGroupBox(FControl).Children.Count - 1 do
-      TCheckBox(TGroupBox(FControl).Children[i]).OnChange := nil;
+  if FFieldDef.StyleName = 'radio' then
+  begin
+    if not Assigned(TGroupBox(FControl).Children) then Exit;
+    if Assigned(AHandler) then
+      for i := 0 to TGroupBox(FControl).Children.Count - 1 do
+        TRadioButton(TGroupBox(FControl).Children[i]).OnChange := DoOnClick
+    else
+      for i := 0 to TGroupBox(FControl).Children.Count - 1 do
+        TRadioButton(TGroupBox(FControl).Children[i]).OnChange := nil;
+  end else
+  begin
+    if Assigned(AHandler) then
+      TComboBox(FControl).OnChange := DoChange
+    else
+      TComboBox(FControl).OnChange := nil;
+  end;
 end;
 
 { TFMXFloatFieldEditor }
@@ -722,12 +770,16 @@ begin
   if FFieldDef.StyleName = 'simple' then
     Result := TSpinBox.Create(nil)
   else
+  begin
     Result := TNumberBox.Create(nil);
-
-  TCustomEditBox(Result).ValueType := TNumValueType.Float;
+    TNumberBox(Result).VertIncrement := 0;
+  end;
 
   with TCustomEditBox(Result) do
   begin
+    HorzIncrement := 0;
+    ValueType := TNumValueType.Float;
+
     if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
       Max := TSimpleFieldDef(FFieldDef).MaxValue
     else
@@ -739,14 +791,9 @@ begin
       Min := MinDouble;
 
     if (Length(FFieldDef.Format) > 0) or FFieldDef.Definition.FieldExists('Format') then
-    begin
-      vFormat := GetFormat;
-      vPos := Pos('.', vFormat);
-      if vPos > 0 then
-        DecimalDigits := Length(vFormat) - vPos
-      else
-        DecimalDigits := 0;
-    end;
+      DecimalDigits := 2
+    else
+      DecimalDigits := 0;
   end;
 end;
 
@@ -826,7 +873,7 @@ begin
     except
       Result := False;
     end;
-//  ADate := ADate + Time; //÷òîáû ñîðòèðîâêà ïî äàòå áûëà ïðàâèëüíåé, todo: ïî õîðîøåìó íàäî ÷¸òêî îòäåëÿòü äàòó è âðåìÿ
+//  ADate := ADate + Time; //Ñ‡Ñ‚Ð¾Ð±Ñ‹ ÑÐ¾Ñ€Ñ‚Ð¸Ñ€Ð¾Ð²ÐºÐ° Ð¿Ð¾ Ð´Ð°Ñ‚Ðµ Ð±Ñ‹Ð»Ð° Ð¿Ñ€Ð°Ð²Ð¸Ð»ÑŒÐ½ÐµÐ¹, todo: Ð¿Ð¾ Ñ…Ð¾Ñ€Ð¾ÑˆÐµÐ¼Ñƒ Ð½Ð°Ð´Ð¾ Ñ‡Ñ‘Ñ‚ÐºÐ¾ Ð¾Ñ‚Ð´ÐµÐ»ÑÑ‚ÑŒ Ð´Ð°Ñ‚Ñƒ Ð¸ Ð²Ñ€ÐµÐ¼Ñ
   finally
     vSL.Free;
   end;
@@ -848,7 +895,7 @@ begin
     except
       Result := False;
     end;
-//  ADate := ADate + Time; //÷òîáû ñîðòèðîâêà ïî äàòå áûëà ïðàâèëüíåé, todo: ïî õîðîøåìó íàäî ÷¸òêî îòäåëÿòü äàòó è âðåìÿ
+//  ADate := ADate + Time; //Ñ‡Ñ‚Ð¾Ð±Ñ‹ ÑÐ¾Ñ€Ñ‚Ð¸Ñ€Ð¾Ð²ÐºÐ° Ð¿Ð¾ Ð´Ð°Ñ‚Ðµ Ð±Ñ‹Ð»Ð° Ð¿Ñ€Ð°Ð²Ð¸Ð»ÑŒÐ½ÐµÐ¹, todo: Ð¿Ð¾ Ñ…Ð¾Ñ€Ð¾ÑˆÐµÐ¼Ñƒ Ð½Ð°Ð´Ð¾ Ñ‡Ñ‘Ñ‚ÐºÐ¾ Ð¾Ñ‚Ð´ÐµÐ»ÑÑ‚ÑŒ Ð´Ð°Ñ‚Ñƒ Ð¸ Ð²Ñ€ÐµÐ¼Ñ
   finally
     vSL.Free;
   end;
@@ -881,7 +928,7 @@ begin
     vEdit.Enabled := FView.State > vsDisabled;
     vDate := FView.FieldValue;
     if vDate < 2 then
-      vEdit.Date := Null
+      vEdit.Date := cNullDateTime
     else
       vEdit.Date := vDate;
 
@@ -1003,6 +1050,103 @@ begin
   TCheckBox(FControl).OnChange := AHandler;
 end;
 
+{ TFMXSelectedCaptionBoolFieldEditor }
+
+function TFMXSelectedCaptionBoolFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+begin
+  FNeedCreateCaption := False;
+
+  Result := TLabel.Create(nil);
+  TLabel(Result).OnClick := OnClick;
+  TLabel(Result).HitTest := True;
+  TLabel(Result).TextSettings.WordWrap := False;
+  if Assigned(FCreateParams) then
+    TLabel(Result).Text := FCreateParams.Values['Caption'];
+//  TLabel(Result).Transparent := False;
+  TLabel(Result).Cursor := crHandPoint;
+
+  if ALayout.Kind = lkPanel then
+  begin
+    FSelectBackColor := AlphaColorToColor($FF5132);;
+    if Assigned(FCreateParams) and (FCreateParams.IndexOfName('select_backcolor') > -1) then
+      FSelectBackColor := AlphaColorToColor(StrToIntDef('$' + FCreateParams.Values['select_backcolor'], 0));
+
+    FDefaultTextColor := AlphaColorToColor(ALayout.Font.Color);
+    TLabel(Result).TextSettings.HorzAlign := TTextAlign(2 - ord(ALayout.Align));
+  end;
+//  TLabel(Result).AutoSize := True;
+end;
+
+procedure TFMXSelectedCaptionBoolFieldEditor.FillEditor;
+begin
+  if VarIsNull(FView.FieldValue) then
+    FSelected := False
+  else
+    FSelected := FView.FieldValue;
+
+  UpdateView;
+end;
+
+procedure TFMXSelectedCaptionBoolFieldEditor.OnClick(Sender: TObject);
+begin
+  FSelected := not FSelected;
+
+  SetFieldValue(FSelected);
+
+  UpdateView;
+end;
+
+procedure TFMXSelectedCaptionBoolFieldEditor.UpdateView;
+begin
+  if FSelected then
+//  begin
+    TLabel(FControl).FontColor := ColorToAlphaColor(FSelectBackColor)
+//    TLabel(FControl).Color := FSelectBackColor;
+//    TLabel(FControl).Transparent := False;
+//  end
+  else
+//  begin
+//    TLabel(FControl).Transparent := True;
+    TLabel(FControl).FontColor := ColorToAlphaColor(FDefaultTextColor);
+//  end;
+end;
+
+{ TFMXColorEditor }
+
+function TFMXColorEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+begin
+  Result := TComboColorBox.Create(nil);
+  TComboColorBox(Result).UseAlpha := False;
+end;
+
+procedure TFMXColorEditor.DoOnChange;
+begin
+  SetFieldValue(TComboColorBox(FControl).Color);
+end;
+
+procedure TFMXColorEditor.FillEditor;
+var
+  vEdit: TComboColorBox;
+begin
+  vEdit := TComboColorBox(FControl);
+
+  if VarIsNull(FView.FieldValue) then
+  begin
+    vEdit.Color := 0;
+    vEdit.Enabled := False;
+  end
+  else
+  begin
+    vEdit.Enabled := True;
+    vEdit.Color := FView.FieldValue;
+  end;
+end;
+
+procedure TFMXColorEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
+begin
+  TComboColorBox(FControl).OnChange := AHandler;
+end;
+
 initialization
 
 TPresenter.RegisterControlClass('FMX', uiTextEdit, '', TFMXTextEdit);
@@ -1030,18 +1174,21 @@ TPresenter.RegisterControlClass('FMX', uiFloatEdit, 'info', TFMXTextInfo);
 
 TPresenter.RegisterControlClass('FMX', uiCurrencyEdit, '', TFMXFloatFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiCurrencyEdit, 'simple', TFMXFloatFieldEditor);
+TPresenter.RegisterControlClass('FMX', uiCurrencyEdit, 'info', TFMXTextInfo);
 
 TPresenter.RegisterControlClass('FMX', uiDateEdit, '', TFMXDateFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiDateEdit, 'time', TFMXTimeFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiDateEdit, 'info', TFMXTextInfo);
 
-TPresenter.RegisterControlClass('FMX', uiCurrencyEdit, 'info', TFMXTextInfo);
-
 TPresenter.RegisterControlClass('FMX', uiBoolEdit, '', TFMXBoolFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiBoolEdit, 'simple', TFMXBoolFieldEditor);
+TPresenter.RegisterControlClass('FMX', uiBoolEdit, 'selected_caption', TFMXSelectedCaptionBoolFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiBoolEdit, 'pages', TFMXPagesFieldEditor);
 
 TPresenter.RegisterControlClass('FMX', uiEntityEdit, 'info', TFMXTextInfo);
 TPresenter.RegisterControlClass('FMX', uiEntityEdit, 'pages', TFMXPagesFieldEditor);
+
+TPresenter.RegisterControlClass('FMX', uiColorEdit, '', TFMXColorEditor);
+TPresenter.RegisterControlClass('FMX', uiColorEdit, 'simple', TFMXColorEditor);
 
 end.

@@ -318,6 +318,8 @@ begin
     ALayout.Align := TLayoutAlign(vSourcePanel.Align);
     if vSourcePanel.Alignment = taCenter then
       ALayout.Alignment := taLeftJustify
+    else if vSourcePanel.Alignment = taLeftJustify then
+      ALayout.Alignment := taCenter
     else
       ALayout.Alignment := vSourcePanel.Alignment;
     CopyConstraints(vSourcePanel);
@@ -325,6 +327,10 @@ begin
     CopyPadding(vSourcePanel);
     ALayout.BevelInner := TLayoutBevelKind(vSourcePanel.BevelInner);
     ALayout.BevelOuter := TLayoutBevelKind(vSourcePanel.BevelOuter);
+    if (ALayout.BevelInner = lbkNone) and (ALayout.BevelOuter = lbkNone) then
+      ALayout.BorderStyle := lbsNone
+    else
+      ALayout.BorderStyle := lbsSingle;
     ALayout.Color := ColorToAlphaColor(vSourcePanel.Color);
   end
   else if ALayout.Kind = lkPage then
@@ -530,7 +536,7 @@ var
   vMenuItem: TMenuItem;
   i: Integer;
   vArea: TUIArea;
-  vParentControl: TObject;
+  vParentControl, vControl: TObject;
 begin
   Result := nil;
 
@@ -794,8 +800,9 @@ begin
         for i := 0 to AParent.Count - 1 do
         begin
           vArea := AParent.Areas[i];
-          if (vArea.View = AView) and (GetRealControl(vArea) is TForm) then
-            Exit(vArea);
+          vControl := GetRealControl(vArea);
+          if (vArea.View = AView) and (vControl is TForm) then
+            Exit(vControl);
         end;
       end;
 

@@ -103,7 +103,7 @@ type
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil); override;
     procedure DoExecuteUIAction(const AView: TView); override;
     procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
-    procedure SetParent(const AParent: TUIArea); override;
+    procedure DoAfterSetParent(const AParent: TUIArea); override;
   public
 
   end;
@@ -904,14 +904,10 @@ begin
   end;
 end;
 
-procedure TGridEditor.SetParent(const AParent: TUIArea);
+procedure TGridEditor.DoAfterSetParent(const AParent: TUIArea);
 var
   vFields: string;
 begin
-  inherited SetParent(AParent);
-
-  if not Assigned(AParent) then Exit;
-
   if FGrid.Columns.Count > 0 then Exit; //avoid repeated call of CreateColumnsFromModel
 
   EnableColumnParamsChangeHandlers(False);
