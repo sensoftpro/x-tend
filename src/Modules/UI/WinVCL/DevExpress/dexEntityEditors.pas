@@ -1147,7 +1147,7 @@ begin
 //    vIndex := TcxRadioGroup(FControl.Control).ItemIndex + 1
 //  else
   vIndex := TcxRadioGroup(FControl).ItemIndex;
-  SetFieldEntity(FEntities[vIndex]);
+  SetFieldEntity(TEntity(TcxRadioGroup(FControl).Properties.Items[vIndex].Tag));
 end;
 
 procedure TDERadioEntitySelector.FillEditor;

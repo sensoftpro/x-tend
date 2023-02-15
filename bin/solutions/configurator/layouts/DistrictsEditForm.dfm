@@ -44,8 +44,8 @@ object Form: TForm
         TabOrder = 0
       end
       object pnlStreets: TPanel
-        Left = 319
-        Top = 32
+        Left = 295
+        Top = 28
         Width = 250
         Height = 97
         Caption = 'Streets'
@@ -82,6 +82,14 @@ object Form: TForm
         ShowCaption = False
         TabOrder = 4
       end
+      object Panel8: TPanel
+        Left = 567
+        Top = 28
+        Width = 250
+        Height = 97
+        Caption = 'Owner?view=radio'
+        TabOrder = 5
+      end
     end
     object pgc1: TPageControl
       AlignWithMargins = True
@@ -93,7 +101,7 @@ object Form: TForm
       Margins.Top = 16
       Margins.Right = 16
       Margins.Bottom = 16
-      ActivePage = tsString
+      ActivePage = tsOthers
       Align = alClient
       TabOrder = 1
       object tsString: TTabSheet
@@ -802,7 +810,7 @@ object Form: TForm
           object lbl2: TLabel
             Left = 400
             Top = 16
-            Width = 447
+            Width = 446
             Height = 25
             Caption = 'TLabel (Segoe UI,14,[B],RUSSIAN_CHARSET,clRed)'
             Font.Charset = RUSSIAN_CHARSET

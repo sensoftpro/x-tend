@@ -477,7 +477,7 @@ begin
 //    vIndex := TcxRadioGroup(FControl.Control).ItemIndex + 1
 //  else
   vIndex := TRadioGroup(FControl).ItemIndex;
-  SetFieldEntity(FEntities[vIndex]);
+  SetFieldEntity(TEntity(TRadioGroup(FControl).Items.Objects[vIndex]));
 end;
 
 procedure TVCLRadioEntitySelector.FillEditor;
