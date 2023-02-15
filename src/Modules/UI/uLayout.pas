@@ -1018,9 +1018,9 @@ begin
   FHeight := vRealMaxHeightInColumn + cBorder * 2 + 8;
 
   FConstraints.MinWidth := FWidth;
-  FConstraints.MaxWidth := FWidth;
+  //FConstraints.MaxWidth := FWidth;
   FConstraints.MinHeight := FHeight;
-  FConstraints.MaxHeight := FHeight;
+  //FConstraints.MaxHeight := FHeight; // это ограничение мешает увеличить размер на cServiceAreaHeight в TVCLControl.AssignFromLayout
 end;
 
 procedure TLayout.ClearChilds;

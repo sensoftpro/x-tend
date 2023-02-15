@@ -16,6 +16,7 @@ type
       var AlignRect: TRect; AlignInfo: TAlignInfo);
     procedure DoResize(Sender: TUniControl; OldWidth,
       OldHeight: Integer);
+    procedure DoMouseMove(Sender: TObject; Shift: TShiftState; X: Integer; Y:Integer);
     procedure OnCanvasReady(Sender: TObject);
   protected
     function DoCreateScene(const APlaceholder: TObject): TPainter; override;
@@ -71,13 +72,14 @@ begin
 
   FPanel.ControlStyle := FPanel.ControlStyle + [csOpaque];
   TCrackedUniCanvas(FPanel).OnMouseWheel := OnMouseWheel;
+  TCrackedUniCanvas(FPanel).OnResize := DoResize;
   FPanel.OnKeyDown := OnKeyDown;
   FPanel.OnKeyUp := OnKeyUp;
 
   FPanel.OnMouseDown := OnMouseDown;
   FPanel.OnMouseUp := OnMouseUp;
   FPanel.OnDblClick := OnDblClick;
-  TCrackedUniCanvas(FPanel).OnMouseMove := OnMouseMove;
+  TCrackedUniCanvas(FPanel).OnMouseMove := DoMouseMove;
   FPanel.OnMouseLeave := OnMouseLeave;
   FPanel.OnCanvasReady := OnCanvasReady;
 
@@ -109,6 +111,12 @@ begin
   FPanel := nil;
 end;
 
+procedure TUniGUIScene.DoMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+begin
+  OnMouseMove(Sender, Shift, X, Y);
+  DoRedraw;
+end;
+
 procedure TUniGUIScene.DoRedraw;
 begin
   OnPaint(FPanel);
@@ -127,6 +135,7 @@ begin
   FPanel.Align := alClient;
   FPanel.Bitmap.SetSize(FPanel.Width, FPanel.Height);
   OnResize(Sender);
+  DoRedraw;
 end;
 
 function TUniGUIScene.GetClientPos: TPointF;

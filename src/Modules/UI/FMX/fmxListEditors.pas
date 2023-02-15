@@ -38,6 +38,7 @@ interface
 uses
   System.Generics.Collections, System.Classes, System.Types, System.Rtti,
   FMX.Graphics, FMX.Controls, FMX.ExtCtrls, FMX.StdCtrls, FMX.Grid, FMX.Grid.Style,
+  FMX.ListBox,
 
   uEntity, uEntityList, uView, uUIBuilder, uDefinition, uConsts, uLayout, fmxArea;
 
@@ -76,13 +77,13 @@ type
 
   TFMXEntityListSelectorMTM = class(TFMXControl) // many to many link
   private
-    FListBox: TGroupBox;
+    FListBox: TListBox;
     FEntityList: TEntityList;
     FTransitFieldDef: TObjectFieldDef;
     FTransitDefinition: TDefinition;
     FFilterName: string;
     procedure FillList;
-    procedure OnClickCheck(Sender: TObject);
+    procedure DoOnChangeCheck(Sender: TObject);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
@@ -92,9 +93,9 @@ type
 
   TFMXEntityListSelector = class(TFMXControl)
   private
-    FListBox: TGroupBox;
+    FListBox: TListBox;
     FEntityList: TEntityList;
-    procedure OnClickCheck(Sender: TObject);
+    procedure DoOnChangeCheck(Sender: TObject);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -104,19 +105,18 @@ type
 
   TFMXEntityListSelector3 = class(TFMXControl)
   private
-    FListBox: TGroupBox;
+    FListBox: TListBox;
     FLookupCollection: string;
     FLookupField: string;
     FMasterList: TEntityList;
     FDestroing: Boolean;
     function FindMasterItem(const ALookupItem: TEntity): TEntity;
-    procedure OnClickCheck(Sender: TObject);
+    procedure DoOnChangeCheck(Sender: TObject);
     procedure FillLookupList;
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
-    procedure DoOnChange; override;
     procedure DoDisableContent; override;
   end;
 
@@ -705,7 +705,8 @@ procedure TFMXGridEditor.DoOnSelectionChanged(Sender: TObject);
 var
   vEntityList: TEntityList;
 begin
-  if Assigned(FFieldDef) or (FGrid.Selected = -1) then Exit;
+  if (FGrid.Selected = -1) then 
+    Exit;
   vEntityList := TEntityList(TView(FView).DomainObject);
   vEntityList.SelectEntity(FAllData.Entity[FGrid.Selected]);
 end;
@@ -790,8 +791,8 @@ end;
 
 procedure TFMXEntityListSelectorMTM.DoBeforeFreeControl;
 begin
-  inherited;
   FreeAndNil(FEntityList);
+  inherited;
 end;
 
 function TFMXEntityListSelectorMTM.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
@@ -805,7 +806,7 @@ var
   vInteractor: TInteractor;
 begin
   inherited;
-  FListBox := TGroupBox.Create(nil);
+  FListBox := TListBox.Create(nil);
   Result := FListBox;
   Assert(FView.Definition is TListFieldDef, 'FView.Definition не является TListFieldDef');
   vListFieldDef := TListFieldDef(FView.Definition);
@@ -834,6 +835,9 @@ begin
     end;
   end;
 
+  FListBox.ShowCheckboxes := True;
+  FListBox.OnChangeCheck := DoOnChangeCheck;
+
   vInteractor := TInteractor(FView.Interactor);
 
   FEntityList := TEntityList.Create(vInteractor.Domain, vInteractor.Session);
@@ -842,11 +846,10 @@ end;
 procedure TFMXEntityListSelectorMTM.FillList;
 var
   i: Integer;
-  vItem: TCheckBox;
+  vItem: TListBoxItem;
   vSelectedList: TEntityList;
   vList: TList<TEntity>;
   vSelectedIndex: Integer;
-  vLastPos: Single;
   vEntity, vParentParameter: TEntity;
 begin
   TDomain(FDomain).GetEntityList(FView.Session, FTransitDefinition, FEntityList, '');
@@ -857,7 +860,9 @@ begin
     for i := 0 to vSelectedList.Count - 1 do
       vList.Add(vSelectedList[i].ExtractEntity(FTransitFieldDef.Name));
 
-    FListBox.DeleteChildren;
+    while FListBox.Items.Count > 0 do
+      FListBox.Items.Delete(0);
+
     vParentParameter := nil;
     if FView.ParentDomainObject is TEntity then
     begin
@@ -867,17 +872,13 @@ begin
       else
         vParentParameter := nil;
     end;
-    vLastPos := 0;
     for i := 0 to FEntityList.Count - 1 do
     begin
       vEntity := FEntityList[i];
       if Assigned(vParentParameter) and (vEntity.ExtractEntity(FFilterName) <> vParentParameter) then
         Continue;
 
-      vItem := TCheckBox.Create(nil);
-      vItem.Align := TAlignLayout.Top;
-      vItem.Position.Y := vLastPos;
-      vLastPos := vItem.Position.Y + vItem.Height + 1;
+      vItem := TListBoxItem.Create(FListBox);
 
       if not Assigned(FCreateParams) or (FCreateParams.Values['DisplayName'] = '') then
         vItem.Text := vEntity.DisplayName
@@ -891,7 +892,6 @@ begin
       else
         vItem.TagObject := FEntityList[i];
 
-      vItem.OnChange := OnClickCheck;
       FListBox.AddObject(vItem);
     end;
 
@@ -900,12 +900,11 @@ begin
   end;
 end;
 
-procedure TFMXEntityListSelectorMTM.OnClickCheck(Sender: TObject);
+procedure TFMXEntityListSelectorMTM.DoOnChangeCheck(Sender: TObject);
 var
   vEntity: TEntity;
-  vItem: TCheckBox absolute Sender;
+  vItem: TListBoxItem absolute Sender;
 begin
-  if not Assigned(FListBox.Children) then Exit;
 
   vEntity := TEntity(vItem.TagObject);
 
@@ -937,16 +936,12 @@ begin
 end;
 
 procedure TFMXEntityListSelectorMTM.SwitchChangeHandlers(const AHandler: TNotifyEvent);
-var
-  i: Integer;
 begin
   inherited;
   if Assigned(AHandler) then
-    for i := 0 to FListBox.ChildrenCount - 1 do
-      TCheckBox(FListBox.Children[i]).OnChange := OnClickCheck
+    FListBox.OnChangeCheck := DoOnChangeCheck
   else
-    for i := 0 to FListBox.ChildrenCount - 1 do
-      TCheckBox(FListBox.Children[i]).OnChange := nil;
+    FListBox.OnChangeCheck := nil;
 end;
 
 procedure TFMXEntityListSelectorMTM.UpdateArea(const AKind: Word; const AParameter: TEntity);
@@ -958,7 +953,9 @@ end;
 
 function TFMXEntityListSelector.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FListBox := TGroupBox.Create(nil);
+  FListBox := TListBox.Create(nil);
+  FListBox.ShowCheckboxes := True;
+  FListBox.OnChangeCheck := DoOnChangeCheck;
   Result := FListBox;
   FEntityList := nil;
 end;
@@ -968,16 +965,16 @@ var
   i: Integer;
   vList: TListField;
   vHolder: TObject;
-  vItem: TCheckBox;
+  vItem: TListBoxItem;
 begin
   vList := FView.ExtractListField;
   if not Assigned(vList) then
     Exit;
 
   vHolder := FOwner.Holder;
-  for i := 0 to FListBox.ChildrenCount - 1 do
+  for i := 0 to FListBox.Count - 1 do
   begin
-    vItem := TCheckBox(FListBox.Children[i]);
+    vItem := TListBoxItem(FListBox.ItemByIndex(i));
     if vItem.IsChecked then
       vList.LinkListEntity(vHolder, TEntity(vItem.TagObject))
     else
@@ -988,8 +985,7 @@ end;
 procedure TFMXEntityListSelector.FillEditor;
 var
   i: Integer;
-  vLastPos: Single;
-  vItem: TCheckBox;
+  vItem: TListBoxItem;
   vInteractor: TInteractor;
   vList: TListField;
 begin
@@ -1004,37 +1000,29 @@ begin
 
   vList.GetAllEntitiesForSelect(TInteractor(FView.Interactor).Session, FEntityList);
 
-  FListBox.DeleteChildren;
-  vLastPos := 0;
+  while FListBox.Items.Count > 0 do
+    FListBox.Items.Delete(0);
 
   for i := 0 to FEntityList.Count - 1 do
   begin
-    vItem := TCheckBox.Create(nil);
+    vItem := TListBoxItem.Create(nil);
     vItem.Text := SafeDisplayName(FEntityList[i]);
-    vItem.Align := TAlignLayout.Top;
-    vItem.Position.Y := vLastPos;
-    vLastPos := vItem.Position.Y + vItem.Height + 1;
     vItem.TagObject := FEntityList[i];
     vItem.IsChecked := vList.Contains(FEntityList[i]);
-    vItem.OnChange := OnClickCheck;
     FListBox.AddObject(vItem);
   end;
 end;
 
 procedure TFMXEntityListSelector.SwitchChangeHandlers(const AHandler: TNotifyEvent);
-var
-  i: integer;
 begin
   inherited;
   if Assigned(AHandler) then
-    for i := 0 to FListBox.ChildrenCount - 1 do
-      TCheckBox(FListBox.Children[i]).OnChange := OnClickCheck
+    FListBox.OnChangeCheck := DoOnChangeCheck
   else
-    for i := 0 to FListBox.ChildrenCount - 1 do
-      TCheckBox(FListBox.Children[i]).OnChange := nil;
+    FListBox.OnChangeCheck := nil;
 end;
 
-procedure TFMXEntityListSelector.OnClickCheck(Sender: TObject);
+procedure TFMXEntityListSelector.DoOnChangeCheck(Sender: TObject);
 begin
   DoOnChange;
 end;
@@ -1045,7 +1033,7 @@ procedure TFMXEntityListSelector3.FillLookupList;
 var
   vCollection: TCollection;
   vLookupItem: TEntity;
-  vItem: TCheckBox;
+  vItem: TListBoxItem;
   vLastPos: Single;
 
   function IsChanged: Boolean;
@@ -1055,8 +1043,8 @@ var
     if vCollection.Count <> FListBox.ChildrenCount then
       Exit(True);
 
-    for i := 0 to FListBox.ChildrenCount - 1 do
-      if FListBox.Children[i].TagObject <> vCollection[i] then
+    for i := 0 to FListBox.Count - 1 do
+      if FListBox.ItemByIndex(i).TagObject <> vCollection[i] then
         Exit(True);
 
     Result := False;
@@ -1070,31 +1058,31 @@ begin
   if not IsChanged then
     Exit;
 
-  FListBox.DeleteChildren;
+  while FListBox.Items.Count > 0 do
+    FListBox.Items.Delete(0);
+
   vLastPos := 0;
 
   for vLookupItem in vCollection do
   begin
-    vItem := TCheckBox.Create(nil);
-    vItem.Align := TAlignLayout.Top;
-    vItem.Position.Y := vLastPos;
-    vLastPos := vItem.Position.Y + vItem.Height + 1;
+    vItem := TListBoxItem.Create(FListBox);
     vItem.Text := SafeDisplayName(vLookupItem);
     vItem.TagObject := vLookupItem;
-    vItem.OnChange := OnClickCheck;
     FListBox.AddObject(vItem);
   end;
 end;
 
 function TFMXEntityListSelector3.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
-  FListBox := TGroupBox.Create(nil);
+  FListBox := TListBox.Create(nil);
   Result := FListBox;
   FMasterList := TEntityList(FView.DomainObject);
   FLookupCollection := TDefinition(FView.Definition).Name;
   Assert(Assigned(FCreateParams) and (FCreateParams.IndexOfName('lookupfield') > -1), 'не задан параметер lookupfield');
   FLookupField := FCreateParams.Values['lookupfield'];
   FDestroing := False;
+  FListBox.ShowCheckboxes := True;
+  FListBox.OnChangeCheck := DoOnChangeCheck;
 end;
 
 procedure TFMXEntityListSelector3.DoDisableContent;
@@ -1103,14 +1091,10 @@ begin
   FDestroing := True;
 end;
 
-procedure TFMXEntityListSelector3.DoOnChange;
-begin
-end;
-
 procedure TFMXEntityListSelector3.FillEditor;
 var
   i: Integer;
-  vItem: TCheckBox;
+  vItem: TListBoxItem;
   vLookupItem: TEntity;
 begin
   if FDestroing then
@@ -1118,9 +1102,9 @@ begin
 
   FillLookupList;
 
-  for i := 0 to FListBox.ChildrenCount - 1 do
+  for i := 0 to FListBox.Count - 1 do
   begin
-    vItem := TCheckBox(FListBox.Children[i]);
+    vItem := FListBox.ItemByIndex((i));
     vLookupItem := TEntity(vItem.TagObject);
     vItem.IsChecked := FindMasterItem(vLookupItem) <> nil;
   end;
@@ -1137,17 +1121,17 @@ begin
   Result := nil;
 end;
 
-procedure TFMXEntityListSelector3.OnClickCheck(Sender: TObject);
+procedure TFMXEntityListSelector3.DoOnChangeCheck(Sender: TObject);
 var
   vHolder: TObject;
   vMasterItem, vLookupItem: TEntity;
 begin
   vHolder := FOwner.Holder;
 
-  vLookupItem := TEntity(TCheckBox(Sender).TagObject);
+  vLookupItem := TEntity(TListBoxItem(Sender).TagObject);
   vMasterItem := FindMasterItem(vLookupItem);
 
-  if TCheckBox(Sender).IsChecked then
+  if TListBoxItem(Sender).IsChecked then
   begin
     if not Assigned(vMasterItem) then
     begin
@@ -1165,11 +1149,9 @@ var
 begin
   inherited;
   if Assigned(AHandler) then
-    for i := 0 to FListBox.ChildrenCount - 1 do
-      TCheckBox(FListBox.Children[i]).OnChange := OnClickCheck
+    FListBox.OnChangeCheck := DoOnChangeCheck
   else
-    for i := 0 to FListBox.ChildrenCount - 1 do
-      TCheckBox(FListBox.Children[i]).OnChange := nil;
+    FListBox.OnChangeCheck := nil;
 end;
 
 initialization

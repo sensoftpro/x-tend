@@ -55,10 +55,8 @@ type
   private
     FDisplayFlagCount: Integer;
     FCaptions: TStrings;
-    FHorizontal: Boolean;
-    FItemWidth: Single;
     procedure FillList;
-    procedure DoOnClick(Sender: TObject);
+    procedure DoOnChangeCheck(Sender: TObject);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure DoBeforeFreeControl; override;
@@ -502,20 +500,17 @@ end;
 
 { TFMXIntegerFlagsEditor }
 
-procedure TFMXIntegerFlagsEditor.DoOnClick(Sender: TObject);
+procedure TFMXIntegerFlagsEditor.DoOnChangeCheck(Sender: TObject);
 var
   i: Integer;
   vFlagsValue: Integer;
-  vListItem: TCheckBox;
+  vListItem: TListBoxItem;
 begin
   vFlagsValue := 0;
 
-  if not Assigned(TPanel(FControl).Children) then 
-    Exit;
-
-  for i := 0 to TPanel(FControl).Children.Count - 1 do
+  for i := 0 to TListBox(FControl).Count - 1 do
   begin
-    vListItem := TCheckBox(TPanel(FControl).Children[i]);
+    vListItem := TListBox(FControl).ItemByIndex(i);
     if vListItem.IsChecked then
       vFlagsValue := vFlagsValue or Integer(vListItem.Tag);
   end;
@@ -530,10 +525,15 @@ begin
 end;
 
 function TFMXIntegerFlagsEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  i, vBit: integer;
+  vListItem: TListBoxItem;
 begin
-  Result := TPanel.Create(nil);
+  Result := TListBox.Create(nil);
+  TListBox(Result).ShowCheckboxes := True;
+  TListBox(Result).ShowScrollBars := False;
+  TListBox(Result).OnChangeCheck := DoOnChangeCheck;
 
-  FHorizontal := False;
   FDisplayFlagCount := 8;
 
   if Assigned(FCreateParams) then
@@ -541,71 +541,55 @@ begin
     FDisplayFlagCount := Min(32, StrToIntDef(FCreateParams.Values['DisplayFlagCount'], 8));
     if FCreateParams.IndexOfName('ItemCaptions') > -1 then
       FCaptions := CreateDelimitedList(FCreateParams.Values['ItemCaptions'], ';');
-    FHorizontal := StrToIntDef(FCreateParams.Values['HorzLayout'], 0) = 1;
+    TListBox(Result).ListStyle := TListStyle(StrToIntDef(FCreateParams.Values['HorzLayout'], 0));
   end;
 
-  if FHorizontal then
-    FItemWidth := ALayout.Width / FDisplayFlagCount;
-end;
+  if TListBox(Result).ListStyle = TListStyle.Horizontal then
+    TListBox(Result).ItemWidth := ALayout.Width / FDisplayFlagCount;
 
-procedure TFMXIntegerFlagsEditor.FillEditor;
-begin
-  FillList;
-  TPanel(FControl).Enabled := FView.State >= vsSelectOnly;
-end;
 
-procedure TFMXIntegerFlagsEditor.FillList;
-var
-  vListItem: TCheckBox;
-  vBits, vBit: Integer;
-  vLastPos: Single;
-  i: Integer;
-begin
-  vBits := FView.FieldValue;
-  vLastPos := 0;
-
-  TPanel(FControl).DeleteChildren;
   for i := 0 to FDisplayFlagCount - 1 do
   begin
-    vListItem := TCheckBox.Create(nil);
-    if FHorizontal then
-    begin
-      vListItem.Align := TAlignLayout.Left;
-      vListItem.Position.X := vLastPos;
-      vListItem.Width := FItemWidth;
-      vLastPos := vListItem.Position.X + vListItem.Width + 1;
-    end else
-    begin
-      vListItem.Align := TAlignLayout.Top;
-      vListItem.Position.Y := vLastPos;
-      vLastPos := vListItem.Position.Y + vListItem.Height + 1;
-    end;
+    vListItem := TListBoxItem.Create(TControl(Result));
     if Assigned(FCaptions) and (i < FCaptions.Count) then
       vListItem.Text := FCaptions[i]
     else
       vListItem.Text := IntToStr(i);
     vBit := 1 shl i;
     vListItem.Tag := vBit;
+    TListBox(Result).AddObject(vListItem);
+  end;
+end;
+
+procedure TFMXIntegerFlagsEditor.FillEditor;
+begin
+  FillList;
+  TListBox(FControl).Enabled := FView.State >= vsSelectOnly;
+end;
+
+procedure TFMXIntegerFlagsEditor.FillList;
+var
+  vListItem: TListBoxItem;
+  vBits: Integer;
+  i: Integer;
+begin
+  vBits := FView.FieldValue;
+
+  for i := 0 to TListBox(FControl).Count - 1 do
+  begin
+    vListItem := TListBox(FControl).ItemByIndex(i);
     vListItem.IsChecked := (vBits and vListItem.Tag) <> 0;
-    vListItem.OnChange := DoOnClick;
-    TPanel(FControl).AddObject(vListItem);
   end;
 end;
 
 procedure TFMXIntegerFlagsEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
-var
-  i: integer;
 begin
   inherited;
 
-  if not Assigned(TPanel(FControl).Children) then Exit;
-
   if Assigned(AHandler) then
-    for i := 0 to TGroupBox(FControl).Children.Count - 1 do
-      TCheckBox(TPanel(FControl).Children[i]).OnChange := DoOnClick
+      TListBox(FControl).OnChangeCheck := DoOnChangeCheck
   else
-    for i := 0 to TGroupBox(FControl).Children.Count - 1 do
-      TCheckBox(TPanel(FControl).Children[i]).OnChange := nil;
+      TListBox(FControl).OnChangeCheck := nil;
 end;
 
 { TFMXEnumEditor }
@@ -631,7 +615,7 @@ begin
 
   if FFieldDef.StyleName = 'radio' then
   begin
-    Result := TGroupBox.Create(nil);
+    Result := TPanel.Create(nil);
     TGroupBox(Result).Name := 'radio';
     TGroupBox(Result).Text := '';
     FNeedCreateCaption := False;
@@ -648,7 +632,7 @@ procedure TFMXEnumEditor.DoBeforeFreeControl;
 begin
   inherited;
   if FFieldDef.StyleName = 'radio' then
-    TGroupBox(FControl).DeleteChildren;
+    TPanel(FControl).Controls.Clear;
 end;
 
 procedure TFMXEnumEditor.DoChange;
@@ -662,7 +646,7 @@ end;
 procedure TFMXEnumEditor.FillEditor;
 var
   vEdit: TComboBox;
-  vRadioEdit: TGroupBox;
+  vRadioEdit: TPanel;
   vItemIndex: Integer;
   vRadioItem: TRadioButton;
 begin
@@ -670,7 +654,7 @@ begin
 
   if FFieldDef.StyleName = 'radio' then
   begin
-    vRadioEdit := TGroupBox(FControl);
+    vRadioEdit := TPanel(FControl);
     if VarIsNull(FView.FieldValue) then
       vRadioEdit.Enabled := False
     else begin
@@ -707,7 +691,7 @@ var
 begin
   if FFieldDef.StyleName = 'radio' then
   begin
-    TGroupBox(FControl).DeleteChildren;
+    TPanel(FControl).Controls.Clear;
     for vEnumItem in FEnum do
       if not FFieldDef.HasFlag(cRequired) or (vEnumItem.ID > 0) then
       begin
@@ -715,7 +699,7 @@ begin
         vRadioItem.Align := TAlignLayout.Top;
         vRadioItem.Text := vEnumItem.DisplayText;
         vRadioItem.OnChange := DoOnClick;
-        TGroupBox(FControl).AddObject(vRadioItem);
+        TPanel(FControl).AddObject(vRadioItem);
       end;
   end
   else
@@ -744,13 +728,13 @@ begin
 
   if FFieldDef.StyleName = 'radio' then
   begin
-    if not Assigned(TGroupBox(FControl).Children) then Exit;
+    if not Assigned(TPanel(FControl).Children) then Exit;
     if Assigned(AHandler) then
-      for i := 0 to TGroupBox(FControl).Children.Count - 1 do
-        TRadioButton(TGroupBox(FControl).Children[i]).OnChange := DoOnClick
+      for i := 0 to TPanel(FControl).Children.Count - 1 do
+        TRadioButton(TPanel(FControl).Children[i]).OnChange := DoOnClick
     else
-      for i := 0 to TGroupBox(FControl).Children.Count - 1 do
-        TRadioButton(TGroupBox(FControl).Children[i]).OnChange := nil;
+      for i := 0 to TPanel(FControl).Children.Count - 1 do
+        TRadioButton(TPanel(FControl).Children[i]).OnChange := nil;
   end else
   begin
     if Assigned(AHandler) then

@@ -1440,6 +1440,7 @@ var
   vContentStream: TStream;
   vStream: TMemoryStream;
   vInclusion: TInclusion;
+  vLayoutExt: string;
 const
   cLegalSymbols = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_#';
 
@@ -1689,8 +1690,9 @@ begin
   else if AActionName = 'ShowStartPage' then
   begin
     vStartPageName := TDomain(AInteractor.Domain).Settings.GetValue('Core', 'StartPage', '');
+    vLayoutExt := IfThen(TPresenter(AInteractor.Presenter).LoadFromDFM, LAYOUT_DFM_EXT, LAYOUT_XTF_EXT);
     if (vStartPageName <> '')
-      and FileExists(TDomain(AInteractor.Domain).Configuration.FindLayoutFile(vStartPageName, LAYOUT_DFM_EXT))
+      and FileExists(TDomain(AInteractor.Domain).Configuration.FindLayoutFile(vStartPageName, vLayoutExt))
     then
       AInteractor.UIBuilder.Navigate(AInteractor.RootView, 'WorkArea', vStartPageName, '', TUserSession(AInteractor.Session).NullHolder);
 

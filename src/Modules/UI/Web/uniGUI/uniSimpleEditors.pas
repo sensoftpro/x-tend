@@ -337,6 +337,8 @@ type
   end;
 
   TUniGUIPagesFieldEditor = class(TUniGUIControl)
+  private
+    FPageControl: TUniPageControl;
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -514,7 +516,6 @@ end;
 procedure TUniGUIIntegerFieldEditor.CLBOnChangeValue(Sender: TObject);
 begin
    FOwner.OnChange(Sender);
-   OutputDebugString('123');
 end;
 
 procedure TUniGUIIntegerFieldEditor.DoBeforeFreeControl;
@@ -1353,7 +1354,8 @@ begin
   if SameText('email', FFieldDef.StyleName) then
     TPresenter(FPresenter).OpenFile('mailto:' + FView.FieldValue)
   else if SameText('url', FFieldDef.StyleName) then
-    TPresenter(FPresenter).OpenFile(FView.FieldValue);
+    FEdit.JSInterface.JSAdd('document.getElementById("'
+    + FLabel.JSId +'").onclick = () => {window.location = "' + FView.FieldValue + '"};');
 end;
 
 procedure TUniGUIMaskFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
@@ -1476,9 +1478,6 @@ begin
 end;
 
 procedure TUniGUIColorPicker.SetParent(const AParent: TUIArea);
-var
-  vButtonLayout: TLayout;
-  vAddArea: TUIArea;
 begin  
   inherited SetParent(AParent);
 end;
@@ -1489,6 +1488,7 @@ var
 begin
 //  TUniColorPalette(FControl).OnChange := AHandler;
   vEdit := TUniColorButton(FControl);
+  vEdit.OnClick := AHandler;
 end;
 
 { TUniGUIBoolImages }
@@ -1658,14 +1658,7 @@ begin
   FProgress.LayoutConfig.Width := '100%';
   FProgress.LayoutConfig.Height := '100%';
   FProgress.Color := AlphaColorToColor(ALayout.Color);
-  FProgress.Text := '';
   FNeedCreateCaption := False;
-
-  UniSession.SetStyle('div#' + FProgress.JSName + '_id-bar {'+
-    '  background-color: ' + uniColor2Web(AlphaColorToColor(ALayout.Color)) +
-    '!important; background-image: none !important;' + '}');
-//  TUniProgressBar(Result).Smooth := True;
-  //TUniProgressBar(Result).Position := 0;
   if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
     FProgress.Max := TSimpleFieldDef(FFieldDef).MaxValue
   else
@@ -1681,10 +1674,6 @@ end;
 procedure TUniGUIProgress.FillEditor;
 begin
   inherited;
-//  with TUniProgressBar(FControl).JSInterface do
-//  begin
-//    JSCall('bar.setStyle', ['background-image', 'none !important']);
-//  end;
   FProgress.Position := FView.FieldValue;
 end;
 
@@ -1692,43 +1681,44 @@ end;
 
 function TUniGUIPagesFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
-  vPC: TUniPageControl;
   vHideTabs: Boolean;
   vTabSheet: TUniTabSheet;
   i: Integer;
 begin
   FNeedCreateCaption := False;
 
-  vPC := TUniPageControl.Create(ExtractOwner(AParent));
-  Result := vPC;
-  vPC.DoubleBuffered := True;
-  vPC.Width := ALayout.Width;
-  vPC.Height := ALayout.Height;
-
-  vPC.Align := TAlign(ALayout.Align);
-  CopyMargins(vPC, ALayout);
-  vPC.Anchors := ALayout.Anchors;
+  FPageControl := TUniPageControl.Create(ExtractOwner(AParent));
+  FPageControl.DoubleBuffered := True;
+  Result := FPageControl;
+  FPageControl.Align := TAlign(ALayout.Align);
+  CopyMargins(FPageControl, ALayout);
+  FPageControl.Anchors := ALayout.Anchors;
   if (ALayout.Page_Style <> psTabs) and (ALayout.Items.Count > 0) then
   begin
-    vPC.Left := ALayout.Left + ALayout.Items[0].Left;
-    vPC.Top := ALayout.Top + ALayout.Items[0].Top;
+    FPageControl.Left := ALayout.Left + ALayout.Items[0].Left;
+    FPageControl.Top := ALayout.Top + ALayout.Items[0].Top;
   end
   else begin
-    vPC.Left := ALayout.Left;
-    vPC.Top := ALayout.Top;
+    FPageControl.Left := ALayout.Left;
+    FPageControl.Top := ALayout.Top;
   end;
 
   vHideTabs := not ALayout.ShowCaption or ((ALayout.Items.Count > 0) and not ALayout.Items[0].ShowCaption);
   if not vHideTabs then
   begin
-    vPC.AutoSize := False;
-    vPC.Height := ALayout.Page_Height;
+    FPageControl.AutoSize := False;
+    FPageControl.Height := ALayout.Page_Height;
   end;
 
   for i := 0 to ALayout.Items.Count - 1 do
   begin
-    vTabSheet := TUniTabSheet(vPC);
-    vTabSheet.TabVisible := False;
+    vTabSheet := TUniTabSheet(FPageControl);
+    vTabSheet.Caption := ALayout.Caption;
+    vTabSheet.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+
+    vTabSheet.TabVisible := ALayout.ShowCaption;
+
+//    vTabSheet.TabVisible := False;
   end;
 end;
 
@@ -1757,13 +1747,13 @@ begin
       vTag := -1;
   end;
 
-  if (vTag < TUniPageControl(FControl).PageCount) and (TUniPageControl(FControl).ActivePageIndex <> vTag) then
-    TUniPageControl(FControl).ActivePageIndex := vTag;
+  if (vTag < FPageControl.PageCount) and (FPageControl.ActivePageIndex <> vTag) then
+    FPageControl.ActivePageIndex := vTag;
 end;
 
 procedure TUniGUIPagesFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
 begin
-  TUniPageControl(FControl).OnChange := AHandler;
+  FPageControl.OnChange := AHandler;
 end;
 
 { TUniGUIImageViewer }
@@ -1869,7 +1859,6 @@ begin
   FListBox.OnClick := CLBOnClickCheck;
   FListBox.MultiSelect := True;
   FDisplayFlagCount := 8;
-
 end;
 
 procedure TUniGUIIntegerFlagsEditor.DoOnChange;
@@ -2252,6 +2241,8 @@ initialization
   TPresenter.RegisterControlClass('Web.UniGUI', uiIntegerEdit, 'info', TUniGUITextInfo);
   TPresenter.RegisterControlClass('Web.UniGUI', uiIntegerEdit, 'gauge', TUniGUIGauge);
   TPresenter.RegisterControlClass('Web.UniGUI', uiIntegerEdit, 'pages', TUniGUIPagesFieldEditor);
+  TPresenter.RegisterControlClass('Web.UniGUI', uiIntegerEdit, 'spinner', TUniGUISpinner);
+  TPresenter.RegisterControlClass('Web.UniGUI', uiIntegerEdit, 'progress', TUniGUIProgress);
   TPresenter.RegisterControlClass('Web.UniGUI', uiFloatEdit, '', TUniGUIFloatFieldEditor);
   TPresenter.RegisterControlClass('Web.UniGUI', uiFloatEdit, 'currency_rate', TUniGUIFloatFieldEditor);
   TPresenter.RegisterControlClass('Web.UniGUI', uiFloatEdit, 'info', TUniGUITextInfo);
@@ -2273,14 +2264,12 @@ initialization
   TPresenter.RegisterControlClass('Web.UniGUI', uiBoolEdit, 'images', TUniGUIBoolImages);
   TPresenter.RegisterControlClass('Web.UniGUI', uiBoolEdit, 'selected_caption', TUniGUISelectedCaptionBoolFieldEditor);
   TPresenter.RegisterControlClass('Web.UniGUI', uiBoolEdit, 'pages', TUniGUIPagesFieldEditor);
-  TPresenter.RegisterControlClass('Web.UniGUI', uiIntegerEdit, 'spinner', TUniGUISpinner);
-  TPresenter.RegisterControlClass('Web.UniGUI', uiIntegerEdit, 'progress', TUniGUIProgress);
   TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'info', TUniGUITextInfo);
   TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'pages', TUniGUIPagesFieldEditor);
+  TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'enum', TUniGUIEnumFieldEditor);
   TPresenter.RegisterControlClass('Web.UniGUI', uiBLOBEdit, 'image', TUniGUIImageViewer);
   TPresenter.RegisterControlClass('Web.UniGUI', uiFlagEdit, '', TUniGUIFlagsEditor);
   TPresenter.RegisterControlClass('Web.UniGUI', uiIntegerEdit, 'flags', TUniGUIIntegerFlagsEditor);
-  //TPresenter.RegisterControlClass('Windows.VCL', uiColorEdit, '', TVCLColorEditor);
-  TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'enum', TUniGUIEnumFieldEditor);
+  TPresenter.RegisterControlClass('Web.UniGUI', uiColorEdit, '', TUniGUIColorPicker);
   TPresenter.RegisterControlClass('Web.UniGUI', uiColorEdit, 'simple', TUniGUIColorPicker);
 end.

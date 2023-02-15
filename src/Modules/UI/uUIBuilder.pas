@@ -437,7 +437,7 @@ begin
 
   Result := TLayout.Create(ALayoutKind);
   Result.Presenter := FUIBuilder.Presenter;
-  if ALayoutKind = lkPanel then
+  if ALayoutKind in [lkPanel, lkFrame] then
   begin
     Result.Font.Size := 10;
     Result.Font.Color := ColorToAlphaColor(TColorRec.SysWindowText);
@@ -496,7 +496,7 @@ begin
   end;
 
   vCanLoadFromDFM := TPresenter(FUIBuilder.Presenter).LoadFromDFM;
-  vLayoutExt := IfThen(vCanLoadFromDFM, LAYOUT_DFM_EXT, '.jlt');
+  vLayoutExt := IfThen(vCanLoadFromDFM, LAYOUT_DFM_EXT, LAYOUT_XTF_EXT);
 
   vFileName := TDomain(FUIBuilder.Domain).Configuration.FindLayoutFile(ALayoutName, vLayoutExt, vPostfix);
   if vFileName = '' then
@@ -517,7 +517,7 @@ begin
     if vCanLoadFromDFM then
     begin
       Result := MakeLayoutFromFile(vFileName);
-      Result.Save(ChangeFileExt(vFileName, '.jlt'));
+      Result.Save(ChangeFileExt(vFileName, '.xtf'));
     end
     else begin
       Result := TLayout.Create(lkNone);
@@ -775,7 +775,7 @@ end;
 
 procedure TUIBuilder.GetLayoutName(const AEntity: TEntity; const AParams: string; var ALayoutName: string);
 var
-  vLayout, vOperation, vDefValue: string;
+  vLayout, vOperation, vDefValue, vLayoutExt: string;
 
   function GetPostfix: string;
   begin
@@ -831,7 +831,8 @@ begin
     if Length(AEntity.Definition.LayoutMask) > 0 then
       vLayout := GetFromLayoutPath(AEntity.Definition.LayoutMask);
 
-    if (vLayout = '') or (not FileExists(TDomain(FDomain).Configuration.FindLayoutFile(vLayout, LAYOUT_DFM_EXT))) then
+    vLayoutExt := IfThen(TPresenter(Presenter).LoadFromDFM, LAYOUT_DFM_EXT, LAYOUT_XTF_EXT);
+    if (vLayout = '') or (not FileExists(TDomain(FDomain).Configuration.FindLayoutFile(vLayout, vLayoutExt))) then
       vLayout := AEntity.Definition.Name + GetPostfix;
   end;
 

@@ -91,6 +91,7 @@ const
 const
   // UI
   LAYOUT_DFM_EXT = '.dfm';
+  LAYOUT_XTF_EXT = '.xtf';
   cFormResizable = 1;
   cFormPositionDesign = 2;
   cFormDisableMinimizeButton = 4;

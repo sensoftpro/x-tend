@@ -1232,6 +1232,8 @@ var
   vEntity: TEntity;
   vFieldDef: TFieldDef;
 begin
+  TThread.Current.NameThreadForDebugging('Main (Domain)');
+
   Preload(FStorage);
   Load(FStorage);
   FActualLogID := FStorage.GetLastLogID;

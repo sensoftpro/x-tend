@@ -318,7 +318,7 @@ type
 implementation
 
 uses
-  Math, IOUtils, uUtils, uPlatform, uConfiguration, uDomain, uEntity, uEntityList, uChangeManager;
+  Math, IOUtils, StrUtils, uUtils, uPlatform, uConfiguration, uDomain, uEntity, uEntityList, uChangeManager;
 
 type
   TLoginedProc = procedure(const AInteractor: TInteractor) of object;
@@ -687,6 +687,7 @@ var
   vStartPageName: string;
   vStartPageStr: string;
   vParams: TStrings;
+  vLayoutExt: string;
 begin
   vInteractor := TInteractor(AView.Interactor);
   vDomain := TDomain(vInteractor.Domain);
@@ -715,7 +716,8 @@ begin
         vStartPageStr := vDomain.Settings.GetValue('Core', 'StartPage', '');
 
         vStartPageName := GetUrlCommand(vStartPageStr);
-        if Assigned(vParams) and (vStartPageName <> '') and FileExists(vDomain.Configuration.FindLayoutFile(vStartPageName, LAYOUT_DFM_EXT)) then
+        vLayoutExt := IfThen(LoadFromDFM, LAYOUT_DFM_EXT, LAYOUT_XTF_EXT);
+        if Assigned(vParams) and (vStartPageName <> '') and FileExists(vDomain.Configuration.FindLayoutFile(vStartPageName, vLayoutExt)) then
         begin
           vParams.Values['Layout'] := vStartPageName;
           vParams.Values['View'] := '';

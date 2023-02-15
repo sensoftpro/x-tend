@@ -210,6 +210,7 @@ begin
     if Assigned(FCurrentTask) then
     begin
       //Notify('takes a task');
+      TThread.Current.NameThreadForDebugging(FCurrentTask.Name);
       FEngine.AcquireThread;
       try
         FCurrentTask.ExecuteAsync;

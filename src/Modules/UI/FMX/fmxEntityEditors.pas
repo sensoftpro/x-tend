@@ -277,6 +277,9 @@ procedure TFMXEntitySelector.DoOnChange;
 var
   vEntity: TEntity;
 begin
+  if TComboBox(FControl).ItemIndex = -1 then
+    Exit;
+
   vEntity := TEntity(TComboBox(FControl).Items.Objects[TComboBox(FControl).ItemIndex]);
   SetFieldEntity(vEntity);
 end;

@@ -1,0 +1,11 @@
+.x-panel-body-default {
+    background: none;
+}
+
+.x-progress-default .x-progress-bar-default {
+    background: rgb(40,210,0);
+    background: -moz-linear-gradient(180deg, rgba(40,210,0,0.6) 0%, rgba(41,211,1,1) 100%);
+    background: -webkit-linear-gradient(180deg, rgba(40,210,0,0.6) 0%, rgba(41,211,1,1) 100%);
+    background: linear-gradient(180deg, rgba(40,210,0,0.6) 0%, rgba(41,211,1,1) 100%);
+    filter: progid:DXImageTransform.Microsoft.gradient(startColorstr="#28d200",endColorstr="#29d301",GradientType=1);
+}
