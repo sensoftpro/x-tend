@@ -116,9 +116,22 @@ type
     procedure DoDeinit; override;
   end;
 
-  TDERadioEntitySelector = class(TDEControl)
+  TDERadioEntitySelector = class(TDEControl)  // сделан на TRadioGroup, в верхней части большой отступ для заголовка, когда нет заголовка элементы криво смотрятся (много пустого места сверху)
   private
     FEntities: TEntityList;
+    procedure FillList;
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoBeforeFreeControl; override;
+    procedure FillEditor; override;
+    procedure DoOnChange; override;
+    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+  end;
+
+  TDERadioEntitySelector2 = class(TDEControl) // сделан на TPanel с инстанцируемыми TRadioButton чтобы избавиться от пустого места сверху
+  private
+    FEntities: TEntityList;
+    procedure OnChange(Sender: TObject);
     procedure FillList;
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
@@ -1191,15 +1204,12 @@ begin
     for i := 0 to FEntities.Count - 1 do
     begin
       vEnt := FEntities[i];
-      if Assigned(vEnt) then
-      begin
-        vRadioItem := vRadioItems.Add;
-        vRadioItem.Caption := vEnt.DisplayName;
-        vRadioItem.Tag := NativeInt(vEnt);
-        if vEnt = TEntity(NativeInt(FView.FieldValue)) then
-          TcxRadioGroup(FControl).ItemIndex := TcxRadioGroup(FControl).Properties.Items.Count - 1;
-      end;
-      //todo: обработать <не задано> если нужно
+
+      vRadioItem := vRadioItems.Add;
+      vRadioItem.Caption := SafeDisplayName(vEnt);
+      vRadioItem.Tag := NativeInt(vEnt);
+      if vEnt = TEntity(NativeInt(FView.FieldValue)) then
+        TcxRadioGroup(FControl).ItemIndex := TcxRadioGroup(FControl).Properties.Items.Count - 1;
     end;
   finally
     vRadioItems.EndUpdate;
@@ -1493,6 +1503,102 @@ begin
   end;
 end;
 
+{ TDERadioEntitySelector2 }
+
+procedure TDERadioEntitySelector2.DoBeforeFreeControl;
+begin
+  inherited;
+  FreeAndNil(FEntities);
+end;
+
+function TDERadioEntitySelector2.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+begin
+  Result := TPanel.Create(nil);
+  TPanel(Result).Name := 'radio';
+  TPanel(Result).Caption := '';
+  TPanel(Result).BevelOuter := bvNone;
+  FNeedCreateCaption := False;
+
+  FEntities := TEntityList.Create(TInteractor(FView.Interactor).Domain, TInteractor(FView.Interactor).Session);
+end;
+
+procedure TDERadioEntitySelector2.DoOnChange;
+begin
+end;
+
+procedure TDERadioEntitySelector2.FillEditor;
+var
+  vRadioEdit: TPanel;
+begin
+  FillList;
+
+  vRadioEdit := TPanel(FControl);
+  if VarIsNull(FView.FieldValue) or (FView.FieldValue = 0) then
+  begin
+    // do nothing
+  end
+  else
+  begin
+    vRadioEdit.Enabled := FView.State > vsSelectOnly;
+
+    if vRadioEdit.Enabled then
+      vRadioEdit.TabStop := FOwner.TabStop
+    else
+      vRadioEdit.TabStop := False;
+  end;
+end;
+
+procedure TDERadioEntitySelector2.FillList;
+var
+  vRadioEdit: TPanel;
+  vRadioItem: TcxRadioButton;
+  vField: TEntityField;
+  i: Integer;
+  vEnt: TEntity;
+  vStepSize: Integer;
+begin
+  vField := FView.ExtractEntityField;
+  vField.GetEntitiesForSelect(TInteractor(FView.Interactor).Session, FEntities);
+
+  vRadioEdit := TPanel(FControl);
+
+  while vRadioEdit.ControlCount > 0 do
+    vRadioEdit.Controls[0].Free;
+
+  vStepSize := vRadioEdit.Height div FEntities.Count;
+
+  for i := 0 to FEntities.Count - 1 do
+  begin
+    vEnt := FEntities[i];
+
+    vRadioItem := TcxRadioButton.Create(nil);
+    vRadioItem.Parent := vRadioEdit;
+    vRadioItem.Caption := SafeDisplayName(vEnt);
+    vRadioItem.Tag := NativeInt(vEnt);
+    vRadioItem.Top := vStepSize * i;
+    vRadioItem.OnClick := OnChange;
+    if vEnt = TEntity(NativeInt(FView.FieldValue)) then
+      vRadioItem.Checked := True;
+  end;
+end;
+
+procedure TDERadioEntitySelector2.OnChange(Sender: TObject);
+begin
+  SetFieldEntity(TEntity(TcxRadioButton(Sender).Tag));
+end;
+
+procedure TDERadioEntitySelector2.SwitchChangeHandlers(const AHandler: TNotifyEvent);
+var
+  i: Integer;
+  vRadioEdit: TPanel;
+begin
+  vRadioEdit := TPanel(FControl);
+  for i := 0 to vRadioEdit.ControlCount - 1 do
+    if Assigned(AHandler) then
+      TcxRadioButton(vRadioEdit.Controls[i]).OnClick := OnChange
+    else
+      TcxRadioButton(vRadioEdit.Controls[i]).OnClick := nil;
+end;
 
 initialization
 
@@ -1502,6 +1608,6 @@ TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'list', TDEL
 TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'link', TDELinkedEntityFieldEditor);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'select', TDEEntitySelector);
 TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'fieldlist', TDEEntityFieldListEditor);
-TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'radio', TDERadioEntitySelector);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'radio', TDERadioEntitySelector2);
 
 end.

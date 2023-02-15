@@ -108,9 +108,22 @@ type
     procedure DoDeinit; override;
   end;
 
-  TVCLRadioEntitySelector = class(TVCLControl)
+  TVCLRadioEntitySelector = class(TVCLControl) // сделан на TRadioGroup, в верхней части большой отступ для заголовка, когда нет заголовка элементы криво смотрятся (много пустого места сверху)
   private
     FEntities: TEntityList;
+    procedure FillList;
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoBeforeFreeControl; override;
+    procedure FillEditor; override;
+    procedure DoOnChange; override;
+    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+  end;
+
+  TVCLRadioEntitySelector2 = class(TVCLControl) // сделан на TPanel с инстанцируемыми TRadioButton чтобы избавиться от пустого места сверху
+  private
+    FEntities: TEntityList;
+    procedure OnChange(Sender: TObject);
     procedure FillList;
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
@@ -464,6 +477,7 @@ begin
   Result := TRadioGroup.Create(nil);
   TRadioGroup(Result).Name := 'radio';
   TRadioGroup(Result).Caption := '';
+  TRadioGroup(Result).ShowFrame := False;
   FNeedCreateCaption := False;
 
   FEntities := TEntityList.Create(TInteractor(FView.Interactor).Domain, TInteractor(FView.Interactor).Session);
@@ -513,13 +527,9 @@ begin
     for i := 0 to FEntities.Count - 1 do
     begin
       vEnt := FEntities[i];
-      if Assigned(vEnt) then
-      begin
-        vRadioItems.AddObject(vEnt.DisplayName, vEnt);
-        if vEnt = TEntity(NativeInt(FView.FieldValue)) then
-          TRadioGroup(FControl).ItemIndex := TRadioGroup(FControl).Items.Count - 1;
-      end;
-      //todo: обработать <не задано> если нужно
+      vRadioItems.AddObject(SafeDisplayName(vEnt), vEnt);
+      if vEnt = TEntity(NativeInt(FView.FieldValue)) then
+        TRadioGroup(FControl).ItemIndex := TRadioGroup(FControl).Items.Count - 1;
     end;
   finally
     vRadioItems.EndUpdate;
@@ -680,12 +690,109 @@ begin
   end;
 end;
 
+{ TVCLRadioEntitySelector2 }
+
+procedure TVCLRadioEntitySelector2.DoBeforeFreeControl;
+begin
+  inherited;
+  FreeAndNil(FEntities);
+end;
+
+function TVCLRadioEntitySelector2.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+begin
+  Result := TPanel.Create(nil);
+  TPanel(Result).Name := 'radio';
+  TPanel(Result).Caption := '';
+  TPanel(Result).BevelOuter := bvNone;
+  FNeedCreateCaption := False;
+
+  FEntities := TEntityList.Create(TInteractor(FView.Interactor).Domain, TInteractor(FView.Interactor).Session);
+end;
+
+procedure TVCLRadioEntitySelector2.DoOnChange;
+begin
+end;
+
+procedure TVCLRadioEntitySelector2.FillEditor;
+var
+  vRadioEdit: TPanel;
+begin
+  FillList;
+
+  vRadioEdit := TPanel(FControl);
+  if VarIsNull(FView.FieldValue) or (FView.FieldValue = 0) then
+  begin
+    // do nothing
+  end
+  else
+  begin
+    vRadioEdit.Enabled := FView.State > vsSelectOnly;
+
+    if vRadioEdit.Enabled then
+      vRadioEdit.TabStop := FOwner.TabStop
+    else
+      vRadioEdit.TabStop := False;
+  end;
+end;
+
+procedure TVCLRadioEntitySelector2.FillList;
+var
+  vRadioEdit: TPanel;
+  vRadioItem: TRadioButton;
+  vField: TEntityField;
+  i: Integer;
+  vEnt: TEntity;
+  vStepSize: Integer;
+begin
+  vField := FView.ExtractEntityField;
+  vField.GetEntitiesForSelect(TInteractor(FView.Interactor).Session, FEntities);
+
+  vRadioEdit := TPanel(FControl);
+
+  while vRadioEdit.ControlCount > 0 do
+    vRadioEdit.Controls[0].Free;
+
+  vStepSize := vRadioEdit.Height div FEntities.Count;
+
+  for i := 0 to FEntities.Count - 1 do
+  begin
+    vEnt := FEntities[i];
+
+    vRadioItem := TRadioButton.Create(nil);
+    vRadioItem.Parent := vRadioEdit;
+    vRadioItem.Caption := SafeDisplayName(vEnt);
+    vRadioItem.Tag := NativeInt(vEnt);
+    vRadioItem.Top := vStepSize * i;
+    vRadioItem.OnClick := OnChange;
+    if vEnt = TEntity(NativeInt(FView.FieldValue)) then
+      vRadioItem.Checked := True;
+  end;
+end;
+
+procedure TVCLRadioEntitySelector2.OnChange(Sender: TObject);
+begin
+  SetFieldEntity(TEntity(TRadioButton(Sender).Tag));
+end;
+
+procedure TVCLRadioEntitySelector2.SwitchChangeHandlers(const AHandler: TNotifyEvent);
+var
+  i: Integer;
+  vRadioEdit: TPanel;
+begin
+  vRadioEdit := TPanel(FControl);
+  for i := 0 to vRadioEdit.ControlCount - 1 do
+    if Assigned(AHandler) then
+      TRadioButton(vRadioEdit.Controls[i]).OnClick := OnChange
+    else
+      TRadioButton(vRadioEdit.Controls[i]).OnClick := nil;
+end;
+
 initialization
 
 TPresenter.RegisterControlClass('Windows.VCL', uiEntityEdit, '', TVCLEntityFieldEditor);
 TPresenter.RegisterControlClass('Windows.VCL', uiEntityEdit, 'simple', TVCLEntityFieldEditor);
 TPresenter.RegisterControlClass('Windows.VCL', uiEntityEdit, 'link', TVCLLinkedEntityFieldEditor);
 TPresenter.RegisterControlClass('Windows.VCL', uiEntityEdit, 'select', TVCLEntitySelector);
-TPresenter.RegisterControlClass('Windows.VCL', uiEntityEdit, 'radio', TVCLRadioEntitySelector);
+TPresenter.RegisterControlClass('Windows.VCL', uiEntityEdit, 'radio', TVCLRadioEntitySelector2);
 
 end.
