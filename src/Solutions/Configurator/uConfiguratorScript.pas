@@ -281,6 +281,7 @@ begin
   vDefinition := AddDefinition('Districts', '', 'Районы', cNullItemName);
   vDefinition.AddSimpleFieldDef('Name', 'name', 'Наименование', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);
   vDefinition.AddStateFieldDef('State', 'state', 'Состояние', tsReady, 'TestingStates').SetFlags(cHideInGrid);
+  vDefinition.AddEntityFieldDef('Owner', 'owner', 'Владелец', '', 'Persons', 0, vsFullAccess, 0, estUserSort, '');
   vDefinition.AddListFieldDef('Streets', 'District', 'Улица', 'StreetDistrictRelations', '', 'mtm?transit=Street', vsFullAccess, 0, estUserSort, '', rpStrong);
   vDefinition.AddSimpleFieldDef('Phone', 'phone', 'Телефон', '8-921-777-33-44', Null, 50, fkString, 'phone', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('Email', 'email', 'Email', 'ya@ya.com', Null, 50, fkString, 'email', '', vsFullAccess, cRequired);
