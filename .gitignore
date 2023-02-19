@@ -25,3 +25,4 @@ bin/*.json
 *.jlt
 *.xtf
 *.o
+/src/Solutions/Configurator/FGX/.android-build/app/build/reports

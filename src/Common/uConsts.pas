@@ -352,11 +352,17 @@ function StrToCondition(const ACondition: string): TConditionKind;
 function ApplyModifier(const AValue: string; const AModifier: TConditionModifier = cmNone): string;
 
 function GetBinDir: string;
+function GetResDir: string;
 function GetPlatformDir: string;
-function GetCommonDir: string;
+//function GetCommonDir: string;
 function GetDesktopDir: string;
+function GetOwnerDirectoryName(const APath: string): string;
 
 function IsOnline: Boolean;
+
+// Defines directory mapping
+var
+  DeveloperMode: Boolean = True;
 
 implementation
 
@@ -364,7 +370,7 @@ uses
 {$IFDEF MSWINDOWS}
   WinApi.Windows, WinApi.ShlObj, WinApi.Wininet,
 {$ENDIF}
-  IOUtils, SysUtils;
+  IOUtils, SysUtils, StrUtils;
 
 ////{$IFDEF POSIX}
 ////  Posix.Stdlib;
@@ -385,30 +391,89 @@ begin
 {$ENDIF}
 end;
 
-function GetBinDir: string;
+function GetParentPath(const APath: string): string;
+var
+  vPos: Integer;
+  vLen: Integer;
 begin
-  Result := TPath.GetDirectoryName(ParamStr(0)) + PathDelim + '..';
+  Result := ExcludeTrailingPathDelimiter(TPath.GetFullPath(APath));
+  vLen := Length(Result);
+  if vLen = 0 then
+    Exit;
+
+  vPos := LastDelimiter(PathDelim, Result);
+  if vPos > 0 then
+    Delete(Result, vPos + 1, vLen - vPos);
 end;
 
+function GetOwnerDirectoryName(const APath: string): string;
+var
+  vPos: Integer;
+begin
+  Result := ExcludeTrailingPathDelimiter(APath);
+  vPos := LastDelimiter(PathDelim, Result);
+  if vPos > 0 then
+    Delete(Result, 1, vPos);
+end;
+
+// Directory for executable files and settings
+function GetBinDir: string;
+begin
+{$IF DEFINED(MSWINDOWS)}
+  Result := TPath.GetLibraryPath;
+{$ELSEIF DEFINED(ANDROID)}
+  // assets/internal
+  Result := TPath.GetHomePath;
+{$ELSE}
+  FIX
+  Result := TPath.GetHomePath;
+{$ENDIF}
+end;
+
+// Directory for platform resources
 function GetPlatformDir: string;
 begin
-{$IF DEFINED(MSWINDOWS) OR DEFINED(POSIX)}
-  Result := GetBinDir;
+{$IF DEFINED(MSWINDOWS)}
+  if DeveloperMode then
+    // bin: platform\bin\Win32
+    Result := GetParentPath(GetParentPath(GetBinDir))
+  else
+    Result := GetBinDir;
 {$ELSEIF DEFINED(ANDROID)}
-  Result := TPath.GetPublicPath;
+  // assets/internal
+  Result := GetBinDir;
+{$ELSEIF DEFINED(LINUX)}
+  FIX
+  Result := GetBinDir;
 {$ELSE}
+  FIX
   Result := TPath.Combine(TPath.GetHomePath, 'Common');
 {$ENDIF}
 end;
 
-function GetCommonDir: string;
+function GetResDir: string;
 begin
-{$IF DEFINED(MSWINDOWS) OR DEFINED(POSIX)}
+{$IF DEFINED(MSWINDOWS)}
+  if DeveloperMode then
+    Result := TPath.Combine(GetPlatformDir, 'res')
+  else
+    Result := GetBinDir;
+{$ELSEIF DEFINED(ANDROID)}
+  // assets/internal
   Result := GetBinDir;
 {$ELSE}
-  Result := TPath.Combine(TPath.GetSharedDocumentsPath, cProductCreator);
+  Result := GetBinDir;
 {$ENDIF}
 end;
+
+//function _GetCommonDir: string;
+//begin
+//{$IF DEFINED(MSWINDOWS)}
+//  Result := _GetBinDir;
+//{$ELSE}
+//  Result := TPath.Combine(TPath.GetSharedDocumentsPath, cProductCreator);
+//{$ENDIF}
+//end;
 
 function GetDesktopDir: string;
 {$IFDEF MSWINDOWS}

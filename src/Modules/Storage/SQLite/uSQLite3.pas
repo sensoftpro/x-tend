@@ -1,4 +1,4 @@
-{---------------------------------------------------------------------------------
+п»ї{---------------------------------------------------------------------------------
   X-Tend runtime
 
   Contributors:
@@ -10,7 +10,7 @@
  ---------------------------------------------------------------------------------
   MIT License
 
-  Copyright © 2023 Sensoft
+  Copyright В© 2023 Sensoft
 
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
@@ -41,11 +41,13 @@ uses
   SysUtils, Generics.Collections;
 
 const
-{$IFDEF MSWINDOWS}
+{$IF DEFINED(MSWINDOWS)}
   cSqlite3Lib = 'sqlite3.dll';
-{$ELSE} {$IFDEF LINUX}
+{$ELSEIF DEFINED(ANDROID) OR DEFINED(LINUX)}
   cSqlite3Lib = 'libsqlite3.so';
-{$ENDIF} {$ENDIF}
+{$ELSEIF DEFINED(POSIX)}
+  cSqlite3Lib = 'sqlite3';
+{$ENDIF}
 
 type
   qword = int64;
@@ -1214,7 +1216,8 @@ var
 implementation
 
 uses
-  Variants, StrUtils, SyncObjs;
+  {$IFDEF POSIX} Posix.Dlfcn, {$ENDIF}
+  Variants, StrUtils, SyncObjs, IOUtils;
 
 function sqlite3_version(): pansichar;
 begin
@@ -1438,8 +1441,15 @@ var
 function TryInitializeSqlite(const ALibraryName: string): Integer;
 var
   vLibraryName: string;
+  {$IFDEF POSIX} vErrorMsg: string; {$ENDIF}
 begin
   vLibraryName := IfThen(ALibraryName = '', cSqlite3Lib, ALibraryName);
+  if not TFile.Exists(vLibraryName) then
+  begin
+    vLibraryName := TPath.Combine(TPath.GetLibraryPath, vLibraryName);
+    if not TFile.Exists(vLibraryName) then
+      Exit(-1);
+  end;
 
   Result := TInterlocked.Increment(RefCount);
   if Result = 1 then
@@ -1448,8 +1458,16 @@ begin
     if (SQLiteLibraryHandle = 0) then
     begin
       RefCount := 0;
-      Exit(-1);
+      Result := -1;
+
+      {$IFDEF POSIX}
+      vErrorMsg := string(UTF8Decode(dlerror));
+      vErrorMsg := Format('Can not load %s error:%s', [vLibraryName, vErrorMsg]);
+
+      raise Exception.Create(vErrorMsg);
+      {$ENDIF}
     end;
+
     SQLiteLoadedLibrary := vLibraryName;
     LoadAddresses(SQLiteLibraryHandle);
   end;
@@ -1503,7 +1521,7 @@ begin
 
   if SQLiteResult.Empty then
   begin
-    // заполняем имена колонок
+    // Р·Р°РїРѕР»РЅСЏРµРј РёРјРµРЅР° РєРѕР»РѕРЅРѕРє
     for I := 0 to cols - 1 do
     begin
       n := name^;
@@ -1512,7 +1530,7 @@ begin
     end;
   end;
 
-  // значения
+  // Р·РЅР°С‡РµРЅРёСЏ
   Rec := TSQLiteRecord.Create;
   Rec.Count := cols;
   for I := 0 to cols - 1 do
@@ -1613,7 +1631,7 @@ begin
     Exit;
   end;
   try
-    // связываем значения параметров
+    // СЃРІСЏР·С‹РІР°РµРј Р·РЅР°С‡РµРЅРёСЏ РїР°СЂР°РјРµС‚СЂРѕРІ
     for I := 0 to High(Params) do
     begin
       BindIdx := I + 1;
@@ -1699,14 +1717,14 @@ begin
           // vtChar, vtPointer, vtObject, vtClass, vtCurrency, vtInterface, vtWideChar
         end;
       end;
-      // строковые данные
+      // СЃС‚СЂРѕРєРѕРІС‹Рµ РґР°РЅРЅС‹Рµ
       if s <> '' then
       begin
         sqlite3_bind_text16(stm, BindIdx, PWideChar(s), ByteLength(s), EmptyDestructor);
       end;
     end;
 
-    // выполняем
+    // РІС‹РїРѕР»РЅСЏРµРј
     res := sqlite3_step(stm);
 
     // insert, update, delete or empty select Result

@@ -66,7 +66,7 @@ type
       const AFlags: Integer = 0; const AKind: TCollectionKind = clkLibrary): TDefinition; overload;
     function AddDefinition(const AName, AAncestors, ACaption, AEmptyValue: string;
       const AFlags: Integer = 0; const AKind: TCollectionKind = clkLibrary): TDefinition; overload;
-    function AddAction(const AName, ACaption: string; const AImageID: Integer; const AFlags: Integer = 0): TActionDef;
+    function AddAction(const AName, ACaption, AImageID: string; const AFlags: Integer = 0): TActionDef;
     function AddEnumeration<T>(const AName: string): TEnumeration;
     function AddStateMachine<T>(const AName: string): TStateMachine;
     function RegisterComplexClass(const AName: string; const AComplexClass: TComplexClass): TComplexClassDef;
@@ -439,44 +439,44 @@ var
 begin
   RegisterComplexClass('Tensor', TTensorData);
 
-  AddAction('Logout', 'Сменить пользователя', -1);
-  AddAction('Quit', 'Выход', -1);
+  AddAction('Logout', 'Сменить пользователя', '');
+  AddAction('Quit', 'Выход', '');
 
-  vAction := AddAction('Add', 'Добавить', 1);
+  vAction := AddAction('Add', 'Добавить', 'add');
   vAction.AddSimpleFieldDef('SelectedIndex', '', '', 0, Null, Null, fkInteger, '', '', vsFullAccess, cNotSave);
 
-  vAction := AddAction('Create', 'Создать', 1);
+  vAction := AddAction('Create', 'Создать', 'add');
   vAction.AddSimpleFieldDef('SelectedIndex', '', '', 0, Null, Null, fkInteger, '', '', vsFullAccess, cNotSave);
 
-  AddAction('CreateEmbedded', 'Создать', 1);
+  AddAction('CreateEmbedded', 'Создать', 'add');
 
-  vAction := AddAction('Link', 'Привязать', 2);
+  vAction := AddAction('Link', 'Привязать', 'link');
   vAction.AddEntityFieldDef('SelectedEntity', '', 'Выбранная запись', '', '', 0, vsSelectOnly, cRequired or cNotSave);
 
-  AddAction('Edit', 'Редактировать', 3, ccContextAction);
-  AddAction('OpenInPage', 'Открыть на отдельной вкладке', 8, ccMultiTarget or ccContextAction);
-  AddAction('Delete', 'Удалить', 4, ccMultiTarget or ccContextAction);
-  AddAction('Open', 'Открыть', 30, ccContextAction);
-  AddAction('Refresh', 'Обновить список', 5);
-  AddAction('Save', 'Сохранить', 6);
-  AddAction('SaveAs', 'Сохранить как', 6);
+  AddAction('Edit', 'Редактировать', 'edit', ccContextAction);
+  AddAction('OpenInPage', 'Открыть на отдельной вкладке', 'look', ccMultiTarget or ccContextAction);
+  AddAction('Delete', 'Удалить', 'delete', ccMultiTarget or ccContextAction);
+  AddAction('Open', 'Открыть', 'document_view', ccContextAction);
+  AddAction('Refresh', 'Обновить список', 'refresh');
+  AddAction('Save', 'Сохранить', 'save');
+  AddAction('SaveAs', 'Сохранить как', 'save');
 
-  AddAction('View', 'Просмотр', 8, ccContextAction);
-  AddAction('Show', 'Просмотр', 8, ccContextAction);
-  AddAction('Close', 'Закрыть', 4);
-  AddAction('Ok', 'Ок', 12);
-  AddAction('Cancel', 'Отмена', -1);
+  AddAction('View', 'Просмотр', 'look', ccContextAction);
+  AddAction('Show', 'Просмотр', 'look', ccContextAction);
+  AddAction('Close', 'Закрыть', 'delete');
+  AddAction('Ok', 'Ок', 'ok');
+  AddAction('Cancel', 'Отмена', '');
 
-  AddAction('#HandleDblClick', 'Обработать двойное нажатие', -1);
-  AddAction('#ExportToCsv', 'Экспорт в Excel', 7);
-  AddAction('#ExportToCsv2', 'Экспорт в *.csv', 7);
-  AddAction('#ApplyBestFit', 'Оптимальная ширина колонок', 47);
-  AddAction('#Refill', 'Перезаполнить', -1);
+  AddAction('#HandleDblClick', 'Обработать двойное нажатие', '');
+  AddAction('#ExportToCsv', 'Экспорт в Excel', 'export_excel');
+  AddAction('#ExportToCsv2', 'Экспорт в *.csv', 'export_excel');
+  AddAction('#ApplyBestFit', 'Оптимальная ширина колонок', 'optimal_column_width');
+  AddAction('#Refill', 'Перезаполнить', '');
 
-  vAction := AddAction('#FilterByText', 'Фильтровать по тексту', 13, ccInstantExecution);
+  vAction := AddAction('#FilterByText', 'Фильтровать по тексту', 'filter', ccInstantExecution);
   vAction.AddSimpleFieldDef('Text', '', '', Null, Null, 50, fkString, '', '', vsFullAccess, cNotSave);
 
-  vAction := AddAction('#FilterByPeriod', 'Фильтровать по периоду', 13, ccInstantExecution);
+  vAction := AddAction('#FilterByPeriod', 'Фильтровать по периоду', 'filter', ccInstantExecution);
   vAction.AddSimpleFieldDef('IsActive', '', 'период', True, Null, Null, fkBoolean);
   vAction.AddSimpleFieldDef('FromDate', '', 'с', cDateNow, Null, Null, fkDateTime);
   vAction.AddSimpleFieldDef('ToDate', '', 'по', cDateNow, Null, Null, fkDateTime);
@@ -494,28 +494,28 @@ begin
       end;
     end));
 
-  vAction := AddAction('#GroupByColumn', 'Группировка данных', 9);
+  vAction := AddAction('#GroupByColumn', 'Группировка данных', 'group16');
   vAction.AddSimpleFieldDef('IsChecked', '', '', False, Null, Null, fkBoolean);
 
   // Системное меню
-  AddAction('ChangePassword', 'Сменить пароль', 24);
-  AddAction('ShowSysLog', 'Системный журнал', -1);
-  AddAction('SetupRTFReports', 'Настройки RTF отчётов', -1);
-  AddAction('ShowSettings', 'Настройки', 29);
-  AddAction('ShowOptions', 'Опции', -1);
-  AddAction('Feedback', 'Обратная связь', -1);
-  AddAction('LoadChanges', 'Загрузить изменения', -1);
-  AddAction('ArrangeMozaic', 'Мозаикой', 33);
-  AddAction('ArrangeCascade', 'Каскадом', 15);
-  AddAction('ArrangeVert', 'Вертикально', 17);
-  AddAction('ArrangeHorz', 'Горизонтально', 16);
-  AddAction('CloseAllWindows', 'Закрыть все', -1);
-  AddAction('ShowAbout', 'О программе', -1);
-  AddAction('ShowStartPage', 'Показать стартовую страницу', -1);
-  AddAction('GetAllUpdates', 'Выгрузить изменения в файл', -1);
-  AddAction('ApplyAllUpdates', 'Применить обновления', -1);
+  AddAction('ChangePassword', 'Сменить пароль', 'change_password');
+  AddAction('ShowSysLog', 'Системный журнал', '');
+  AddAction('SetupRTFReports', 'Настройки RTF отчётов', '');
+  AddAction('ShowSettings', 'Настройки', 'settings');
+  AddAction('ShowOptions', 'Опции', '');
+  AddAction('Feedback', 'Обратная связь', '');
+  AddAction('LoadChanges', 'Загрузить изменения', '');
+  AddAction('ArrangeMozaic', 'Мозаикой', 'mozaic');
+  AddAction('ArrangeCascade', 'Каскадом', 'cascade');
+  AddAction('ArrangeVert', 'Вертикально', 'tile_vertically');
+  AddAction('ArrangeHorz', 'Горизонтально', 'tile_horizontally');
+  AddAction('CloseAllWindows', 'Закрыть все', '');
+  AddAction('ShowAbout', 'О программе', '');
+  AddAction('ShowStartPage', 'Показать стартовую страницу', '');
+  AddAction('GetAllUpdates', 'Выгрузить изменения в файл', '');
+  AddAction('ApplyAllUpdates', 'Применить обновления', '');
   // При необходимости дописывать сюда действия для актуализации состояния модели
-  AddAction('ActualizeData', 'Актуализировать данные', -1);
+  AddAction('ActualizeData', 'Актуализировать данные', '');
 
   // Любая сущность, которая будет определена позже
   AddDefinition('~', '', 'Неизвестная', cNullItemName, ccSystem or ccHideInMenu or ccNotSave);
@@ -589,7 +589,7 @@ begin
   vDefinition.AddSimpleFieldDef('Name', 'name', 'Имя', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired or cLocalizable);
   vDefinition.AddUniqueIndex('Name');
 
-  vDefinition := AddDefinition('SysUsers', 'SysSubjects', 'Пользователи', '[Система]', ccHideInMenu or ccStopEvents).SetImageID(32);
+  vDefinition := AddDefinition('SysUsers', 'SysSubjects', 'Пользователи', '[Система]', ccHideInMenu or ccStopEvents).SetImageID('group');
   vDefinition.AddSimpleFieldDef('Login', 'login', 'Логин', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);
   vDefinition.AddSimpleFieldDef('PasswordText', '', 'Пароль', Null, Null, 50, fkString, 'mask', '', vsFullAccess, cNotSave or cHideInGrid);
   vDefinition.AddSimpleFieldDef('Password', 'user_password', 'Пароль (хэш)', Md5Hash(''), Null, 32, fkString, '', '', vsHidden);
@@ -599,7 +599,7 @@ begin
   vDefinition.AddListFieldDef('Roles', 'User', 'Роли пользователя', 'SysUsersRoles', '', 'mtm?transit=Role', vsFullAccess, 0, estUserSort, '', rpStrong);
   //vDefinition.AddListFieldDef('Notifications', 'User', 'Уведомления пользователя', 'SysUsersNotifications', '', '', vsReadOnly, cAnalytic, estUserSort, '', rpStrong);
   vDefinition.AddUniqueIndex('Login');
-  vDefinition.AddAction('GeneratePassword', 'Сгенерировать пароль', 24);
+  vDefinition.AddAction('GeneratePassword', 'Сгенерировать пароль', 'change_password');
   vDefinition.RegisterReaction('Password', 'PasswordText', TProc(procedure(const AHolder: TChangeHolder;
       const AFieldChain: string; const AEntity, AParam: TEntity)
     begin
@@ -675,11 +675,11 @@ begin
   vDefinition.AddSimpleFieldDef('FullPathName', 'full_path_name', 'Полный путь к файлу', Null, Null, 255, fkString, '', '', vsHidden);
   vDefinition.AddBlobFieldDef('Content', 'content', 'Содержимое', bffRaw, '', vsReadOnly).SetStorageKind(skSharedFolder);
   vDefinition.AddSimpleFieldDef('ContentUrl', 'content_url', 'Место хранения файла', Null, Null, 255, fkString, '', '', vsHidden);
-  vDefinition.AddAction('ViewDocument', 'Открыть документ', 30);
-  vDefinition.AddAction('LoadDocument', 'Загрузить документ', 23);
-  vAction := vDefinition.AddAction('Load', 'Загрузить документ', 23);
+  vDefinition.AddAction('ViewDocument', 'Открыть документ', 'document_view');
+  vDefinition.AddAction('LoadDocument', 'Загрузить документ', 'open_file');
+  vAction := vDefinition.AddAction('Load', 'Загрузить документ', 'open_file');
   vAction.AddSimpleFieldDef('FileName', 'file_name', 'Путь к файлу', Null, Null, 255, fkString, 'file?filter=Все файлы (*.*)|*.*', '', vsSelectOnly, cRequired);
-  vDefinition.AddAction('ClearDocument', 'Очистить документ', 4);
+  vDefinition.AddAction('ClearDocument', 'Очистить документ', 'delete');
   vDefinition.RegisterReaction('FileName;Name;Content', 'FullPathName', TProc(procedure(const AHolder: TChangeHolder;
       const AFieldChain: string; const AEntity, AParam: TEntity)
     var
@@ -726,7 +726,7 @@ begin
   vDefinition.AddSimpleFieldDef('ServiceRecordColor', 'service_record_color', 'Цвет служебной записи', TColorRec.Navy, Null, Null, fkColor, 'simple', '', vsFullAccess);
   vDefinition.AddSimpleFieldDef('SharedFolder', 'shared_folder', 'Папка для хранения общих файлов', Null, Null, 255, fkString, 'dir');
   vDefinition.AddUniqueIndex('Code');
-  vDefinition.AddAction('CheckEmailConnection', 'Проверить SMTP соединение', 25);
+  vDefinition.AddAction('CheckEmailConnection', 'Проверить SMTP соединение', 'server_connect');
   vDefinition.RegisterReaction('IsMailVerified', 'MailService;MailLogin;MailPassword',
     TProc(procedure(const AHolder: TChangeHolder; const AFieldChain: string; const AEntity, AParam: TEntity)
     begin
@@ -1956,7 +1956,7 @@ begin
   Result := TConfiguration(FConfiguration).Actions.ObjectByName(AName);
 end;
 
-function TBaseScript.AddAction(const AName, ACaption: string; const AImageID: Integer; const AFlags: Integer = 0): TActionDef;
+function TBaseScript.AddAction(const AName, ACaption, AImageID: string; const AFlags: Integer = 0): TActionDef;
 begin
   Result := TConfiguration(FConfiguration).Actions.Add(AName, ACaption, AImageID, AFlags);
 end;

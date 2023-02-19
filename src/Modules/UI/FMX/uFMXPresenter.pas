@@ -304,7 +304,7 @@ begin
     else begin
       vTab := TTabItem.Create(vParentControl);
       vTab.Text := ALayout.Caption;
-      vTab.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+      vTab.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
       vTab.Visible := ALayout.ShowCaption;
 
       ALayout.Id := ALayout.Name;
@@ -318,7 +318,6 @@ begin
     vBevelPanel.Align := AlignToAlignLayout(ALayout.Align);
     vBevelPanel.StyleLookup := 'pushpanel';
     CopyMargins(vBevelPanel, ALayout);
-
     ALayout.Id := '-bevel-';
     Result := vBevelPanel;
   end
@@ -487,7 +486,7 @@ begin
       begin
         vMenuItem.Text := ALayout.Caption;
         vMenuItem.Hint := ALayout.Caption;
-        vMenuItem.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+        vMenuItem.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
         vMenuItem.OnClick := AParent.OnAreaClick;
         if ALayout is TNavigationItem then
         begin
@@ -502,7 +501,7 @@ begin
       begin
         vMenuItem.Text := ALayout.Caption;
         vMenuItem.Hint := ALayout.Caption;
-        vMenuItem.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+        vMenuItem.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
         vMenuItem.Tag := NativeInt(AParent);
         vMenuItem.OnClick := AParent.OnActionMenuSelected;
       end
@@ -799,7 +798,6 @@ begin
   end
   else
     Exit;
-
   TDialogService.MessageDialog(AText, vMsgDlgType, vButtons, vDefaultBtn, 0, TInputCloseDialogProc(procedure(const AResult: TModalResult)
     begin
       if Assigned(AOnClose) then

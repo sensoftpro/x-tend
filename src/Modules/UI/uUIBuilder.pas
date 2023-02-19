@@ -125,7 +125,7 @@ type
   protected
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
     function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
-    function GetImageID(const AImageID: Integer): Integer;
+    function GetImageIndex(const AImageID: string): Integer;
     procedure SetFieldValue(const AValue: Variant);
     procedure SetFieldEntity(const AEntity: TEntity);
     procedure SetFieldStream(const AStream: TStream);
@@ -274,7 +274,7 @@ type
     function LessThanUIState(const ADefinition: TDefinition; const ASession: TObject; const AState: TViewState): Boolean;
     function GetFieldTranslation(const AFieldDef: TFieldDef; const ATranslationPart: TTranslationPart = tpCaption): string;
     function GetTranslation(const ADefinition: TDefinition; const ATranslationPart: TTranslationPart = tpCaption): string;
-    function GetImageID(const AImageID: Integer): Integer;
+    function GetImageIndex(const AImageID: string): Integer;
 
     // For interactor
     procedure BeginUpdate;
@@ -351,7 +351,7 @@ type
     [Weak] FPresenter: TObject;
     FLayouts: TLayouts;
     FImages: TObjectDictionary<Integer, TObject>;
-    FImageMap: TDictionary<Integer, Integer>;
+    FImageMap: TDictionary<string, Integer>;
     FIsMDIStyle: Boolean;
 
     function GetImages(const AResolution: Integer): TObject;
@@ -371,8 +371,8 @@ type
       const AOptions: string = ''; const AChangeHolder: TObject = nil;
       const ACaption: string = ''; const AOnClose: TCloseProc = nil);
 
-    procedure StoreImageIndex(const AImageID, AImageIndex: Integer);
-    function GetImageIndex(const AImageID: Integer): Integer;
+    procedure StoreImageIndex(const AImageID: string; const AImageIndex: Integer);
+    function GetImageIndex(const AImageID: string): Integer;
 
     property Domain: TObject read FDomain;
     property Presenter: TObject read FPresenter write FPresenter;
@@ -501,8 +501,9 @@ begin
   vFileName := TDomain(FUIBuilder.Domain).Configuration.FindLayoutFile(ALayoutName, vLayoutExt, vPostfix);
   if vFileName = '' then
   begin
-    vFileName := GetPlatformDir + PathDelim + 'res' + PathDelim + 'layouts' + PathDelim + ALayoutName + vLayoutExt;
-    if not TFile.Exists(vFileName) then vFileName := '';
+    vFileName := GetResDir + PathDelim + 'layouts' + PathDelim + ALayoutName + vLayoutExt;
+    if not TFile.Exists(vFileName) then
+      vFileName := '';
   end;
 
   if FItems.TryGetValue(vFileName, Result) then
@@ -517,7 +518,7 @@ begin
     if vCanLoadFromDFM then
     begin
       Result := MakeLayoutFromFile(vFileName);
-      Result.Save(ChangeFileExt(vFileName, '.xtf'));
+      Result.Save(ChangeFileExt(vFileName, LAYOUT_XTF_EXT));
     end
     else begin
       Result := TLayout.Create(lkNone);
@@ -719,7 +720,7 @@ begin
 
   FLayouts := TLayouts.Create(Self);
 
-  FImageMap := TDictionary<Integer, Integer>.Create;
+  FImageMap := TDictionary<string, Integer>.Create;
   if not SameText(TPresenter(FPresenter).Name,'Web.UniGUI') then
     FImages := TObjectDictionary<Integer, TObject>.Create([doOwnsValues])
   else
@@ -758,7 +759,7 @@ begin
   Result := TDomain(FDomain).TranslateFieldDef(AFieldDef, ATranslationPart);
 end;
 
-function TUIBuilder.GetImageIndex(const AImageID: Integer): Integer;
+function TUIBuilder.GetImageIndex(const AImageID: string): Integer;
 begin
   if not FImageMap.TryGetValue(AImageID, Result) then
     Result := -1;
@@ -854,7 +855,7 @@ var
   vServiceArea: TUIArea;
   vLayout: TLayout;
   vPageID: string;
-  vImageID: Integer;
+  vImageID: string;
   vDefaultCaption: string;
   vParams: TStrings;
   vCaption: string;
@@ -1031,7 +1032,7 @@ begin
     // Creation of new page for area content
     if vUIArea.QueryParameter('ViewType') = 'Paged' then
     begin
-      vImageID := StrToIntDef(GetUrlParam(AOptions, 'ImageID'), -1);
+      vImageID := GetUrlParam(AOptions, 'ImageID');
       if Assigned(AView) then
       begin
         vPageID := GetUrlParam(AOptions, 'Cube');
@@ -1049,7 +1050,7 @@ begin
       begin
         vLayout := FLayouts.CreateSimpleLayout(lkPage);
         vLayout.Name := vPageID;
-        vLayout.ImageID := GetImageIndex(vImageID);
+        vLayout.ImageID := vImageID;
 
         if AView.DefinitionKind in [dkAction, dkCollection] then
         begin
@@ -1063,8 +1064,8 @@ begin
               vLayout.Caption := vDefaultCaption;
           end;
 
-          if vImageID <= 0 then
-            vLayout.ImageID := GetImageIndex(TDefinition(AView.Definition)._ImageID);
+          if vImageID <> '' then
+            vLayout.ImageID := TDefinition(AView.Definition)._ImageID;
         end
         else if (AView.DefinitionKind = dkEntity) and Assigned(AView.DomainObject) then
           vLayout.Caption := SafeDisplayName(TEntity(AView.DomainObject), ACaption)
@@ -1107,7 +1108,7 @@ begin
   vInteractor.PrintHierarchy;
 end;
 
-procedure TUIBuilder.StoreImageIndex(const AImageID, AImageIndex: Integer);
+procedure TUIBuilder.StoreImageIndex(const AImageID: string; const AImageIndex: Integer);
 begin
   if not FImageMap.ContainsKey(AImageID) then
     FImageMap.Add(AImageID, AImageIndex);
@@ -1990,7 +1991,7 @@ begin
     Result := TDomain(FView.Domain).DomainHolder;
 end;
 
-function TUIArea.GetImageID(const AImageID: Integer): Integer;
+function TUIArea.GetImageIndex(const AImageID: string): Integer;
 begin
   Result := FUIBuilder.GetImageIndex(AImageID);
 end;
@@ -2489,7 +2490,7 @@ begin
     Result := '';
 end;
 
-function TNativeControl.GetImageID(const AImageID: Integer): Integer;
+function TNativeControl.GetImageIndex(const AImageID: string): Integer;
 begin
   Result := FUIBuilder.GetImageIndex(AImageID);
 end;

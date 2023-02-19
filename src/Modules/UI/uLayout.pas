@@ -235,7 +235,7 @@ type
     FUIParams: string;
     FParams: string;
     FTag: NativeInt;
-    FImageID: Integer;
+    FImageID: string;
     FState: TViewState;
     FColor: TAlphaColor;
     FCursor: Integer;
@@ -332,7 +332,7 @@ type
     property Hint: string read FHint write FHint;
     property UIParams: string read FUIParams write FUIParams;
     property Params: string read FParams write SetParams;
-    property ImageID: Integer read FImageID write FImageID;
+    property ImageID: string read FImageID write FImageID;
     property State: TViewState read FState write FState;
 
     property Pen: TLayoutPen read FPen;
@@ -852,7 +852,7 @@ begin
   FLevel := AJSON.ExtractInteger('level');
   FCaption := AJSON.ExtractString('caption');
   FHint := AJSON.ExtractString('hint');
-  FImageID := AJSON.ExtractInteger('image_index');
+  FImageID := AJSON.ExtractString('image_id');
   FViewName := AJSON.ExtractString('view_name');
   FContentLayout := AJSON.ExtractString('content_layout');
   FContentWorkArea := AJSON.ExtractString('content_workarea');
@@ -883,7 +883,7 @@ begin
   Result.StoreInteger('level', FLevel);
   Result.StoreString('caption', FCaption);
   Result.StoreString('hint', FHint);
-  Result.StoreInteger('image_index', FImageID);
+  Result.StoreString('image_id', FImageID);
   Result.StoreString('view_name', FViewName);
   Result.StoreString('content_layout', FContentLayout);
   Result.StoreString('content_workarea', FContentWorkArea);
@@ -920,7 +920,7 @@ begin
     FCaption := FUrlParser.ExtractString('caption');
   FId := FUrlParser.ExtractString('id');
   FHint := FUrlParser.ExtractString('hint');
-  FImageID := FUrlParser.ExtractInteger('imageindex');
+  FImageID := FUrlParser.ExtractString('imageindex');
   FContentLayout := FUrlParser.ExtractString('contentlayout');
   FContentWorkArea := FUrlParser.ExtractString('contentworkarea');
   FContentCaption := FUrlParser.ExtractString('contentcaption');
@@ -1155,7 +1155,7 @@ begin
   FUIParams := '';
   FParams := '';
   FTag := 0;
-  FImageID := -1;
+  FImageID := '';
   FTabOrder := -1;
 
   FPen := TLayoutPen.Create;
@@ -1337,7 +1337,7 @@ begin
   FUIParams := AJSON.ExtractString('ui_params');
   FParams := AJSON.ExtractString('params');
   FTag := AJSON.ExtractInteger('tag');
-  FImageID := AJSON.ExtractInteger('image_index', -1);
+  FImageID := AJSON.ExtractString('image_id');
   FState := StrToViewState(AJSON.ExtractString('view_state'));
   FColor := AJSON.ExtractColor('color');
   FCursor := AJSON.ExtractInteger('cursor');
@@ -1444,7 +1444,7 @@ begin
   Result.StoreString('ui_params', FUIParams);
   Result.StoreString('params', FParams);
   Result.StoreInteger('tag', FTag);
-  Result.StoreInteger('image_index', FImageID);
+  Result.StoreString('image_id', FImageID);
   Result.StoreString('view_state', ViewStateToStr(FState));
   Result.StoreColor('color', FColor);
   Result.StoreInteger('cursor', FCursor);

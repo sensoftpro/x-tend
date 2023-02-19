@@ -455,7 +455,7 @@ type
     // Общие из TBaseDefinition
     FFullName: string;
     FCaption: string;
-    FImageID: Integer;
+    FImageID: string;
     FGroupFieldName: string;
     FColorFieldName: string;
     FColorTarget: TColorTarget;
@@ -524,7 +524,7 @@ type
     function SetLayoutMask(const AMask: string): TDefinition;
     function SetColorFieldName(const AColorFieldName: string): TDefinition;
     function SetColorTarget(const AColorTarget: TColorTarget): TDefinition;
-    function SetImageID(const AImageID: Integer): TDefinition;
+    function SetImageID(const AImageID: string): TDefinition;
     function SetOrderNum(const AOrderNum: Integer): TDefinition;
     function SetBackground(const ABackground: TBackground): TDefinition;
     function SetGroupFieldName(const AGroupFieldName: string): TDefinition;
@@ -572,7 +572,7 @@ type
     procedure AddReduction(const AFieldName: string; const AAggType: TAggregationKind);
     function AddDataCube(const AName, AFilter: string): TDataCube;
     procedure AddUniqueIndex(const AFullIndexString: string);
-    function AddAction(const AName, ACaption: string; const AImageID: Integer; const AFlags: Integer = 0): TActionDef;
+    function AddAction(const AName, ACaption, AImageID: string; const AFlags: Integer = 0): TActionDef;
     function AddReport(const AReportName, ACaption, AFileName: string; const AOutputFileMask: string = ''): TReportDef;
     function AddRTFReport(const AName, ACaption, AFileName: string): TRTFReport;
     procedure AppendReaction(const AReactiveFields, AFieldChains: TStrings; const AReactionProc: TProc);
@@ -586,7 +586,7 @@ type
     property Name: string read FName;
     property FullName: string read FFullName;
     property _Caption: string read FCaption;
-    property _ImageID: Integer read FImageID;
+    property _ImageID: string read FImageID;
     property OrderNum: Integer read FOrderNum;
     property LayoutMask: string read FLayoutMask;
     property GroupFieldName: string read FGroupFieldName;
@@ -637,12 +637,12 @@ type
   protected
     function IsParam: Boolean; override;
   public
-    constructor Create(const AOwner: TObject; const AName, ACaption: string; const AImageID: Integer);
+    constructor Create(const AOwner: TObject; const AName, ACaption, AImageID: string);
   end;
 
   TActions = class(TDefList<TActionDef>)
   public
-    function Add(const AName, ACaption: string; const AImageID: Integer; const AFlags: Integer): TActionDef;
+    function Add(const AName, ACaption, AImageID: string; const AFlags: Integer): TActionDef;
   end;
 
   TComplexClassDef = class(TDefItem)
@@ -820,7 +820,7 @@ begin
     end;
 end;
 
-function TDefinition.AddAction(const AName, ACaption: string; const AImageID: Integer; const AFlags: Integer): TActionDef;
+function TDefinition.AddAction(const AName, ACaption, AImageID: string; const AFlags: Integer): TActionDef;
 begin
   Result := TActionDef.Create(Self, AName, ACaption, AImageID);
   if FIsCollection then
@@ -1164,7 +1164,7 @@ begin
 
   FFullName := AName;
   FCaption := '';
-  FImageID := -1;
+  FImageID := '';
   FGroupFieldName := '';
   FFlags := 0;
   FUIState := vsFullAccess;
@@ -1517,7 +1517,7 @@ begin
   Result := Self;
 end;
 
-function TDefinition.SetImageID(const AImageID: Integer): TDefinition;
+function TDefinition.SetImageID(const AImageID: string): TDefinition;
 begin
   FImageID := AImageID;
   Result := Self;
@@ -1616,8 +1616,7 @@ end;
 
 { TActionDef }
 
-constructor TActionDef.Create(const AOwner: TObject; const AName, ACaption: string;
-  const AImageID: Integer);
+constructor TActionDef.Create(const AOwner: TObject; const AName, ACaption, AImageID: string);
 begin
   inherited Create(AOwner, False, AName);
 
@@ -1685,7 +1684,7 @@ end;
 
 { TActions }
 
-function TActions.Add(const AName, ACaption: string; const AImageID, AFlags: Integer): TActionDef;
+function TActions.Add(const AName, ACaption, AImageID: string; const AFlags: Integer): TActionDef;
 begin
   Result := TActionDef.Create(FOwner, AName, ACaption, AImageID);
   Result.SetFlags(AFlags or ccSystem);

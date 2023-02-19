@@ -2471,10 +2471,10 @@ begin
 
   AddEnumeration<TParameterType>('ParameterTypes').AddDisplayNames(cParameterTypeCaptions);
 
-  AddAction('ClearLog', 'Очистить журнал', 1006);
-  AddAction('StopAll', 'Остановить', 1202);
+  AddAction('ClearLog', 'Очистить журнал', 'recycle');
+  AddAction('StopAll', 'Остановить', 'stop_all');
 
-  vActionDef := AddAction('StopScenario', 'Прекратить', 1003, ccHideInMenu);
+  vActionDef := AddAction('StopScenario', 'Прекратить', 'stop_script', ccHideInMenu);
   vActionDef.AddSimpleFieldDef('FiberID', 'fiber_id', 'Ид. скрипта', 0, 1, Null, fkInteger, '', '', vsHidden);
 
   vDefinition := AddDefinition('VariableDestinations', '', 'Назначение переменной', 'Любое', ccHideInMenu);
@@ -2485,7 +2485,7 @@ begin
   vDefinition.AddSimpleFieldDef('Name', 'name', 'Наименование', Null, Null, 50, fkString, '', '', vsFullAccess);
   vDefinition.AddUniqueIndex('Name@');
 
-  vDefinition := AddDefinition('ScriptCommandDefinitions', '', 'Описание команд скрипта', cNullItemName, ccHideInMenu).SetImageID(1008);
+  vDefinition := AddDefinition('ScriptCommandDefinitions', '', 'Описание команд скрипта', cNullItemName, ccHideInMenu).SetImageID('plugin');
   vDefinition.AddSimpleFieldDef('Name', 'name', 'Наименование', Null, Null, 150, fkString, '', '', vsFullAccess, cRequired);
   vDefinition.AddListFieldDef('Parameters', 'CommandDefinition', 'Параметры', 'CommandParameterDefinitions', '', '', vsFullAccess, 0, estUserSort, '', rpStrong);
   vDefinition.AddUniqueIndex('Name@');
@@ -2504,14 +2504,14 @@ begin
   vDefinition.AddListFieldDef('Commands', 'Block', 'Команды', 'ScriptCommands', '', '', vsFullAccess, 0, estSortByOrder, '', rpStrong);
   vDefinition.AddSimpleFieldDef('Code', 'code', 'Код скрипта', Null, Null, 16000, fkString, 'log', '', vsFullAccess);
 
-  vDefinition := AddDefinition('Scripts', 'CodeBlocks', 'Сценарии', cNullItemName).SetImageID(1000);
+  vDefinition := AddDefinition('Scripts', 'CodeBlocks', 'Сценарии', cNullItemName).SetImageID('scripts');
   vDefinition.AddSimpleFieldDef('Ident', 'ident', 'Уникальный идентификатор', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);
   vDefinition.AddListFieldDef('Variables', 'Script', 'Переменные', 'ScriptVariables', '', '', vsFullAccess, 0, estUserSort, '', rpStrong);
   vDefinition.AddListFieldDef('Methods', 'Script', 'Методы', 'ScriptMethods', '', '', vsFullAccess, 0, estUserSort, '', rpStrong);
   vDefinition.AddUniqueIndex('Name@;Ident@');
-  vDefinition.AddAction('RunScript', 'Запустить', 1001);
-  vDefinition.AddAction('ConvertToCode', 'Преобразовать в код', 1002);
-  vDefinition.AddAction('Clone', 'Клонировать', 26);
+  vDefinition.AddAction('RunScript', 'Запустить', 'run_script');
+  vDefinition.AddAction('ConvertToCode', 'Преобразовать в код', 'graduation');
+  vDefinition.AddAction('Clone', 'Клонировать', 'clone');
 
   vDefinition := AddDefinition('ScriptMethods', 'CodeBlocks', 'Скриптовые методы', cNullItemName, ccHideInMenu);
   vDefinition.AddEntityFieldDef('Script', 'script', 'Скрипт', '', 'Scripts', 0, vsHidden);
@@ -2533,8 +2533,8 @@ begin
   vDefinition.AddEntityFieldDef('CommandDefinition', 'command_definition', 'Команда', '', 'ScriptCommandDefinitions', 0, vsSelectOnly, cRequired);
   vDefinition.AddListFieldDef('Parameters', 'Command', 'Параметры', 'ParameterValues', '', '', vsFullAccess, 0, estUserSort, '', rpStrong);
   vDefinition.AddSimpleFieldDef('Description', 'description', 'Описание', Null, Null, 255, fkString, 'memo', '', vsFullAccess);
-  vDefinition.AddAction('MoveUp', 'Сдвинуть вверх', 1004);
-  vDefinition.AddAction('MoveDown', 'Сдвинуть вниз', 1005);
+  vDefinition.AddAction('MoveUp', 'Сдвинуть вверх', 'arrow_up');
+  vDefinition.AddAction('MoveDown', 'Сдвинуть вниз', 'arrow_down');
   RegisterReaction('ScriptCommands', 'Parameters', 'CommandDefinition', OnCommandDefinitionChanged);
   RegisterReaction('ScriptCommands', 'Text', 'CommandDefinition;Value.Parameters', OnCommandTextChanged);
   RegisterReaction('ScriptCommands', 'Order', 'Block', OnCodeBlockChanged);

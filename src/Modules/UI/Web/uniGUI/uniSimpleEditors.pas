@@ -115,8 +115,8 @@ type
   TUniGUIImagedAction = class(TUniGUIControl)
   private
     FButton: TUniButton;
-    FTrueImageID: Integer;
-    FFalseImageID: Integer;
+    FTrueImageIndex: Integer;
+    FFalseImageIndex: Integer;
     FTrueHint: string;
     FFalseHint: string;
     FActionView: TView;
@@ -1384,16 +1384,16 @@ begin
   begin
     vActionName := FCreateParams.Values['action'];
     vImageSize := StrToIntDef(FCreateParams.Values['ImageSize'], 16);
-    FFalseImageID := FOwner.GetImageID(StrToIntDef(FCreateParams.Values['false'], -1));
-    FTrueImageID := FOwner.GetImageID(StrToIntDef(FCreateParams.Values['true'], -1));
+    FFalseImageIndex := FOwner.GetImageIndex(FCreateParams.Values['false']);
+    FTrueImageIndex := FOwner.GetImageIndex(FCreateParams.Values['true']);
     FTrueHint := FCreateParams.Values['trueHint'];
     FFalseHint := FCreateParams.Values['falseHint'];
   end
   else begin
     vActionName := '';
     vImageSize := 16;
-    FTrueImageID := FOwner.GetImageID(-1);
-    FFalseImageID := FOwner.GetImageID(-1);
+    FTrueImageIndex := -1;
+    FFalseImageIndex := -1;
     FTrueHint := TFieldDef(FView.Definition)._Caption;
     FFalseHint := TFieldDef(FView.Definition)._Caption;
   end;
@@ -1425,12 +1425,12 @@ procedure TUniGUIImagedAction.FillEditor;
 begin
   if VarIsNull(FView.FieldValue) or (not FView.FieldValue) then
   begin
-    FButton.ImageIndex := FFalseImageID;
+    FButton.ImageIndex := FFalseImageIndex;
     FButton.Hint := FTrueHint;
   end
   else
   begin
-    FButton.ImageIndex := FTrueImageID;
+    FButton.ImageIndex := FTrueImageIndex;
     FButton.Hint := FFalseHint;
   end;
 
@@ -1512,21 +1512,24 @@ end;
 
 procedure TUniGUIBoolImages.FillEditor;
 var
-  i, vImageSize: Integer;
+  vImageSize: Integer;
+  vName: string;
+  i: Integer;
   vStream: TStream;
 begin
   inherited;
   i := FCreateParams.IndexOfName(FView.FieldValue);
 
-  if i < 0 then Exit;
+  if i < 0 then
+    Exit;
 
   vImageSize := 16;
   if FCreateParams.IndexOfName('ImageSize') >= 0 then
     vImageSize := StrToIntDef(FCreateParams.Values['ImageSize'], 16);
 
-  i := StrToIntDef(FCreateParams.Values[FView.FieldValue], 0);
+  vName := FCreateParams.Values[FView.FieldValue];
 
-  vStream := TConfiguration(TInteractor(FView.Interactor).Configuration).Icons.IconByIndex(i, vImageSize);
+  vStream := TConfiguration(TInteractor(FView.Interactor).Configuration).Icons.IconByName(vName, vImageSize);
   if Assigned(vStream) then
   begin
     vStream.Position := 0;
@@ -1562,6 +1565,7 @@ end;
 procedure TUniGUIImageByString.FillEditor;
 var
   i, vImageSize: Integer;
+  vName: string;
   vStream: TStream;
 begin
   inherited;
@@ -1571,12 +1575,13 @@ begin
   else
     i := -1;
 
-  if i < 0 then Exit;
+  if i < 0 then
+    Exit;
 
-  i := StrToIntDef(FCreateParams.Values[FView.FieldValue], 0);
+  vName := FCreateParams.Values[FView.FieldValue];
   vImageSize := StrToIntDef(FCreateParams.Values['ImageSize'], 16);
 
-  vStream := TConfiguration(TInteractor(FView.Interactor).Configuration).Icons.IconByIndex(i, vImageSize);
+  vStream := TConfiguration(TInteractor(FView.Interactor).Configuration).Icons.IconByName(vName, vImageSize);
   if Assigned(vStream) then
   begin
     vStream.Position := 0;
@@ -1714,7 +1719,7 @@ begin
   begin
     vTabSheet := TUniTabSheet(FPageControl);
     vTabSheet.Caption := ALayout.Caption;
-    vTabSheet.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+    vTabSheet.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
 
     vTabSheet.TabVisible := ALayout.ShowCaption;
 

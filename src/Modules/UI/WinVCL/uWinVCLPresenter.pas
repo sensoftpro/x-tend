@@ -339,7 +339,7 @@ begin
     ALayout.Name := vSourceTabSheet.Name;
     ALayout.Tag := vSourceTabSheet.Tag;
     ALayout.Caption := vSourceTabSheet.Caption;
-    ALayout.ImageID := vSourceTabSheet.ImageIndex;
+    //ALayout.ImageID := vSourceTabSheet.ImageIndex;
     ALayout.ShowCaption := vSourceTabSheet.TabVisible;
   end
   else if ALayout.Kind = lkPages then
@@ -634,14 +634,14 @@ begin
       vForm.OnClose := OnCloseMDIForm;
       vForm.ShowHint := True;
       if AView.DefinitionKind in [dkCollection, dkAction, dkEntity] then
-        TDragImageList(vUIBuilder.Images[16]).GetIcon(AParent.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
+        TDragImageList(vUIBuilder.Images[16]).GetIcon(AParent.GetImageIndex(TDefinition(AView.Definition)._ImageID), vForm.Icon);
 
       Result := vForm;
     end
     else begin
       vTab := TTabSheet.Create(TWinControl(vParentControl));
       vTab.Caption := ALayout.Caption;
-      vTab.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+      vTab.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
 
       vStartPageName := vDomain.Settings.GetValue('Core', 'StartPage', '');
       vTab.Parent := TWinControl(vParentControl);
@@ -814,7 +814,7 @@ begin
       vForm.Caption := ALayout.Caption;
       vForm.BorderIcons := [biSystemMenu, biMinimize, biMaximize];
       if (AView.DefinitionKind in [dkCollection, dkAction, dkEntity]) then
-        TDragImageList(vUIBuilder.Images[16]).GetIcon(vArea.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
+        TDragImageList(vUIBuilder.Images[16]).GetIcon(vArea.GetImageIndex(TDefinition(AView.Definition)._ImageID), vForm.Icon);
     end
     // автономная форма со свободным отображением
     else if ALayout.StyleName = 'free' then
@@ -870,7 +870,7 @@ begin
       begin
         vMenuItem.Caption := ALayout.Caption;
         vMenuItem.Hint := ALayout.Caption;
-        vMenuItem.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+        vMenuItem.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
         vMenuItem.OnClick := AParent.OnAreaClick;
         if ALayout is TNavigationItem then
         begin
@@ -885,7 +885,7 @@ begin
       begin
         vMenuItem.Caption := ALayout.Caption;
         vMenuItem.Hint := ALayout.Caption;
-        vMenuItem.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+        vMenuItem.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
         vMenuItem.Tag := NativeInt(AParent);
         vMenuItem.OnClick := AParent.OnActionMenuSelected;
       end
@@ -1026,15 +1026,19 @@ var
   vResDiv8: Integer;
 begin
   vPlaceholder := TBitmap.Create;
-  vPlaceholder.SetSize(ASize, ASize);
-  vPlaceholder.PixelFormat := pf32bit;
-  vResDiv8 := Max(ASize div 8, 1);
-  vPlaceholder.Canvas.Pen.Width := 1;
-  vPlaceholder.Canvas.Pen.Color := clGray;
-  vPlaceholder.Canvas.Rectangle(vResDiv8, vResDiv8, ASize - vResDiv8, ASize - vResDiv8);
+  try
+    vPlaceholder.SetSize(ASize, ASize);
+    vPlaceholder.PixelFormat := pf32bit;
+    vResDiv8 := Max(ASize div 8, 1);
+    vPlaceholder.Canvas.Pen.Width := 1;
+    vPlaceholder.Canvas.Pen.Color := clGray;
+    vPlaceholder.Canvas.Rectangle(vResDiv8, vResDiv8, ASize - vResDiv8, ASize - vResDiv8);
 
-  Result := TMemoryStream.Create;
-  vPlaceholder.SaveToStream(Result);
+    Result := TMemoryStream.Create;
+    vPlaceholder.SaveToStream(Result);
+  finally
+    FreeAndNil(vPlaceholder);
+  end;
 end;
 
 function TWinVCLPresenter.GetLayoutKind(const AControl: TObject): TLayoutKind;

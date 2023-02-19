@@ -167,7 +167,7 @@ type
   private
     FSize: Integer;
     FItems: TList<TStream>;
-    FIndices: TDictionary<Integer, Integer>;
+    FIndices: TDictionary<string, Integer>;
     FPlaceholder: TStream;
     function GetCount: Integer;
     function GetItem(const AIndex: Integer): TStream;
@@ -175,12 +175,12 @@ type
     constructor Create(const ASize: Integer);
     destructor Destroy; override;
 
-    procedure Add(const AIndex: Integer; const AStream: TStream);
+    procedure Add(const AName: string; const AStream: TStream);
     procedure FillWithPlaceholder(const APlaceholder: TStream);
 
     property Items[const AIndex: Integer]: TStream read GetItem; default;
     property Count: Integer read GetCount;
-    property Indices: TDictionary<Integer, Integer> read FIndices;
+    property Indices: TDictionary<string, Integer> read FIndices;
     property Placeholder: TStream read FPlaceholder;
   end;
 
@@ -574,7 +574,7 @@ begin
             vChildItem.StyleName := 'action';
             vChildItem.Caption := AParent.GetTranslation(vReport);
             vChildItem.Hint := vChildItem.Caption;
-            vChildItem.ImageID := 31;
+            vChildItem.ImageID := 'printer';
 
             vChildArea := CreateArea(AParent, vView, vChildItem);
             vChildArea.UpdateArea(dckViewStateChanged);
@@ -665,7 +665,8 @@ end;
 
 constructor TPresenter.Create(const AName: string; const ASettings: TSettings);
 var
-  vStyleName: string;
+  vThemeName: string;
+  vThemeDir: string;
 begin
   inherited Create;
 
@@ -673,9 +674,17 @@ begin
   FStartParameter := '';
   FNativeControlClass := GetNativeControlClass;
   FCursorType := crtDefault;
-  vStyleName := ASettings.GetValue('Core', 'Style', 'default');
   FCommonIcons := TIcons.Create;
-  FCommonIcons.Load(TPath.Combine(GetPlatformDir, 'res' + PathDelim + 'Styles' + PathDelim + vStyleName));
+  FCommonIcons.Load(GetResDir);
+
+  vThemeName := Trim(ASettings.GetValue('Core', 'Theme', ''));
+  if vThemeName <> '' then
+  begin
+    vThemeDir := TPath.Combine(GetResDir, 'themes' + PathDelim + vThemeName);
+    if TDirectory.Exists(vThemeDir)  then
+      FCommonIcons.Load(vThemeDir);
+  end;
+
   FInteractors := TList<TInteractor>.Create;
 end;
 
@@ -767,25 +776,25 @@ var
   vConfiguration: TConfiguration;
   vImages: TImages;
   vPlaceholder: TStream;
-  vIndex: Integer;
+  vName: string;
 
-  procedure AppendIconsToImages(const AIcons: TIcons; const AImages: TImages);
+  procedure AppendIconsToImages(const AIcons: TIconList; const AImages: TImages);
   var
-    vIndex: Integer;
+    vName: string;
     vStream: TStream;
   begin
-    for vIndex in AIcons.IconIndices do
+    for vName in AIcons.Items.Keys do
     begin
-      vStream := AIcons.IconByIndex(vIndex, ASize);
-      AImages.Add(vIndex, vStream);
+      vStream := AIcons.IconByName(vName);
+      AImages.Add(vName, vStream);
     end;
   end;
 begin
   vImages := TImages.Create(ASize);
   try
     vConfiguration := TDomain(ADomain).Configuration;
-    AppendIconsToImages(FCommonIcons, vImages);
-    AppendIconsToImages(vConfiguration.Icons, vImages);
+    AppendIconsToImages(FCommonIcons[ASize], vImages);
+    AppendIconsToImages(vConfiguration.Icons[ASize], vImages);
 
     vPlaceholder := vImages.Placeholder;
     if not Assigned(vPlaceholder) then
@@ -794,8 +803,8 @@ begin
     if Assigned(vPlaceholder) then
       vImages.FillWithPlaceholder(vPlaceholder);
 
-    for vIndex in vImages.Indices.Keys do
-      TDomain(ADomain).UIBuilder.StoreImageIndex(vIndex, vImages.Indices[vIndex]);
+    for vName in vImages.Indices.Keys do
+      TDomain(ADomain).UIBuilder.StoreImageIndex(vName, vImages.Indices[vName]);
 
     Result := DoCreateImages(ADomain, vImages, ASize);
   finally
@@ -811,7 +820,7 @@ var
   vDefinition: TDefinition;
   vEntity: TEntity;
   vCaption, vHint: string;
-  vImageID: Integer;
+  vImageID: string;
 begin
   if AOwner.Layout.AreaKind <> akNavigation then
     Exit(nil);
@@ -821,7 +830,7 @@ begin
   vImageID := ANavItem.ImageID;
 
   if AView.DefinitionKind = dkDomain then
-    Result := CreateAreaContentItem(AOwner, AArea, ANavItem, vCaption, vHint, AOwner.GetImageID(vImageID))
+    Result := CreateAreaContentItem(AOwner, AArea, ANavItem, vCaption, vHint, AOwner.GetImageIndex(vImageID))
   else if AView.DefinitionKind in [dkAction, dkCollection] then
   begin
     vDefinition := TDefinition(AView.Definition);
@@ -829,10 +838,10 @@ begin
       vCaption := AOwner.GetTranslation(vDefinition);
     if vHint = '' then
       vHint := vCaption;
-    if vImageID < 0 then
+    if vImageID = '' then
       vImageID := vDefinition._ImageID;
 
-    Result := CreateAreaContentItem(AOwner, AArea, ANavItem, vCaption, vHint, AOwner.GetImageID(vImageID));
+    Result := CreateAreaContentItem(AOwner, AArea, ANavItem, vCaption, vHint, AOwner.GetImageIndex(vImageID));
   end
   else if (AView.DefinitionKind in [dkEntity, dkObjectField]) and (AView.DomainObject is TEntity) then
   begin
@@ -842,7 +851,7 @@ begin
     if vHint = '' then
       vHint := vCaption;
 
-    Result := CreateAreaContentItem(AOwner, AArea, ANavItem, vCaption, vHint, AOwner.GetImageID(vImageID));
+    Result := CreateAreaContentItem(AOwner, AArea, ANavItem, vCaption, vHint, AOwner.GetImageIndex(vImageID));
   end
   else
     Result := nil;
@@ -1871,10 +1880,10 @@ end;
 
 { TImages }
 
-procedure TImages.Add(const AIndex: Integer; const AStream: TStream);
+procedure TImages.Add(const AName: string; const AStream: TStream);
 begin
-  FIndices.Add(AIndex, FItems.Count);
-  if AIndex = 0 then
+  FIndices.Add(AName, FItems.Count);
+  if AName = '' then
     FPlaceholder := AStream;
   FItems.Add(AStream);
 end;
@@ -1884,7 +1893,7 @@ begin
   inherited Create;
   FSize := ASize;
   FItems := TList<TStream>.Create;
-  FIndices := TDictionary<Integer, Integer>.Create;
+  FIndices := TDictionary<string, Integer>.Create;
   FPlaceholder := nil;
 end;
 

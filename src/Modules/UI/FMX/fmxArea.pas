@@ -40,7 +40,6 @@ uses
 
   FMX.StdCtrls, FMX.Controls, FMX.Types, FMX.Layouts, FMX.Menus, FMX.Forms,
   FMX.Controls.Presentation, FMX.TreeView,
-
   uConsts, uUIBuilder, uDefinition, uEntity, uView, uLayout;
 
 type
@@ -145,7 +144,6 @@ type
     function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
-
   TFMXForm = class(TForm)
   end;
 
@@ -446,7 +444,6 @@ begin
     vDefinitions := TEntityFieldDef(FView.Parent.Definition).ContentDefinitions
   else
     vDefinitions := nil;
-
   if Assigned(vDefinitions) then
   begin
     if vDefinitions.Count > 1 then
@@ -460,7 +457,7 @@ begin
         vMenuItem.Text := GetTranslation(vDefinition);
         if Length(vOverriddenCaption) > 0 then
           vMenuItem.Text := vOverriddenCaption;
-        vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
+        vMenuItem.ImageIndex := GetImageIndex(vDefinition._ImageID);
         vMenuItem.Tag := NativeInt(FOwner);
         vMenuItem.OnClick := FOwner.OnActionMenuSelected;
         FTypeSelectionMenu.AddObject(vMenuItem);
@@ -504,7 +501,6 @@ begin
   vButton.Text := GetTranslation(vActionDef);
   vButton.Hint := vButton.Text;
 end;
-
 procedure TFMXButton.ShowPopup(Sender: TObject);
 var
   vPos: TPointF;
@@ -655,7 +651,7 @@ begin
       if Pos('=', ALayout.Caption) > 0 then // Hint содержит url-строку с параметрами
       begin
         TTabItem(FControl).Text := GetUrlParam(ALayout.Caption, 'Caption', '');
-        TTabItem(FControl).ImageIndex := FOwner.GetImageId(StrToIntDef(GetUrlParam(ALayout.Caption, 'ImageIndex', ''), -1));
+        TTabItem(FControl).ImageIndex := FOwner.GetImageIndex(GetUrlParam(ALayout.Caption, 'ImageIndex', ''));
       end;
     end;
   end
@@ -1100,16 +1096,13 @@ begin
 end;
 
 { TFMXNavBarNavigation }
-
 function TFMXNavBarNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FNavBar := TPanel.Create(nil);
   FNavBarGroup := nil;
   FNavBarItem := nil;
-
   Result := FNavBar;
 end;
-
 function TFMXNavBarNavigation.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem; const ACaption,
   AHint: string; const AImageIndex: Integer): TObject;
 var
@@ -1145,7 +1138,6 @@ begin
     Result := FNavBarItem;
   end;
 end;
-
 initialization
 
 RegisterClasses([TLabel, TPanel, TSplitter, TImage, TMemo, TTabControl, TScrollBox, TShape, TPopupMenu]);

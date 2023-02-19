@@ -60,6 +60,7 @@ type
     FCaption: string;
     FVersion: TVersion;
     FConfigurationDir: string;
+    FAppDataDir: string;
     FCacheDir: string;
     FRootDefinition: TDefinition;
     FDefinitions: TDefinitions;
@@ -120,6 +121,7 @@ type
     property VersionName: string read GetVersionName;
     property IconFileName: string read FIconFileName;
     property ConfigurationDir: string read FConfigurationDir;
+    property AppDataDir: string read FAppDataDir;
     property CacheDir: string read FCacheDir;
 
     property RootDefinition: TDefinition read FRootDefinition;
@@ -183,10 +185,12 @@ uses
 
 procedure TConfiguration.AddInclusion(const AName: string);
 begin
-  FResFolders.Add(TPath.Combine(GetBinDir, 'Modules' + PathDelim + AName));
+  FResFolders.Add(TPath.Combine(GetResDir, 'modules' + PathDelim + AName));
 end;
 
 constructor TConfiguration.Create(const APlatform: TObject; const AName: string);
+var
+  vAppPath: string;
 begin
   inherited Create;
 
@@ -194,24 +198,32 @@ begin
   FName := AName;
   FIconFileName := '';
   FResFolders := TStringList.Create;
+  vAppPath := cProductCreator + PathDelim + FName;
 
-{$IFDEF MSWINDOWS}
-  FConfigurationDir := TPath.Combine(GetBinDir, 'Solutions' + PathDelim + FName);
-  FCacheDir := TPath.Combine(TPath.GetCachePath, cProductCreator + PathDelim + FName);
-  if not TDirectory.Exists(FCacheDir) then
-    TDirectory.CreateDirectory(FCacheDir);
-{$ELSE} {$IFDEF POSIX}
-  FConfigurationDir := TPath.Combine(GetBinDir, 'Solutions' + PathDelim + FName);
-  FCacheDir := '/tmp/Sensoft/Configuration';
-{$ELSE}
+  FConfigurationDir := TPath.Combine(GetResDir, 'solutions' + PathDelim + FName);
+
+{$IF DEFINED(MSWINDOWS)}
+  FAppDataDir := TPath.Combine(TPath.GetCachePath, vAppPath);
+  FCacheDir := TPath.Combine(TPath.GetCachePath, vAppPath);
+{$ELSEIF DEFINED(ANDROID)} OR DEFINED(IOS)}
+  FAppDataDir := TPath.GetPublicPath;
+  FCacheDir := TPath.GetCachePath;
+{$ELSEIF DEFINED(IOS)}
+  FAppDataDir := TPath.GetDocumentsPath;
+  FCacheDir := TPath.GetCachePath;
+{$ELSEiF DEFINED(LINUX) }
+  FIX
   FConfigurationDir := TPath.GetHomePath;
   FCacheDir := TPath.GetCachePath;
 //  FCacheDir := FConfigurationDir;
-{$ENDIF} {$ENDIF}
-
-{$IFDEF IOS}
-  FConfigurationDir := TPath.Combine(FConfigurationDir, 'Documents');
 {$ENDIF}
+
+  if not TDirectory.Exists(FConfigurationDir) then
+    TDirectory.CreateDirectory(FConfigurationDir);
+  if not TDirectory.Exists(FAppDataDir) then
+    TDirectory.CreateDirectory(FAppDataDir);
+  if not TDirectory.Exists(FCacheDir) then
+    TDirectory.CreateDirectory(FCacheDir);
 
   FLocalizator := TCfgLocalizator.Create(TPath.Combine(FConfigurationDir, 'translations'),
     TPath.Combine(FConfigurationDir, 'settings.ini'));
@@ -296,7 +308,7 @@ begin
     Result := ''
   else
   begin
-    vLayoutFile := TPath.Combine(FConfigurationDir, 'layouts' + PathDelim + ARelativeFilePath);
+     vLayoutFile := TPath.Combine(FConfigurationDir, 'layouts' + PathDelim + ARelativeFilePath);
     if (APostfix <> '') and FileExists(vLayoutFile + APostfix + AExtension) then
       Result := vLayoutFile + APostfix + AExtension
     else if FileExists(vLayoutFile + AExtension) then

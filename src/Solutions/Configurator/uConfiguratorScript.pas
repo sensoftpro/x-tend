@@ -81,13 +81,12 @@ end;
 function GenerateModules(const ADomain: TDomain; const AProjectName, ATitle, AVersion: string): string;
 var
   vPlatformPath: string;
-  vResPath: string;
+  vTemplatesPath: string;
   vSrcPath: string;
   vBinPath: string;
   vProcessingFileName: string;
   vTargetFileName: string;
   vHandledText: string;
-  vDBName: string;
   vGUID: TGUID;
   vFileContent: TStringStream;
   vIniFile: TIniFile;
@@ -95,20 +94,18 @@ begin
   Result := '';
   vPlatformPath := ADomain.Constant['PlatformFolder'];
   if vPlatformPath = '' then
-    vPlatformPath := ExtractFilePath(ParamStr(0)) + '..\'
-  else
-    vPlatformPath := IncludeTrailingPathDelimiter(vPlatformPath);
+    vPlatformPath := GetPlatformDir;
 
-  vResPath := TPath.Combine(ADomain.Configuration.ConfigurationDir, 'templates');
-  if not TDirectory.Exists(vResPath) then
+  vTemplatesPath := TPath.Combine(ADomain.Configuration.ConfigurationDir, 'templates');
+  if not TDirectory.Exists(vTemplatesPath) then
     Exit;
 
   // Подготовка директории для исходников
-  vSrcPath := vPlatformPath + 'src\Solutions\' + AProjectName;
+  vSrcPath := TPath.Combine(vPlatformPath, 'src' + PathDelim + 'Solutions' + PathDelim + AProjectName);
   ForceDirectories(vSrcPath);
 
   // Копирование иконки проекта
-  vProcessingFileName := TPath.Combine(vResPath, 'favicon.ico');
+  vProcessingFileName := TPath.Combine(vTemplatesPath, 'favicon.ico');
   vTargetFileName := TPath.Combine(vSrcPath, 'favicon.ico');
   if TFile.Exists(vProcessingFileName) and not TFile.Exists(vTargetFileName) then
     TFile.Copy(vProcessingFileName, vTargetFileName);
@@ -116,7 +113,7 @@ begin
   vFileContent := TStringStream.Create('', TEncoding.UTF8);
   try
     // Подготовка *.dproj файла
-    vProcessingFileName := TPath.Combine(vResPath, 'NewApplication.dproj');
+    vProcessingFileName := TPath.Combine(vTemplatesPath, 'NewApplication.dproj');
     if TFile.Exists(vProcessingFileName) then
     begin
       vFileContent.LoadFromFile(vProcessingFileName);
@@ -130,7 +127,7 @@ begin
     end;
 
     // Подготовка *.dpr файла
-    vProcessingFileName := TPath.Combine(vResPath, 'NewApplication.dpr');
+    vProcessingFileName := TPath.Combine(vTemplatesPath, 'NewApplication.dpr');
     if TFile.Exists(vProcessingFileName) then
     begin
       vFileContent.LoadFromFile(vProcessingFileName);
@@ -141,7 +138,7 @@ begin
     end;
 
     // Подготовка скрипта (*.pas файла)
-    vProcessingFileName := TPath.Combine(vResPath, 'NewScript.pas');
+    vProcessingFileName := TPath.Combine(vTemplatesPath, 'NewScript.pas');
     if TFile.Exists(vProcessingFileName) then
     begin
       vFileContent.LoadFromFile(vProcessingFileName);
@@ -157,18 +154,11 @@ begin
   end;
 
   // Подготовка директории для бинарников
-  vBinPath := vPlatformPath + 'bin\solutions\' + LowerCase(AProjectName);
+  vBinPath := TPath.Combine(vPlatformPath, 'bin' + PathDelim + 'solutions' + PathDelim + LowerCase(AProjectName));
   ForceDirectories(vBinPath);
 
-  // Копирование пустой базы данных
-  vDBName := LowerCase(AProjectName) + '.mdb';
-  vProcessingFileName := TPath.Combine(vResPath, 'storage.mdb');
-  vTargetFileName := TPath.Combine(vBinPath, vDBName);
-  if TFile.Exists(vProcessingFileName) and not TFile.Exists(vTargetFileName) then
-    TFile.Copy(vProcessingFileName, vTargetFileName);
-
-  if TDirectory.Exists(TPath.Combine(vResPath, 'layouts')) then
-    TDirectory.Copy(TPath.Combine(vResPath, 'layouts'), TPath.Combine(vBinPath, 'layouts'));
+  if TDirectory.Exists(TPath.Combine(vTemplatesPath, 'layouts')) then
+    TDirectory.Copy(TPath.Combine(vTemplatesPath, 'layouts'), TPath.Combine(vBinPath, 'layouts'));
 
   vIniFile := TIniFile.Create(TPath.Combine(vBinPath, 'settings.ini'));
   try
@@ -178,8 +168,6 @@ begin
       vIniFile.WriteString('Core', 'EnvironmentID', UpperCase(GUIDToString(vGUID)));
     if not vIniFile.ValueExists('Core', 'AutoLogin') then
       vIniFile.WriteString('Core', 'AutoLogin', '1');
-    if not vIniFile.ValueExists('MSAccess', 'Database') then
-      vIniFile.WriteString('MSAccess', 'Database', vDBName);
     if not vIniFile.ValueExists('SQLite', 'Database') then
       vIniFile.WriteString('SQLite', 'Database', LowerCase(AProjectName) + '.db');
     if not vIniFile.ValueExists('Modules', 'DataStorage') then
@@ -271,8 +259,8 @@ begin
   vDefinition.AddSimpleFieldDef('Caption', 'caption', 'Заголовок', Null, Null, 80, fkString, '', '', vsFullAccess, cRequired or cLocalizable);
   vDefinition.AddSimpleFieldDef('Version', 'version', 'Версия', '0.1', Null, 15, fkString, '', '', vsFullAccess, cRequired);
 
-  vDefinition := AddDefinition('Configurations', '_Configurations', 'Конфигурации', cNullItemName, 0).SetImageID(9);
-  vDefinition.AddAction('MakeSolution', 'Создать приложение', 0);
+  vDefinition := AddDefinition('Configurations', '_Configurations', 'Конфигурации', cNullItemName, 0).SetImageID('group16');
+  vDefinition.AddAction('MakeSolution', 'Создать приложение', '');
 
   vDefinition := AddDefinition('Streets', '', 'Улицы', cNullItemName);
   vDefinition.AddSimpleFieldDef('Name', 'name', 'Наименование', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);

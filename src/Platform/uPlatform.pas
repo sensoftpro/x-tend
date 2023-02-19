@@ -90,7 +90,9 @@ implementation
 uses
 {$IFDEF MSWINDOWS}
   WinApi.Windows,
-{$ENDIF}
+{$ELSE} {$IFDEF POSIX}
+  Posix.Unistd,
+{$ENDIF} {$ENDIF}
   Classes, SysUtils, IOUtils, SyncObjs, Threading, uConsts, uCodeConfiguration, uScript, uUtils;
 
 const
@@ -172,12 +174,13 @@ begin
 
   FWereErrors := False;
   FSettings := ASettings;
+
   FConfigurations := TObjectStringDictionary<TConfiguration>.Create;
   FDomains := TObjectStringDictionary<TDomain>.Create;
   FEnumerations := TEnumerations.Create;
   AddEnums;
 
-  FLocalizator := TLocalizator.Create(TPath.Combine(GetPlatformDir + PathDelim + 'res', 'translations'), TPath.Combine(GetPlatformDir, 'settings.ini'));
+  FLocalizator := TLocalizator.Create(TPath.Combine(GetResDir, 'translations'), TPath.Combine(GetBinDir, 'settings.ini'));
   if Assigned(ASettings) then
     vLanguage := ASettings.GetValue('Core', 'Language', '')
   else
@@ -366,8 +369,12 @@ begin
   else
     vParameter := '';
 
-  vSettings := TIniSettings.Create(TPath.Combine(GetPlatformDir, 'settings.ini'));
+  vSettings := TIniSettings.Create(TPath.Combine(GetBinDir, 'settings.ini'));
   vIsSingleton := SameText(vSettings.GetValue('Core', 'RunMode', ''), 'singleton');
+  if vSettings.KeyExists('Core', 'DevMode') then
+    DeveloperMode := StrToIntDef(vSettings.GetValue('Core', 'DevMode', ''), 0) <> 0
+  else
+    DeveloperMode := True;
 
   vProcessMediator := TProcessMediator.Create('Sensoft.Platform');
 
@@ -501,9 +508,9 @@ begin
         end;
       end);
 {$ELSE}
-  AssignFile(FLockFile, '/tmp/Sensoft.Platform.lock');
-  Rewrite(FLockFile);
-  CloseFile(FLockFile);
+  //AssignFile(FLockFile, '/tmp/Sensoft.Platform.lock');
+  //Rewrite(FLockFile);
+  //CloseFile(FLockFile);
 {$ENDIF}
   end
   else begin

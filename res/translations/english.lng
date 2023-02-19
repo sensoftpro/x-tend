@@ -1,0 +1,11 @@
+﻿@TLoginFm.lblLogin@Caption=Login
+@TLoginFm.lblPassword@Caption=Password
+txtWrongLoginOrPassword=Введены некорректные имя пользователя или пароль
+txtPromptTryAgain=Try again?
+cptError=Error
+@btnOk@Caption=Ok
+@btnCancel@Caption=Cancel
+@TStartFm@Caption=Select Configuration
+@TStartFm.lblLanguage@Caption=Platform Language
+@TStartFm.lblAvailableConfigurations@Caption=Available configurations
+@TStartFm.btnRun@Caption=Start

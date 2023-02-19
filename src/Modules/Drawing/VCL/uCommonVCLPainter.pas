@@ -225,16 +225,19 @@ begin
     Result := TBitmap.Create;
     TBitmap(Result).SetSize(AWidth, AHeight);
     vTempBmp := TBitmap.Create;
-    vTempBmp.SetSize(GetWidth, GetHeight);
-    vTempBmp.Assign(TGraphic(FImage));
-    TBitmap(Result).PixelFormat := vTempBmp.PixelFormat;
-    TBitmap(Result).Transparent := vTempBmp.Transparent;
-    TBitmap(Result).TransparentColor := vTempBmp.TransparentColor;
-    TBitmap(Result).TransparentMode := vTempBmp.TransparentMode;
-    TBitmap(Result).AlphaFormat := vTempBmp.AlphaFormat;
-    BitBlt(TBitmap(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
-      vTempBmp.Canvas.Handle, ALeft, ATop, SRCCOPY);
-    FreeAndNil(vTempBmp);
+    try
+      vTempBmp.SetSize(GetWidth, GetHeight);
+      vTempBmp.Assign(TGraphic(FImage));
+      TBitmap(Result).PixelFormat := vTempBmp.PixelFormat;
+      TBitmap(Result).Transparent := vTempBmp.Transparent;
+      TBitmap(Result).TransparentColor := vTempBmp.TransparentColor;
+      TBitmap(Result).TransparentMode := vTempBmp.TransparentMode;
+      TBitmap(Result).AlphaFormat := vTempBmp.AlphaFormat;
+      BitBlt(TBitmap(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
+        vTempBmp.Canvas.Handle, ALeft, ATop, SRCCOPY);
+    finally
+      FreeAndNil(vTempBmp);
+    end;
   end
   {else if Source is TGIFImage then
   begin
@@ -247,11 +250,14 @@ begin
     Result := TBitmap.Create;
     TBitmap(Result).SetSize(AWidth, AHeight);
     vTempBmp := TBitmap.Create;
-    vTempBmp.SetSize(GetWidth, GetHeight);
-    vTempBmp.Canvas.Draw(0, 0, TGraphic(FImage));
-    BitBlt(TBitmap(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
-      vTempBmp.Canvas.Handle, ALeft, ATop, SRCCOPY);
-    FreeAndNil(vTempBmp);
+    try
+      vTempBmp.SetSize(GetWidth, GetHeight);
+      vTempBmp.Canvas.Draw(0, 0, TGraphic(FImage));
+      BitBlt(TBitmap(Result).Canvas.Handle, 0, 0, AWidth, AHeight,
+        vTempBmp.Canvas.Handle, ALeft, ATop, SRCCOPY);
+    finally
+      FreeAndNil(vTempBmp);
+    end;
   end;
 end;
 
@@ -741,8 +747,8 @@ var
   vVertexes: array[0..1] of TTriVertex;
   vGradRect: TGradientRect;
   vBlendFunction: TBlendFunction;
-  vStartColor: TColor;
-  vEndColor: TColor;
+  vStartColor: Cardinal;
+  vEndColor: Cardinal;
 begin
 {$R-}
   if AFill.GradientKind <> gkNone then

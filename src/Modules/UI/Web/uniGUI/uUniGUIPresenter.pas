@@ -383,14 +383,14 @@ begin
       vForm.OnClose := OnCloseMDIForm;
       vForm.ShowHint := True;
       if AView.DefinitionKind in [dkCollection, dkAction, dkEntity] then
-        TUniCustomImageList(vUIBuilder.Images[16]).GetIcon(AParent.GetImageID(TDefinition(AView.Definition)._ImageID), vForm.Icon);
+        TUniCustomImageList(vUIBuilder.Images[16]).GetIcon(AParent.GetImageIndex(TDefinition(AView.Definition)._ImageID), vForm.Icon);
 
       Result := vForm;
     end
     else begin
       vTab := TUniTabSheet.Create(vOwner);
       vTab.Caption := ALayout.Caption;
-      vTab.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+      vTab.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
 
       vStartPageName := vDomain.Settings.GetValue('Core', 'StartPage', '');
       vTab.Parent := TWinControl(vParentControl);
@@ -616,7 +616,7 @@ begin
       begin
         vMenuItem.Caption := ALayout.Caption;
         vMenuItem.Hint := ALayout.Caption;
-        vMenuItem.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+        vMenuItem.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
         vMenuItem.OnClick := AParent.OnAreaClick;
 
         if (AView.DefinitionKind = dkAction) and TDefinition(AView.Definition).FieldExists('IsChecked')
@@ -637,7 +637,7 @@ begin
       begin
         vMenuItem.Caption := ALayout.Caption;
         vMenuItem.Hint := ALayout.Caption;
-        vMenuItem.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+        vMenuItem.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
         vMenuItem.Tag := NativeInt(AParent);
         vMenuItem.OnClick := AParent.OnActionMenuSelected;
       end

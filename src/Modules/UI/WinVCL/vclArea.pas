@@ -228,14 +228,14 @@ begin
     Assert(FView.DefinitionKind = dkAction);
 
     vAction := TActionDef(FView.Definition);
-    FButton.ImageIndex := AParent.GetImageID(vAction._ImageID);
+    FButton.ImageIndex := AParent.GetImageIndex(vAction._ImageID);
     FButton.Caption := AParent.GetTranslation(vAction, tpCaption);
     FButton.Hint := AParent.GetTranslation(vAction, tpHint);
     FButton.OnClick := AParent.OnAreaClick;
   end
   else
   begin
-    FButton.ImageIndex := AParent.GetImageID(StrToIntDef(GetUrlParam(FParams, 'ImageIndex'), -1));
+    FButton.ImageIndex := AParent.GetImageIndex(GetUrlParam(FParams, 'ImageIndex'));
     FButton.Caption := GetUrlParam(FParams, 'Caption');
     FButton.Hint := GetUrlParam(FParams, 'Hint');
     FButton.OnClick := OnClick;
@@ -600,7 +600,8 @@ var
   i: Integer;
   vMenuItem: TMenuItem;
   vDefinition: TDefinition;
-  vImageID: Integer;
+  vImageID: string;
+  vImageIndex: Integer;
   vCaption: string;
   vImageSize: Integer;
   vComposition: string;
@@ -612,7 +613,9 @@ begin
   vParams := CreateDelimitedList(FInternalParams, '&');
   try
     vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
-    vImageID := StrToIntDef(vParams.Values['ImageID'], vActionDef._ImageID);
+    vImageID := vParams.Values['ImageID'];
+    if vImageID = '' then
+      vImageID := vActionDef._ImageID;
     vComposition := Trim(vParams.Values['Composition']);
     vViewStyle := Trim(vParams.Values['ViewStyle']);
     vOverriddenCaption := Trim(vParams.Values['Caption']);
@@ -623,7 +626,7 @@ begin
 
   vButton := TButton.Create(nil);
   vButton.Images := TDragImageList(FUIBuilder.Images[vImageSize]);
-  vImageID := GetImageID(vImageID);
+  vImageIndex := GetImageIndex(vImageID);
 
   //TODO: We need another control or style here
   if (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone) then
@@ -641,7 +644,7 @@ begin
 
   vButton.ImageIndex := -1;
   vButton.Caption := '';
-  if (vButton.Images.Count + 1 >= vImageID) and (vImageID > 0) then
+  if (vButton.Images.Count + 1 >= vImageIndex) and (vImageIndex > 0) then
   begin
     if vComposition = '' then
     begin
@@ -649,7 +652,7 @@ begin
         vButton.Caption := vCaption
       else begin
         vButton.ImageAlignment := TImageAlignment.iaCenter;
-        vButton.ImageIndex := vImageID;
+        vButton.ImageIndex := vImageIndex;
       end;
     end
     else if vComposition = 'TextOnly' then
@@ -657,11 +660,11 @@ begin
     else if vComposition = 'ImageOnly' then
     begin
       vButton.ImageAlignment := TImageAlignment.iaCenter;
-      vButton.ImageIndex := vImageID;
+      vButton.ImageIndex := vImageIndex;
     end
     else begin
       vButton.Caption := vCaption;
-      vButton.ImageIndex := vImageID;
+      vButton.ImageIndex := vImageIndex;
       if vComposition = 'ImageRight' then
         vButton.ImageAlignment := TImageAlignment.iaRight
       else if vComposition = 'ImageTop' then
@@ -691,7 +694,7 @@ begin
         vMenuItem.Caption := GetTranslation(vDefinition);
         if Length(vOverriddenCaption) > 0 then
           vMenuItem.Caption := vOverriddenCaption;
-        vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
+        vMenuItem.ImageIndex := GetImageIndex(vDefinition._ImageID);
         vMenuItem.Tag := NativeInt(FOwner);
         vMenuItem.OnClick := FOwner.OnActionMenuSelected;
         FTypeSelectionMenu.Items.Add(vMenuItem);
@@ -719,7 +722,7 @@ procedure TVCLButton.RefillArea(const AKind: Word);
 var
   vButton: TButton;
   vActionDef: TDefinition;
-  vImageID: Integer;
+  vImageIndex: Integer;
 begin
   if AKind <> dckContentTypeChanged then
   begin
@@ -730,10 +733,10 @@ begin
   vButton := TButton(FControl);
 
   vActionDef := TDefinition(FView.Definition);
-  vImageID := GetImageID(vActionDef._ImageID);
+  vImageIndex := GetImageIndex(vActionDef._ImageID);
 
-  if (vButton.Images.Count + 1 >= vImageID) and (vImageID > 0) then
-    vButton.ImageIndex := vImageID;
+  if (vButton.Images.Count + 1 >= vImageIndex) and (vImageIndex > 0) then
+    vButton.ImageIndex := vImageIndex;
 
   vButton.Caption := GetTranslation(vActionDef);
   vButton.Hint := vButton.Caption;
@@ -879,7 +882,7 @@ begin
       if Pos('=', ALayout.Caption) > 0 then // Hint содержит url-строку с параметрами
       begin
         TTabSheet(FControl).Caption := GetUrlParam(ALayout.Caption, 'Caption', '');
-        TTabSheet(FControl).ImageIndex := FOwner.GetImageId(StrToIntDef(GetUrlParam(ALayout.Caption, 'ImageIndex', ''), -1));
+        TTabSheet(FControl).ImageIndex := FOwner.GetImageIndex(GetUrlParam(ALayout.Caption, 'ImageIndex', ''));
       end;
     end;
   end

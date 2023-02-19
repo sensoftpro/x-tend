@@ -612,7 +612,7 @@ var
     vEditRepositoryButtonItem.Properties.Images := TDragImageList(TInteractor(FView.Interactor).Images[16]);
     vBtn := vEditRepositoryButtonItem.Properties.Buttons[0];
     vBtn.Kind := bkGlyph;
-    vBtn.ImageIndex := GetImageID(AActionDef._ImageID);
+    vBtn.ImageIndex := GetImageIndex(AActionDef._ImageID);
     vBtn.Hint := AActionDef._Caption;
     vBtn.Enabled := AEnabled;
   end;

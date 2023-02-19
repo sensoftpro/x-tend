@@ -42,15 +42,16 @@ type
   TIconList = class
   private
     FResolution: Integer;
-    FItems: TObjectDictionary<Integer, TStream>;
+    FItems: TObjectDictionary<string, TStream>;
     FPlaceHolder: TStream;
   public
     constructor Create(const AResolution: Integer);
     destructor Destroy; override;
 
-    procedure AddIcon(const AName: string; const AIndex: Integer; const AStream: TStream);
-    function IconByIndex(const AIndex: Integer): TStream;
+    procedure AddIcon(const AName: string; const AStream: TStream);
+    function IconByName(const AName: string): TStream;
 
+    property Items: TObjectDictionary<string, TStream> read FItems;
     property Resolution: Integer read FResolution;
   end;
 
@@ -58,73 +59,29 @@ type
   private
     FItems: TObjectDictionary<Integer, TIconList>;
     FImages: TObjectDictionary<string, TStream>;
-    FIconIndices: TList<Integer>;
     FSplashImage: TStream;
     FSplashFileName: string;
-    procedure AddIcon(const AFullFileName: string);
     procedure AddImage(const AFullFileName: string);
+    function GetItems(const AResolution: Integer): TIconList;
   public
     constructor Create;
     destructor Destroy; override;
 
     procedure Load(const ADirectory: string);
-    function IconByIndex(const AIndex: Integer; const AResolution: Integer = 16): TStream;
+    function IconByName(const AName: string; const AResolution: Integer = 16): TStream;
     function ImageByName(const AName: string): TStream;
 
+    property Items[const AResolution: Integer]: TIconList read GetItems; default;
     property Splash: TStream read FSplashImage;
     property SplashFileName: string read FSplashFileName;
-    property IconIndices: TList<Integer> read FIconIndices;
   end;
 
 implementation
 
 uses
-  SysUtils, IOUtils, RegularExpressions;
+  SysUtils, IOUtils, uConsts;
 
 { TIcons }
-
-procedure TIcons.AddIcon(const AFullFileName: string);
-const
-  cImageFileNameRE = '^i(\d+)_(?:r(\d+)_)?(.*)\.([^.]+)$';
-var
-  vFileName: string;
-  vMatch: TMatch;
-  vIndex: Integer;
-  vResolution: Integer;
-  vName: string;
-  vFileExt: string;
-  vImageStream: TMemoryStream;
-  vIconList: TIconList;
-begin
-  vFileName := ExtractFileName(AFullFileName);
-  vMatch := TRegEx.Match(vFileName, cImageFileNameRE, [roIgnoreCase, roSingleLine]);
-  if not vMatch.Success then
-    Exit;
-
-  vIndex := StrToIntDef(vMatch.Groups[1].Value, -1);
-  if vIndex < 0 then
-    Exit;
-
-  if not FIconIndices.Contains(vIndex) then
-    FIconIndices.Add(vIndex);
-
-  vResolution := StrToIntDef(vMatch.Groups[2].Value, 16);
-  if not FItems.TryGetValue(vResolution, vIconList) then
-  begin
-    vIconList := TIconList.Create(vResolution);
-    FItems.Add(vResolution, vIconList);
-  end;
-
-  vName := vMatch.Groups[3].Value;
-  vFileExt := vMatch.Groups[4].Value;
-  if vFileExt = 'png' then
-  begin
-    vImageStream := TMemoryStream.Create;
-    vImageStream.LoadFromFile(AFullFileName);
-    vImageStream.Position := 0;
-    vIconList.AddIcon(vName, vIndex, vImageStream);
-  end;
-end;
 
 procedure TIcons.AddImage(const AFullFileName: string);
 var
@@ -141,7 +98,6 @@ end;
 constructor TIcons.Create;
 begin
   inherited Create;
-  FIconIndices := TList<Integer>.Create;
   FItems := TObjectDictionary<Integer, TIconList>.Create([doOwnsValues]);
   FImages := TObjectDictionary<string, TStream>.Create([doOwnsValues]);
   FSplashImage := nil;
@@ -152,18 +108,28 @@ destructor TIcons.Destroy;
 begin
   FreeAndNil(FImages);
   FreeAndNil(FItems);
-  FreeAndNil(FIconIndices);
   FreeAndNil(FSplashImage);
 
   inherited Destroy;
 end;
 
-function TIcons.IconByIndex(const AIndex, AResolution: Integer): TStream;
+function TIcons.GetItems(const AResolution: Integer): TIconList;
+begin
+  if not FItems.TryGetValue(AResolution, Result) then
+  begin
+    Result := TIconList.Create(AResolution);
+    FItems.Add(AResolution, Result);
+  end;
+end;
+
+function TIcons.IconByName(const AName: string; const AResolution: Integer): TStream;
 var
+  vName: string;
   vIconList: TIconList;
 begin
+  vName := AName.ToLowerInvariant;
   if FItems.TryGetValue(AResolution, vIconList) then
-    Result := vIconList.IconByIndex(AIndex)
+    Result := vIconList.IconByName(vName)
   else
     Result := nil;
 end;
@@ -177,6 +143,12 @@ end;
 procedure TIcons.Load(const ADirectory: string);
 var
   vDirectory: string;
+  vDirectories: TArray<string>;
+  vDirName, vFullDirName: string;
+  vResolution: Integer;
+  vIconList: TIconList;
+  vName, vExtension: string;
+  vImageStream: TMemoryStream;
   vSearchRec: TSearchRec;
 begin
   if not DirectoryExists(ADirectory) then
@@ -196,13 +168,32 @@ begin
   if not DirectoryExists(vDirectory) then
     Exit;
 
-  if SysUtils.FindFirst(vDirectory + PathDelim + '*.*', faNormal, vSearchRec) = 0 then
+  vDirectories := TDirectory.GetDirectories(vDirectory);
+  for vFullDirName in vDirectories do
   begin
-    repeat
-      AddIcon(TPath.Combine(vDirectory, vSearchRec.Name));
-    until SysUtils.FindNext(vSearchRec) <> 0;
+    vDirName := GetOwnerDirectoryName(vFullDirName);
+    vResolution := StrToIntDef(Trim(vDirName), 0);
+    if vResolution > 0 then
+    begin
+      vIconList := GetItems(vResolution);
 
-    SysUtils.FindClose(vSearchRec);
+      if SysUtils.FindFirst(vFullDirName + PathDelim + '*.*', faNormal, vSearchRec) = 0 then
+      begin
+        repeat
+          vName := TPath.GetFileNameWithoutExtension(vSearchRec.Name);
+          vExtension := TPath.GetExtension(vSearchRec.Name);
+          if vExtension = '.png' then
+          begin
+            vImageStream := TMemoryStream.Create;
+            vImageStream.LoadFromFile(TPath.Combine(vFullDirName, vSearchRec.Name));
+            vImageStream.Position := 0;
+            vIconList.AddIcon(vName, vImageStream);
+          end;
+        until SysUtils.FindNext(vSearchRec) <> 0;
+
+        SysUtils.FindClose(vSearchRec);
+      end;
+    end;
   end;
 
   vDirectory := TPath.Combine(ADirectory, 'images');
@@ -221,9 +212,12 @@ end;
 
 { TIconStorage }
 
-procedure TIconList.AddIcon(const AName: string; const AIndex: Integer; const AStream: TStream);
+procedure TIconList.AddIcon(const AName: string; const AStream: TStream);
+var
+  vName: string;
 begin
-  if SameText(AName, 'placeholder') then
+  vName := AName.ToLowerInvariant;
+  if SameStr(vName, 'placeholder') then
   begin
     if Assigned(FPlaceHolder) then
       FreeAndNil(FPlaceHolder);
@@ -231,14 +225,14 @@ begin
     Exit;
   end;
 
-  FItems.AddOrSetValue(AIndex, AStream);
+  FItems.AddOrSetValue(vName, AStream);
 end;
 
 constructor TIconList.Create(const AResolution: Integer);
 begin
   inherited Create;
   FResolution := AResolution;
-  FItems := TObjectDictionary<Integer, TStream>.Create([doOwnsValues]);
+  FItems := TObjectDictionary<string, TStream>.Create([doOwnsValues]);
   FPlaceHolder := nil;
 end;
 
@@ -250,9 +244,9 @@ begin
   inherited Destroy;
 end;
 
-function TIconList.IconByIndex(const AIndex: Integer): TStream;
+function TIconList.IconByName(const AName: string): TStream;
 begin
-  if not FItems.TryGetValue(AIndex, Result) then
+  if not FItems.TryGetValue(AName, Result) then
     Result := FPlaceHolder;
 end;
 
