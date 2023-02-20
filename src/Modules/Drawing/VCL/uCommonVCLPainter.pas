@@ -427,25 +427,21 @@ end;
 procedure TCommonVCLPainter.DoDrawBezier(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer);
 var
   vOldPen: TPen;
+  vFirstIndex: Integer;
+  vIterationCount: Integer;
   vPoints: TArray<TPointF> absolute APoints;
   vPointsCopy: TArray<TPoint>;
   i: Integer;
 begin
   vOldPen := ThisCanvas.Pen;
 
-  SetLength(vPointsCopy, 4);
-  i := 0;
+  ThisCanvas.Pen := TPen(AStroke.NativeObject);
+  SetLength(vPointsCopy, ACount);
+
   try
-    ThisCanvas.Pen := TPen(AStroke.NativeObject);
-    while i < Length(vPoints) do
-    begin
-      vPointsCopy[0] := vPoints[0 + (Round(i/3) * 3)].Round;
-      vPointsCopy[1] := vPoints[i + 1].Round;
-      vPointsCopy[2] := vPoints[i + 2].Round;
-      vPointsCopy[3] := vPoints[i + 3].Round;
-      ThisCanvas.PolyBezier(vPointsCopy);
-      Inc(i,3);
-    end;
+    for i := 0 to ACount - 1 do
+      vPointsCopy[i] := vPoints[i].Round;
+    ThisCanvas.PolyBezier(vPointsCopy);
   finally
     SetLength(vPointsCopy, 0);
     ThisCanvas.Pen := vOldPen;

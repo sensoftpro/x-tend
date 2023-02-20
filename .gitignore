@@ -27,4 +27,3 @@ bin/*.json
 *.o
 /src/Solutions/Configurator/FGX/.android-build
 /bin/Win32/cache
-/src/Solutions/Configurator/.android-build

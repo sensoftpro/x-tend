@@ -40,6 +40,7 @@ uses
 
   FMX.StdCtrls, FMX.Controls, FMX.Types, FMX.Layouts, FMX.Menus, FMX.Forms,
   FMX.Controls.Presentation, FMX.TreeView,
+
   uConsts, uUIBuilder, uDefinition, uEntity, uView, uLayout;
 
 type
@@ -144,6 +145,7 @@ type
     function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
+
   TFMXForm = class(TForm)
   end;
 
@@ -444,6 +446,7 @@ begin
     vDefinitions := TEntityFieldDef(FView.Parent.Definition).ContentDefinitions
   else
     vDefinitions := nil;
+
   if Assigned(vDefinitions) then
   begin
     if vDefinitions.Count > 1 then
@@ -501,6 +504,7 @@ begin
   vButton.Text := GetTranslation(vActionDef);
   vButton.Hint := vButton.Text;
 end;
+
 procedure TFMXButton.ShowPopup(Sender: TObject);
 var
   vPos: TPointF;
@@ -1096,13 +1100,16 @@ begin
 end;
 
 { TFMXNavBarNavigation }
+
 function TFMXNavBarNavigation.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FNavBar := TPanel.Create(nil);
   FNavBarGroup := nil;
   FNavBarItem := nil;
+
   Result := FNavBar;
 end;
+
 function TFMXNavBarNavigation.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem; const ACaption,
   AHint: string; const AImageIndex: Integer): TObject;
 var
@@ -1138,6 +1145,7 @@ begin
     Result := FNavBarItem;
   end;
 end;
+
 initialization
 
 RegisterClasses([TLabel, TPanel, TSplitter, TImage, TMemo, TTabControl, TScrollBox, TShape, TPopupMenu]);

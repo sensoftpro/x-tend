@@ -318,6 +318,7 @@ begin
     vBevelPanel.Align := AlignToAlignLayout(ALayout.Align);
     vBevelPanel.StyleLookup := 'pushpanel';
     CopyMargins(vBevelPanel, ALayout);
+
     ALayout.Id := '-bevel-';
     Result := vBevelPanel;
   end
@@ -798,6 +799,7 @@ begin
   end
   else
     Exit;
+
   TDialogService.MessageDialog(AText, vMsgDlgType, vButtons, vDefaultBtn, 0, TInputCloseDialogProc(procedure(const AResult: TModalResult)
     begin
       if Assigned(AOnClose) then

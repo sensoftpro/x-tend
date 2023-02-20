@@ -425,7 +425,7 @@ begin
   FModules := TDictionary<string, TBaseModule>.Create;
   FModuleInstances := TObjectList<TBaseModule>.Create;
 
-  vAppDataDirectory := TPath.GetCachePath; // FConfiguration.CacheDir;
+  vAppDataDirectory := FConfiguration.AppDataDir;
   FUserSettings := TIniSettings.Create(TPath.Combine(vAppDataDirectory, 'settings.ini'));
   vLogsDir := TPath.Combine(vAppDataDirectory, 'logs');
   FLogger := TLogger.Create(Self, 'System logger');

@@ -339,6 +339,7 @@ begin
     ALayout.Name := vSourceTabSheet.Name;
     ALayout.Tag := vSourceTabSheet.Tag;
     ALayout.Caption := vSourceTabSheet.Caption;
+	// TODO: Get image name from tab
     //ALayout.ImageID := vSourceTabSheet.ImageIndex;
     ALayout.ShowCaption := vSourceTabSheet.TabVisible;
   end

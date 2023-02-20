@@ -3,7 +3,6 @@
 {$IFOPT D-}{$WEAKLINKRTTI ON}{$ENDIF}
 {$RTTI EXPLICIT METHODS([]) PROPERTIES([]) FIELDS([])}
 
-{$DEFINE DEVMODE}
 {$DEFINE VCL_UI}
 { $DEFINE FGX_UI}
 { $DEFINE FMX_UI}
@@ -128,7 +127,6 @@ uses
 {$ENDIF}
 
   // Storage: SQLite
-  uSQLite3 in '..\..\..\Modules\Storage\SQLite\uSQLite3.pas',
   uSQLiteStorage in '..\..\..\Modules\Storage\SQLite\uSQLiteStorage.pas',
 
   uConfiguratorScript in '..\uConfiguratorScript.pas';

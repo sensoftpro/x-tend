@@ -350,7 +350,7 @@ type
     [Weak] FDomain: TObject;
     [Weak] FPresenter: TObject;
     FLayouts: TLayouts;
-    FImages: TObjectDictionary<Integer, TObject>;
+    FImageLists: TObjectDictionary<Integer, TObject>;
     FImageMap: TDictionary<string, Integer>;
     FIsMDIStyle: Boolean;
 
@@ -722,9 +722,9 @@ begin
 
   FImageMap := TDictionary<string, Integer>.Create;
   if not SameText(TPresenter(FPresenter).Name,'Web.UniGUI') then
-    FImages := TObjectDictionary<Integer, TObject>.Create([doOwnsValues])
+    FImageLists := TObjectDictionary<Integer, TObject>.Create([doOwnsValues])
   else
-    FImages := TObjectDictionary<Integer, TObject>.Create;
+    FImageLists := TObjectDictionary<Integer, TObject>.Create;
 
   FIsMDIStyle := SameText(TDomain(FDomain).Settings.GetValue('Core', 'Layout'), 'mdi') ;
 end;
@@ -741,7 +741,7 @@ end;
 destructor TUIBuilder.Destroy;
 begin
   FreeAndNil(FImageMap);
-  FreeAndNil(FImages);
+  FreeAndNil(FImageLists);
   FreeAndNil(FLayouts);
   FPresenter := nil;
   FDomain := nil;
@@ -767,10 +767,10 @@ end;
 
 function TUIBuilder.GetImages(const AResolution: Integer): TObject;
 begin
-  if not FImages.TryGetValue(AResolution, Result) then
+  if not FImageLists.TryGetValue(AResolution, Result) then
   begin
     Result := TPresenter(FPresenter).CreateImages(FDomain, AResolution);
-    FImages.AddOrSetValue(AResolution, Result);
+    FImageLists.AddOrSetValue(AResolution, Result);
   end;
 end;
 

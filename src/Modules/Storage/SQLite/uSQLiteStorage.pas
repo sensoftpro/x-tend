@@ -37,9 +37,59 @@ unit uSQLiteStorage;
 interface
 
 uses
-  Classes, Generics.Collections, uStorage, uJSON, uParameters, uConsts, uSQLite3;
+  Classes, Generics.Collections, System.Sqlite, uStorage, uJSON, uParameters, uConsts;
 
 type
+  TSQLiteRecord = class
+  private
+    FItems: array of Variant;
+    function GetCount: Integer;
+    function GetValue(Idx: Integer): Variant;
+    procedure SetCount(const Value: Integer);
+    procedure SetValue(Idx: Integer; const Value: Variant);
+  public
+    property Count: Integer read GetCount write SetCount;
+    property Value[Idx: Integer]: Variant read GetValue write SetValue; default;
+  end;
+
+  TSQLiteRecords = TObjectList<TSQLiteRecord>;
+
+  TSQLiteResult = class
+  private
+    FRecords: TSQLiteRecords;
+    FColumns: TStrings;
+    FCurrentRow: Integer;
+    function GetValue(Row: Integer; Column: string): Variant;
+  public
+    constructor Create;
+    destructor Destroy; override;
+
+    procedure Clear;
+    function Empty: Boolean;
+
+    property Columns: TStrings read FColumns;
+    property Records: TSQLiteRecords read FRecords;
+    property Values[ Row: Integer; Column: string ]: Variant read GetValue; default;
+    property CurrentRow: Integer read FCurrentRow write FCurrentRow;
+  end;
+
+  TSQLite = class
+  private
+    FDBFileName: string;
+    FDB: sqlite3;
+    FSQLiteResult: TSQLiteResult;
+  public
+    constructor Create(const ADBFileName: string);
+    destructor Destroy; override;
+
+    function Open: Boolean;
+    procedure Close;
+    function DBQuery(Sql: string; Params: array of const): Boolean;
+    function ErrorMessage: string;
+
+    property SQLiteResult: TSQLiteResult read FSQLiteResult;
+  end;
+
   TVarRecArray = array of TVarRec;
 
   TSQLiteDBContext = class
@@ -129,6 +179,295 @@ implementation
 
 uses
   Variants, SysUtils, StrUtils, Math, IOUtils, uModule, uDomain, uDomainUtils, uSettings;
+
+procedure EmptyDestructor(user: pointer); cdecl;
+begin
+end;
+
+{ TSQLiteResult }
+
+procedure TSQLiteResult.Clear;
+begin
+  FColumns.Clear;
+  FRecords.Clear;
+  FCurrentRow := 0;
+end;
+
+constructor TSQLiteResult.Create;
+begin
+  FColumns := TStringList.Create;
+  FRecords := TSQLiteRecords.Create;
+end;
+
+destructor TSQLiteResult.Destroy;
+begin
+  FreeAndNil(FColumns);
+  FreeAndNil(FRecords);
+  inherited;
+end;
+
+function TSQLiteResult.Empty: Boolean;
+begin
+  Result := FColumns.Count = 0;
+end;
+
+function TSQLiteResult.GetValue(Row: Integer; Column: string): Variant;
+var
+  ColIdx: Integer;
+  Rec: TSQLiteRecord;
+begin
+  Result := Null;
+  if Empty then Exit;
+  if (Row < 0) or (Row >= FRecords.Count) then Exit;
+  if Column = '' then Exit;
+  ColIdx := FColumns.IndexOf(Column);
+  if ColIdx < 0 then Exit;
+  Rec := FRecords[ Row ];
+  Result := Rec[ ColIdx ];
+end;
+
+{ TSQLite }
+
+procedure TSQLite.Close;
+begin
+  sqlite3_close(FDB);
+end;
+
+constructor TSQLite.Create(const ADBFileName: string);
+begin
+  FSQLiteResult := TSQLiteResult.Create;
+  FDBFileName := ADBFileName;
+end;
+
+function TSQLite.DBQuery(Sql: string; Params: array of const): Boolean;
+var
+  res, I, BindIdx, IntVal, Col, ColType, ColCount: Integer;
+  Int64Val: Int64;
+  FloatVal: Double;
+  stm: sqlite3_stmt;
+  tail, ColName: PAnsiChar;
+  asql: AnsiString;
+  s: WideString;
+  v: Variant;
+  vt: TVarType;
+  Rec: TSQLiteRecord;
+  ArgType, ArrLen: Integer;
+  ResData, ArrData: PByte;
+  Obj: TObject;
+  Stream: TStream;
+  Len: Integer;
+  BlobData: array of Byte;
+begin
+  Result := False;
+  FSQLiteResult.Clear;
+
+  if (FDB = nil) or (Sql = '') then
+    Exit;
+
+  asql := AnsiString(sql);
+  res := sqlite3_prepare(FDB, PAnsiChar(asql), Length(asql), stm, tail);
+  if res <> SQLITE_OK then
+  begin
+    if tail <> '' then
+      sqlite3_free(tail);
+    Exit;
+  end;
+  try
+    // связываем значения параметров
+    for I := 0 to High(Params) do
+    begin
+      BindIdx := I + 1;
+      s := '';
+      with TVarRec(Params[I]) do
+      begin
+        ArgType := VType;
+        case ArgType of
+          vtBoolean,
+          vtInteger:        sqlite3_bind_int(stm, BindIdx, VInteger);
+          vtExtended,
+          vtCurrency:       sqlite3_bind_double(stm, BindIdx, VExtended^);
+          vtInt64:          sqlite3_bind_int64(stm, BindIdx, vtInt64);
+
+          vtString:         s := WideString(VString);
+          vtPChar:          s := WideString(VPChar);
+          vtPWideChar:      s := WideString(VPWideChar);
+          vtAnsiString:     s := WideString(PAnsiChar(VAnsiString));
+          vtWideString:     s := WideString(PWideChar(VWideString));
+          vtUnicodeString:  s := WideString(PWideChar(VUnicodeString));
+
+          vtObject:
+            begin
+              Obj := VObject;
+              if (Obj <> nil) and (Obj.InheritsFrom(TStream)) then
+              begin
+                Stream := TStream(Obj);
+                Len := Stream.Size;
+                SetLength(BlobData, Len);
+                Stream.Position := 0;
+                Stream.Read(BlobData[0], Len);
+                sqlite3_bind_blob(stm, BindIdx, @BlobData[0], Len, nil);
+              end
+              else
+                sqlite3_bind_null(stm, BindIdx);
+            end;
+
+          vtVariant:
+            begin
+              v := VVariant^;
+              vt := VarType(v);
+              case vt of
+                varEmpty,
+                varNull:
+                  begin
+                    sqlite3_bind_null(stm, BindIdx);
+                  end;
+
+                varSingle,
+                varDouble,
+                varCurrency,
+                varDate:
+                  begin
+                    FloatVal := v;
+                    sqlite3_bind_double(stm, BindIdx, FloatVal);
+                  end;
+
+                varSmallInt,
+                varInteger,
+                varBoolean,
+                varShortInt,
+                varByte,
+                varWord,
+                varUInt32:
+                  begin
+                    IntVal := v;
+                    sqlite3_bind_int(stm, BindIdx, IntVal);
+                  end;
+
+                varInt64:
+                  begin
+                    Int64Val := v;
+                    sqlite3_bind_int64(stm, BindIdx, Int64Val);
+                  end;
+
+                varOleStr,
+                varUString,
+                varString:   s := VarToStr(v);
+              else
+              end;
+            end;
+        else
+          // vtChar, vtPointer, vtObject, vtClass, vtCurrency, vtInterface, vtWideChar
+        end;
+      end;
+      // строковые данные
+      if s <> '' then
+      begin
+        sqlite3_bind_text16(stm, BindIdx, PWideChar(s), ByteLength(s), EmptyDestructor);
+      end;
+    end;
+
+    // выполняем
+    res := sqlite3_step(stm);
+
+    // insert, update, delete or empty select Result
+    if res = SQLITE_DONE then
+    begin
+      Result := True;
+      Exit;
+    end;
+
+    // select Result
+
+    // columns
+    if res = SQLITE_ROW then
+    begin
+      ColCount := sqlite3_column_count(stm);
+      for Col := 0 to ColCount - 1 do
+      begin
+        ColName := sqlite3_column_name(stm, Col);
+        FSQLiteResult.Columns.Add(string(AnsiString(ColName)));
+      end;
+
+      // data
+      while res = SQLITE_ROW do
+      begin
+        Rec := TSQLiteRecord.Create;
+        Rec.Count := ColCount;
+        for Col := 0 to ColCount - 1 do
+        begin
+          ColType := sqlite3_column_type(stm, Col);
+          case ColType of
+            SQLITE_INTEGER: Rec[ Col ] := sqlite3_column_int(stm, col);
+            SQLITE_FLOAT:   Rec[ Col ] := sqlite3_column_double(stm, col);
+            SQLITE_TEXT:    Rec[ Col ] := WideString(sqlite3_column_text16(stm, col));
+            SQLITE_NULL:    Rec[ Col ] := Null;
+            SQLITE_BLOB:    // Rec[ Col ] := Null;
+              begin
+                ArrLen := sqlite3_column_bytes(stm, Col);
+                v := VarArrayCreate([0, ArrLen - 1], varByte);
+                ArrData := VarArrayLock(v);
+                ResData := sqlite3_column_blob(stm, col);
+                Move(ResData^, ArrData^, ArrLen);
+                VarArrayUnlock(v);
+                Rec[ Col ] := v;
+              end;
+          else
+          end;
+        end;
+        FSQLiteResult.Records.Add(Rec);
+        res := sqlite3_step(stm);
+      end;
+    end;
+  finally
+    sqlite3_finalize(stm);
+  end;
+  Result := True;
+end;
+
+destructor TSQLite.Destroy;
+begin
+  FSQLiteResult.Free;
+  inherited;
+end;
+
+function TSQLite.ErrorMessage: string;
+begin
+  Result := IntToStr(sqlite3_errcode(FDB));
+end;
+
+function TSQLite.Open: Boolean;
+var
+  s: AnsiString;
+begin
+  s := AnsiString(FDBFileName);
+  Result := sqlite3_open(PAnsiChar(s), FDB) = SQLITE_OK;
+end;
+
+{ TSQLiteRecord }
+
+function TSQLiteRecord.GetCount: Integer;
+begin
+  Result := Length(FItems);
+end;
+
+function TSQLiteRecord.GetValue(Idx: Integer): Variant;
+begin
+  Result := Null;
+  if (Idx < 0) or (Idx >= Count) then Exit;
+  Result := FItems[ Idx ];
+end;
+
+procedure TSQLiteRecord.SetCount(const Value: Integer);
+begin
+  if Value < 0 then Exit;
+  SetLength(FItems, Value);
+end;
+
+procedure TSQLiteRecord.SetValue(Idx: Integer; const Value: Variant);
+begin
+  if (Idx < 0) or (Idx >= Count) then Exit;
+  FItems[ Idx ] := Value;
+end;
 
 { TSQLiteDBContext }
 
