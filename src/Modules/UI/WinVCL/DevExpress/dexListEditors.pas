@@ -1876,7 +1876,7 @@ begin
     begin
       vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
       vComboItem := TcxImageComboBoxProperties(vCol.Properties).Items.Add;
-      vImageID := FOwner.GetImageID(vDefinition._ImageID);
+      vImageID := FOwner.GetImageIndex(vDefinition._ImageID);
       vComboItem.Value := vImageID;
       vComboItem.ImageIndex := vImageID;
     end;
@@ -2689,7 +2689,7 @@ var
     vEditRepositoryButtonItem.Properties.Images := TDragImageList(FUIBuilder.Images[16]);
     vBtn := vEditRepositoryButtonItem.Properties.Buttons[0];
     vBtn.Kind := bkGlyph;
-    vBtn.ImageIndex := FOwner.GetImageID(AActionDef._ImageID);
+    vBtn.ImageIndex := FOwner.GetImageIndex(AActionDef._ImageID);
     vBtn.Hint := AActionDef._Caption;
     vBtn.Enabled := AEnabled;
   end;
@@ -2788,7 +2788,7 @@ begin
         begin
           vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
           vComboItem := TcxImageComboBoxProperties(vCol.Properties).Items.Add;
-          vImageID := FOwner.GetImageID(vDefinition._ImageID);
+          vImageID := FOwner.GetImageIndex(vDefinition._ImageID);
           vComboItem.Value := vImageID;
           vComboItem.ImageIndex := vImageID;
         end;
@@ -2821,7 +2821,7 @@ begin
     begin
       vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
       vComboItem := TcxImageComboBoxProperties(vCol.Properties).Items.Add;
-      vImageID := FOwner.GetImageID(vDefinition._ImageID);
+      vImageID := FOwner.GetImageIndex(vDefinition._ImageID);
       vComboItem.Value := vImageID;
       vComboItem.ImageIndex := vImageID;
     end;

@@ -187,7 +187,7 @@ begin
     else begin
       vTab := TcxTabSheet.Create(TComponent(GetRealControl(AParent)));
       vTab.Caption := ALayout.Caption;
-      vTab.ImageIndex := AParent.GetImageID(ALayout.ImageID);
+      vTab.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
 
       vStartPageName := TDomain(AParent.View.Domain).Settings.GetValue('Core', 'StartPage', '');
       vTab.AllowCloseButton := not SameText(ALayout.Name, vStartPageName);
@@ -287,7 +287,7 @@ function TDevExpressPresenter.DoCreateImages(const ADomain: TObject; const AImag
 var
   vImageList: TcxImageList;
   vImage: TdxPNGImage;
-  vIndex: Integer;
+  vIndex: string;
   vStream: TStream;
   vBitmap: TBitmap;
   i: Integer;

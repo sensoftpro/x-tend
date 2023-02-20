@@ -281,7 +281,7 @@ begin
   vButtonLayout := FUIBuilder.Layouts.CreateSimpleLayout(lkPanel);
   vButtonLayout.Caption := 'Create?place=embedded';
   vButtonLayout.Hint := TInteractor(FView.Interactor).Translate('cptAddEntity', 'Добавить');
-  vButtonLayout.ImageID := 1;
+  vButtonLayout.ImageID := 'Add';
   vButtonLayout.Button_Flat := True;
   vButtonLayout.Align := lalRight;
   vButtonLayout.TabOrder := -1;
