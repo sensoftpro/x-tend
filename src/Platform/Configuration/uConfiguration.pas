@@ -200,12 +200,12 @@ begin
   FResFolders := TStringList.Create;
   vAppPath := cProductCreator + PathDelim + FName;
 
-  FConfigurationDir := TPath.Combine(GetResDir, 'solutions' + PathDelim + FName);
+  FConfigurationDir := TPath.Combine(GetResDir, 'solutions' + PathDelim + FName.ToLowerInvariant);
 
 {$IF DEFINED(MSWINDOWS)}
   FAppDataDir := TPath.Combine(TPath.GetCachePath, vAppPath);
   FCacheDir := TPath.Combine(TPath.GetCachePath, vAppPath);
-{$ELSEIF DEFINED(ANDROID)} OR DEFINED(IOS)}
+{$ELSEIF DEFINED(ANDROID) OR DEFINED(IOS)}
   FAppDataDir := TPath.GetPublicPath;
   FCacheDir := TPath.GetCachePath;
 {$ELSEIF DEFINED(IOS)}

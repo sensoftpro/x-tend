@@ -308,7 +308,6 @@
         <DCCReference Include="..\..\..\Modules\Reporting\uReport.pas"/>
         <DCCReference Include="..\..\..\Modules\UI\FGXNative\uFGXPresenter.pas"/>
         <DCCReference Include="..\..\..\Modules\UI\FGXNative\fgxArea.pas"/>
-        <DCCReference Include="..\..\..\Modules\Storage\SQLite\uSQLite3.pas"/>
         <DCCReference Include="..\..\..\Modules\Storage\SQLite\uSQLiteStorage.pas"/>
         <DCCReference Include="..\uConfiguratorScript.pas"/>
         <DCCReference Include="Assets.Consts.pas"/>
@@ -1595,11 +1594,6 @@
                 <DeployFile LocalName="..\launch_screen.xml" Configuration="Debug" Class="File">
                     <Platform Name="Android">
                         <RemoteName>launch_screen.xml</RemoteName>
-                        <Overwrite>true</Overwrite>
-                    </Platform>
-                </DeployFile>
-                <DeployFile Required="true" LocalName="Android64\Debug\AndroidManifest.xml" Configuration="Debug" Class="ProjectAndroidManifest">
-                    <Platform Name="Android64">
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

@@ -1,6 +1,6 @@
 ﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
     <PropertyGroup>
-        <ProjectGuid>{8B5BC586-6CF6-4D24-B607-FAE6D89AE487}</ProjectGuid>
+        <ProjectGuid>$ProjectGuid$</ProjectGuid>
         <ProjectVersion>19.5</ProjectVersion>
         <FrameworkType>VCL</FrameworkType>
         <Base>True</Base>
@@ -8,7 +8,7 @@
         <Platform Condition="'$(Platform)'==''">Win32</Platform>
         <TargetedPlatforms>3</TargetedPlatforms>
         <AppType>Application</AppType>
-        <MainSource>Configurator.dpr</MainSource>
+        <MainSource>$ProjectName$.dpr</MainSource>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Config)'=='Base' or '$(Base)'!=''">
         <Base>true</Base>
@@ -69,7 +69,7 @@
         <Icon_MainIcon>..\..\..\..\res\favicon.ico</Icon_MainIcon>
         <UWP_DelphiLogo44>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_44.png</UWP_DelphiLogo44>
         <UWP_DelphiLogo150>$(BDS)\bin\Artwork\Windows\UWP\delphi_UwpDefault_150.png</UWP_DelphiLogo150>
-        <SanitizedProjectName>Configurator</SanitizedProjectName>
+        <SanitizedProjectName>$ProjectName$</SanitizedProjectName>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win32)'!=''">
         <DCC_UsePackage>vclwinx;DataSnapServer;fmx;emshosting;vclie;DbxCommonDriver;bindengine;IndyIPCommon;VCLRESTComponents;DBXMSSQLDriver;FireDACCommonODBC;emsclient;FireDACCommonDriver;appanalytics;IndyProtocols;vclx;uniGUI28Chart;IndyIPClient;dbxcds;vcledge;bindcompvclwinx;FmxTeeUI;emsedge;bindcompfmx;DBXFirebirdDriver;inetdb;FGXNative.Extension.Zint;ibmonitor;FireDACSqliteDriver;DbxClientDriver;FireDACASADriver;Tee;soapmidas;vclactnband;TeeUI;FGXNative.Externals;fmxFireDAC;dbexpress;FireDACInfxDriver;DBXMySQLDriver;FGXNative.Core;VclSmp;inet;DataSnapCommon;vcltouch;fmxase;DBXOdbcDriver;dbrtl;FireDACDBXDriver;FireDACOracleDriver;fmxdae;TeeDB;FireDACMSAccDriver;CustomIPTransport;FireDACMSSQLDriver;uniGUI28m;DataSnapIndy10ServerTransport;DataSnapConnectors;vcldsnap;DBXInterBaseDriver;FireDACMongoDBDriver;IndySystem;FireDACTDataDriver;vcldb;ibxbindings;uSynEdit_R2024;vclFireDAC;bindcomp;FireDACCommon;DataSnapServerMidas;FireDACODBCDriver;emsserverresource;IndyCore;RESTBackendComponents;bindcompdbx;rtl;FireDACMySQLDriver;FireDACADSDriver;RESTComponents;DBXSqliteDriver;vcl;IndyIPServer;dsnapxml;dsnapcon;DataSnapClient;DataSnapProviderClient;adortl;DBXSybaseASEDriver;uniGUI28VCL;DBXDb2Driver;vclimg;DataSnapFireDAC;emsclientfiredac;FireDACPgDriver;FireDAC;FireDACDSDriver;inetdbxpress;xmlrtl;tethering;ibxpress;bindcompvcl;dsnap;CloudService;DBXSybaseASADriver;DBXOracleDriver;FireDACDb2Driver;DBXInformixDriver;vclib;fmxobj;bindcompvclsmp;DataSnapNativeClient;FMXTee;DatasnapConnectorsFreePascal;soaprtl;soapserver;FireDACIBDriver;$(DCC_UsePackage)</DCC_UsePackage>
@@ -80,16 +80,21 @@
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
         <Icon_MainIcon>..\..\..\..\res\favicon.ico</Icon_MainIcon>
+        <VerInfo_Keys>CompanyName=Sensoft;FileDescription=$(MSBuildProjectName);FileVersion=0.1.0.0;InternalName=;LegalCopyright=© Sensoft, 2023;LegalTrademarks=X-Tend™;OriginalFilename=;ProgramID=pro.sensoft.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=0.1.0.0;Comments=</VerInfo_Keys>
+        <VerInfo_MajorVer>0</VerInfo_MajorVer>
+        <VerInfo_MinorVer>1</VerInfo_MinorVer>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Base_Win64)'!=''">
         <DCC_UsePackage>vclwinx;DataSnapServer;fmx;emshosting;vclie;DbxCommonDriver;bindengine;IndyIPCommon;VCLRESTComponents;DBXMSSQLDriver;FireDACCommonODBC;emsclient;FireDACCommonDriver;appanalytics;IndyProtocols;vclx;uniGUI28Chart;IndyIPClient;dbxcds;vcledge;bindcompvclwinx;FmxTeeUI;emsedge;bindcompfmx;DBXFirebirdDriver;inetdb;ibmonitor;FireDACSqliteDriver;DbxClientDriver;FireDACASADriver;Tee;soapmidas;vclactnband;TeeUI;fmxFireDAC;dbexpress;FireDACInfxDriver;DBXMySQLDriver;VclSmp;inet;DataSnapCommon;vcltouch;fmxase;DBXOdbcDriver;dbrtl;FireDACDBXDriver;FireDACOracleDriver;fmxdae;TeeDB;FireDACMSAccDriver;CustomIPTransport;FireDACMSSQLDriver;uniGUI28m;DataSnapIndy10ServerTransport;DataSnapConnectors;vcldsnap;DBXInterBaseDriver;FireDACMongoDBDriver;IndySystem;FireDACTDataDriver;vcldb;ibxbindings;uSynEdit_R2024;vclFireDAC;bindcomp;FireDACCommon;DataSnapServerMidas;FireDACODBCDriver;emsserverresource;IndyCore;RESTBackendComponents;bindcompdbx;rtl;FireDACMySQLDriver;FireDACADSDriver;RESTComponents;DBXSqliteDriver;vcl;IndyIPServer;dsnapxml;dsnapcon;DataSnapClient;DataSnapProviderClient;adortl;DBXSybaseASEDriver;uniGUI28VCL;DBXDb2Driver;vclimg;DataSnapFireDAC;emsclientfiredac;FireDACPgDriver;FireDAC;FireDACDSDriver;inetdbxpress;xmlrtl;tethering;ibxpress;bindcompvcl;dsnap;CloudService;DBXSybaseASADriver;DBXOracleDriver;FireDACDb2Driver;DBXInformixDriver;vclib;fmxobj;bindcompvclsmp;DataSnapNativeClient;FMXTee;DatasnapConnectorsFreePascal;soaprtl;soapserver;FireDACIBDriver;$(DCC_UsePackage)</DCC_UsePackage>
         <DCC_Namespace>Winapi;System.Win;Data.Win;Datasnap.Win;Web.Win;Soap.Win;Xml.Win;$(DCC_Namespace)</DCC_Namespace>
         <BT_BuildType>Debug</BT_BuildType>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
-        <VerInfo_Keys>CompanyName=;FileDescription=$(MSBuildProjectName);FileVersion=1.0.0.0;InternalName=;LegalCopyright=;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <VerInfo_Locale>1033</VerInfo_Locale>
         <Manifest_File>$(BDS)\bin\default_app.manifest</Manifest_File>
         <Icon_MainIcon>..\..\..\..\res\favicon.ico</Icon_MainIcon>
+        <VerInfo_MajorVer>0</VerInfo_MajorVer>
+        <VerInfo_MinorVer>1</VerInfo_MinorVer>
+        <VerInfo_Keys>CompanyName=Sensoft;FileDescription=$(MSBuildProjectName);FileVersion=0.1.0.0;InternalName=;LegalCopyright=© Sensoft, 2023;LegalTrademarks=X-Tend™;OriginalFilename=;ProgramID=pro.sensoft.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=0.1.0.0;Comments=</VerInfo_Keys>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1)'!=''">
         <DCC_Define>DEBUG;$(DCC_Define)</DCC_Define>
@@ -104,10 +109,14 @@
     <PropertyGroup Condition="'$(Cfg_1_Win32)'!=''">
         <DCC_RemoteDebug>false</DCC_RemoteDebug>
         <AppDPIAwarenessMode>PerMonitorV2</AppDPIAwarenessMode>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Locale>1033</VerInfo_Locale>
         <Icon_MainIcon>..\..\..\..\res\favicon.ico</Icon_MainIcon>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_1_Win64)'!=''">
         <AppDPIAwarenessMode>PerMonitorV2</AppDPIAwarenessMode>
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Locale>1033</VerInfo_Locale>
         <Icon_MainIcon>..\..\..\..\res\favicon.ico</Icon_MainIcon>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2)'!=''">
@@ -117,10 +126,14 @@
         <DCC_DebugInformation>0</DCC_DebugInformation>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win32)'!=''">
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Locale>1033</VerInfo_Locale>
         <Icon_MainIcon>..\..\..\..\res\favicon.ico</Icon_MainIcon>
         <AppDPIAwarenessMode>PerMonitorV2</AppDPIAwarenessMode>
     </PropertyGroup>
     <PropertyGroup Condition="'$(Cfg_2_Win64)'!=''">
+        <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>
+        <VerInfo_Locale>1033</VerInfo_Locale>
         <Icon_MainIcon>..\..\..\..\res\favicon.ico</Icon_MainIcon>
         <AppDPIAwarenessMode>PerMonitorV2</AppDPIAwarenessMode>
     </PropertyGroup>
@@ -188,26 +201,8 @@
         </DCCReference>
         <DCCReference Include="..\..\..\Modules\Drawing\VCL\uCommonVCLPainter.pas"/>
         <DCCReference Include="..\..\..\Modules\Drawing\VCL\uVCLPainter.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\FGXNative\uFGXPresenter.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\FGXNative\fgxArea.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\FMX\uFMXPresenter.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\FMX\fmxArea.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\FMX\fmxScene.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\FMX\fmxBlobEditors.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\FMX\fmxSimpleEditors.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\FMX\fmxEntityEditors.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\FMX\fmxListEditors.pas"/>
-        <DCCReference Include="..\..\..\Modules\Drawing\FMX\uFMXPainter.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\Web\uniGUI\uUniGUIPresenter.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\Web\uniGUI\uniArea.pas"/>
-        <DCCReference Include="..\..\..\Modules\Drawing\VCL\uCommonVCLPainter.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\Web\uniGUI\uniScene.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\Web\uniGUI\uniBlobEditors.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\Web\uniGUI\uniSimpleEditors.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\Web\uniGUI\uniEntityEditors.pas"/>
-        <DCCReference Include="..\..\..\Modules\UI\Web\uniGUI\uniListEditors.pas"/>
         <DCCReference Include="..\..\..\Modules\Storage\SQLite\uSQLiteStorage.pas"/>
-        <DCCReference Include="..\uConfiguratorScript.pas"/>
+        <DCCReference Include="..\u$ProjectName$Script.pas"/>
         <BuildConfiguration Include="Base">
             <Key>Base</Key>
         </BuildConfiguration>
@@ -230,25 +225,25 @@
                     <Excluded_Packages Name="$(BDSBIN)\dclofficexp280.bpl">Microsoft Office XP Sample Automation Server Wrapper Components</Excluded_Packages>
                 </Excluded_Packages>
                 <Source>
-                    <Source Name="MainSource">Configurator.dpr</Source>
+                    <Source Name="MainSource">$ProjectName$.dpr</Source>
                 </Source>
             </Delphi.Personality>
             <Deployment Version="4">
-                <DeployFile LocalName="..\..\..\..\bin\Win32\Configurator.exe" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="..\..\..\..\bin\$ProjectName$.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win32">
-                        <RemoteName>Configurator.exe</RemoteName>
+                        <RemoteName>$ProjectName$.exe</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="..\..\..\..\bin\Win64\Configurator.exe" Configuration="Debug" Class="ProjectOutput">
+                <DeployFile LocalName="..\..\..\bin\Win64\$ProjectName$.exe" Configuration="Debug" Class="ProjectOutput">
                     <Platform Name="Win64">
-                        <RemoteName>Configurator.exe</RemoteName>
+                        <RemoteName>$ProjectName$.exe</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>
-                <DeployFile LocalName="..\..\..\..\bin\Win64\Configurator.rsm" Configuration="Debug" Class="DebugSymbols">
+                <DeployFile LocalName="..\..\..\bin\Win64\$ProjectName$.rsm" Configuration="Debug" Class="DebugSymbols">
                     <Platform Name="Win64">
-                        <RemoteName>Configurator.rsm</RemoteName>
+                        <RemoteName>$ProjectName$.rsm</RemoteName>
                         <Overwrite>true</Overwrite>
                     </Platform>
                 </DeployFile>

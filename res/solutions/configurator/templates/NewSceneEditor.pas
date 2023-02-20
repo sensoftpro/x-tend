@@ -1,4 +1,4 @@
-unit NewSceneEditor;
+п»їunit NewSceneEditor;
 
 interface
 
@@ -70,17 +70,17 @@ begin
 
   Anchors := [soaLeft, soaTop, soaRight, soaBottom];
 
-  // Запомнить масштабы, положение мыши и т.п.
-  // Обновить данные Zoom и Selection
+  // Р—Р°РїРѕРјРЅРёС‚СЊ РјР°СЃС€С‚Р°Р±С‹, РїРѕР»РѕР¶РµРЅРёРµ РјС‹С€Рё Рё С‚.Рї.
+  // РћР±РЅРѕРІРёС‚СЊ РґР°РЅРЅС‹Рµ Zoom Рё Selection
 
-  // Заполнение стилей
+  // Р—Р°РїРѕР»РЅРµРЅРёРµ СЃС‚РёР»РµР№
   if CreateStyle('NewSceneObject') then
   begin
     FStyle.AddFillParams('background', TAlphaColorRec.Silver, AppendColor(TAlphaColorRec.Silver, $001E1E1E), gkVertical); // background
     FStyle.AddStrokeParams('grid', TAlphaColorRec.Gray, 1, psDot); // grid
-    FStyle.AddFontParams('x.title', 'Tahoma', 10, TAlphaColorRec.Black); // заголовок оси X
-    FStyle.AddFontParams('y.title', 'Tahoma', 10, TAlphaColorRec.Black, 0, 270); // заголовок оси Y
-    FStyle.AddFillParams('tick.selected', MakeColor(TAlphaColorRec.Black, 0.5)); // область вывода текущего значения X
+    FStyle.AddFontParams('x.title', 'Tahoma', 10, TAlphaColorRec.Black); // Р·Р°РіРѕР»РѕРІРѕРє РѕСЃРё X
+    FStyle.AddFontParams('y.title', 'Tahoma', 10, TAlphaColorRec.Black, 0, 270); // Р·Р°РіРѕР»РѕРІРѕРє РѕСЃРё Y
+    FStyle.AddFillParams('tick.selected', MakeColor(TAlphaColorRec.Black, 0.5)); // РѕР±Р»Р°СЃС‚СЊ РІС‹РІРѕРґР° С‚РµРєСѓС‰РµРіРѕ Р·РЅР°С‡РµРЅРёСЏ X
     FStyle.AddFillParams('scroll.fill', MakeColor(TAlphaColorRec.Black, 40 / 256));
     FStyle.AddImageParams('peak', 'panel_peak.png', False).CutRect := Rect(7, 27, 8, 28);
 
@@ -90,7 +90,7 @@ end;
 
 procedure TNewSceneObject.Deactivate(const AHovering: TSceneObject);
 begin
-  // Сбросить запомненные координаты мыши, обновить состояние/отрисовку
+  // РЎР±СЂРѕСЃРёС‚СЊ Р·Р°РїРѕРјРЅРµРЅРЅС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹ РјС‹С€Рё, РѕР±РЅРѕРІРёС‚СЊ СЃРѕСЃС‚РѕСЏРЅРёРµ/РѕС‚СЂРёСЃРѕРІРєСѓ
 end;
 
 destructor TNewSceneObject.Destroy;
@@ -102,23 +102,23 @@ end;
 procedure TNewSceneObject.DoRectChanged(const AOldRect, ANewRect: TRectF);
 begin
   inherited DoRectChanged(AOldRect, ANewRect);
-  // Обновить запомненные координаты мыши
+  // РћР±РЅРѕРІРёС‚СЊ Р·Р°РїРѕРјРЅРµРЅРЅС‹Рµ РєРѕРѕСЂРґРёРЅР°С‚С‹ РјС‹С€Рё
 end;
 
 procedure TNewSceneObject.DoRenderDynamic(const APainter: TPainter; const ARect: TRectF);
 begin
-  // Отрисовываем дочерние объекты
+  // РћС‚СЂРёСЃРѕРІС‹РІР°РµРј РґРѕС‡РµСЂРЅРёРµ РѕР±СЉРµРєС‚С‹
   inherited DoRenderDynamic(APainter, ARect);
 
-  // Отрисовка текущей позиции отрисовки (линия курсора, выделение области и т.п.)
+  // РћС‚СЂРёСЃРѕРІРєР° С‚РµРєСѓС‰РµР№ РїРѕР·РёС†РёРё РѕС‚СЂРёСЃРѕРІРєРё (Р»РёРЅРёСЏ РєСѓСЂСЃРѕСЂР°, РІС‹РґРµР»РµРЅРёРµ РѕР±Р»Р°СЃС‚Рё Рё С‚.Рї.)
 end;
 
 procedure TNewSceneObject.DoRenderStatic(const APainter: TPainter; const ARect: TRectF; const AMode: TScenePaintMode);
 begin
-  // Полная отрисовка статической (редко изменяемой) области
+  // РџРѕР»РЅР°СЏ РѕС‚СЂРёСЃРѕРІРєР° СЃС‚Р°С‚РёС‡РµСЃРєРѕР№ (СЂРµРґРєРѕ РёР·РјРµРЅСЏРµРјРѕР№) РѕР±Р»Р°СЃС‚Рё
   Draw(APainter, ARect);
 
-  // Отрисовываем дочерние объекты
+  // РћС‚СЂРёСЃРѕРІС‹РІР°РµРј РґРѕС‡РµСЂРЅРёРµ РѕР±СЉРµРєС‚С‹
   inherited DoRenderStatic(APainter, ARect, AMode);
 end;
 
@@ -129,52 +129,52 @@ end;
 
 procedure TNewSceneObject.ExecuteUIAction(const AArea: TUIArea; const AView: TView);
 begin
-  // Выполнить действия из контекстного меню или привязанные к конфигурации через #
+  // Р’С‹РїРѕР»РЅРёС‚СЊ РґРµР№СЃС‚РІРёСЏ РёР· РєРѕРЅС‚РµРєСЃС‚РЅРѕРіРѕ РјРµРЅСЋ РёР»Рё РїСЂРёРІСЏР·Р°РЅРЅС‹Рµ Рє РєРѕРЅС„РёРіСѓСЂР°С†РёРё С‡РµСЂРµР· #
 end;
 
 procedure TNewSceneObject.HandleDblClick(ClientPos: TPointF; var AHandled: Boolean);
 begin
-  // Обработка события, AHandled установлен в True
-  // При изменениях модели, влияющих на отрисовку, нужно вызвать Invalidate(ssUsed или ssDirty)
+  // РћР±СЂР°Р±РѕС‚РєР° СЃРѕР±С‹С‚РёСЏ, AHandled СѓСЃС‚Р°РЅРѕРІР»РµРЅ РІ True
+  // РџСЂРё РёР·РјРµРЅРµРЅРёСЏС… РјРѕРґРµР»Рё, РІР»РёСЏСЋС‰РёС… РЅР° РѕС‚СЂРёСЃРѕРІРєСѓ, РЅСѓР¶РЅРѕ РІС‹Р·РІР°С‚СЊ Invalidate(ssUsed РёР»Рё ssDirty)
 end;
 
 procedure TNewSceneObject.HandleKeyDown(var Key: Word; Shift: TShiftState; var AHandled: Boolean);
 begin
-  // Обработка события, AHandled установлен в True
-  // При изменениях модели, влияющих на отрисовку, нужно вызвать Invalidate(ssUsed или ssDirty)
+  // РћР±СЂР°Р±РѕС‚РєР° СЃРѕР±С‹С‚РёСЏ, AHandled СѓСЃС‚Р°РЅРѕРІР»РµРЅ РІ True
+  // РџСЂРё РёР·РјРµРЅРµРЅРёСЏС… РјРѕРґРµР»Рё, РІР»РёСЏСЋС‰РёС… РЅР° РѕС‚СЂРёСЃРѕРІРєСѓ, РЅСѓР¶РЅРѕ РІС‹Р·РІР°С‚СЊ Invalidate(ssUsed РёР»Рё ssDirty)
 end;
 
 procedure TNewSceneObject.HandleMouseDown(Button: TMouseButton; Shift: TShiftState; ClientPos: TPointF;
   var AHandled: Boolean);
 begin
-  // Обработка события, AHandled установлен в True
-  // При изменениях модели, влияющих на отрисовку, нужно вызвать Invalidate(ssUsed или ssDirty)
+  // РћР±СЂР°Р±РѕС‚РєР° СЃРѕР±С‹С‚РёСЏ, AHandled СѓСЃС‚Р°РЅРѕРІР»РµРЅ РІ True
+  // РџСЂРё РёР·РјРµРЅРµРЅРёСЏС… РјРѕРґРµР»Рё, РІР»РёСЏСЋС‰РёС… РЅР° РѕС‚СЂРёСЃРѕРІРєСѓ, РЅСѓР¶РЅРѕ РІС‹Р·РІР°С‚СЊ Invalidate(ssUsed РёР»Рё ssDirty)
 end;
 
 procedure TNewSceneObject.HandleMouseMove(Shift: TShiftState; ClientPos: TPointF; var AHandled: Boolean);
 begin
-  // Обработка события, AHandled установлен в True
-  // При изменениях модели, влияющих на отрисовку, нужно вызвать Invalidate(ssUsed или ssDirty)
+  // РћР±СЂР°Р±РѕС‚РєР° СЃРѕР±С‹С‚РёСЏ, AHandled СѓСЃС‚Р°РЅРѕРІР»РµРЅ РІ True
+  // РџСЂРё РёР·РјРµРЅРµРЅРёСЏС… РјРѕРґРµР»Рё, РІР»РёСЏСЋС‰РёС… РЅР° РѕС‚СЂРёСЃРѕРІРєСѓ, РЅСѓР¶РЅРѕ РІС‹Р·РІР°С‚СЊ Invalidate(ssUsed РёР»Рё ssDirty)
 end;
 
 procedure TNewSceneObject.HandleMouseUp(Button: TMouseButton; Shift: TShiftState; ClientPos: TPointF;
   var AHandled: Boolean);
 begin
-  // Обработка события, AHandled установлен в True
-  // При изменениях модели, влияющих на отрисовку, нужно вызвать Invalidate(ssUsed или ssDirty)
+  // РћР±СЂР°Р±РѕС‚РєР° СЃРѕР±С‹С‚РёСЏ, AHandled СѓСЃС‚Р°РЅРѕРІР»РµРЅ РІ True
+  // РџСЂРё РёР·РјРµРЅРµРЅРёСЏС… РјРѕРґРµР»Рё, РІР»РёСЏСЋС‰РёС… РЅР° РѕС‚СЂРёСЃРѕРІРєСѓ, РЅСѓР¶РЅРѕ РІС‹Р·РІР°С‚СЊ Invalidate(ssUsed РёР»Рё ssDirty)
 end;
 
 procedure TNewSceneObject.HandleMouseWheel(Shift: TShiftState; WheelDelta: Integer; ClientPos: TPointF;
   var AHandled: Boolean);
 begin
-  // Обработка события, AHandled установлен в True
-  // При изменениях модели, влияющих на отрисовку, нужно вызвать Invalidate(ssUsed или ssDirty)
+  // РћР±СЂР°Р±РѕС‚РєР° СЃРѕР±С‹С‚РёСЏ, AHandled СѓСЃС‚Р°РЅРѕРІР»РµРЅ РІ True
+  // РџСЂРё РёР·РјРµРЅРµРЅРёСЏС… РјРѕРґРµР»Рё, РІР»РёСЏСЋС‰РёС… РЅР° РѕС‚СЂРёСЃРѕРІРєСѓ, РЅСѓР¶РЅРѕ РІС‹Р·РІР°С‚СЊ Invalidate(ssUsed РёР»Рё ssDirty)
 end;
 
 procedure TNewSceneObject.UpdateBinding(const ABinding: TObject);
 begin
-  // Нужно, чтобы разыменовать сложные нативные объекты и загрузить их из файловой системы
-  // Пример см. в TSpectrumChart (ASWPrime)
+  // РќСѓР¶РЅРѕ, С‡С‚РѕР±С‹ СЂР°Р·С‹РјРµРЅРѕРІР°С‚СЊ СЃР»РѕР¶РЅС‹Рµ РЅР°С‚РёРІРЅС‹Рµ РѕР±СЉРµРєС‚С‹ Рё Р·Р°РіСЂСѓР·РёС‚СЊ РёС… РёР· С„Р°Р№Р»РѕРІРѕР№ СЃРёСЃС‚РµРјС‹
+  // РџСЂРёРјРµСЂ СЃРј. РІ TSpectrumChart (ASWPrime)
 end;
 
 { TNewSceneEditor }

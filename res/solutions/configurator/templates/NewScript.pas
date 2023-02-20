@@ -1,4 +1,4 @@
-п»їunit uNewApplicationScript;
+unit uNewApplicationScript;
 
 interface
 
@@ -62,7 +62,7 @@ procedure TNewApplicationScript.DoAfterEntityCreation(const AHolder: TChangeHold
 var
   vCollectionName: string;
 begin
-  // Р—РґРµСЃСЊ РјС‹ РІ РєРѕРЅС‚РµРєСЃС‚Рµ СЂРµРґР°РєС‚РёСЂРѕРІР°РЅРёСЏ
+  // Здесь мы в контексте редактирования
   vCollectionName := AEntity.CollectionName;
   if vCollectionName = cUnknownName then
   else
@@ -86,7 +86,7 @@ begin
 
   vCollection := vDomain['SysUsers'];
   vCollection.CreateDefaultEntity(AHolder, 1, 'Login;Name;!Password',
-    ['admin', 'РђРґРјРёРЅРёСЃС‚СЂР°С‚РѕСЂ', Md5Hash('')], True);
+    ['admin', 'Администратор', Md5Hash('')], True);
 
   vCollection := vDomain['SysUsersRoles'];
   vCollection.CreateDefaultEntity(AHolder, 1, 'User;Role;Flags', [

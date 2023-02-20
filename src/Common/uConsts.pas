@@ -421,6 +421,8 @@ function GetBinDir: string;
 begin
 {$IF DEFINED(MSWINDOWS)}
   Result := TPath.GetLibraryPath;
+  if DeveloperMode then
+    Result := GetParentPath(Result)
 {$ELSEIF DEFINED(ANDROID)}
   // assets/internal
   Result := TPath.GetHomePath;
@@ -436,9 +438,9 @@ begin
 {$IF DEFINED(MSWINDOWS)}
   if DeveloperMode then
     // bin: platform\bin\Win32
-    Result := GetParentPath(GetParentPath(GetBinDir))
+    Result := GetParentPath(GetBinDir)
   else
-    Result := GetBinDir;
+    Result := TPath.GetLibraryPath;;
 {$ELSEIF DEFINED(ANDROID)}
   // assets/internal
   Result := GetBinDir;
@@ -457,7 +459,7 @@ begin
   if DeveloperMode then
     Result := TPath.Combine(GetPlatformDir, 'res')
   else
-    Result := GetBinDir;
+    Result := TPath.GetLibraryPath;
 {$ELSEIF DEFINED(ANDROID)}
   // assets/internal
   Result := GetBinDir;

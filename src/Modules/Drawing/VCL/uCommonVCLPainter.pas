@@ -427,8 +427,6 @@ end;
 procedure TCommonVCLPainter.DoDrawBezier(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer);
 var
   vOldPen: TPen;
-  vFirstIndex: Integer;
-  vIterationCount: Integer;
   vPoints: TArray<TPointF> absolute APoints;
   vPointsCopy: TArray<TPoint>;
   i: Integer;

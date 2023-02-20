@@ -83,13 +83,59 @@ var
   vPlatformPath: string;
   vTemplatesPath: string;
   vSrcPath: string;
-  vBinPath: string;
+  vResPath: string;
   vProcessingFileName: string;
   vTargetFileName: string;
   vHandledText: string;
   vGUID: TGUID;
   vFileContent: TStringStream;
   vIniFile: TIniFile;
+
+  function CopyProjectFiles(const AFrameworkName: string): string;
+  var
+    vFileContent: TStringStream;
+    vFrameworkSrcPath: string;
+    vFrameworkDestPath: string;
+    vProcessingFileName: string;
+  begin
+    Result := '';
+    vFrameworkSrcPath := TPath.Combine(vTemplatesPath, AFrameworkName);
+    if not TDirectory.Exists(vFrameworkSrcPath) then
+      Exit;
+
+    vFrameworkDestPath := TPath.Combine(vSrcPath, AFrameworkName);
+    if not TDirectory.Exists(vFrameworkDestPath) then
+      ForceDirectories(vFrameworkDestPath);
+    vFileContent := TStringStream.Create('');
+    try
+      // Подготовка *.dproj файла
+      vProcessingFileName := TPath.Combine(vFrameworkSrcPath, 'NewApplication.dproj');
+      if TFile.Exists(vProcessingFileName) then
+      begin
+        vFileContent.LoadFromFile(vProcessingFileName);
+        CreateGUID(vGUID);
+        vHandledText := ReplaceStr(vFileContent.DataString, '$ProjectGuid$', UpperCase(GUIDToString(vGUID)));
+        vHandledText := ReplaceStr(vHandledText, '$ProjectName$', AProjectName);
+        vFileContent.Size := 0;
+        vFileContent.WriteString(vHandledText);
+        Result := TPath.Combine(vFrameworkDestPath, AProjectName + '.dproj');
+        vFileContent.SaveToFile(Result);
+      end;
+
+      // Подготовка *.dpr файла
+      vProcessingFileName := TPath.Combine(vFrameworkSrcPath, 'NewApplication.dpr');
+      if TFile.Exists(vProcessingFileName) then
+      begin
+        vFileContent.LoadFromFile(vProcessingFileName);
+        vHandledText := ReplaceStr(vFileContent.DataString, 'NewApplication', AProjectName);
+        vFileContent.Size := 0;
+        vFileContent.WriteString(vHandledText);
+        vFileContent.SaveToFile(TPath.Combine(vFrameworkDestPath, AProjectName + '.dpr'));
+      end;
+    finally
+      FreeAndNil(vFileContent);
+    end;
+  end;
 begin
   Result := '';
   vPlatformPath := ADomain.Constant['PlatformFolder'];
@@ -110,34 +156,9 @@ begin
   if TFile.Exists(vProcessingFileName) and not TFile.Exists(vTargetFileName) then
     TFile.Copy(vProcessingFileName, vTargetFileName);
 
-  vFileContent := TStringStream.Create('', TEncoding.UTF8);
+  vFileContent := TStringStream.Create('');
   try
-    // Подготовка *.dproj файла
-    vProcessingFileName := TPath.Combine(vTemplatesPath, 'NewApplication.dproj');
-    if TFile.Exists(vProcessingFileName) then
-    begin
-      vFileContent.LoadFromFile(vProcessingFileName);
-      CreateGUID(vGUID);
-      vHandledText := ReplaceStr(vFileContent.DataString, '$ProjectGuid$', UpperCase(GUIDToString(vGUID)));
-      vHandledText := ReplaceStr(vHandledText, '$ProjectName$', AProjectName);
-      vFileContent.Size := 0;
-      vFileContent.WriteString(vHandledText);
-      Result := TPath.Combine(vSrcPath, AProjectName + '.dproj');
-      vFileContent.SaveToFile(Result);
-    end;
-
-    // Подготовка *.dpr файла
-    vProcessingFileName := TPath.Combine(vTemplatesPath, 'NewApplication.dpr');
-    if TFile.Exists(vProcessingFileName) then
-    begin
-      vFileContent.LoadFromFile(vProcessingFileName);
-      vHandledText := ReplaceStr(vFileContent.DataString, 'NewApplication', AProjectName);
-      vFileContent.Size := 0;
-      vFileContent.WriteString(vHandledText);
-      vFileContent.SaveToFile(TPath.Combine(vSrcPath, AProjectName + '.dpr'));
-    end;
-
-    // Подготовка скрипта (*.pas файла)
+    // Создание файла скрипта (*.pas файла)
     vProcessingFileName := TPath.Combine(vTemplatesPath, 'NewScript.pas');
     if TFile.Exists(vProcessingFileName) then
     begin
@@ -153,14 +174,16 @@ begin
     FreeAndNil(vFileContent);
   end;
 
-  // Подготовка директории для бинарников
-  vBinPath := TPath.Combine(vPlatformPath, 'bin' + PathDelim + 'solutions' + PathDelim + LowerCase(AProjectName));
-  ForceDirectories(vBinPath);
+  Result := CopyProjectFiles('VCL');
+
+  // Подготовка директории для ресурсов
+  vResPath := TPath.Combine(vPlatformPath, 'res' + PathDelim + 'solutions' + PathDelim + AProjectName.ToLowerInvariant);
+  ForceDirectories(vResPath);
 
   if TDirectory.Exists(TPath.Combine(vTemplatesPath, 'layouts')) then
-    TDirectory.Copy(TPath.Combine(vTemplatesPath, 'layouts'), TPath.Combine(vBinPath, 'layouts'));
+    TDirectory.Copy(TPath.Combine(vTemplatesPath, 'layouts'), TPath.Combine(vResPath, 'layouts'));
 
-  vIniFile := TIniFile.Create(TPath.Combine(vBinPath, 'settings.ini'));
+  vIniFile := TIniFile.Create(TPath.Combine(vResPath, 'settings.ini'));
   try
     if not vIniFile.ValueExists('Core', 'Deployment') then
       vIniFile.WriteString('Core', 'Deployment', 'dev');

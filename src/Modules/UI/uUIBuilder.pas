@@ -425,9 +425,9 @@ begin
   Randomize;
   Result.Kind := lkShape;
   Result.ShowCaption := True;
-  Result.Pen.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+  Result.Pen.Color := Cardinal($FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256));
   Result.Pen.Width := 1;
-  Result.Brush.Color := $FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256);
+  Result.Brush.Color := Cardinal($FF shl 24 + Random(256) shl 16 + Random(256) shl 8 + Random(256));
 end;
 
 function TLayouts.CreateSimpleLayout(const ALayoutKind: TLayoutKind): TLayout;
