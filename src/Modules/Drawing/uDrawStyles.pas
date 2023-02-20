@@ -1040,7 +1040,7 @@ var
   vStroke: TStylePen;
   vSavedStrokeColor: Cardinal;
 begin
-  if Assigned(FContext) and Assigned(AStyle) and ((ACount - 1) mod 3 > 0) then
+  if Assigned(FContext) and Assigned(AStyle) and ((ACount - 1) mod 3 = 0) then
   begin
     vStroke := AStyle.Pen[AStrokeName];
     if Assigned(vStroke) and (vStroke.Width >= 0.3) then

@@ -1,21 +1,27 @@
 ﻿{---------------------------------------------------------------------------------
   X-Tend runtime
+
   Contributors:
     Vladimir Kustikov (kustikov@sensoft.pro)
     Sergey Arlamenkov (arlamenkov@sensoft.pro)
+
   You may retrieve the latest version of this file at the GitHub,
   located at https://github.com/sensoftpro/x-tend.git
  ---------------------------------------------------------------------------------
   MIT License
+
   Copyright © 2023 Sensoft
+
   Permission is hereby granted, free of charge, to any person obtaining a copy
   of this software and associated documentation files (the "Software"), to deal
   in the Software without restriction, including without limitation the rights
   to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
   copies of the Software, and to permit persons to whom the Software is
   furnished to do so, subject to the following conditions:
+
   The above copyright notice and this permission notice shall be included in all
   copies or substantial portions of the Software.
+
   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
   IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
   FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -24,15 +30,21 @@
   OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
   SOFTWARE.
  ---------------------------------------------------------------------------------}
+
 unit uniArea;
+
 interface
+
 uses
   System.Classes, System.Generics.Collections, System.Types,
   Vcl.Forms, System.UITypes, System.SysUtils,
+
   uniGUIForm, uniGUIRegClasses, uniGUIClasses,
   uniGUIAbstractClasses, uniGUIBaseClasses,
   uniMainMenu, uniButton, uniImageList, uniToolBar, uniTreeView,
+
   uConsts, uUIBuilder, uDefinition, uEntity, uView, uLayout;
+
 type
   TUniGUIControl = class(TNativeControlHolder)
   private
@@ -43,11 +55,14 @@ type
     function ExtractOwner(const AUIArea: TUIArea): TComponent;
   protected
     function IndexOfSender(const ASender: TObject): Integer; override;
+
     procedure DoActivate(const AUrlParams: string); override;
     procedure DoClose(const AModalResult: Integer); override;
     procedure DoBeginUpdate; override;
     procedure DoEndUpdate; override;
+
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); override;
+
     procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
     procedure SetControl(const AControl: TObject); override;
     procedure SetParent(const AParent: TUIArea); override;
@@ -67,6 +82,7 @@ type
     function GetWindowState: TWindowState; override;
     procedure SetWindowState(const AWindowState: TWindowState); override;
     procedure SetAlignment(const AAlignment: TAlignment); override;
+
     function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; override;
     procedure PlaceLabel; override;
     procedure SetCaptionProperty(const ALayout: TLayout); virtual;
@@ -75,6 +91,7 @@ type
     constructor Create(const AOwner: TUIArea; const AParams: string = ''); override;
     destructor Destroy; override;
   end;
+
   TUniGUIButton = class(TUniGUIControl)
   private
     FTypeSelectionMenu: TUniPopupMenu;
@@ -83,11 +100,13 @@ type
     procedure DoBeforeFreeControl; override;
     procedure RefillArea(const AKind: Word); override;
   end;
+
   TUniGUILink = class(TUniGUIControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure RefillArea(const AKind: Word); override;
   end;
+
   TUniGUIMainMenu = class(TUniGUIControl)
   private
     FMenu: TuniMainMenu;
@@ -96,6 +115,7 @@ type
     function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
+
   TUniGUIToolBar = class(TUniGUIControl)
   private
     FToolBar: TuniToolBar;
@@ -104,6 +124,7 @@ type
     function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
+
   TUniGUITreeMenu = class(TUniGUIControl)
   private
     FTreeView: TUniTreeView;
@@ -118,26 +139,35 @@ type
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
     procedure DoExecuteUIAction(const AView: TView); override;
   end;
+
 implementation
+
 uses
   Graphics, Math, StrUtils, Generics.Defaults, Variants,
+
   //UniGUI.ExtCtrls, UniGUI.Graphics, UniGUI.TabControl, UniGUI.Objects, UniGUI.ListView, UniGUI.ImgList,
   //UniGUI.ScrollBox, UniGUI.Memo, UniGUI.Edit,
+
   Windows, Vcl.Controls, uniGUITypes, uniBitBtn, uniMenuButton, uniLabel, uniPageControl, uniEdit,
   uniGUIApplication, UniGUIJSUtils,
+
   uPresenter, uUniGUIPresenter, uConfiguration, uSession, uInteractor, uUtils, uCollection,
   uEntityList, uDomainUtils, uChangeManager;
+
 type
   TCrackedBitBtn = class(TUniCustomBitBtn) end;
   TCrackedUniControl = class(TUniControl) end;
   TCrackedUniForm = class(TUniForm) end;
+
 { TUniGUIMainMenu }
+
 function TUniGUIMainMenu.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FMenu := TUniMainMenu.Create(ExtractOwner(AParent));
   FMenu.Images := TUniCustomImageList(FUIBuilder.Images[16]);
   Result := FMenu;
 end;
+
 function TUniGUIMainMenu.DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
   const ACaption, AHint: string; const AImageIndex: Integer): TObject;
 var
@@ -149,6 +179,7 @@ begin
   vMenuItem.Hint := AHint;
   vMenuItem.ImageIndex := AImageIndex;
   vMenuItem.OnClick := FOwner.OnAreaClick;
+
   Result := nil;
   if ANavItem.Level = 0 then
   begin
@@ -164,7 +195,9 @@ begin
     end;
   end;
 end;
+
 { TUniGUIToolBar }
+
 function TUniGUIToolBar.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vImageSize: Integer;
@@ -173,6 +206,7 @@ begin
   FToolBar.ButtonAutoWidth := True;
   FToolBar.ButtonHeight := ALayout.Height;
   FToolBar.ShowCaptions := True;
+
   vImageSize := StrToIntDef(GetUrlParam(FParams, 'ImageSize'), 16);
   FToolBar.Images := TUniCustomImageList(FUIBuilder.Images[vImageSize]);
 
@@ -237,7 +271,9 @@ begin
     Result := vMenuItem;
   end;
 end;
+
 { TUniGUITreeMenu }
+
 function TUniGUITreeMenu.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   FTreeView := TUniTreeView.Create(ExtractOwner(AParent));
@@ -332,11 +368,14 @@ begin
   if Assigned(vArea) then
     FOwner.ProcessAreaClick(vArea);
 end;
+
 { TUniGUIButton }
+
 procedure TUniGUIButton.DoBeforeFreeControl;
 begin
   //FreeAndNil(FTypeSelectionMenu);
 end;
+
 function TUniGUIButton.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vParams: TStrings;
@@ -476,6 +515,7 @@ begin
 
   Result := vButton;
 end;
+
 procedure TUniGUIButton.RefillArea(const AKind: Word);
 var
   vButton: TCrackedBitBtn;
@@ -487,15 +527,21 @@ begin
     inherited RefillArea(AKind);
     Exit;
   end;
+
   vButton := TCrackedBitBtn(FControl);
+
   vActionDef := TDefinition(FView.Definition);
   vImageID := GetImageIndex(vActionDef._ImageID);
+
   if (vButton.Images.Count + 1 >= vImageID) and (vImageID > 0) then
     vButton.ImageIndex := vImageID;
+
   vButton.Text := GetTranslation(vActionDef);
   vButton.Hint := vButton.Text;
 end;
+
 { TUniGUILink }
+
 function TUniGUILink.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 var
   vParams: TStrings;
@@ -533,6 +579,7 @@ begin
 
   Result := vLabel;
 end;
+
 procedure TUniGUILink.RefillArea(const AKind: Word);
 var
   vLabel: TUniLabel;
@@ -543,12 +590,16 @@ begin
     inherited RefillArea(AKind);
     Exit;
   end;
+
   vLabel := TUniLabel(FControl);
+
   vActionDef := TDefinition(FView.Definition);
   vLabel.Text := GetTranslation(vActionDef);
   vLabel.Hint := vLabel.Text;
 end;
+
 { TUniGUIControl }
+
 procedure TUniGUIControl.AssignFromLayout(const ALayout: TLayout; const AParams: string);
 var
   vForm: TUniForm;
@@ -557,6 +608,7 @@ begin
   if FIsForm then
   begin
     vForm := TUniForm(FControl);
+
     if ALayout.Kind = lkFrame then
     begin
       if (ALayout.Tag and cFormResizable) > 0 then
@@ -655,6 +707,7 @@ begin
     end;
   end;
 end;
+
 procedure TUniGUIControl.BeforeContextMenuShow(Sender: TObject);
 var
   vMenu: TUniPopupMenu;
@@ -1101,11 +1154,15 @@ begin
   if Assigned(FCaption) then
     TUniLabel(FCaption).Visible := FShowCaption and (FOwner.View.State > vsHidden);
 end;
+
 initialization
+
 TPresenter.RegisterControlClass('Web.UniGUI', uiNavigation, '', TUniGUITreeMenu);
 TPresenter.RegisterControlClass('Web.UniGUI', uiNavigation, 'TreeView', TUniGUITreeMenu);
 TPresenter.RegisterControlClass('Web.UniGUI', uiNavigation, 'MainMenu', TUniGUIMainMenu);
 TPresenter.RegisterControlClass('Web.UniGUI', uiNavigation, 'ToolBar', TUniGUIToolBar);
+
 TPresenter.RegisterControlClass('Web.UniGUI', uiAction, '', TUniGUIButton);
 TPresenter.RegisterControlClass('Web.UniGUI', uiAction, 'link', TUniGUILink);
+
 end.

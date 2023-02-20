@@ -105,7 +105,7 @@ type
     procedure SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl); override;
     procedure DoAfterSetParent(const AParent: TUIArea); override;
   public
-
+    property Columns: TObjectList<TColumnBinding> read FColumns;
   end;
 
 implementation
@@ -337,7 +337,7 @@ begin
   end;
 end;
 
-procedure SetGridColumnParams(const AListView: TListView; const AColName: string;
+procedure SetGridColumnParams(const AControl: TGridEditor; const AListView: TListView; const AColName: string;
   const AWidth, AColIndex, ARowIndex: Integer; const AVisible: Boolean; const ASortOrder: TSortOrder);
 var
   vCol: TListColumn;
@@ -347,7 +347,7 @@ var
   begin
     Result := nil;
     for i := 0 to AListView.Columns.Count - 1 do
-      if TColumnBinding(AListView.Columns[i].Tag).FFieldDef.Name = AColName then
+      if AControl.Columns[AListView.Columns[i].Tag].FFieldDef.Name = AColName then
       begin
         Result := AListView.Columns[i];
         Break;
@@ -363,7 +363,8 @@ begin
   vCol.Index := AColIndex;
 end;
 
-function LoadGridColumnWidths(const ADomain: TObject; const AListView: TListView; const AObjectName: string): Boolean;
+function LoadGridColumnWidths(const ADomain: TObject; const AControl: TGridEditor;
+  const AListView: TListView; const AObjectName: string): Boolean;
 var
   vSectionName: string;
   vSettings: TSettings;
@@ -422,7 +423,7 @@ begin
       if vValues.Count > 4 then
         vSortOrder := TSortOrder(StrToIntDef(vValues[4], 0));
 
-      SetGridColumnParams(AListView, vCols.Names[i], vWidth, vColIndex, vRowIndex, vVisible, vSortOrder);
+      SetGridColumnParams(AControl, AListView, vCols.Names[i], vWidth, vColIndex, vRowIndex, vVisible, vSortOrder);
     end;
   finally
     AListView.Items.EndUpdate;
@@ -431,7 +432,8 @@ begin
   end;
 end;
 
-procedure SaveGridColumnWidths(const ADomain: TObject; const AListView: TListView; const AObjectName: string);
+procedure SaveGridColumnWidths(const ADomain: TObject; const AControl: TGridEditor;
+  const AListView: TListView; const AObjectName: string);
 var
   vSectionName: string;
   vSettings: TSettings;
@@ -446,32 +448,33 @@ begin
     vColumn := AListView.Columns[i];
     vValues := IntToStr(AListView.Columns[i].Width) + cColWidthDelim + IntToStr(AListView.Columns[i].Index) +
       cColWidthDelim + IntToStr(0) + cColWidthDelim + cColWidthDelim;
-    vSettings.SetValue(vSectionName, TColumnBinding(vColumn.Tag).FFieldDef.Name, vValues);
+    vSettings.SetValue(vSectionName, AControl.Columns[vColumn.Tag].FFieldDef.Name, vValues);
   end;
 end;
 
-function CustomSortProc(const AItem1, AItem2: TListItem; const AColumn: TListColumn): Integer; stdcall;
+function CustomSortProc(const AItem1, AItem2: TListItem; const ABinding: TColumnBinding): Integer; stdcall;
 var
   vEnt1, vEnt2: TEntity;
   vFieldDef: TFieldDef;
-  vColumnBinding: TColumnBinding;
 begin
   vEnt1 := TEntity(AItem1.Data);
   vEnt2 := TEntity(AItem2.Data);
-  vColumnBinding := TColumnBinding(AColumn.Tag);
-  vFieldDef := vColumnBinding.FFieldDef;
+  vFieldDef := ABinding.FFieldDef;
 
   Result := CompareEntities(vEnt1, vEnt2, vFieldDef, '');
-  if not vColumnBinding.FIsAscSort then
+  if not ABinding.FIsAscSort then
     Result := -Result;
-  vColumnBinding.FIsAscSort := not vColumnBinding.FIsAscSort;
+  ABinding.FIsAscSort := not ABinding.FIsAscSort;
 end;
 
 { TGridEditor }
 
 procedure TGridEditor.OnColumnClick(Sender: TObject; Column: TListColumn);
+var
+  vColumnBinding: TColumnBinding;
 begin
-  FGrid.CustomSort(@CustomSortProc, Integer(Column));
+  vColumnBinding := FColumns[Column.Tag];
+  FGrid.CustomSort(@CustomSortProc, NativeInt(vColumnBinding));
 end;
 
 procedure TGridEditor.OnColumnResize(Sender: TCustomListview; columnindex, columnwidth: Integer);
@@ -596,12 +599,13 @@ procedure TGridEditor.CreateColumn(const AFieldDef: TFieldDef; const AOverridden
   const AWidth: Integer);
 var
   vCol: TListColumn;
+  vIndex: Integer;
 begin
   vCol := FGrid.Columns.Add;
   vCol.Caption := AOverriddenCaption;
   vCol.Width := Round(AWidth * 1.5);
-  FColumns.Add(TColumnBinding.Create(AFieldDef));
-  vCol.Tag := NativeInt(FColumns.Last);
+  vIndex := FColumns.Add(TColumnBinding.Create(AFieldDef));
+  vCol.Tag := vIndex;
 end;
 
 function TGridEditor.CreateRow(AEntity: TEntity): Boolean;
@@ -764,7 +768,7 @@ begin
     if not Assigned(AEntity) then
       Exit;
 
-    vFieldDef := TColumnBinding(AColumn.Tag).FFieldDef;
+    vFieldDef := FColumns[AColumn.Tag].FFieldDef;
     vFieldName := vFieldDef.Name;
 
     if vFieldDef = nil then
@@ -889,7 +893,7 @@ end;
 
 procedure TGridEditor.SaveColumnWidths(Sender: TObject);
 begin
-  SaveGridColumnWidths(TInteractor(FView.Interactor).Domain, FGrid, FView.InitialName);
+  SaveGridColumnWidths(TInteractor(FView.Interactor).Domain, Self, FGrid, FView.InitialName);
 end;
 
 procedure TGridEditor.SetLinkedControl(const ATargetName: string; const ALinkedControl: TNativeControl);
@@ -936,7 +940,7 @@ end;
 
 procedure TGridEditor.LoadColumnWidths;
 begin
-  FLayoutExists := LoadGridColumnWidths(TInteractor(FView.Interactor).Domain, FGrid, FView.InitialName);
+  FLayoutExists := LoadGridColumnWidths(TInteractor(FView.Interactor).Domain, Self, FGrid, FView.InitialName);
 end;
 
 procedure TGridEditor.DoBeforeFreeControl;

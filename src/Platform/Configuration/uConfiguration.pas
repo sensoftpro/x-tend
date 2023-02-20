@@ -308,7 +308,7 @@ begin
     Result := ''
   else
   begin
-     vLayoutFile := TPath.Combine(FConfigurationDir, 'layouts' + PathDelim + ARelativeFilePath);
+    vLayoutFile := TPath.Combine(FConfigurationDir, 'layouts' + PathDelim + ARelativeFilePath);
     if (APostfix <> '') and FileExists(vLayoutFile + APostfix + AExtension) then
       Result := vLayoutFile + APostfix + AExtension
     else if FileExists(vLayoutFile + AExtension) then

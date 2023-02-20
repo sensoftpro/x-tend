@@ -477,7 +477,6 @@ begin
   Result := TRadioGroup.Create(nil);
   TRadioGroup(Result).Name := 'radio';
   TRadioGroup(Result).Caption := '';
-  TRadioGroup(Result).ShowFrame := False;
   FNeedCreateCaption := False;
 
   FEntities := TEntityList.Create(TInteractor(FView.Interactor).Domain, TInteractor(FView.Interactor).Session);

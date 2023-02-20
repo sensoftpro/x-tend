@@ -88,11 +88,11 @@ var
 implementation
 
 uses
-{$IFDEF MSWINDOWS}
+{$IF DEFINED(MSWINDOWS)}
   WinApi.Windows,
-{$ELSE} {$IFDEF POSIX}
+{$ELSEIF DEFINED(POSIX)}
   Posix.Unistd,
-{$ENDIF} {$ENDIF}
+{$ENDIF}
   Classes, SysUtils, IOUtils, SyncObjs, Threading, uConsts, uCodeConfiguration, uScript, uUtils;
 
 const
