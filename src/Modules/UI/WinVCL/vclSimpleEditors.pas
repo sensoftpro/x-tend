@@ -118,6 +118,7 @@ type
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+    procedure SetViewState(const AViewState: TViewState); override;
   end;
 
   TVCLFloatFieldEditor = class(TVCLControl)
@@ -126,6 +127,7 @@ type
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+    procedure SetViewState(const AViewState: TViewState); override;
   end;
 
   TVCLDateFieldEditor = class(TVCLControl)
@@ -134,6 +136,7 @@ type
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+    procedure SetViewState(const AViewState: TViewState); override;
   end;
 
   TVCLTimeFieldEditor = class(TVCLControl)
@@ -142,6 +145,7 @@ type
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+    procedure SetViewState(const AViewState: TViewState); override;
   end;
 
   TVCLDateTimeFieldEditor = class(TVCLControl)
@@ -151,6 +155,7 @@ type
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+    procedure SetViewState(const AViewState: TViewState); override;
   end;
 
   TVCLTextFieldEditor = class(TVCLControl)
@@ -484,17 +489,23 @@ begin
   end
   else
   begin
-    vEdit.Enabled := FView.State >= vsFullAccess;
+    vEdit.Enabled := FView.State > vsDisabled;
+    vEdit.ReadOnly := FView.State < vsFullAccess;
     FUpDown.Position := FView.FieldValue;
   end;
 
-  FUpDown.Visible := vEdit.Visible and vEdit.Enabled;
+  FUpDown.Visible := vEdit.Visible and vEdit.Enabled and (not vEdit.ReadOnly);
 end;
 
 procedure TVCLIntegerFieldEditor.DoAfterSetParent(const AParent: TUIArea);
 begin
   FUpDown.Parent := TWinControl(FControl).Parent;
   FUpDown.Associate := TEdit(FControl);
+end;
+
+procedure TVCLIntegerFieldEditor.SetViewState(const AViewState: TViewState);
+begin
+// do nothing
 end;
 
 procedure TVCLIntegerFieldEditor.SwitchChangeHandlers(
@@ -551,8 +562,14 @@ begin
   else
   begin
     vEdit.Text := FloatToStr(FView.FieldValue);
-    vEdit.Enabled := FView.State >= vsFullAccess;
+    vEdit.Enabled := FView.State > vsDisabled;
+    vEdit.ReadOnly := FView.State < vsFullAccess;
   end;
+end;
+
+procedure TVCLFloatFieldEditor.SetViewState(const AViewState: TViewState);
+begin
+ // do nothing
 end;
 
 procedure TVCLFloatFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
@@ -597,13 +614,18 @@ begin
     vEdit.Date := 0;
   end
   else begin
-    vEdit.Enabled := FView.State > vsDisabled;
+    vEdit.Enabled := FView.State >= vsSelectOnly;
     vDate := FView.FieldValue;
     if vDate < 2 then
       vEdit.Date := 0
     else
       vEdit.Date := vDate;
   end;
+end;
+
+procedure TVCLDateFieldEditor.SetViewState(const AViewState: TViewState);
+begin
+// do nothing
 end;
 
 procedure TVCLDateFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
@@ -654,7 +676,7 @@ begin
   else
   begin
     vEdit.Text := FView.FieldValue;
-    vEdit.Enabled := True;
+    vEdit.Enabled := FView.State > vsDisabled;
     vEdit.ReadOnly := FView.State < vsFullAccess;
   end;
 end;
@@ -854,9 +876,14 @@ begin
     vEdit.Time := 0;
   end
   else begin
-    vEdit.Enabled := FView.State > vsDisabled;
+    vEdit.Enabled := FView.State >= vsSelectOnly;
     vEdit.Time := FView.FieldValue;
   end;
+end;
+
+procedure TVCLTimeFieldEditor.SetViewState(const AViewState: TViewState);
+begin
+// do nothing
 end;
 
 procedure TVCLTimeFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
@@ -1046,15 +1073,20 @@ begin
     vEdit.Time := 0;
   end
   else begin
-    vEdit.Enabled := FView.State > vsDisabled;
     vEdit.Date := Int(FView.FieldValue);
     vEdit.Time := Frac(FView.FieldValue);
+    vEdit.Enabled := FView.State >= vsSelectOnly;
   end;
 end;
 
 procedure TVCLDateTimeFieldEditor.DoAfterSetParent(const AParent: TUIArea);
 begin
   TDateTimePicker(FControl).Format := 'dd.MM.yyyy HH:mm:ss';
+end;
+
+procedure TVCLDateTimeFieldEditor.SetViewState(const AViewState: TViewState);
+begin
+// do nothing
 end;
 
 procedure TVCLDateTimeFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);

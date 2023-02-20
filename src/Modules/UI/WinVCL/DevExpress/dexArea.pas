@@ -172,10 +172,10 @@ var
   vButton: TcxButton;
   vActionDef: TDefinition;
   vDefinitions: TList<TDefinition>;
-  i: Integer;
+  i, vImageIndex: Integer;
   vMenuItem: TMenuItem;
   vDefinition: TDefinition;
-  vImageID: Integer;
+  vImageID: string;
   vImageSize: Integer;
   vComposition: string;
   vViewStyle: string;
@@ -186,7 +186,7 @@ begin
   vParams := CreateDelimitedList(FInternalParams, '&');
   try
     vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
-    vImageID := StrToIntDef(vParams.Values['ImageID'], vActionDef._ImageID);
+    vImageID := vParams.Values['ImageID'];
     vComposition := Trim(vParams.Values['Composition']);
     vViewStyle := Trim(vParams.Values['ViewStyle']);
     vOverriddenCaption := Trim(vParams.Values['Caption']);
@@ -197,7 +197,7 @@ begin
 
   vButton := TcxButton.Create(nil);
   vButton.OptionsImage.Images := TDragImageList(FUIBuilder.Images[vImageSize]);
-  vImageID := FOwner.GetImageID(vImageID);
+  vImageIndex := FOwner.GetImageIndex(vImageID);
 
   if (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone) then
   begin
@@ -213,7 +213,7 @@ begin
   if Length(vOverriddenHint) > 0 then
     vButton.Hint := vOverriddenHint;
 
-  if (vButton.OptionsImage.Images.Count + 1 >= vImageID) and (vImageID > 0) then
+  if (vButton.OptionsImage.Images.Count + 1 >= vImageIndex) and (vImageIndex > 0) then
   begin
     if vComposition = '' then
     begin
@@ -240,7 +240,7 @@ begin
       else
         vButton.Layout := TButtonLayout.blGlyphLeft;
     end;
-    vButton.OptionsImage.ImageIndex := vImageID;
+    vButton.OptionsImage.ImageIndex := vImageIndex;
   end
   else
   begin
@@ -268,7 +268,7 @@ begin
         vMenuItem.Caption := FOwner.GetTranslation(vDefinition);
         if Length(vOverriddenCaption) > 0 then
           vMenuItem.Caption := vOverriddenCaption;
-        vMenuItem.ImageIndex := FOwner.GetImageID(vDefinition._ImageID);
+        vMenuItem.ImageIndex := FOwner.GetImageIndex(vDefinition._ImageID);
         vMenuItem.Tag := NativeInt(FOwner);
         vMenuItem.OnClick := FOwner.OnActionMenuSelected;
         FTypeSelectionMenu.Items.Add(vMenuItem);
@@ -304,7 +304,7 @@ begin
   vButton := TcxButton(FControl);
 
   vActionDef := TDefinition(FView.Definition);
-  vImageID := FOwner.GetImageID(vActionDef._ImageID);
+  vImageID := FOwner.GetImageIndex(vActionDef._ImageID);
 
   if (vButton.OptionsImage.Images.Count + 1 >= vImageID) and (vImageID > 0) then
     vButton.OptionsImage.ImageIndex := vImageID;
@@ -387,7 +387,7 @@ begin
       if Pos('=', ALayout.Caption) > 0 then // Hint содержит url-строку с параметрами
       begin
         TcxTabSheet(FControl).Caption := GetUrlParam(ALayout.Caption, 'Caption', '');
-        TcxTabSheet(FControl).ImageIndex := FOwner.GetImageId(StrToIntDef(GetUrlParam(ALayout.Caption, 'ImageIndex', ''), -1));
+        TcxTabSheet(FControl).ImageIndex := FOwner.GetImageIndex(GetUrlParam(ALayout.Caption, 'ImageIndex', ''));
       end;
     end;
   end

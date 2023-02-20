@@ -2632,16 +2632,16 @@ begin
   begin
     vActionName := FCreateParams.Values['action'];
     vImageSize := StrToIntDef(FCreateParams.Values['ImageSize'], 16);
-    FFalseImageID := FOwner.GetImageID(StrToIntDef(FCreateParams.Values['false'], -1));
-    FTrueImageID := FOwner.GetImageID(StrToIntDef(FCreateParams.Values['true'], -1));
+    FFalseImageID := FOwner.GetImageIndex(FCreateParams.Values['false']);
+    FTrueImageID := FOwner.GetImageIndex(FCreateParams.Values['true']);
     FTrueHint := FCreateParams.Values['trueHint'];
     FFalseHint := FCreateParams.Values['falseHint'];
   end
   else begin
     vActionName := '';
     vImageSize := 16;
-    FTrueImageID := FOwner.GetImageID(-1);
-    FFalseImageID := FOwner.GetImageID(-1);
+    FTrueImageID := FOwner.GetImageIndex('');
+    FFalseImageID := FOwner.GetImageIndex('');
     FTrueHint := TFieldDef(FView.Definition)._Caption;
     FFalseHint := TFieldDef(FView.Definition)._Caption;
   end;
