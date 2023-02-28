@@ -1,0 +1,1132 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <Import Condition="Exists('$(BDS)\bin\CodeGear.Deployment.targets')" Project="$(BDS)\bin\CodeGear.Deployment.targets"/>
+    <ProjectExtensions>
+        <ProjectFileVersion>12</ProjectFileVersion>
+    </ProjectExtensions>
+    <PropertyGroup>
+        <DeviceId Condition="'$(Platform)'=='Android'"/>
+        <DeviceId Condition="'$(Platform)'=='Android64'"/>
+        <DeviceId Condition="'$(Platform)'=='iOSDevice64'"/>
+        <DeviceId Condition="'$(Platform)'=='iOSSimARM64'"/>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(Platform)'=='OSX64'"/>
+    <ItemGroup Condition="'$(Platform)'=='Win32'">
+        <DeployFile Include="..\..\..\..\bin\Win32\Configurator.exe" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\</RemoteDir>
+            <RemoteName>Configurator.exe</RemoteName>
+            <DeployClass>ProjectOutput</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+            <Required>True</Required>
+        </DeployFile>
+    </ItemGroup>
+    <ItemGroup Condition="'$(Platform)'=='Android64'"/>
+    <ItemGroup Condition="'$(Platform)'=='Android'"/>
+    <ItemGroup Condition="'$(Platform)'=='OSXARM64'"/>
+    <ItemGroup Condition="'$(Platform)'=='Win64'"/>
+    <ItemGroup Condition="'$(Platform)'=='Linux64'">
+        <DeployFile Include="..\..\..\..\res\icons\16\tile horizontally.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>tile horizontally.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\step_forward.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>step_forward.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\skip_to.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>skip_to.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\ok.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>ok.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\bin\favicon.ico" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\</RemoteDir>
+            <RemoteName>favicon.ico</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\add.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>add.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\merge.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>merge.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\alias.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>alias.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\show_finance_chart.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>show_finance_chart.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\filter.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>filter.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\group16.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>group16.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\statistics16.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>statistics16.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\step_backward.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>step_backward.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\step_backward.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>step_backward.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\16\recycle.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\16\</RemoteDir>
+            <RemoteName>recycle.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\tile vertically.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>tile vertically.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\24\arrow_down.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\24\</RemoteDir>
+            <RemoteName>arrow_down.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\32\stop_script.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\32\</RemoteDir>
+            <RemoteName>stop_script.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\solutions\configurator\layouts\MainForm.xtf" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\solutions\configurator\layouts\</RemoteDir>
+            <RemoteName>MainForm.xtf</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\clone.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>clone.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\document_view.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>document_view.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\edit.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>edit.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\skip_to.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>skip_to.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\group16.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>group16.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\instrum_refresh.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>instrum_refresh.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\save.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>save.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\solutions\configurator\layouts\LoginForm.xtf" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\solutions\configurator\layouts\</RemoteDir>
+            <RemoteName>LoginForm.xtf</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\timer.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>timer.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\16\arrow_down.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\16\</RemoteDir>
+            <RemoteName>arrow_down.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\timer.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>timer.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\server_connect.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>server_connect.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\solutions\configurator\layouts\OptionsForm.xtf" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\solutions\configurator\layouts\</RemoteDir>
+            <RemoteName>OptionsForm.xtf</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\16\stop_script.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\16\</RemoteDir>
+            <RemoteName>stop_script.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\email.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>email.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\file_import.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>file_import.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\check.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>check.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\chevron_left.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>chevron_left.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\images\panel.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\images\</RemoteDir>
+            <RemoteName>panel.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\cascade.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>cascade.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\document_view.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>document_view.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\play.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>play.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\printer.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>printer.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\bin\Linux64\Configurator" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\</RemoteDir>
+            <RemoteName>Configurator</RemoteName>
+            <DeployClass>ProjectOutput</DeployClass>
+            <Operation>1</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+            <Required>True</Required>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\optimal_column_width.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>optimal_column_width.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\uncheck.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>uncheck.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\printer.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>printer.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\look.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>look.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\instrum_refresh.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>instrum_refresh.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\16\graduation.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\16\</RemoteDir>
+            <RemoteName>graduation.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\32\recycle.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\32\</RemoteDir>
+            <RemoteName>recycle.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\step_forward.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>step_forward.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\email.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>email.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\file_import.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>file_import.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\16\arrow_up.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\16\</RemoteDir>
+            <RemoteName>arrow_up.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\cancel.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>cancel.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\stop.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>stop.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\open_file.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>open_file.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\solutions\configurator\favicon.ico" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\solutions\configurator\</RemoteDir>
+            <RemoteName>favicon.ico</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\layouts\DefaultList.xtf" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\layouts\</RemoteDir>
+            <RemoteName>DefaultList.xtf</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\right.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>right.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\32\graduation.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\32\</RemoteDir>
+            <RemoteName>graduation.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\left.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>left.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\bin\settings.ini" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\</RemoteDir>
+            <RemoteName>settings.ini</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\uncheck.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>uncheck.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\placeholder.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>placeholder.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\stop.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>stop.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\16\stop_all.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\16\</RemoteDir>
+            <RemoteName>stop_all.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\link.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>link.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\group.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>group.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\export_excel.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>export_excel.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\chevron_right.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>chevron_right.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\change_password.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>change_password.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\solutions\configurator\layouts\DistrictsEditForm.xtf" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\solutions\configurator\layouts\</RemoteDir>
+            <RemoteName>DistrictsEditForm.xtf</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\cancel.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>cancel.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\16\plugin.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\16\</RemoteDir>
+            <RemoteName>plugin.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\export_excel.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>export_excel.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\32\arrow_up.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\32\</RemoteDir>
+            <RemoteName>arrow_up.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\24\save.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\24\</RemoteDir>
+            <RemoteName>save.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\arrow_down.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>arrow_down.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\32\run_script.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\32\</RemoteDir>
+            <RemoteName>run_script.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\solutions\configurator\layouts\Collection.xtf" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\solutions\configurator\layouts\</RemoteDir>
+            <RemoteName>Collection.xtf</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\check.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>check.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\24\placeholder.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\24\</RemoteDir>
+            <RemoteName>placeholder.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\optimal_column_width.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>optimal_column_width.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\32\stop_all.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\32\</RemoteDir>
+            <RemoteName>stop_all.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\refresh.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>refresh.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\chevron_left.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>chevron_left.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\arrow_up.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>arrow_up.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\file_export.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>file_export.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\solutions\configurator\layouts\AboutForm.xtf" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\solutions\configurator\layouts\</RemoteDir>
+            <RemoteName>AboutForm.xtf</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\file_export.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>file_export.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\24\arrow_up.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\24\</RemoteDir>
+            <RemoteName>arrow_up.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\32\arrow_down.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\32\</RemoteDir>
+            <RemoteName>arrow_down.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\folder.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>folder.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\show_finance_chart.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>show_finance_chart.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\group.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>group.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\16\run_script.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\16\</RemoteDir>
+            <RemoteName>run_script.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\pause.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>pause.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\web_download.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>web_download.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\settings.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>settings.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\solutions\configurator\layouts\SplashForm.xtf" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\solutions\configurator\layouts\</RemoteDir>
+            <RemoteName>SplashForm.xtf</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\location.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>location.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\layouts\Close.xtf" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\layouts\</RemoteDir>
+            <RemoteName>Close.xtf</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\solutions\configurator\settings.ini" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\solutions\configurator\</RemoteDir>
+            <RemoteName>settings.ini</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\web_download.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>web_download.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\32\scripts.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\32\</RemoteDir>
+            <RemoteName>scripts.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\change_password.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>change_password.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\chevron_right.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>chevron_right.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\settings.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>settings.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\32\plugin.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\32\</RemoteDir>
+            <RemoteName>plugin.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\save.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>save.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\warning.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>warning.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\unlink.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>unlink.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\pause.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>pause.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\mozaic.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>mozaic.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\32\server_connect.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\32\</RemoteDir>
+            <RemoteName>server_connect.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\delete.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>delete.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\placeholder.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>placeholder.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\layouts\OkCancel.xtf" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\layouts\</RemoteDir>
+            <RemoteName>OkCancel.xtf</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\mozaic.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>mozaic.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\icons\16\play.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\icons\16\</RemoteDir>
+            <RemoteName>play.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+        <DeployFile Include="..\..\..\..\res\modules\scriptexecutor\icons\16\scripts.png" Condition="'$(Config)'=='Debug'">
+            <RemoteDir>Configurator\modules\scriptexecutor\icons\16\</RemoteDir>
+            <RemoteName>scripts.png</RemoteName>
+            <DeployClass>File</DeployClass>
+            <Operation>0</Operation>
+            <LocalCommand/>
+            <RemoteCommand/>
+            <Overwrite>True</Overwrite>
+        </DeployFile>
+    </ItemGroup>
+    <ItemGroup Condition="'$(Platform)'=='iOSDevice64'"/>
+    <ItemGroup Condition="'$(Platform)'=='iOSSimARM64'"/>
+</Project>

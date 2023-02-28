@@ -1,0 +1,36 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{C6B1D2C6-61A4-4A78-A1C8-E7A41559EBE7}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Solutions\Configurator\FMX\Configurator.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="Configurator">
+        <MSBuild Projects="Solutions\Configurator\FMX\Configurator.dproj"/>
+    </Target>
+    <Target Name="Configurator:Clean">
+        <MSBuild Projects="Solutions\Configurator\FMX\Configurator.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="Configurator:Make">
+        <MSBuild Projects="Solutions\Configurator\FMX\Configurator.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="Configurator"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="Configurator:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="Configurator:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>
