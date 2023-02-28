@@ -259,6 +259,7 @@ type
 
     procedure SetSize(const AWidth, AHeight: Single);
     procedure SaveToFile(const AFileName: string); virtual;
+    procedure UpdateCanvas(const ACanvas: TObject); virtual;
 
     property Width: Integer read GetWidth;
     property Height: Integer read GetHeight;
@@ -345,6 +346,7 @@ type
     procedure BeginPaint; virtual;
     procedure EndPaint; virtual;
 
+    procedure UpdateCanvas(const ACanvas: TObject);
     function SetContext(const AContext: TDrawContext): TDrawContext; virtual;
     property Context: TDrawContext read FContext;
   end;
@@ -1442,6 +1444,11 @@ begin
   Result := vSize.Width;
 end;
 
+procedure TPainter.UpdateCanvas(const ACanvas: TObject);
+begin
+  FContext.UpdateCanvas(ACanvas);
+end;
+
 { TStyleObject }
 
 constructor TStyleObject.Create(const AName: string);
@@ -1507,6 +1514,10 @@ procedure TDrawContext.SetSize(const AWidth, AHeight: Single);
 begin
   if not SameValue(AWidth, FClientRect.Width) or not SameValue(AHeight, FClientRect.Height) then
     DoSetSize(AWidth, AHeight);
+end;
+
+procedure TDrawContext.UpdateCanvas(const ACanvas: TObject);
+begin
 end;
 
 end.

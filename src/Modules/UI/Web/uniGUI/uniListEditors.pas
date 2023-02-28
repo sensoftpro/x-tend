@@ -174,10 +174,18 @@ procedure TEntityListSelectorMTM.OnClickCheck(Sender: TObject);
 var
   vEntity: TEntity;
   AIndex: Integer;
+  vSelected: Boolean;
 begin
   for AIndex := 0 to FCheckList.Count do
-    if FListBox.Selected[AIndex] <> FCheckList[AIndex] then
+  begin
+    try
+      vSelected := FListBox.Selected[AIndex];
+    except
+      vSelected := False;
+    end;
+    if vSelected <> FCheckList[AIndex] then
       Break;
+  end;
   FCheckList[AIndex] := FListBox.Selected[AIndex];
   vEntity := TEntity(FListBox.Items.Objects[AIndex]);
   if FCheckList[AIndex] then

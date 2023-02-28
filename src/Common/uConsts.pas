@@ -356,6 +356,7 @@ function GetResDir: string;
 function GetPlatformDir: string;
 //function GetCommonDir: string;
 function GetDesktopDir: string;
+function GetTempDir: string;
 function GetOwnerDirectoryName(const APath: string): string;
 
 function IsOnline: Boolean;
@@ -423,12 +424,13 @@ begin
   Result := TPath.GetLibraryPath;
   if DeveloperMode then
     Result := GetParentPath(Result)
+{$ELSEIF DEFINED(LINUX)}
+  Result := TPath.GetLibraryPath;
 {$ELSEIF DEFINED(ANDROID)}
   // assets/internal
   Result := TPath.GetHomePath;
 {$ELSE}
-  FIX
-  Result := TPath.GetHomePath;
+  Result := TPath.GetLibraryPath;
 {$ENDIF}
 end;
 
@@ -440,12 +442,11 @@ begin
     // bin: platform\bin\Win32
     Result := GetParentPath(GetBinDir)
   else
-    Result := TPath.GetLibraryPath;;
+    Result := TPath.GetLibraryPath;
+{$ELSEIF DEFINED(LINUX)}
+  Result := GetBinDir;
 {$ELSEIF DEFINED(ANDROID)}
   // assets/internal
-  Result := GetBinDir;
-{$ELSEIF DEFINED(LINUX)}
-  FIX
   Result := GetBinDir;
 {$ELSE}
   FIX
@@ -460,12 +461,19 @@ begin
     Result := TPath.Combine(GetPlatformDir, 'res')
   else
     Result := TPath.GetLibraryPath;
+{$ELSEIF DEFINED(LINUX)}
+  Result := GetBinDir;
 {$ELSEIF DEFINED(ANDROID)}
   // assets/internal
   Result := GetBinDir;
 {$ELSE}
   Result := GetBinDir;
 {$ENDIF}
+end;
+
+function GetTempDir: string;
+begin
+  Result := TPath.GetTempPath;
 end;
 
 //function _GetCommonDir: string;
@@ -486,6 +494,8 @@ begin
 {$IFDEF MSWINDOWS}
   SHGetSpecialFolderPath(0, Buf, CSIDL_DESKTOP, False);
   Result := Buf;
+{$ELSEIF DEFINED(LINUX)}
+  Result := TPath.Combine(TPath.GetHomePath, 'Desktop');
 {$ELSEIF DEFINED(POSIX)}
   Result := TPath.Combine(TPath.GetHomePath, 'Desktop');
 {$ELSE}

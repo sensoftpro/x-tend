@@ -4,7 +4,7 @@ uses Classes, uniArea, uEntityList, uUIBuilder, uLayout, uEntity, uView, uniPane
 type
   TCrackedBitBtn = class(TUniCustomBitBtn) end;
   
-  TUNIEntitySelector = class(TUniGUIControl)
+  TUniGUIEntitySelector = class(TUniGUIControl)
   private
     FFlat: Boolean;
     FEntities: TEntityList;
@@ -21,7 +21,7 @@ type
   TCloseQueryEvent = procedure(Sender: TObject; var ACanClose: Boolean) of object;
   TOnSelectEntityEvent = procedure (const ANewEntity: TEntity) of object;
   
-  TUNIEntityFieldEditor = class(TUniGUIControl)
+  TUniGUIEntityFieldEditor = class(TUniGUIControl)
   private
     FBasePanel: TUniPanel;
     FSelectButton: TUniComboBox;
@@ -41,7 +41,7 @@ type
     procedure DoDeinit; override;
   end;
   
-  TUNIRadioEntitySelector = class(TUniGUIControl)
+  TUniGUIRadioEntitySelector = class(TUniGUIControl)
   private
     FEntities: TEntityList;
     procedure FillList;
@@ -53,7 +53,7 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
   
-  TUNILinkedEntityFieldEditor = class(TUNIEntityFieldEditor)
+  TUniGUILinkedEntityFieldEditor = class(TUniGUIEntityFieldEditor)
   private
     FLabel: TUniLabel;
     procedure OnLabelClick(Sender: TObject);
@@ -67,31 +67,31 @@ implementation
 uses SysUtils, uObjectField, uPresenter, uInteractor, uConsts, Vcl.Controls, Vcl.Graphics, Vcl.StdCtrls, uDefinition, uniRadioGroup,
   uniImageList, uniGUITypes, Variants, uUtils;
   
-{ TUNIEntitySelector }
-procedure TUNIEntitySelector.CBOnInitPopup(Sender: TObject);
+{ TUniGUIEntitySelector }
+procedure TUniGUIEntitySelector.CBOnInitPopup(Sender: TObject);
 begin
   FillList;
 end;
 
-procedure TUNIEntitySelector.DoBeforeFreeControl;
+procedure TUniGUIEntitySelector.DoBeforeFreeControl;
 begin
   FreeAndNil(FEntities);
 end;
 
-function TUNIEntitySelector.DoCreateControl(const AParent: TUIArea;
+function TUniGUIEntitySelector.DoCreateControl(const AParent: TUIArea;
   const ALayout: TLayout): TObject;
 var
   vInteractor: TInteractor;
 begin
   vInteractor := TInteractor(FView.Interactor);
   FEntities := TEntityList.Create(vInteractor.Domain, vInteractor.Session);
-  Result := TUniComboBox.Create(nil);
+  Result := TUniComboBox.Create(ExtractOwner(AParent));
   TUniComboBox(Result).Style := csDropDown;
   TUniComboBox(Result).OnDropDown := CBOnInitPopup;
   FFlat := (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone);
 end;
 
-procedure TUNIEntitySelector.DoOnChange;
+procedure TUniGUIEntitySelector.DoOnChange;
 var
   vEntity: TEntity;
 begin
@@ -102,7 +102,7 @@ begin
   SetFieldEntity(vEntity);
 end;
 
-procedure TUNIEntitySelector.FillEditor;
+procedure TUniGUIEntitySelector.FillEditor;
 var
   vEdit: TUniComboBox;
   vEntity: TEntity;
@@ -121,7 +121,7 @@ begin
   end;
 end;
 
-procedure TUNIEntitySelector.FillList;
+procedure TUniGUIEntitySelector.FillList;
 var
   vField: TEntityField;
   vEntity: TEntity;
@@ -138,12 +138,12 @@ begin
   end;
 end;
 
-procedure TUNIEntitySelector.SwitchChangeHandlers(const AHandler: TNotifyEvent);
+procedure TUniGUIEntitySelector.SwitchChangeHandlers(const AHandler: TNotifyEvent);
 begin
   TUniComboBox(FControl).OnChange := AHandler;
 end;
 
-procedure TUNIEntityFieldEditor.DoBeforeFreeControl;
+procedure TUniGUIEntityFieldEditor.DoBeforeFreeControl;
 begin
   inherited;
   FreeAndNil(FTypeSelectionMenu);
@@ -151,7 +151,7 @@ begin
   FreeAndNil(FTextEdit);
 end;
 
-function TUNIEntityFieldEditor.DoCreateControl(const AParent: TUIArea;
+function TUniGUIEntityFieldEditor.DoCreateControl(const AParent: TUIArea;
   const ALayout: TLayout): TObject;
 begin
   FEntities := nil;
@@ -179,7 +179,7 @@ begin
   Result := FBasePanel;
 end;
 
-procedure TUNIEntityFieldEditor.DoDeinit;
+procedure TUniGUIEntityFieldEditor.DoDeinit;
 begin
   inherited;
   FSelectButton.Text := '';
@@ -187,7 +187,7 @@ begin
   FbtnAdd.Visible := True; // todo: create option
 end;
 
-procedure TUNIEntityFieldEditor.FillEditor;
+procedure TUniGUIEntityFieldEditor.FillEditor;
 var
   vEntity: TEntity;
   vDefinition: TDefinition;
@@ -223,7 +223,7 @@ begin
   // todo: create option
 end;
 
-procedure TUNIEntityFieldEditor.FillList;
+procedure TUniGUIEntityFieldEditor.FillList;
 var
   vInteractor: TInteractor;
   vField: TEntityField;
@@ -249,19 +249,19 @@ begin
   end;
 end;
 
-procedure TUNIEntityFieldEditor.SetFocused(const Value: Boolean);
+procedure TUniGUIEntityFieldEditor.SetFocused(const Value: Boolean);
 begin
   if Value and FSelectButton.CanFocus then
-  FSelectButton.SetFocus;
+    FSelectButton.SetFocus;
 end;
 
-procedure TUNIEntityFieldEditor.SetParent(const AParent: TUIArea);
+procedure TUniGUIEntityFieldEditor.SetParent(const AParent: TUIArea);
 var
   vButtonLayout: TLayout;
   vAddArea: TUIArea;
 begin
   if Assigned(FbtnAdd) then Exit;
-  
+
   inherited SetParent(AParent);
 
   vButtonLayout := FUIBuilder.Layouts.CreateSimpleLayout(lkPanel);
@@ -277,7 +277,7 @@ begin
   FbtnAdd := TCrackedBitBtn(GetRealControl(vAddArea));
 end;
 
-procedure TUNIEntityFieldEditor.UpdateVisibility;
+procedure TUniGUIEntityFieldEditor.UpdateVisibility;
 begin
   if (FView.State < vsSelectOnly) then
   begin
@@ -291,23 +291,24 @@ begin
   end;
 end;
 
-{ TUNIRadioEntitySelector }
-procedure TUNIRadioEntitySelector.DoBeforeFreeControl;
+{ TUniGUIRadioEntitySelector }
+procedure TUniGUIRadioEntitySelector.DoBeforeFreeControl;
 begin
   FreeAndNil(FEntities);
 end;
 
-function TUNIRadioEntitySelector.DoCreateControl(const AParent: TUIArea;
+function TUniGUIRadioEntitySelector.DoCreateControl(const AParent: TUIArea;
   const ALayout: TLayout): TObject;
 begin
-  Result := TUniRadioGroup.Create(nil);
+  Result := TUniRadioGroup.Create(ExtractOwner(AParent));
+  TUniRadioGroup(Result).BorderStyle := ubsNone;
   TUniRadioGroup(Result).Name := 'radio';
   TUniRadioGroup(Result).Caption := '';
   FNeedCreateCaption := False;
   FEntities := TEntityList.Create(TInteractor(FView.Interactor).Domain, TInteractor(FView.Interactor).Session);
 end;
 
-procedure TUNIRadioEntitySelector.DoOnChange;
+procedure TUniGUIRadioEntitySelector.DoOnChange;
 var
   vIndex: Integer;
 begin
@@ -315,10 +316,11 @@ begin
   SetFieldEntity(FEntities[vIndex]);
 end;
 
-procedure TUNIRadioEntitySelector.FillEditor;
+procedure TUniGUIRadioEntitySelector.FillEditor;
 var
   vRadioEdit: TUniRadioGroup;
 begin
+  inherited;
   FillList;
   vRadioEdit := TUniRadioGroup(FControl);
   if VarIsNull(FView.FieldValue) or (FView.FieldValue = 0) then
@@ -330,36 +332,47 @@ begin
   end;
 end;
 
-procedure TUNIRadioEntitySelector.FillList;
+procedure TUniGUIRadioEntitySelector.FillList;
 var
-  vRadioEdit: TUniRadioGroup;
+  vRadioItems: TStrings;
+  vField: TEntityField;
+  i: Integer;
+  vEnt: TEntity;
 begin
-  FillList;
-  vRadioEdit := TUniRadioGroup(FControl);
-  if VarIsNull(FView.FieldValue) or (FView.FieldValue = 0) then
-  begin
-    vRadioEdit.Enabled := False;
-  end
-  else begin
-    vRadioEdit.Enabled := FView.State >= vsSelectOnly
+  vField := FView.ExtractEntityField;
+  vField.GetEntitiesForSelect(TInteractor(FView.Interactor).Session, FEntities);
+
+  vRadioItems := TUniRadioGroup(FControl).Items;
+  vRadioItems.BeginUpdate;
+  try
+    vRadioItems.Clear;
+    for i := 0 to FEntities.Count - 1 do
+    begin
+      vEnt := FEntities[i];
+      vRadioItems.AddObject(SafeDisplayName(vEnt), vEnt);
+      if vEnt = TEntity(NativeInt(FView.FieldValue)) then
+        TUniRadioGroup(FControl).ItemIndex := TUniRadioGroup(FControl).Items.Count - 1;
+    end;
+  finally
+    vRadioItems.EndUpdate;
   end;
 end;
 
-procedure TUNIRadioEntitySelector.SwitchChangeHandlers(
+procedure TUniGUIRadioEntitySelector.SwitchChangeHandlers(
   const AHandler: TNotifyEvent);
 begin
   TUniRadioGroup(FControl).OnClick := AHandler;
 end;
 
-{ TUNILinkedEntityFieldEditor }
+{ TUniGUILinkedEntityFieldEditor }
 
-procedure TUNILinkedEntityFieldEditor.DoBeforeFreeControl;
+procedure TUniGUILinkedEntityFieldEditor.DoBeforeFreeControl;
 begin
   inherited DoBeforeFreeControl;
   FreeAndNil(FLabel);
 end;
 
-procedure TUNILinkedEntityFieldEditor.OnLabelClick(Sender: TObject);
+procedure TUniGUILinkedEntityFieldEditor.OnLabelClick(Sender: TObject);
 var
   vInteractor: TInteractor;
 begin
@@ -367,7 +380,7 @@ begin
   vInteractor.ViewEntity(FView);
 end;
 
-procedure TUNILinkedEntityFieldEditor.UpdateVisibility;
+procedure TUniGUILinkedEntityFieldEditor.UpdateVisibility;
 var
   vEntity: TEntity;
 begin
@@ -410,10 +423,10 @@ end;
 
 initialization
 
-TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, '', TUNIEntityFieldEditor);
-TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'simple', TUNIEntityFieldEditor);
-TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'link', TUNILinkedEntityFieldEditor);
-TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'select', TUNIEntitySelector);
-TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'radio', TUNIRadioEntitySelector);
+TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, '', TUniGUIEntityFieldEditor);
+TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'simple', TUniGUIEntityFieldEditor);
+TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'link', TUniGUILinkedEntityFieldEditor);
+TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'select', TUniGUIEntitySelector);
+TPresenter.RegisterControlClass('Web.UniGUI', uiEntityEdit, 'radio', TUniGUIRadioEntitySelector);
 
 end.

@@ -205,17 +205,15 @@ begin
 {$IF DEFINED(MSWINDOWS)}
   FAppDataDir := TPath.Combine(TPath.GetCachePath, vAppPath);
   FCacheDir := TPath.Combine(TPath.GetCachePath, vAppPath);
+{$ELSEiF DEFINED(LINUX) }
+  FAppDataDir := TPath.Combine(TPath.GetCachePath, vAppPath);
+  FCacheDir := TPath.Combine(TPath.GetCachePath, vAppPath);
 {$ELSEIF DEFINED(ANDROID) OR DEFINED(IOS)}
   FAppDataDir := TPath.GetPublicPath;
   FCacheDir := TPath.GetCachePath;
 {$ELSEIF DEFINED(IOS)}
   FAppDataDir := TPath.GetDocumentsPath;
   FCacheDir := TPath.GetCachePath;
-{$ELSEiF DEFINED(LINUX) }
-  FIX
-  FConfigurationDir := TPath.GetHomePath;
-  FCacheDir := TPath.GetCachePath;
-//  FCacheDir := FConfigurationDir;
 {$ENDIF}
 
   if not TDirectory.Exists(FConfigurationDir) then

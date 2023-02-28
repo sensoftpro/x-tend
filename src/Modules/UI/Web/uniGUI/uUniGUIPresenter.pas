@@ -172,6 +172,8 @@ begin
   OnBeforeInit := TUniGUIPresenter(_Platform.Presenter).UniServerModuleBeforeInit;
   if TFile.Exists('CustomStyles.css') then
     Self.CustomFiles.Add('CustomStyles.css');
+  if TFile.Exists('CustomJS.js') then
+    Self.CustomFiles.Add('CustomJS.js');
 end;
 
 { TUniMainForm }
@@ -783,22 +785,21 @@ begin
   // Иконку в рантайме пока можно установить только так
   FServerModule := TUniServerModule(Sender);
   FServerModule.Favicon.LoadFromFile(_Platform.Domains[0].Configuration.IconFileName);
+  FServerModule.SessionTimeout := MaxInt;
 
   //TUniServerModule(Sender).MainFormDisplayMode := mfPage;
 end;
 
 procedure TUniGUIPresenter.DoCloseAllPages(const AInteractor: TInteractor);
 //var
-//  i: Integer;
-//  vMainForm: TForm;
+//  vMainForm: TUniForm;
 begin
-  if AInteractor.UIBuilder.IsMDIStyle then
-  begin
-    //vMainForm := TForm(GetNativeControl(AInteractor.RootArea));
-    //if Assigned(vMainForm) and (vMainForm.FormStyle = fsMDIForm) then
-    //  for i := vMainForm.MDIChildCount - 1 downto 0 do
-    //    vMainForm.MDIChildren[i].Close;
-  end;
+//  if AInteractor.UIBuilder.IsMDIStyle then
+//  begin
+//    vMainForm := TUniForm(GetRealControl(AInteractor.RootArea));
+//    if Assigned(vMainForm) and (vMainForm.FormStyle = fsMDIForm) then
+//        vMainForm.Close;
+//  end;
 end;
 
 procedure TUniGUIPresenter.DoOpenFile(const AFileName: string; const ADefaultApp: string; const Await: Boolean = False);

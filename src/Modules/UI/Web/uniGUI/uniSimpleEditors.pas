@@ -916,7 +916,8 @@ begin
   TUniHTMLFrame(Result).Height := ALayout.Height;
 
 
-  TUniHTMLFrame(Result).HTML.Text := '<html><head><script></script></head><body><div style="width: 100vh; background-color: red; height: 100vh;"></div></body></html>';
+  TUniHTMLFrame(Result).HTML.Text := '<html><head><script></script></head><body>' +
+  '<span class="loader"></span></body></html>';
 end;
 
 procedure TUniGUISpinner.FillEditor;
@@ -1352,10 +1353,11 @@ end;
 procedure TUniGUIMaskFieldEditor.OnEditorClick(Sender: TObject);
 begin
   if SameText('email', FFieldDef.StyleName) then
-    TPresenter(FPresenter).OpenFile('mailto:' + FView.FieldValue)
+    FEdit.JSInterface.JSAdd('document.getElementById("'
+      + FLabel.JSId +'").onclick = () => {window.open("mailto:' + FView.FieldValue + '", "_blank")};')
   else if SameText('url', FFieldDef.StyleName) then
     FEdit.JSInterface.JSAdd('document.getElementById("'
-    + FLabel.JSId +'").onclick = () => {window.location = "' + FView.FieldValue + '"};');
+      + FLabel.JSId +'").onclick = () => {window.open("' + FView.FieldValue + '", "_blank")};');
 end;
 
 procedure TUniGUIMaskFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
@@ -1695,9 +1697,11 @@ begin
   FPageControl := TUniPageControl.Create(ExtractOwner(AParent));
   FPageControl.DoubleBuffered := True;
   Result := FPageControl;
+
   FPageControl.Align := TAlign(ALayout.Align);
   CopyMargins(FPageControl, ALayout);
   FPageControl.Anchors := ALayout.Anchors;
+
   if (ALayout.Page_Style <> psTabs) and (ALayout.Items.Count > 0) then
   begin
     FPageControl.Left := ALayout.Left + ALayout.Items[0].Left;
@@ -1720,10 +1724,8 @@ begin
     vTabSheet := TUniTabSheet(FPageControl);
     vTabSheet.Caption := ALayout.Caption;
     vTabSheet.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
-
     vTabSheet.TabVisible := ALayout.ShowCaption;
-
-//    vTabSheet.TabVisible := False;
+    //vTabSheet.PageIndex := ;
   end;
 end;
 

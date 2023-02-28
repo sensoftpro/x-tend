@@ -470,7 +470,8 @@ begin
   FFileMapping := OpenFileMapping(FILE_MAP_WRITE or FILE_MAP_READ, False, PChar(FFileName));
   FAlreadyExists := FFileMapping <> 0;
 {$ELSE} {$IFDEF POSIX}
-  FAlreadyExists := FileExists('/tmp/Sensoft.Platform.lock');
+  FFileName := TPath.Combine(GetTempDir, 'Sensoft.Platform.lock');
+  FAlreadyExists := TFile.Exists(FFileName);
 {$ELSE}
   FAlreadyExists := False;
 {$ENDIF} {$ENDIF}

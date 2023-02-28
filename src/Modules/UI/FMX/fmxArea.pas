@@ -620,11 +620,12 @@ begin
 
       if ALayout.Caption <> '' then
         vForm.Caption := ALayout.Caption;
-      if ALayout.Color <> TAlphaColorRec.Gray then
-      begin
-        vForm.Fill.Color := ALayout.Color;
-        vForm.Fill.Kind := TBrushKind.Solid;
-      end;
+//      if ALayout.Color <> TAlphaColorRec.Gray then
+//      begin
+//        showmessage(inttostr(ALayout.Color));
+//        vForm.Fill.Color := ALayout.Color;
+//        vForm.Fill.Kind := TBrushKind.Solid;
+//      end;
     end
     else if ALayout.Kind = lkPanel then
     begin
@@ -682,7 +683,8 @@ begin
     end;
 
     TControl(FControl).Anchors := ALayout.Anchors;
-    TControl(FControl).Align := AlignToAlignLayout(ALayout.Align);
+    if TControl(FControl).Align = TAlignLayout.None then
+      TControl(FControl).Align := AlignToAlignLayout(ALayout.Align);
     CopyMargins(TControl(FControl), ALayout);
     CopyPadding(TControl(FControl), ALayout);
 //    SetAlignment(ALayout.Alignment);

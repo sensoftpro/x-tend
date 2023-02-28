@@ -194,6 +194,7 @@ end;
 
 procedure TFMXScene.OnFMXScenePaint(Sender: TObject; Canvas: TCanvas; const ARect: TRectF);
 begin
+  FPainter.UpdateCanvas(Canvas);
   OnPaint(Sender);
 end;
 

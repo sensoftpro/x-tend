@@ -886,13 +886,8 @@ begin
 end;
 
 procedure TFMXDateFieldEditor.DoOnChange;
-var
-  vDate: TDateTime;
 begin
-  if MyTryStrToDate(TDateEdit(FControl).Text, vDate) then
-    SetFieldValue(vDate)
-  else
-    SetFieldValue(Null);
+  SetFieldValue(TDateEdit(FControl).Date);
 end;
 
 procedure TFMXDateFieldEditor.FillEditor;
@@ -911,9 +906,9 @@ begin
   begin
     vEdit.Enabled := FView.State > vsDisabled;
     vDate := FView.FieldValue;
-    if vDate < 2 then
-      vEdit.Date := cNullDateTime
-    else
+//    if vDate < 2 then
+//      vEdit.Date := cNullDateTime
+//    else
       vEdit.Date := vDate;
 
     vEdit.ReadOnly := FView.State < vsFullAccess;
@@ -929,10 +924,7 @@ function TFMXDateFieldEditor.GetNewValue: Variant;
 var
   vDate: TDateTime;
 begin
-  if MyTryStrToDate(TDateEdit(FControl).Text, vDate) then
-    Result := vDate
-  else
-    Result := Null;
+  Result := TDateEdit(FControl).Date;
 end;
 
 procedure TFMXDateFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);

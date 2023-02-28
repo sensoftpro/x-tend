@@ -5,18 +5,19 @@ interface
 uses
   Controls, Messages, Classes, Graphics, SysUtils, UITypes, uScene, uDrawStyles,
   uniGUIClasses, uniGUIAbstractClasses, uniGUIBaseClasses, uniGUITypes, UniCanvas,
-  Types;
+  Types, uniGUIApplication;
 
 type
   TUniGUIScene = class(TScene)
   private
     FPanel: TUniCanvas;
+    FMousePos: TPointF;
     procedure DoAlignPosition(Sender: TWinControl;
       Control: TControl; var NewLeft, NewTop, NewWidth, NewHeight: Integer;
       var AlignRect: TRect; AlignInfo: TAlignInfo);
     procedure DoResize(Sender: TUniControl; OldWidth,
       OldHeight: Integer);
-    procedure DoMouseMove(Sender: TObject; Shift: TShiftState; X: Integer; Y:Integer);
+    procedure OnAjaxEvent(Sender: TComponent; EventName: string; Params: TUniStrings);
     procedure OnCanvasReady(Sender: TObject);
   protected
     function DoCreateScene(const APlaceholder: TObject): TPainter; override;
@@ -76,10 +77,10 @@ begin
   FPanel.OnKeyDown := OnKeyDown;
   FPanel.OnKeyUp := OnKeyUp;
 
-  FPanel.OnMouseDown := OnMouseDown;
-  FPanel.OnMouseUp := OnMouseUp;
+//  FPanel.OnMouseDown := OnMouseDown;
+//  FPanel.OnMouseUp := OnMouseUp;
   FPanel.OnDblClick := OnDblClick;
-  TCrackedUniCanvas(FPanel).OnMouseMove := DoMouseMove;
+  FPanel.OnAjaxEvent := OnAjaxEvent;
   FPanel.OnMouseLeave := OnMouseLeave;
   FPanel.OnCanvasReady := OnCanvasReady;
 
@@ -111,12 +112,6 @@ begin
   FPanel := nil;
 end;
 
-procedure TUniGUIScene.DoMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
-begin
-  OnMouseMove(Sender, Shift, X, Y);
-  DoRedraw;
-end;
-
 procedure TUniGUIScene.DoRedraw;
 begin
   OnPaint(FPanel);
@@ -139,11 +134,9 @@ begin
 end;
 
 function TUniGUIScene.GetClientPos: TPointF;
-var
-  vClientPos: TPoint;
 begin
-  GetCursorPos(vClientPos);
-  Result := FPanel.ScreenToClient(vClientPos);
+  UniSession.JSCode('updateMousePosition("' + FPanel.JSName + '");');
+  Result := FMousePos;
 end;
 
 function TUniGUIScene.GetScaleFactor: Single;
@@ -157,10 +150,84 @@ begin
   Result.Offset(-Result.Left, -Result.Top);
 end;
 
+procedure TUniGUIScene.OnAjaxEvent(Sender: TComponent; EventName: string; Params: TUniStrings);
+var
+  X,Y: Integer;
+  vMouseButton: TMouseButton;
+  vHandled: Boolean;
+  vShiftState: TShiftState;
+begin
+  if EventName = 'canvasmousemove' then
+  begin
+    X := Params['X'].AsInteger;
+    Y := Params['Y'].AsInteger;
+    vShiftState := [];
+    case Params['ss'].AsInteger of
+      0: vShiftState := [ssShift];
+      1: vShiftState := [ssAlt];
+      2: vShiftState := [ssCtrl];
+      3: vShiftState := [ssLeft];
+      4: vShiftState := [ssRight];
+      5: vShiftState := [ssMiddle];
+      9: vShiftState := [ssCommand];
+    end;
+    OnMouseMove(Sender, vShiftState, X, Y);
+  end
+  else if EventName = 'canvasmousedown' then
+  begin
+    X := Params['X'].AsInteger;
+    Y := Params['Y'].AsInteger;
+    vShiftState := [];
+    case Params['ss'].AsInteger of
+      0: vShiftState := [ssShift];
+      1: vShiftState := [ssAlt];
+      2: vShiftState := [ssCtrl];
+      3: vShiftState := [ssLeft];
+      4: vShiftState := [ssRight];
+      5: vShiftState := [ssMiddle];
+      9: vShiftState := [ssCommand];
+    end;
+    vMouseButton := TMouseButton(Params['mb'].AsInteger);
+    OnMouseDown(Sender, vMouseButton , vShiftState, X, Y);
+  end
+  else if EventName = 'canvasmouseup' then
+  begin
+    X := Params['X'].AsInteger;
+    Y := Params['Y'].AsInteger;
+    vShiftState := [];
+    case Params['ss'].AsInteger of
+      0: vShiftState := [ssShift];
+      1: vShiftState := [ssAlt];
+      2: vShiftState := [ssCtrl];
+      3: vShiftState := [ssLeft];
+      4: vShiftState := [ssRight];
+      5: vShiftState := [ssMiddle];
+      9: vShiftState := [ssCommand];
+    end;
+    vMouseButton := TMouseButton(Params['mb'].AsInteger);
+    OnMouseUp(Sender, vMouseButton , vShiftState, X, Y);
+  end
+  else if EventName = 'canvasmousewheel' then
+  begin
+    X := Params['X'].AsInteger;
+    Y := Params['Y'].AsInteger;
+    vHandled := false;
+    OnMouseWheel(Sender, [], Params['wd'].AsInteger , Point(X,Y), vHandled);
+  end
+  else if EventName = 'canvasmouseupdate' then
+  begin
+    X := Params['X'].AsInteger;
+    Y := Params['Y'].AsInteger;
+    FMousePos := PointF(X,Y);
+  end;
+  Repaint;
+end;
+
 procedure TUniGUIScene.OnCanvasReady(Sender: TObject);
 begin
   OnResize(Sender);
   DoRedraw;
+  UniSession.JSCode('bindCanvas("' + FPanel.JSName + '");');
 end;
 
 procedure TUniGUIScene.SetEnabled(const AValue: Boolean);

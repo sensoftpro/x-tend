@@ -18,6 +18,7 @@ type
     destructor Destroy; override;
 
     procedure SaveToFile(const AFileName: string); override;
+    procedure UpdateCanvas(const ACanvas: TObject); override;
 
     property Bitmap: TBitmap read FBitmap;
     property Canvas: TCanvas read FCanvas;
@@ -536,6 +537,12 @@ end;
 procedure TFMXContext.SaveToFile(const AFileName: string);
 begin
   FBitmap.SaveToFile(AFileName, nil);
+end;
+
+procedure TFMXContext.UpdateCanvas(const ACanvas: TObject);
+begin
+  Assert(not Assigned(FBitmap), 'Attempt to refresh bitmap canvas');
+  FCanvas := TCanvas(ACanvas);
 end;
 
 initialization

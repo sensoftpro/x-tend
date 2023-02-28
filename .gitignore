@@ -22,8 +22,9 @@ bin/*.json
 *.drc
 /bin/Win32/*.exe
 /bin/Win64/*.exe
-*.jlt
-*.xtf
 *.o
 /src/Solutions/Configurator/FGX/.android-build
-/bin/Win32/cache
+bin/Win32/cache/*
+bin/Win32/log/*
+*.bak
+/bin/Linux64/Configurator
