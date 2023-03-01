@@ -284,6 +284,7 @@ begin
 
   vDefinition := AddDefinition('Configurations', '_Configurations', 'Конфигурации', cNullItemName, 0).SetImageID('group16');
   vDefinition.AddAction('MakeSolution', 'Создать приложение', '');
+  vDefinition.AddUniqueIndex('Name');
 
   vDefinition := AddDefinition('Streets', '', 'Улицы', cNullItemName);
   vDefinition.AddSimpleFieldDef('Name', 'name', 'Наименование', Null, Null, 50, fkString, '', '', vsFullAccess, cRequired);

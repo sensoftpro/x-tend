@@ -368,7 +368,8 @@ var
   i: Integer;
   vMenuItem: TMenuItem;
   vDefinition: TDefinition;
-  vImageID: Integer;
+  vImageID: string;
+  vImageIndex: Integer;
   vCaption: string;
   vImageSize: Integer;
   vComposition: string;
@@ -380,7 +381,9 @@ begin
   vParams := CreateDelimitedList(FInternalParams, '&');
   try
     vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
-    vImageID := StrToIntDef(vParams.Values['ImageID'], vActionDef._ImageID);
+    vImageID := vParams.Values['ImageID'];
+    if vImageID = '' then
+      vImageID := vActionDef._ImageID;
     vComposition := Trim(vParams.Values['Composition']);
     vViewStyle := Trim(vParams.Values['ViewStyle']);
     vOverriddenCaption := Trim(vParams.Values['Caption']);
@@ -391,7 +394,7 @@ begin
 
   vButton := TButton.Create(nil);
   vButton.Images := TImageList(FUIBuilder.Images[vImageSize]);
-  vImageID := GetImageID(vImageID);
+  vImageIndex := GetImageIndex(vImageID);
 
   vCaption := GetTranslation(vActionDef);
   vButton.Hint := vCaption;
@@ -402,14 +405,14 @@ begin
 
   vButton.ImageIndex := -1;
   vButton.Text := '';
-  if (vButton.Images.Count + 1 >= vImageID) and (vImageID > 0) then
+  if (vButton.Images.Count + 1 >= vImageIndex) and (vImageIndex > 0) then
   begin
     if vComposition = '' then
     begin
       if ALayout.Button_ShowCaption then
         vButton.Text := vCaption
       else begin
-        vButton.ImageIndex := vImageID;
+        vButton.ImageIndex := vImageIndex;
         vButton.StyleLookup := 'stepperbuttonleft';
         ALayout.Padding.Bottom := ALayout.Height - vImageSize - 4;
       end;
@@ -418,13 +421,13 @@ begin
       vButton.Text := vCaption
     else if vComposition = 'ImageOnly' then
     begin
-      vButton.ImageIndex := vImageID;
+      vButton.ImageIndex := vImageIndex;
       vButton.StyleLookup := 'stepperbuttonleft';
       ALayout.Padding.Bottom := ALayout.Height - vImageSize - 4;
     end
     else begin
       vButton.Text := vCaption;
-      vButton.ImageIndex := vImageID;
+      vButton.ImageIndex := vImageIndex;
 //      if vComposition = 'ImageRight' then
 //        vButton.Align := TAlignLayout.Right
       //else if vComposition = 'ImageTop' then
@@ -485,7 +488,7 @@ procedure TFMXButton.RefillArea(const AKind: Word);
 var
   vButton: TButton;
   vActionDef: TDefinition;
-  vImageID: Integer;
+  vImageIndex: Integer;
 begin
   if AKind <> dckContentTypeChanged then
   begin
@@ -496,10 +499,10 @@ begin
   vButton := TButton(FControl);
 
   vActionDef := TDefinition(FView.Definition);
-  vImageID := GetImageID(vActionDef._ImageID);
+  vImageIndex := GetImageIndex(vActionDef._ImageID);
 
-  if (vButton.Images.Count + 1 >= vImageID) and (vImageID > 0) then
-    vButton.ImageIndex := vImageID;
+  if (vButton.Images.Count + 1 >= vImageIndex) and (vImageIndex > 0) then
+    vButton.ImageIndex := vImageIndex;
 
   vButton.Text := GetTranslation(vActionDef);
   vButton.Hint := vButton.Text;
@@ -806,6 +809,10 @@ begin
       end).Start;
     end
     else begin
+      if (FLayout.StyleName = 'modal') or (FLayout.StyleName = 'child') then
+        if not TPresenter(FPresenter).CanCloseChildForm(vForm, AModalResult) then
+          Exit;
+
       vForm.Close;
       vForm.ModalResult := AModalResult;
     end;

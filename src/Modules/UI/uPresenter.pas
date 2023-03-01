@@ -267,6 +267,8 @@ type
     function ActiveInteractor: TInteractor;
     procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
   public
+    function CanCloseChildForm(const AForm: TObject; const AModalResult: Integer): Boolean;
+  public
     constructor Create(const AName: string; const ASettings: TSettings); virtual;
     destructor Destroy; override;
     procedure Run(const AParameter: string = '');
@@ -460,6 +462,80 @@ begin
     AChildForms[i].Bounds := Rect(AClientRect.Left, vStart, AClientRect.Right, vStart + vHeight);
     vStart := vStart + vHeight;
   end;
+end;
+
+function TPresenter.CanCloseChildForm(const AForm: TObject; const AModalResult: Integer): Boolean;
+var
+  vArea: TUIArea;
+
+  function GetUnfilledRequiredFields(const AArea: TUIArea; var AFields: string): Boolean;
+  var
+    i: Integer;
+    vFieldDef: TFieldDef;
+    vChildArea: TUIArea;
+  begin
+    for i := 0 to AArea.Count - 1 do
+    begin
+      vChildArea := AArea.Areas[i];
+      if (vChildArea.View.DefinitionKind in [dkListField, dkObjectField, dkSimpleField]) then
+      begin
+        vFieldDef := TFieldDef(vChildArea.View.Definition);
+        if Assigned(vChildArea.View.ParentDomainObject)
+          and not TEntity(vChildArea.View.ParentDomainObject).FieldByName(vFieldDef.Name).IsValid then
+        begin
+          if Length(AFields) > 0 then
+            AFields := AFields + ', ';
+          AFields := AFields + TDomain(AArea.Domain).TranslateFieldDef(vFieldDef);
+        end;
+      end
+      else
+        GetUnfilledRequiredFields(vChildArea, AFields);
+    end;
+
+    Result := Length(AFields) > 0;
+  end;
+
+  function DoValidation: Boolean;
+  var
+    vView: TView;
+    vEmptyRequiredFields: string;
+    vEntity: TEntity;
+    vSimilar: TEntity;
+    vInteractor: TInteractor;
+  begin
+    Result := True;
+    vView := vArea.View;
+    if not (vView.DefinitionKind in [dkObjectField, dkEntity, dkAction]) then
+      Exit;
+
+    vEntity := TEntity(vView.DomainObject);
+    if not Assigned(vEntity) then
+      Exit;
+
+    vInteractor := TInteractor(vArea.Interactor);
+    vEmptyRequiredFields := '';
+    if GetUnfilledRequiredFields(vArea, vEmptyRequiredFields) then
+    begin
+      vInteractor.ShowMessage(vInteractor.Translate('msgRequiredFieldsAreEmpty', 'Не заполнены обязательные поля') +
+        '. ' + #13#10 + vEmptyRequiredFields);
+      Exit(False);
+    end;
+
+    vSimilar := vEntity.FindSimilar(vInteractor.Session);
+    if Assigned(vSimilar) then
+    begin
+      vInteractor.ShowMessage(vInteractor.Translate('msgRecordExists', 'Такая запись уже существует') +
+        ' [' + vSimilar['Name'] + ']');
+      Exit(False);
+    end;
+  end;
+begin
+  vArea := AreaFromSender(AForm);
+
+  if AModalResult = mrOk then
+    Result := DoValidation
+  else
+    Result := True;
 end;
 
 function TPresenter.CanLoadFromDFM: Boolean;
@@ -1089,16 +1165,10 @@ begin
       end;
     end;
 
-    if vModalResult = mrOk then
-    begin
-      if DoValidation then
-        vResultAction := TCloseAction.caFree;
-    end
-    else if vModalResult = mrCancel then
-      vResultAction := TCloseAction.caFree;
-
-    if vResultAction = TCloseAction.caNone then
+    if not CanCloseChildForm(Sender, vModalResult) then
       Exit;
+
+    Action := TCloseAction.caFree;
 
     vCloseProc := vArea.OnClose;
 
@@ -1113,8 +1183,6 @@ begin
 
     if Assigned(vCloseProc) then
       vCloseProc(ModalResultToDialogResult(vModalResult));
-
-    Action := vResultAction;
   end
   else begin
     ShowYesNoDialog('Подтвердите', vInteractor.Translate('msgPromtSaveChanges',
