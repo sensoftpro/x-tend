@@ -275,7 +275,8 @@ begin
 
   vNewReportContent := vNewReportContent + vReportContent;
 
-  vTempFileName := TPath.Combine(TPath.GetTempPath, FormatDateTime('ddhhnnsszzz', Now) + AReport.Name + '.rtf');
+  vTempFileName := TPath.Combine(TConfiguration(AReport.Configuration).TempDir,
+    FormatDateTime('ddhhnnsszzz', Now) + AReport.Name + '.rtf');
   vNewReport := TStringList.Create;
   try
     vNewReport.Text := vNewReportContent;

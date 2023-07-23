@@ -76,6 +76,8 @@ function EscapeFileName(const AInput: string): string;
 
 function BuildStorageName(const AName: string): string;
 function SanitizeFileName(const AFileName: string): string;
+function Sanitize(const AInput: string): string;
+function IsValidIdentifier(const AIdentifier: string): Boolean;
 
 function NewGUID: TGUID;
 function GenerateUID: string;
@@ -118,11 +120,19 @@ function ExtractUrlParams(const AUrl: string; const ADefaultValue: string = ''):
 function EncodeUrl(const AUrl: string): string;
 function DecodeUrl(const AUrl: string): string;
 
+// ShortCuts
+function KeyStateToShortCut(const AShift: TShiftState; const AKey: Word): TShortCut;
+function TextToShortCut(AText: string): TShortCut;
+function ShortCutToText(const AShortCut: TShortCut): string;
+
 function IpToStr(const AIp): string;
 procedure StrToIp(const AIpStr: string; const AIp);
 function BinToHex(const ABin: array of Byte): string;
 procedure HexToBin(const AHex: string; const ABuf);
+function FlagsToStr(const AFlags: Integer): string;
 
+function TrueCeil(const AValue: Double): Integer;
+function TrueFloor(const AValue: Double): Integer;
 function CeilTo(const AValue: Double; const ADigit: Integer = -2): Double;
 function FloorTo(const AValue: Double; const ADigit: Integer = -2): Double;
 function FormatTo(const AValue: Double; const ADigit: Integer = -2; const AUseStrictFormat: Boolean = False): string;
@@ -387,6 +397,302 @@ begin
    end;
 end;
 
+type
+  TMenuKeyCap = (mkcBkSp, mkcTab, mkcEsc, mkcEnter, mkcSpace, mkcPgUp, mkcPgDn, mkcEnd, mkcHome, mkcLeft, mkcUp,
+    mkcRight, mkcDown, mkcIns, mkcDel, mkcShift, mkcCtrl, mkcAlt, mkcCmd);
+
+const
+  vkShifts = [vkShift, vkLShift, vkRShift];
+  vkCtrls = [vkControl, vkLControl, vkRControl];
+  vkWindows = [vkLWin, vkRWin];
+  vkAlts = [vkMenu, vkLMenu, vkRMenu];
+  SmkcBkSp = 'BkSp';
+  SmkcTab = 'Tab';
+  SmkcEsc = 'Esc';
+  SmkcEnter = 'Enter';
+  SmkcPgUp = 'PgUp';
+  SmkcPgDn = 'PgDn';
+  SmkcEnd = 'End';
+  SmkcDel = 'Del';
+  SmkcHome = 'Home';
+  SmkcLeft = 'Left';
+  SmkcUp = 'Up';
+  SmkcRight = 'Right';
+  SmkcDown = 'Down';
+  SmkcNumLock = 'Num Lock';
+  SmkcPara = 'Paragraph';
+  SmkcShift = 'Shift+';
+  SmkcCtrl = 'Ctrl+';
+  SmkcAlt = 'Alt+';
+  SmkcCmd = 'Cmd+';
+
+  SmkcLWin = 'Left Win';
+  SmkcRWin = 'Right Win';
+  SmkcApps = 'Application';
+  SmkcClear = 'Clear';
+  SmkcScroll = 'Scroll Lock';
+  SmkcCancel = 'Break';
+  SmkcLShift = 'Left Shift';
+  SmkcRShift = 'Right Shift';
+  SmkcLControl = 'Left Ctrl';
+  SmkcRControl = 'Right Ctrl';
+  SmkcLMenu = 'Left Alt';
+  SmkcRMenu = 'Right Alt';
+  SmkcCapital = 'Caps Lock';
+  SmkcOem102 = 'Oem \';
+  SmkcSpace = 'Space';
+  SmkcNext = 'Next';
+  SmkcBack = 'Back';
+  SmkcIns = 'Ins';
+  SmkcPause = 'Pause';
+  SmkcCamera = 'Camera';
+  SmkcBrowserBack = 'BrowserBack';
+  SmkcHardwareBack = 'HardwareBack';
+  SmkcNum = 'Num %s';
+
+var
+  MenuKeyCaps: array [TMenuKeyCap] of string = (
+    SmkcBkSp, SmkcTab, SmkcEsc, SmkcEnter, SmkcSpace, SmkcPgUp,
+    SmkcPgDn, SmkcEnd, SmkcHome, SmkcLeft, SmkcUp, SmkcRight,
+    SmkcDown, SmkcIns, SmkcDel, SmkcShift, SmkcCtrl, SmkcAlt, SmkcCmd);
+
+function HiByte(W: Word): Byte;
+begin
+  Result := W shr 8;
+end;
+
+{function GetSpecialName(ShortCut: TShortCut): string;
+var
+  ScanCode: Integer;
+  KeyName: MarshaledString;
+  R: Integer;
+begin
+  Result := '';
+  if ShortCut <> 0 then
+  begin
+    ScanCode := MapVirtualKey(Byte(Word(ShortCut)), 0) shl 16;
+    if ScanCode <> 0 then
+    begin
+      KeyName := StrAlloc(256);
+      R := GetKeyNameText(ScanCode, KeyName, 256);
+      if R > 0 then
+        Result := KeyName;
+      StrDispose(KeyName);
+    end;
+    if Result = '' then
+      Result := '(' + IntToStr($00FF and ShortCut) + ')'
+    else
+      Result := '''' + Result + '''';
+  end;
+end; }
+
+procedure ShortCutToKey(const ShortCut: TShortCut; var Key: Word; var Shift: TShiftState);
+begin
+  Key := ShortCut and not (scShift + scCtrl + scAlt + scCommand);
+  Shift := [];
+  if ShortCut and scShift <> 0 then
+    Include(Shift, ssShift);
+  if ShortCut and scCtrl <> 0 then
+    Include(Shift, ssCtrl);
+  if ShortCut and scAlt <> 0 then
+    Include(Shift, ssAlt);
+  if ShortCut and scCommand <> 0 then
+    Include(Shift, ssCommand);
+end;
+
+function ShortCutToText(const AShortCut: TShortCut): string;
+var
+  Name: string;
+  Key: Byte;
+begin
+  Key := Byte(Word(AShortCut));
+  //if (Key >= $BA) and (Key <= $E1) then
+  //  Name := GetSpecialName(Key)
+  //else
+  case Key of
+    vkBack, vkTab:
+      Name := MenuKeyCaps[TMenuKeyCap(Ord(mkcBkSp) + Key - vkBack)];
+    vkReturn:
+      Name := MenuKeyCaps[mkcEnter];
+    vkEscape:
+      Name := MenuKeyCaps[mkcEsc];
+    vkSpace..vkDown:
+      Name := MenuKeyCaps[TMenuKeyCap(Ord(mkcSpace) + Key - vkSpace)];
+    vkInsert .. vkDelete:
+      Name := MenuKeyCaps[TMenuKeyCap(Ord(mkcIns) + Key - vkInsert)];
+    vkShift .. vkMenu:
+    begin
+      Name := MenuKeyCaps[TMenuKeyCap(Ord(mkcShift) + Key - vkShift)];
+      while (Length(Name) > 0) and CharInSet(Name[Length(Name)], [' ', '+']) do
+        System.Delete(Name, Length(Name), 1);
+    end;
+    vkCapital:
+      Name := SmkcCapital;
+    vk0 .. vk9:
+      Name := Chr(Key);
+    vkA .. vkZ:
+      Name := Chr(Key);
+    vkF1 .. vkF24:
+      Name := 'F' + IntToStr(Key - vkF1 + 1);
+    vkSemicolon:
+      Name := ';';
+    vkEqual:
+      Name := '=';
+    vkComma:
+      Name := ',';
+    vkMinus:
+      Name := '-';
+    vkPeriod:
+      Name := '.';
+    vkSlash:
+      Name := '/';
+    vkTilde:
+      Name := '~';
+    vkLeftBracket:
+      Name := '[';
+    vkBackslash:
+      Name := '\';
+    vkRightBracket:
+      Name := ']';
+    vkQuote:
+      Name := '''';
+    vkPara:
+      Name := SmkcPara;
+    vkCamera:
+      Name := SmkcCamera;
+    vkBrowserBack:
+      Name := SmkcBrowserBack;
+    vkHardwareBack:
+      Name := SmkcHardwareBack;
+    vkLWin:
+      Name := SmkcLWin;
+    vkRWin:
+      Name := SmkcRWin;
+    vkApps:
+      Name := SmkcApps;
+    vkClear:
+      Name := SmkcClear;
+    vkScroll:
+      Name := SmkcScroll;
+    vkCancel:
+      Name := SmkcCancel;
+    vkPause:
+      Name := SmkcPause;
+    vkLShift:
+      Name := SmkcLShift;
+    vkRShift:
+      Name := SmkcRShift;
+    vkLControl:
+      Name := SmkcLControl;
+    vkRControl:
+      Name := SmkcRControl;
+    vkLMenu:
+      Name := SmkcLMenu;
+    vkRMenu:
+      Name := SmkcRMenu;
+    vkOem102:
+      Name := SmkcOem102;
+    vkNumLock:
+      Name := SmkcNumLock;
+    vkNumpad0 .. vkNumpad9:
+      Name := Format(SmkcNum, [Chr(Ord('0') + Key - vkNumpad0)]);
+    vkMultiply:
+      Name := Format(SmkcNum, ['*']);
+    vkAdd:
+      Name := Format(SmkcNum, ['+']);
+    vkSeparator:
+      Name := Format(SmkcNum, [',']);
+    vkSubtract:
+      Name := Format(SmkcNum, ['-']);
+    vkDecimal:
+      Name := Format(SmkcNum, ['.']);
+    vkDivide:
+      Name := Format(SmkcNum, ['/']);
+  else
+    Name := '[?]'; //GetSpecialName(Key);
+  end;
+  if Name <> '' then
+  begin
+    Result := '';
+    if (AShortCut and scShift <> 0) and not (Key in vkShifts) then
+      Result := Result + MenuKeyCaps[mkcShift];
+    if (AShortCut and scCtrl <> 0) and not (Key in vkCtrls) then
+      Result := Result + MenuKeyCaps[mkcCtrl];
+    if (AShortCut and scCommand <> 0) and not (Key in vkWindows) then
+      Result := Result + MenuKeyCaps[mkcCmd];
+    if (AShortCut and scAlt <> 0) and not (Key in vkAlts) then
+      Result := Result + MenuKeyCaps[mkcAlt];
+    Result := Result + Name;
+  end
+  else
+    Result := '';
+end;
+
+function TextToShortCut(AText: string): TShortCut;
+{ If the front of Text is equal to Front then remove the matching piece
+  from Text and return True, otherwise return False }
+
+  function CompareFront(var Text: string; const Front: string): Boolean;
+  begin
+    Result := False;
+    if (Length(Text) >= Length(Front)) and (AnsiStrLIComp(PChar(Text), PChar(Front), Length(Front)) = 0) then
+    begin
+      Result := True;
+      Text := Text.Remove(0, Front.Length);
+    end;
+  end;
+
+var
+  Key: TShortCut;
+  Shift: TShortCut;
+begin
+  Result := 0;
+  Shift := 0;
+  while True do
+  begin
+    if CompareFront(AText, MenuKeyCaps[mkcShift]) then
+      Shift := Shift or scShift
+    else if CompareFront(AText, '^') then
+      Shift := Shift or scCtrl
+    else if CompareFront(AText, MenuKeyCaps[mkcCtrl]) then
+      Shift := Shift or scCtrl
+    else if CompareFront(AText, MenuKeyCaps[mkcCmd]) then
+      Shift := Shift or scCommand
+    else if CompareFront(AText, MenuKeyCaps[mkcAlt]) then
+      Shift := Shift or scAlt
+    else
+      Break;
+  end;
+  if AText = '' then
+    Exit;
+  for Key := 1 to 255 do
+    if AnsiCompareText(AText, ShortCutToText(Key)) = 0 then
+    begin
+      if Key in vkShifts then
+        Shift := Shift or scShift;
+      if Key in vkCtrls then
+        Shift := Shift or scCtrl;
+      if Key in vkAlts then
+        Shift := Shift or scAlt;
+      Exit(Key or Shift);
+    end;
+end;
+
+function KeyStateToShortCut(const AShift: TShiftState; const AKey: Word): TShortCut;
+begin
+  Result := 0;
+  if HiByte(AKey) <> 0 then
+    Exit;
+
+  Result := AKey;
+  if ssShift in AShift then
+    Inc(Result, scShift);
+  if ssCtrl in AShift then
+    Inc(Result, scCtrl);
+  if ssAlt in AShift then
+    Inc(Result, scAlt);
+end;
+
 function MD5Hash(const s: string): string;
 begin
   Result := THashMD5.GetHashString(s);
@@ -516,6 +822,47 @@ begin
   if (Result <> '') and (Result[Length(Result)] <> '_') then
     Result := Result + '_';
   Result := Result + vBuffer;
+end;
+
+function IsValidIdentifier(const AIdentifier: string): Boolean;
+var
+  i: Integer;
+  vChar: Char;
+const
+  cLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz_';
+  cDigits = '0123456789.-';
+begin
+  Result := True;
+  for i := 0 to Length(AIdentifier) - 1 do
+  begin
+    vChar := AIdentifier.Chars[i];
+
+    Result := Pos(vChar, cLetters) > 0;
+    if not Result and (i > 0) then
+      Result := Pos(vChar, cDigits) > 0;
+
+    if not Result then
+      Exit;
+  end;
+end;
+
+function Sanitize(const AInput: string): string;
+var
+  i: Integer;
+  vChar: Char;
+const
+  cLetters = '_abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  cDigits = '0123456789';
+begin
+  Result := '';
+  for i := 0 to Length(AInput) - 1 do
+  begin
+    vChar := AInput.Chars[i];
+    if Pos(vChar, cLetters) > 0 then
+      Result := Result + vChar
+    else if (Pos(vChar, cDigits) > 0) and (Result <> '') then
+      Result := Result + vChar;
+  end;
 end;
 
 function SanitizeFileName(const AFileName: string): string;
@@ -688,7 +1035,7 @@ end;
 function DefineNameCase(const ASurName, AFirstName, APatronymicName: string;
   const AWordCase: TWordCase = wcRod): string;
 var
-  vRootStr, vEndStr: String;
+  vRootStr, vEndStr: string;
   vLength: Integer;
   vGender: Integer;
   vEndChar: Char;
@@ -1387,15 +1734,50 @@ begin
     PByteArray(@ABuf)[i] := StrToIntDef('$' + AHex.Substring(i * 2, 2), 0);
 end;
 
+function FlagsToStr(const AFlags: Integer): string;
+var
+  i: Integer;
+  vFlag: Integer;
+begin
+  Result := '_';
+
+  i := 0;
+  repeat
+    vFlag := 1 shl i;
+    Inc(i);
+    if vFlag and AFlags > 0 then
+      Result := Result + IntToStr(i) + '_';
+  until vFlag * 2 > AFlags;
+end;
+
+function TrueCeil(const AValue: Double): Integer;
+var
+  vRoundedValue: Integer;
+begin
+  vRoundedValue := Round(AValue);
+  if SameValue(AValue, vRoundedValue, 1e-6) then
+    Result := vRoundedValue
+  else
+    Result := Ceil(AValue);
+end;
+
+function TrueFloor(const AValue: Double): Integer;
+var
+  vRoundedValue: Integer;
+begin
+  vRoundedValue := Round(AValue);
+  if SameValue(AValue, vRoundedValue, 1e-6) then
+    Result := vRoundedValue
+  else
+    Result := Floor(AValue);
+end;
+
 function CeilTo(const AValue: Double; const ADigit: Integer = -2): Double;
 var
   vFactor: Double;
 begin
   vFactor := IntPower(10.0, ADigit);
-  if AValue < 0 then
-    Result := Ceil(AValue / vFactor) * vFactor
-  else
-    Result := Ceil(AValue / vFactor) * vFactor;
+  Result := TrueCeil(AValue / vFactor) * vFactor
 end;
 
 function FloorTo(const AValue: Double; const ADigit: Integer = -2): Double;
@@ -1403,10 +1785,7 @@ var
   vFactor: Double;
 begin
   vFactor := IntPower(10.0, ADigit);
-  if AValue < 0 then
-    Result := Floor(AValue / vFactor) * vFactor
-  else
-    Result := Floor(AValue / vFactor) * vFactor;
+  Result := TrueFloor(AValue / vFactor) * vFactor
 end;
 
 function FormatTo(const AValue: Double; const ADigit: Integer; const AUseStrictFormat: Boolean): string;
@@ -1419,9 +1798,9 @@ begin
   if ADigit >= 0 then
     Result := IntToStr(Round(AValue))
   else if AUseStrictFormat then
-    Result := FormatFloat('0,' + cStrictFormats[-ADigit], AValue)
+    Result := FormatFloat(',' + cStrictFormats[-ADigit], AValue)
   else
-    Result := FormatFloat('0,' + cWeakFormats[-ADigit], AValue);
+    Result := FormatFloat(',' + cWeakFormats[-ADigit], AValue);
 end;
 
 function FormatAsBitString(const AValue: Cardinal; const ASize: Byte = 32): string;

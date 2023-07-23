@@ -1,9 +1,9 @@
-unit fmxSimpleEditors;
+﻿unit fmxSimpleEditors;
 
 interface
 
 uses
-  Classes, Variants, SysUtils, UITypes, Math,
+  Classes, Variants, SysUtils, UITypes, Math, FMX.StdCtrls, FMX.Edit, FMX.Dialogs,
   uDefinition, uEnumeration, uUIBuilder, uView, fmxArea, uLayout, uConsts, uEntity, uDomain;
 
 type
@@ -24,6 +24,34 @@ type
   end;
 
   TFMXMemoFieldEditor = class (TFMXControl)
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure FillEditor; override;
+    procedure DoOnChange; override;
+    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+  end;
+
+  TFMXFileNameFieldEditor = class(TFMXControl)
+  private
+    FBtn: TButton;
+    FDialog: TOpenDialog;
+    FText: TEdit;
+    procedure DoOnClick(Sender: TObject);
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoBeforeFreeControl; override;
+    procedure FillEditor; override;
+    procedure DoOnChange; override;
+    procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
+  public
+    property TextEdit: TEdit read FText;
+  end;
+
+  TFMXSelectFolderFieldEditor = class(TFMXControl)
+  private
+    FText: TEdit;
+    FBtn: TButton;
+    procedure DoOnClick(Sender: TObject);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     procedure FillEditor; override;
@@ -130,6 +158,16 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
+  TFMXPanelFieldEditor = class(TFMXControl)
+  private
+    FReverse: Boolean;
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    procedure DoAfterSetParent(const AParent: TUIArea); override;
+    procedure FillEditor; override;
+    procedure SetViewState(const AViewState: TViewState); override;
+  end;
+
   TFMXColorEditor = class(TFMXControl)
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
@@ -141,8 +179,9 @@ type
 implementation
 
 uses
-  FMX.ListBox, FMX.Types, FMX.Graphics, FMX.ExtCtrls, FMX.StdCtrls, FMX.Dialogs, FMX.Controls, FMX.ActnList, FMX.StdActns,
-  FMX.Edit, FMX.Memo, FMX.SpinBox, FMX.TabControl, FMX.Text, FMX.DateTimeCtrls, FMX.EditBox, FMX.NumberBox, FMX.Colors,
+  FMX.ListBox, FMX.Types, FMX.Graphics, FMX.ExtCtrls, FMX.ImgList, FMX.Controls,
+  FMX.ActnList, FMX.StdActns, FMX.Memo, FMX.SpinBox, FMX.TabControl, FMX.Text,
+  FMX.DateTimeCtrls, FMX.EditBox, FMX.NumberBox, FMX.Colors,
   uPresenter, uFMXPresenter, uInteractor, uUtils;
 
 { TFMXPagesFieldEditor }
@@ -276,8 +315,8 @@ begin
     if not Assigned(vEnum) then
     begin
       vEnum := TDomain(FView.Domain).Configuration.StateMachines.ObjectByName(TSimpleFieldDef(FFieldDef).Dictionary);
-      TLabel(FControl).FontColor := TAlphaColor(TState(vEnum.Items[Integer(FView.FieldValue)]).Color);
-        TLabel(FControl).StyledSettings := TLabel(FControl).StyledSettings - [TStyledSetting.FontColor];
+      TLabel(FControl).FontColor := ColorToAlphaColor(TState(vEnum.Items[Integer(FView.FieldValue)]).Color);
+      TLabel(FControl).StyledSettings := TLabel(FControl).StyledSettings - [TStyledSetting.FontColor];
     end;
     TLabel(FControl).Text := vEnum.Items[Integer(FView.FieldValue)].DisplayText;
   end
@@ -533,6 +572,7 @@ begin
   TListBox(Result).ShowCheckboxes := True;
   TListBox(Result).ShowScrollBars := False;
   TListBox(Result).OnChangeCheck := DoOnChangeCheck;
+  TListBox(Result).StyleLookup := 'transparentlistboxstyle';
 
   FDisplayFlagCount := 8;
 
@@ -616,8 +656,8 @@ begin
   if FFieldDef.StyleName = 'radio' then
   begin
     Result := TPanel.Create(nil);
-    TGroupBox(Result).Name := 'radio';
-    TGroupBox(Result).Text := '';
+    TPanel(Result).Name := 'radio';
+    TPanel(Result).StyleLookup := 'pushpanel';
     FNeedCreateCaption := False;
   end
   else
@@ -698,6 +738,7 @@ begin
         vRadioItem := TRadioButton.Create(nil);
         vRadioItem.Align := TAlignLayout.Top;
         vRadioItem.Text := vEnumItem.DisplayText;
+        vRadioItem.GroupName := FEnum.Name;
         vRadioItem.OnChange := DoOnClick;
         TPanel(FControl).AddObject(vRadioItem);
       end;
@@ -747,9 +788,6 @@ end;
 { TFMXFloatFieldEditor }
 
 function TFMXFloatFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
-var
-  vFormat: string;
-  vPos: Integer;
 begin
   if FFieldDef.StyleName = 'simple' then
     Result := TSpinBox.Create(nil)
@@ -775,9 +813,9 @@ begin
       Min := MinDouble;
 
     if (Length(FFieldDef.Format) > 0) or FFieldDef.Definition.FieldExists('Format') then
-      DecimalDigits := 2
+      DecimalDigits := DecimalDigitsFromFieldFormat(GetFormat)
     else
-      DecimalDigits := 0;
+      DecimalDigits := 2;
   end;
 end;
 
@@ -900,7 +938,7 @@ begin
   if VarIsNull(FView.FieldValue) then
   begin
     vEdit.Enabled := False;
-    vEdit.Date := Null;
+    vEdit.Date := 0;
   end
   else
   begin
@@ -921,8 +959,6 @@ begin
 end;
 
 function TFMXDateFieldEditor.GetNewValue: Variant;
-var
-  vDate: TDateTime;
 begin
   Result := TDateEdit(FControl).Date;
 end;
@@ -960,7 +996,7 @@ begin
   if VarIsNull(FView.FieldValue) then
   begin
     vEdit.Enabled := False;
-    vEdit.Time := Null;
+    vEdit.Time := 0;
   end
   else
   begin
@@ -1038,7 +1074,7 @@ begin
   TLabel(Result).TextSettings.WordWrap := False;
   if Assigned(FCreateParams) then
     TLabel(Result).Text := FCreateParams.Values['Caption'];
-//  TLabel(Result).Transparent := False;
+  TLabel(Result).AutoTranslate := False;
   TLabel(Result).Cursor := crHandPoint;
 
   if ALayout.Kind = lkPanel then
@@ -1050,7 +1086,6 @@ begin
     FDefaultTextColor := AlphaColorToColor(ALayout.Font.Color);
     TLabel(Result).TextSettings.HorzAlign := TTextAlign(2 - ord(ALayout.Align));
   end;
-//  TLabel(Result).AutoSize := True;
 end;
 
 procedure TFMXSelectedCaptionBoolFieldEditor.FillEditor;
@@ -1092,12 +1127,12 @@ end;
 function TFMXColorEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
 begin
   Result := TComboColorBox.Create(nil);
-  TComboColorBox(Result).UseAlpha := False;
+//  TComboColorBox(Result).UseAlpha := False;
 end;
 
 procedure TFMXColorEditor.DoOnChange;
 begin
-  SetFieldValue(TComboColorBox(FControl).Color);
+  SetFieldValue(TAlphaColorRec.ColorToRGB(TComboColorBox(FControl).Color));
 end;
 
 procedure TFMXColorEditor.FillEditor;
@@ -1114,7 +1149,7 @@ begin
   else
   begin
     vEdit.Enabled := True;
-    vEdit.Color := FView.FieldValue;
+    vEdit.Color := ColorToAlphaColor(FView.FieldValue);
   end;
 end;
 
@@ -1123,12 +1158,246 @@ begin
   TComboColorBox(FControl).OnChange := AHandler;
 end;
 
+{ TFMXFileNameFieldEditor }
+
+procedure TFMXFileNameFieldEditor.DoBeforeFreeControl;
+begin
+  inherited;
+
+  FreeAndNil(FDialog);
+end;
+
+function TFMXFileNameFieldEditor.DoCreateControl(const AParent: TUIArea;
+  const ALayout: TLayout): TObject;
+var
+  vBase: TPanel;
+  vFieldDef: TFieldDef;
+  vStyleParams: TStrings;
+begin
+  inherited;
+
+  vBase := TPanel.Create(nil);
+  vBase.StyleLookup := 'pushpanel';
+
+  FDialog := TOpenDialog.Create(nil);
+  FDialog.Title := '';
+
+  FBtn := TButton.Create(vBase);
+  FBtn.StyleLookup := 'imagebutton';
+  FBtn.Parent := VBase;
+  FBtn.Align := TAlignLayout.Right;
+  FBtn.Width := 40;
+  FBtn.Images := TImageList(FUIBuilder.Images[16]);
+  FBtn.ImageIndex := AParent.GetImageIndex('open_file');
+  FBtn.Padding.Top := 4;
+  FBtn.OnClick := DoOnClick;
+
+  if Assigned(FCreateParams) then
+    FDialog.Filter := FCreateParams.Values['filter']
+  else begin
+    vFieldDef := TFieldDef(FView.Definition);
+    vStyleParams := CreateDelimitedList(vFieldDef.StyleName, '&');
+    try
+      FDialog.Filter := vStyleParams.Values['filter'];
+      FDialog.DefaultExt := vStyleParams.Values['ext'];
+    finally
+      FreeAndNil(vStyleParams);
+    end;
+  end;
+
+  FText := TEdit.Create(nil);
+  FText.Align := TAlignLayout.Client;
+  FText.Parent := vBase;
+
+  Result := vBase;
+end;
+
+procedure TFMXFileNameFieldEditor.DoOnChange;
+begin
+  SetFieldValue(FText.Text);
+end;
+
+procedure TFMXFileNameFieldEditor.DoOnClick(Sender: TObject);
+begin
+  if (Length(FText.Text) > 0) and DirectoryExists(ExtractFileDir(FText.Text)) then
+    FDialog.InitialDir := ExtractFileDir(FText.Text);
+
+  if FDialog.Execute then
+  begin
+    FText.Text := FDialog.FileName;
+    FText.Hint := FText.Text;
+  end;
+end;
+
+procedure TFMXFileNameFieldEditor.FillEditor;
+begin
+  if VarIsNull(FView.FieldValue) then
+  begin
+    FText.Text := '';
+    FText.Enabled := False;
+  end
+  else
+  begin
+    FText.Text := FView.FieldValue;
+    FText.Hint := FView.FieldValue;
+    FText.Enabled := True;
+    FText.ReadOnly := FView.State < vsSelectOnly;
+
+    if FText.ReadOnly then
+      FText.TabStop := False
+    else
+      FText.TabStop := FOwner.TabStop;
+  end;
+
+  FBtn.Visible := FView.State >= vsSelectOnly;
+end;
+
+procedure TFMXFileNameFieldEditor.SwitchChangeHandlers(
+  const AHandler: TNotifyEvent);
+begin
+  inherited;
+  if Assigned(FText) then
+    FText.OnChange := AHandler;
+end;
+
+{ TFMXSelectFolderFieldEditor }
+
+function TFMXSelectFolderFieldEditor.DoCreateControl(const AParent: TUIArea;
+  const ALayout: TLayout): TObject;
+var
+  vBase: TPanel;
+begin
+  inherited;
+
+  vBase := TPanel.Create(nil);
+  vBase.StyleLookup := 'pushpanel';
+
+  FBtn := TButton.Create(vBase);
+  FBtn.StyleLookup := 'imagebutton';
+  FBtn.Parent := VBase;
+  FBtn.Align := TAlignLayout.Right;
+  FBtn.Width := 40;
+  FBtn.Images := TImageList(FUIBuilder.Images[16]);
+  FBtn.ImageIndex := AParent.GetImageIndex('open_file');
+  FBtn.OnClick := DoOnClick;
+
+  FText := TEdit.Create(nil);
+  FText.Align := TAlignLayout.Client;
+  FText.Parent := vBase;
+
+  Result := vBase;
+end;
+
+procedure TFMXSelectFolderFieldEditor.DoOnChange;
+begin
+  SetFieldValue(FText.Text);
+end;
+
+procedure TFMXSelectFolderFieldEditor.DoOnClick(Sender: TObject);
+var
+  vDir: string;
+begin
+  if SelectDirectory('', FText.Text, vDir) then
+    FText.Text := vDir;
+end;
+
+procedure TFMXSelectFolderFieldEditor.FillEditor;
+begin
+  if VarIsNull(FView.FieldValue) then
+  begin
+    FText.Text := '';
+    FText.Enabled := False;
+  end
+  else
+  begin
+    FText.Text := FView.FieldValue;
+    FText.Hint := FView.FieldValue;
+    FText.Enabled := True;
+    FText.ReadOnly := FView.State < vsFullAccess;
+
+    if FText.ReadOnly then
+      FText.TabStop := False
+    else
+      FText.TabStop := FOwner.TabStop;
+  end;
+
+  FBtn.Visible := FView.State > vsSelectOnly;
+end;
+
+procedure TFMXSelectFolderFieldEditor.SwitchChangeHandlers(
+  const AHandler: TNotifyEvent);
+begin
+  inherited;
+  if Assigned(FText) then
+    FText.OnChange := AHandler;
+end;
+
+{ TFMXPanelFieldEditor }
+
+procedure TFMXPanelFieldEditor.DoAfterSetParent(const AParent: TUIArea);
+begin
+  TInteractor(FView.Interactor).UIBuilder.CreateChildAreas(FOwner, FParent.View, FLayout, '');
+end;
+
+function TFMXPanelFieldEditor.DoCreateControl(const AParent: TUIArea;
+  const ALayout: TLayout): TObject;
+var
+  vPanel: TPanel;
+begin
+  FNeedCreateCaption := False;
+
+  vPanel := TPanel.Create(nil);
+  Result := vPanel;
+  vPanel.Width := ALayout.Width;
+  vPanel.Height := ALayout.Height;
+  vPanel.Position.X := ALayout.Left;
+  vPanel.Position.Y := ALayout.Top;
+
+  vPanel.Align := AlignToAlignLayout(ALayout.Align);
+  CopyMargins(vPanel, ALayout);
+  CopyPadding(vPanel, ALayout);
+  vPanel.Anchors := ALayout.Anchors;
+
+  if Assigned(FCreateParams) then
+    FReverse := FCreateParams.Values['reverse'] = '1'
+  else
+    FReverse := False;
+end;
+
+procedure TFMXPanelFieldEditor.FillEditor;
+var
+  vVisible: Boolean;
+  vValue: Variant;
+begin
+  vValue := FView.FieldValue;
+  if VarIsNull(vValue) then
+    vVisible := True
+  else
+  begin
+    if TFieldDef(FView.Definition).Kind = fkBoolean then
+      vVisible := vValue
+    else
+      vVisible := True;
+  end;
+
+  if FReverse then
+    vVisible := not vVisible;
+
+  TPanel(FControl).Visible := vVisible;
+end;
+
+procedure TFMXPanelFieldEditor.SetViewState(const AViewState: TViewState);
+begin
+end;
+
 initialization
 
 TPresenter.RegisterControlClass('FMX', uiTextEdit, '', TFMXTextEdit);
 TPresenter.RegisterControlClass('FMX', uiTextEdit, 'phone', TFMXTextEdit);
 TPresenter.RegisterControlClass('FMX', uiTextEdit, 'mask', TFMXTextEdit);
 TPresenter.RegisterControlClass('FMX', uiTextEdit, 'memo', TFMXMemoFieldEditor);
+TPresenter.RegisterControlClass('FMX', uiTextEdit, 'file', TFMXFileNameFieldEditor);
+TPresenter.RegisterControlClass('FMX', uiTextEdit, 'dir', TFMXSelectFolderFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiTextEdit, 'info', TFMXTextInfo);
 
 TPresenter.RegisterControlClass('FMX', uiIntegerEdit, '', TFMXIntegerFieldEditor);
@@ -1138,6 +1407,7 @@ TPresenter.RegisterControlClass('FMX', uiIntegerEdit, 'spinner', TFMXSpinner);
 TPresenter.RegisterControlClass('FMX', uiIntegerEdit, 'progress', TFMXProgress);
 TPresenter.RegisterControlClass('FMX', uiIntegerEdit, 'pages', TFMXPagesFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiIntegerEdit, 'flags', TFMXIntegerFlagsEditor);
+TPresenter.RegisterControlClass('FMX', uiIntegerEdit, 'flags2', TFMXIntegerFlagsEditor);
 
 TPresenter.RegisterControlClass('FMX', uiEnumEdit, '', TFMXEnumEditor);
 TPresenter.RegisterControlClass('FMX', uiEnumEdit, 'radio', TFMXEnumEditor);
@@ -1146,6 +1416,7 @@ TPresenter.RegisterControlClass('FMX', uiEnumEdit, 'pages', TFMXPagesFieldEditor
 
 TPresenter.RegisterControlClass('FMX', uiFloatEdit, '', TFMXFloatFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiFloatEdit, 'simple', TFMXFloatFieldEditor);
+TPresenter.RegisterControlClass('FMX', uiFloatEdit, 'currency_rate', TFMXFloatFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiFloatEdit, 'info', TFMXTextInfo);
 
 TPresenter.RegisterControlClass('FMX', uiCurrencyEdit, '', TFMXFloatFieldEditor);
@@ -1160,6 +1431,7 @@ TPresenter.RegisterControlClass('FMX', uiBoolEdit, '', TFMXBoolFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiBoolEdit, 'simple', TFMXBoolFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiBoolEdit, 'selected_caption', TFMXSelectedCaptionBoolFieldEditor);
 TPresenter.RegisterControlClass('FMX', uiBoolEdit, 'pages', TFMXPagesFieldEditor);
+TPresenter.RegisterControlClass('FMX', uiBoolEdit, 'panel', TFMXPanelFieldEditor);
 
 TPresenter.RegisterControlClass('FMX', uiEntityEdit, 'info', TFMXTextInfo);
 TPresenter.RegisterControlClass('FMX', uiEntityEdit, 'pages', TFMXPagesFieldEditor);

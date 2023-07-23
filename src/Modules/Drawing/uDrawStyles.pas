@@ -283,6 +283,7 @@ type
     procedure DoDrawPolyline(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer); virtual; abstract;
     procedure DoDrawBezier(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer); virtual; abstract;
     procedure DoDrawRect(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF); virtual; abstract;
+    procedure DoSetPixel(const AX, AY: Integer; const AColor: Cardinal); virtual; abstract;
     procedure DoDrawText(const AFont: TStyleFont; const AText: string; const ARect: TRectF;
       const AOptions: Cardinal; const AAngle: Single); virtual; abstract;
     function GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF; virtual; abstract;
@@ -290,6 +291,7 @@ type
     procedure DoClipRect(const ARect: TRectF); virtual; abstract;
     procedure DoDrawImage(const AImage: TObject; const ARect: TRectF; const AOpacity: Single); virtual; abstract;
     procedure DoDrawContext(const AContext: TDrawContext); virtual; abstract;
+    procedure DoStretchDrawContext(const AContext: TDrawContext; const ARect: TRect); virtual; abstract;
 
     procedure DoColorizeBrush(const AFill: TStyleBrush; const AColor: Cardinal); virtual; abstract;
     procedure DoColorizePen(const AStroke: TStylePen; const AColor: Cardinal); virtual; abstract;
@@ -326,6 +328,7 @@ type
       const ACount: Integer; const AColor: Cardinal = 0);
     procedure DrawRect(const AStyle: TDrawStyle; const AFillName, AStrokeName: string;
       const ARect: TRectF; const ASnapToPixels: Boolean = True; const AColor: Cardinal = 0);
+    procedure SetPixel(const AX, AY: Integer; const AColor: Cardinal);
     procedure DrawText(const AStyle: TDrawStyle; const AFontName: string; const AText: string;
       const ARect: TRectF; const AOptions: Cardinal = 0; const AAngle: Single = 0; const AColor: Cardinal = 0);
     function TextWidth(const AStyle: TDrawStyle; const AFontName: string; const AText: string): Single;
@@ -338,6 +341,7 @@ type
     procedure DrawImage(const AImage: TObject; const ARect: TRectF; const AOpacity: Single = 1.0); overload;
 
     procedure DrawContext(const AContext: TDrawContext);
+    procedure StretchDrawContext(const AContext: TDrawContext; const ARect: TRect);
 
     function AddStyle(const AName: string): TDrawStyle;
     function GetStyle(const AName: string): TDrawStyle;
@@ -698,9 +702,14 @@ begin
   Assert(not FImages.ContainsKey(AName), 'Объект с таким именем уже есть');
 
   if not TFile.Exists(AFileName) then
-    vFileName := 'res' + PathDelim + 'images' + PathDelim + AFileName
+  begin
+    vFileName := TPath.Combine(GetPlatformDir, 'images' + PathDelim + AFileName);
+    if not TFile.Exists(vFileName) then
+      Exit(nil);
+  end
   else
     vFileName := AFileName;
+
   Result := TStyleImage.Create(AName, vFileName, ATransparent);
   FImages.Add(AName, Result);
 end;
@@ -1074,6 +1083,12 @@ begin
     DoDrawContext(AContext);
 end;
 
+procedure TPainter.StretchDrawContext(const AContext: TDrawContext; const ARect: TRect);
+begin
+  if Assigned(AContext) then
+    DoStretchDrawContext(AContext, ARect);
+end;
+
 procedure TPainter.DrawEllipse(const AStyle: TDrawStyle; const AFillName, AStrokeName: string;
   const ARect: TRectF; const AColor: Cardinal = 0);
 var
@@ -1406,6 +1421,11 @@ function TPainter.SetContext(const AContext: TDrawContext): TDrawContext;
 begin
   Result := FContext;
   FContext := AContext;
+end;
+
+procedure TPainter.SetPixel(const AX, AY: Integer; const AColor: Cardinal);
+begin
+  DoSetPixel(AX, AY, AColor);
 end;
 
 function TPainter.StyleExists(const AName: string): Boolean;

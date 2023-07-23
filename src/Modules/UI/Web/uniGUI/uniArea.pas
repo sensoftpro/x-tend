@@ -387,7 +387,8 @@ var
   vHasPopupMenu: Boolean;
   vMenuItem: TUniMenuItem;
   vDefinition: TDefinition;
-  vImageID: Integer;
+  vImageID: string;
+  vImageIndex: Integer;
   vCaption: string;
   vImageSize: Integer;
   vComposition: string;
@@ -399,7 +400,9 @@ begin
   vParams := CreateDelimitedList(FInternalParams, '&');
   try
     vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
-    vImageID := StrToIntDef(vParams.Values['ImageID'], vActionDef._ImageID);
+    vImageID := vParams.Values['ImageID'];
+    if vImageID = '' then
+      vImageID := vActionDef._ImageID;
     vComposition := Trim(vParams.Values['Composition']);
     vViewStyle := Trim(vParams.Values['ViewStyle']);
     vOverriddenCaption := Trim(vParams.Values['Caption']);
@@ -425,7 +428,7 @@ begin
     vButton := TCrackedBitBtn(TUniBitBtn.Create(ExtractOwner(AParent)));
 
   vButton.Images := TUniCustomImageList(FUIBuilder.Images[vImageSize]);
-  vImageID := GetImageID(vImageID);
+  vImageIndex := GetImageIndex(vImageID);
 
   //TODO: We need another control or style here
   if (ALayout.BevelOuter = lbkNone) and (ALayout.BevelInner = lbkNone) then
@@ -443,19 +446,19 @@ begin
 
   vButton.ImageIndex := -1;
   vButton.Caption := '';
-  if (vButton.Images.Count + 1 >= vImageID) and (vImageID > 0) then
+  if (vButton.Images.Count + 1 >= vImageIndex) and (vImageIndex > 0) then
   begin
     if vComposition = '' then
     begin
       if ALayout.Button_ShowCaption then
       begin
         vButton.IconAlign := TUniIconAlign.iaLeft;
-        vButton.ImageIndex := vImageID;
+        vButton.ImageIndex := vImageIndex;
         vButton.Caption := vCaption;
       end
       else begin
         vButton.IconAlign := TUniIconAlign.iaCenter;
-        vButton.ImageIndex := vImageID;
+        vButton.ImageIndex := vImageIndex;
       end;
     end
     else if vComposition = 'TextOnly' then
@@ -463,11 +466,11 @@ begin
     else if vComposition = 'ImageOnly' then
     begin
       vButton.IconAlign := TUniIconAlign.iaCenter;
-      vButton.ImageIndex := vImageID;
+      vButton.ImageIndex := vImageIndex;
     end
     else begin
       vButton.Caption := vCaption;
-      vButton.ImageIndex := vImageID;
+      vButton.ImageIndex := vImageIndex;
       if vComposition = 'ImageRight' then
         vButton.IconAlign := TUniIconAlign.iaRight
       else if vComposition = 'ImageTop' then
@@ -496,7 +499,7 @@ begin
         vMenuItem.Caption := GetTranslation(vDefinition);
         if Length(vOverriddenCaption) > 0 then
           vMenuItem.Caption := vOverriddenCaption;
-        vMenuItem.ImageIndex := GetImageID(vDefinition._ImageID);
+        vMenuItem.ImageIndex := GetImageIndex(vDefinition._ImageID);
         vMenuItem.Tag := NativeInt(FOwner);
         vMenuItem.OnClick := FOwner.OnActionMenuSelected;
         FTypeSelectionMenu.Items.Add(vMenuItem);

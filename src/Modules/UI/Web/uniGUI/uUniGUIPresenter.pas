@@ -100,10 +100,9 @@ type
 
     function GetImagePlaceholder(const ASize: Integer): TStream; override;
     function DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject; override;
-
-    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
   public
     procedure ShowUIArea(const AArea: TUIArea; const AAreaName: string; const ACaption: string); override;
+    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
   end;
 
 procedure CopyFontSettings(const AFont: TUniFont; const ALayout: TLayout);
@@ -993,16 +992,10 @@ end;
 
 procedure TUniGUIPresenter.SetApplicationUI(const AAppTitle, AIconName: string);
 begin
-  FServerModule.Title := AAppTitle;
-  { TODO -owa : Doesn't work, redo }
-  // https://it-blackcat.blogspot.com/2020/04/variants-for-adding-favicon-in-uniGUI.html
-  //if FileExists(AIconName) then
-  //begin
-  //  Application.Icon.LoadFromFile(AIconName);
-  //  FServerModule.Favicon.LoadFromFile(AIconName);
-  //end;
+  if not Assigned(FServerModule) then
+    Exit;
 
-  // Настройка серверных сообщений
+  FServerModule.Title := AAppTitle;
   FServerModule.ServerMessages.TerminateMessage := 'Вот и всё... До новых встреч!';
 end;
 

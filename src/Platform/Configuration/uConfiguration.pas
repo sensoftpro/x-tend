@@ -61,7 +61,7 @@ type
     FVersion: TVersion;
     FConfigurationDir: string;
     FAppDataDir: string;
-    FCacheDir: string;
+    FTempDir: string;
     FRootDefinition: TDefinition;
     FDefinitions: TDefinitions;
     FActions: TActions;
@@ -122,7 +122,7 @@ type
     property IconFileName: string read FIconFileName;
     property ConfigurationDir: string read FConfigurationDir;
     property AppDataDir: string read FAppDataDir;
-    property CacheDir: string read FCacheDir;
+    property TempDir: string read FTempDir;
 
     property RootDefinition: TDefinition read FRootDefinition;
     //property Inclusions: TObjectList<TCfgInclusion> read FInclusions;
@@ -185,12 +185,15 @@ uses
 
 procedure TConfiguration.AddInclusion(const AName: string);
 begin
-  FResFolders.Add(TPath.Combine(GetResDir, 'modules' + PathDelim + AName));
+  FResFolders.Add(TPath.Combine(GetPlatformDir, 'modules' + PathDelim + AName));
 end;
 
 constructor TConfiguration.Create(const APlatform: TObject; const AName: string);
 var
   vAppPath: string;
+  vSettingsFileName: string;
+  vSettings: TIniSettings;
+  vIsPortable: Boolean;
 begin
   inherited Create;
 
@@ -198,33 +201,51 @@ begin
   FName := AName;
   FIconFileName := '';
   FResFolders := TStringList.Create;
-  vAppPath := cProductCreator + PathDelim + FName;
 
-  FConfigurationDir := TPath.Combine(GetResDir, 'solutions' + PathDelim + FName.ToLowerInvariant);
+  FConfigurationDir := TPath.Combine(GetPlatformDir, 'solutions' + PathDelim + FName.ToLowerInvariant);
+  vSettingsFileName := TPath.Combine(FConfigurationDir, 'settings.ini');
+  if TFile.Exists(vSettingsFileName) then
+  begin
+    vSettings := TIniSettings.Create(vSettingsFileName);
+    try
+      vIsPortable := StrToIntDef(vSettings.GetValue('Core', 'Portable', ''), 0) = 1;
+    finally
+      FreeAndNil(vSettings);
+    end;
+  end
+  else
+    vIsPortable := False;
 
-{$IF DEFINED(MSWINDOWS)}
-  FAppDataDir := TPath.Combine(TPath.GetCachePath, vAppPath);
-  FCacheDir := TPath.Combine(TPath.GetCachePath, vAppPath);
-{$ELSEiF DEFINED(LINUX) }
-  FAppDataDir := TPath.Combine(TPath.GetCachePath, vAppPath);
-  FCacheDir := TPath.Combine(TPath.GetCachePath, vAppPath);
-{$ELSEIF DEFINED(ANDROID) OR DEFINED(IOS)}
-  FAppDataDir := TPath.GetPublicPath;
-  FCacheDir := TPath.GetCachePath;
-{$ELSEIF DEFINED(IOS)}
-  FAppDataDir := TPath.GetDocumentsPath;
-  FCacheDir := TPath.GetCachePath;
-{$ENDIF}
+  if vIsPortable then
+  begin
+    FAppDataDir := TPath.Combine(FConfigurationDir, 'cache');
+    FTempDir := TPath.Combine(FConfigurationDir, 'temp');
+  end
+  else begin
+    FTempDir := TPath.GetTempPath;
+    vAppPath := cProductCreator + PathDelim + FName;
+  {$IF DEFINED(MSWINDOWS)}
+    FAppDataDir := TPath.Combine(TPath.GetCachePath, vAppPath);
+  {$ELSEIF DEFINED(LINUX)}
+    FAppDataDir := TPath.Combine(TPath.GetCachePath, vAppPath);
+  {$ELSEIF DEFINED(MACOS)}
+    FAppDataDir := TPath.Combine(TPath.GetCachePath, vAppPath);
+  {$ELSEIF DEFINED(ANDROID) OR DEFINED(IOS)}
+    FAppDataDir := TPath.GetPublicPath;
+  {$ELSEIF DEFINED(IOS)}
+    FAppDataDir := TPath.GetDocumentsPath;
+  {$ENDIF}
+  end;
 
   if not TDirectory.Exists(FConfigurationDir) then
     TDirectory.CreateDirectory(FConfigurationDir);
   if not TDirectory.Exists(FAppDataDir) then
     TDirectory.CreateDirectory(FAppDataDir);
-  if not TDirectory.Exists(FCacheDir) then
-    TDirectory.CreateDirectory(FCacheDir);
+  if not TDirectory.Exists(FTempDir) then
+    TDirectory.CreateDirectory(FTempDir);
 
   FLocalizator := TCfgLocalizator.Create(TPath.Combine(FConfigurationDir, 'translations'),
-    TPath.Combine(FConfigurationDir, 'settings.ini'));
+    vSettingsFileName);
   FEnumerations := TEnumerations.Create;
   FStateMachines := TStateMachines.Create;
   FDefinitions := TDefinitions.Create(Self);
@@ -302,18 +323,13 @@ function TConfiguration.FindLayoutFile(const ARelativeFilePath, AExtension, APos
 var
   vLayoutFile: string;
 begin
-  if FCacheDir = FConfigurationDir then
-    Result := ''
+  vLayoutFile := TPath.Combine(FConfigurationDir, 'layouts' + PathDelim + ARelativeFilePath);
+  if (APostfix <> '') and FileExists(vLayoutFile + APostfix + AExtension) then
+    Result := vLayoutFile + APostfix + AExtension
+  else if FileExists(vLayoutFile + AExtension) then
+    Result := vLayoutFile + AExtension
   else
-  begin
-    vLayoutFile := TPath.Combine(FConfigurationDir, 'layouts' + PathDelim + ARelativeFilePath);
-    if (APostfix <> '') and FileExists(vLayoutFile + APostfix + AExtension) then
-      Result := vLayoutFile + APostfix + AExtension
-    else if FileExists(vLayoutFile + AExtension) then
-      Result := vLayoutFile + AExtension
-    else
-      Result := '';
-  end;
+    Result := '';
 end;
 
 function TConfiguration.FindLeafFile(const ARelativeFilePath: string): string;

@@ -163,6 +163,7 @@ type
     procedure OnPhoneKeyPress(Sender: TObject; var Key: Char);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    function GetNewValue: Variant; override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -454,18 +455,39 @@ begin
 end;
 
 function TVCLIntegerFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vEntity: TEntity;
+  vParamDef: TEntity;
 begin
   Result := TEdit.Create(nil);
 
   FUpDown := TUpDown.Create(nil);
-
-  if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
-    FUpDown.Max := TSimpleFieldDef(FFieldDef).MaxValue;
-
-  if not VarIsNull(TSimpleFieldDef(FFieldDef).MinValue) then
-    FUpDown.Min := TSimpleFieldDef(FFieldDef).MinValue;
-
   FUpDown.Thousands := True;
+
+  if FFieldDef.Definition.IsDescendantOf('_IntegerParameters') and (
+    (FFieldDef.Name = 'StartValue') or (FFieldDef.Name = 'EndValue') or (FFieldDef.Name = 'Value')) then
+  begin
+    vEntity := TEntity(FView.ParentDomainObject);
+    if not Assigned(vEntity) then
+      Exit;
+
+    vParamDef := vEntity.ExtractEntity('ParameterDef');
+    if not Assigned(vParamDef) then
+      Exit;
+
+    if vParamDef['HasMinValue'] and not VarIsNull(vParamDef['MinValue']) then
+      FUpDown.Min := vParamDef['MinValue'];
+
+    if vParamDef['HasMaxValue'] and not VarIsNull(vParamDef['MaxValue']) then
+      FUpDown.Max := vParamDef['MaxValue'];
+  end
+  else begin
+    if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
+      FUpDown.Max := TSimpleFieldDef(FFieldDef).MaxValue;
+
+    if not VarIsNull(TSimpleFieldDef(FFieldDef).MinValue) then
+      FUpDown.Min := TSimpleFieldDef(FFieldDef).MinValue;
+  end;
 end;
 
 procedure TVCLIntegerFieldEditor.DoOnChange;
@@ -679,6 +701,11 @@ begin
     vEdit.Enabled := FView.State > vsDisabled;
     vEdit.ReadOnly := FView.State < vsFullAccess;
   end;
+end;
+
+function TVCLTextFieldEditor.GetNewValue: Variant;
+begin
+  Result := TEdit(FControl).Text;
 end;
 
 procedure TVCLTextFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);

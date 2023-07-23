@@ -55,7 +55,13 @@ type
     FColorFieldName: string;
     procedure DoOnCellDblClick(const Column: TColumn; const Row: Integer);
     procedure DoGetValue(Sender: TObject; const ACol, ARow: Integer; var Value: TValue);
+    procedure DoSetValue(Sender: TObject; const ACol, ARow: Integer; const Value: TValue);
     procedure DoOnSelectionChanged(Sender: TObject);
+    procedure DoOnDrawCellBackground(Sender: TObject; const Canvas: TCanvas; const Column: TColumn; const Bounds: TRectF;
+    const Row: Integer; const Value: TValue; const State: TGridDrawStates);
+    procedure DoOnDrawCell(Sender: TObject; const Canvas: TCanvas; const Column: TColumn; const Bounds: TRectF;
+    const Row: Integer; const Value: TValue; const State: TGridDrawStates);
+
     procedure CreateColumnsFromModel(const AFields: string = '');
     procedure EnableColumnParamsChangeHandlers(const AEnable: Boolean);
     procedure CreateColumn(const AFieldDef: TFieldDef; const AFieldName: string; const AOverriddenCaption: string;
@@ -124,7 +130,7 @@ implementation
 
 uses
   TypInfo, SysUtils, Math, Variants, DateUtils, IOUtils, StrUtils, UITypes,
-  FMX.Menus, FMX.Types,
+  FMX.Menus, FMX.Types, FMX.Consts, FMX.Dialogs,
   uObjectField, uInteractor, uEnumeration, uSession, uChangeManager, uCollection,
   uConfiguration, uDomain, uQueryDef, uQuery, uUtils, uPresenter, uFMXPresenter, uSettings;
 
@@ -333,6 +339,41 @@ begin
   end;
 end;
 
+function GetRowColor(const AArea: TUIArea; const AEntity: TEntity; const AColorFieldName: string): TColor;
+var
+  vDefinition: TDefinition;
+  vColorField: TBaseField;
+  vState: TState;
+begin
+  Result := cNullColor;
+
+  if Assigned(AEntity) then
+  begin
+    vDefinition := AEntity.Definition;
+    if LowerCase(AColorFieldName) = 'script' then
+      Result := TCalculateStyleFunc(TConfiguration(vDefinition.Configuration).CalculateStyleFunc)(AArea.View.InitialName, AEntity)
+    else if vDefinition.ColorTarget <> ctNone then
+    begin
+      Result := cNullColor;
+      vColorField := AEntity.FieldByName(AColorFieldName);
+      if vColorField.FieldKind = fkColor then
+      begin
+        if Assigned(vColorField) then
+          Result := vColorField.Value;
+      end
+      else if vColorField.FieldKind = fkEnum then
+      begin
+        vState := AEntity.EntityState;
+        if Assigned(vState) then
+          Result := vState.Color;
+      end;
+    end;
+  end;
+
+  if Result = cNullColor then
+    Result := TColorRec.SysNone;
+end;
+
 { TFMXGridEditor }
 
 procedure TFMXGridEditor.BeforeContextMenuShow(Sender: TObject);
@@ -383,6 +424,7 @@ begin
   Result := FGrid;
   FGrid.Options := [TGridOption.AlternatingRowBackground, TGridOption.ColumnResize, TGridOption.ColumnMove, TGridOption.Header,
     TGridOption.AutoDisplacement, TGridOption.ColLines];
+  FGrid.ShowHint := True;
 
   if StrToBoolDef(TDomain(TInteractor(FInteractor).Domain).UserSettings.GetValue('Core', 'ShowHorzLines'), True) then
     FGrid.Options := FGrid.Options + [TGridOption.RowLines];
@@ -410,6 +452,7 @@ begin
     begin
       FGrid.Options := FGrid.Options + [TGridOption.Editing] - [TGridOption.RowSelect];
       FGrid.OnCellDblClick := nil;
+      FGrid.OnSetValue := DoSetValue;
     end;
   end
   else
@@ -444,6 +487,9 @@ begin
     FColorFieldName := Trim(vDefinition.ColorFieldName);
   if FColorFieldName = '-' then
     FColorFieldName := '';
+
+  FGrid.OnDrawColumnBackground := DoOnDrawCellBackground;
+  FGrid.OnDrawColumnCell := DoOnDrawCell;
 end;
 
 procedure TFMXGridEditor.CreateColumnsFromModel(const AFields: string = '');
@@ -519,7 +565,6 @@ begin
   FAllData := nil;
 end;
 
-
 procedure TFMXGridEditor.EnableColumnParamsChangeHandlers(const AEnable: Boolean);
 begin
   if AEnable then
@@ -553,17 +598,19 @@ begin
   if Assigned(AFieldDef) then
   begin
     case AFieldDef.Kind of
-      fkInteger:
+      fkInteger, fkColor:
           vCol := TIntegerColumn.Create(FGrid);
       fkFloat:
         begin
           vCol := TFloatColumn.Create(FGrid);
-          TFloatColumn(vCol).DecimalDigits := Length(AFieldDef.Format) - pos('.', AFieldDef.Format);
+          if AFieldDef.Format <> '' then
+            TFloatColumn(vCol).DecimalDigits := DecimalDigitsFromFieldFormat(GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity));
         end;
       fkCurrency:
         begin
           vCol := TCurrencyColumn.Create(FGrid);
-          TFloatColumn(vCol).DecimalDigits := Length(AFieldDef.Format) - pos('.', AFieldDef.Format);
+          if AFieldDef.Format <> '' then
+            TCurrencyColumn(vCol).DecimalDigits := DecimalDigitsFromFieldFormat(GetDisplayFormat(AFieldDef, FView.ParentDomainObject as TEntity));
         end;
       fkDateTime:
         if AFieldDef.StyleName = 'time' then
@@ -577,19 +624,22 @@ begin
             TDateColumn(vCol).Format := GetUrlParam(AFieldDef.StyleName, 'format');
           end;
       fkBoolean:
+        begin
           vCol := TCheckColumn.Create(FGrid);
-      fkColor:
-          vCol := TIntegerColumn.Create(FGrid);
-      fkEnum:
+          TCheckColumn(vCol).HorzAlign := TTextAlign.Center;
+        end;
+      fkEnum, fkObject:
         begin
           vCol := TPopupColumn.Create(FGrid);
-          FillEnumList(TDomain(FView.Domain), TPopupColumn(vCol).Items, AFieldDef);
+          if AFieldDef.Kind = fkEnum then
+            FillEnumList(TDomain(FView.Domain), TPopupColumn(vCol).Items, AFieldDef);
         end;
       else
-      vCol := TStringColumn.Create(FGrid);
+        vCol := TStringColumn.Create(FGrid);
     end;
 
     vCol.Header := AOverriddenCaption;
+    vCol.ShowHint := true;
     vCol.TagString := AFieldName;
     vCol.Width := AWidth;
     vCol.ReadOnly := AFieldDef.UIState < vsSelectOnly;
@@ -696,6 +746,41 @@ begin
 //  SaveColumnWidths;
 end;
 
+procedure TFMXGridEditor.DoOnDrawCell(Sender: TObject; const Canvas: TCanvas;
+  const Column: TColumn; const Bounds: TRectF; const Row: Integer;
+  const Value: TValue; const State: TGridDrawStates);
+var
+  vFieldDef: TFieldDef;
+  vFieldName: string;
+  vField: TBaseField;
+  vEntity: TEntity;
+begin
+  vFieldName := Column.TagString;
+  vEntity := FAllData[Row];
+  vField := vEntity.FieldByName(vFieldName);
+
+  if Assigned(vField) then
+    vFieldDef := vField.FieldDef
+  else
+    vFieldDef := TFieldDef(Column.TagObject);
+
+  if vFieldDef.Kind = fkColor then
+    Canvas.ClearRect(Bounds, ColorToAlphaColor(vEntity.ExtractFieldValue(Column.TagString)));
+end;
+
+procedure TFMXGridEditor.DoOnDrawCellBackground(Sender: TObject;
+  const Canvas: TCanvas; const Column: TColumn; const Bounds: TRectF;
+  const Row: Integer; const Value: TValue; const State: TGridDrawStates);
+var
+  vEntity: TEntity;
+  vColor: TColor;
+begin
+  vEntity := FAllData[Row];
+  vColor := GetRowColor(FOwner, vEntity, FAllData.MainDefinition.ColorFieldName);
+  if vColor <> cNullColor then
+    Canvas.ClearRect(Bounds, ColorToAlphaColor(vColor));
+end;
+
 procedure TFMXGridEditor.DoOnHeaderClick(Sender: TColumn);
 begin
   SaveColumnWidths;
@@ -709,6 +794,126 @@ begin
     Exit;
   vEntityList := TEntityList(TView(FView).DomainObject);
   vEntityList.SelectEntity(FAllData.Entity[FGrid.Selected]);
+end;
+
+procedure TFMXGridEditor.DoSetValue(Sender: TObject; const ACol, ARow: Integer;
+  const Value: TValue);
+var
+  vColumn: TColumn;
+  vFieldDef: TFieldDef;
+  vFieldName: string;
+  vEntity, vEntityValue: TEntity;
+  vEnumeration: TEnumeration;
+  vInteractor: TInteractor;
+  vValue: Variant;
+  vItem: TEnumItem;
+  vField: TBaseField;
+  vEntities: TEntityList;
+  vEntityField: TEntityField;
+  i: Integer;
+  procedure DoChange;
+  begin
+    TUserSession(vInteractor.Session).AtomicModification(nil,
+      function(const AHolder: TChangeHolder): Boolean
+      begin
+        vEntity._SetFieldValue(AHolder, vFieldName, vValue);
+        Result := True;
+      end, TChangeHolder(FOwner.Holder));
+  end;
+
+begin
+  vEntity := nil;
+    try
+      vEntity := FAllData.Entity[ARow];
+      if not Assigned(vEntity) then
+        Exit;
+
+      vColumn := FGrid.Columns[ACol];
+
+      vFieldName := vColumn.TagString;
+      vField := vEntity.FieldByName(vFieldName);
+
+      if Assigned(vField) then
+        vFieldDef := vField.FieldDef
+      else
+        vFieldDef := TFieldDef(vColumn.TagObject);
+
+      if vFieldDef = nil then
+        Exit;
+
+      vInteractor := TInteractor(FOwner.View.Interactor);
+
+      if vFieldDef.Kind = fkDateTime then
+      begin
+        { if (TDateTime(Result) < 2) and (vFieldDef.StyleName <> 'time') then
+          Result := Null
+          else if vFieldDef.StyleName = 'date' then // cut the time
+          Result := Trunc(Result); }
+      end
+      else if vFieldDef.Kind = fkEnum then
+      begin
+        vEnumeration := TDomain(vEntity.Domain).Configuration.Enumerations.ObjectByName(TSimpleFieldDef(vFieldDef).Dictionary);
+        if Assigned(vEnumeration) then
+        begin
+          vItem := vEnumeration.GetItemByDisplayText(Value.AsString);
+          if Assigned(vItem) then
+          begin
+            vValue := vItem.ID;
+            DoChange;
+          end;
+        end;
+      end
+      else if vFieldDef.Kind in [fkInteger, fkColor] then
+      begin
+        vValue := StrToIntDef(Value.AsString, 0);
+        DoChange;
+      end
+      else if vFieldDef.Kind in [fkFloat, fkCurrency] then
+      begin
+        vValue := StrToFloatDef(Value.AsString, 0);
+        DoChange;
+      end
+      else if vFieldDef.Kind = fkString then
+      begin
+        vValue := Value.AsString;
+        DoChange;
+      end
+      else if vFieldDef.Kind = fkBoolean then
+      begin
+        vValue := Value.AsBoolean;
+        DoChange;
+      end
+      else if vFieldDef.Kind = fkObject then
+      begin
+        vEntityValue := nil;
+        vEntities := TEntityList.Create(vInteractor.Domain, vInteractor.Session);
+        try
+          vEntityField := TEntityField(vField);
+          vEntityField.GetEntitiesForSelect(vInteractor.Session, vEntities);
+
+          for i := 0 to vEntities.Count - 1 do
+            if SafeDisplayName(vEntities[i]) = Value.AsString then
+            begin
+              vEntityValue := vEntities[i];
+              Break;
+            end;
+        finally
+          FreeAndNil(vEntities);
+        end;
+
+        TUserSession(vInteractor.Session).AtomicModification(nil,
+          function(const AHolder: TChangeHolder): Boolean
+          begin
+            vEntity._SetFieldEntity(AHolder, vFieldName, vEntityValue);
+            Result := True;
+          end, TChangeHolder(FOwner.Holder));
+      end;
+
+    except
+      on E: Exception do
+        if Assigned(vEntity) then
+          TDomain(vEntity.Domain).Logger.AddMessage('Ошибка обновления данных в модели. Поле [' + vFieldName + ']');
+    end;
 end;
 
 procedure TFMXGridEditor.DoOnCellDblClick(const Column: TColumn; const Row: Integer);
@@ -731,7 +936,10 @@ begin
       Exit;
     vColumn := FGrid.Columns[ACol];
     vField := vEntity.FieldByName(vColumn.TagString);
-    vFieldDef := vField.FieldDef;
+    if Assigned(vField) then
+      vFieldDef := vField.FieldDef
+    else
+      vFieldDef := TFieldDef(vColumn.TagObject);
 
     if vFieldDef = nil then
     begin
@@ -743,7 +951,9 @@ begin
     if Value.IsEmpty then
       Exit;
 
-    if vFieldDef.Kind = fkDateTime then
+    if vFieldDef.Kind = fkColor then
+      Value := IntToHex(Value.AsInteger)
+    else if vFieldDef.Kind = fkDateTime then
     begin
       if (Value.AsExtended < 2) and (vFieldDef.StyleName <> 'time') then
         Value := TValue.FromVariant(Null)
@@ -779,8 +989,8 @@ end;
 
 procedure TFMXGridEditor.UpdateArea(const AKind: Word; const AParameter: TEntity = nil);
 begin
-  if (AKind = dckEntityDeleted) or (AKind = dckListAdded) or (AKind = dckListRemoved) or (AKind = dckFilterChanged)
-     or (AKind = dckEntitySaved) then
+  if (AKind = dckEntityDeleted) or (AKind = dckEntityChanged) or (AKind = dckListAdded) or (AKind = dckListRemoved) or (AKind = dckFilterChanged)
+     or (AKind = dckEntitySaved) or (AKind = dckListEndUpdate) then
   begin
     FGrid.RowCount := 0;
     FGrid.RowCount := FAllData.Count;
@@ -1034,7 +1244,6 @@ var
   vCollection: TCollection;
   vLookupItem: TEntity;
   vItem: TListBoxItem;
-  vLastPos: Single;
 
   function IsChanged: Boolean;
   var
@@ -1060,8 +1269,6 @@ begin
 
   while FListBox.Items.Count > 0 do
     FListBox.Items.Delete(0);
-
-  vLastPos := 0;
 
   for vLookupItem in vCollection do
   begin
@@ -1144,8 +1351,6 @@ begin
 end;
 
 procedure TFMXEntityListSelector3.SwitchChangeHandlers(const AHandler: TNotifyEvent);
-var
-  i: integer;
 begin
   inherited;
   if Assigned(AHandler) then

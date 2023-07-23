@@ -38,9 +38,12 @@ interface
 uses
   Classes, SysUtils, SyncObjs, Generics.Collections, uTask, IdBaseComponent, IdComponent, IdTCPConnection, IdTCPClient,
   IdCookieManager, IdHTTP, IdSMTP, IdMessageClient, IdMessage, IdAttachmentFile, IdText, IdExplicitTLSClientServerBase,
-  IdIOHandler, IdIOHandlerSocket, IdIOHandlerStack, IdSSL, IdSSLOpenSSLHeaders, IdSSLOpenSSL, uConsts;
+  IdIOHandler, IdIOHandlerSocket, IdIOHandlerStack, IdSSL, IdSSLOpenSSLHeaders, IdSSLOpenSSL, uConsts,
+  System.Net.URLClient, System.Net.HttpClient, System.Net.HttpClientComponent;
 
 type
+  TSSLMethod = (smSSLv2, smSSLv23, smSSLv3, smTLSv1, smTLSv11, smTLSv12);
+
   THTTPTask = class(TTaskHandle)
   private
     FMethod: THTTPHeaderMethod;
@@ -53,12 +56,14 @@ type
     FIOHandler: TIdSSLIOHandlerSocketOpenSSL;
     FCookieManager: TIdCookieManager;
     FTotalBytes: Int64;
+    FSSLMethod: TSSLMethod;
     procedure OnStart(ASender: TObject; AWorkMode: TWorkMode; AWorkCountMax: Int64);
     procedure OnWork(ASender: TObject; AWorkMode: TWorkMode; AWorkCount: Int64);
     function GetRequest: TIdHTTPRequest;
     function GetResponse: TIdHTTPResponse;
     function GetContentType: string;
     procedure SetContentType(const Value: string);
+    procedure SetSSLMethod(const Value: TSSLMethod);
   protected
     procedure DoExecute; override;
   public
@@ -82,6 +87,48 @@ type
     property Request: TIdHTTPRequest read GetRequest;
     property Response: TIdHTTPResponse read GetResponse;
     property ContentType: string read GetContentType write SetContentType;
+    property SSLMethod: TSSLMethod read FSSLMethod write SetSSLMethod;
+  end;
+
+  TNetHTTPTask = class(TTaskHandle)
+    FMethod: THTTPHeaderMethod;
+    FRequestUrl: string;
+    FPostParams: TStream;
+    FResponseText: string;
+    FResponseCode: Integer;
+    FResponseStream: TStream;
+    FHTTPClient: TNetHTTPClient;
+    FTotalBytes: Int64;
+    function GetContentType: string;
+    procedure SetContentType(const Value: string);
+    procedure SetAccept(const AValue: string);
+    procedure SetAcceptCharSet(const AValue: string);
+    procedure SetAcceptLanguage(const AValue: string);
+    procedure SetAcceptEncoding(const AValue: string);
+  protected
+    procedure DoExecute; override;
+  public
+    constructor Create(const AName: string; const ARequest: string; const AMethod: THTTPHeaderMethod = hhmGet);
+    destructor Destroy; override;
+
+    procedure AddHeader(const AName, AValue: string);
+    procedure AddClientCookie(const ACookie: string);
+
+    procedure SetPostParams(const AText: string; const AEncoding: TEncoding); overload;
+    procedure SetPostParams(const AStrings: TStrings); overload;
+    procedure SetPostParams(const AContent: TStream); overload;
+    //procedure SetPostParams(const AText: UTF8String); overload;
+
+    procedure SetRequest(const ARequest: string; const AMethod: THTTPHeaderMethod = hhmGet);
+
+    property ResponseText: string read FResponseText;
+    property ResponseCode: Integer read FResponseCode;
+    property ResponseStream: TStream read FResponseStream write FResponseStream;
+    property ContentType: string read GetContentType write SetContentType;
+    property Accept: string write SetAccept;
+    property AcceptCharSet: string write SetAcceptCharSet;
+    property AcceptEncoding: string write SetAcceptEncoding;
+    property AcceptLanguage: string write SetAcceptLanguage;
   end;
 
   TEMailTask = class(TTaskHandle)
@@ -115,10 +162,10 @@ function WWWEscape(const AText: string): string;
 implementation
 
 uses
-  Types, Math, IdGlobal, IdUriUtils, IdURI, IdCookie, IdEMailAddress, Zlib;
+  Types, Math, IdGlobal, IdUriUtils, IdURI, IdCookie, IdEMailAddress, Zlib, uDomain;
 
 const
-  cUserAgent = 'Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/41.0.2224.3 Safari/537.36';
+  cUserAgent = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/108.0.0.0 YaBrowser/23.1.2.987 Yowser/2.5 Safari/537.36';
 
 function WWWEscape(const AText: string): string;
 const
@@ -186,9 +233,7 @@ begin
   FHTTPClient.ProtocolVersion := pv1_1;
   FHTTPClient.HTTPOptions := FHTTPClient.HTTPOptions + [hoKeepOrigProtocol];
   FIOHandler := TIdSSLIOHandlerSocketOpenSSL.Create(nil);
-  // Нужно пробовать, какой метод подходит к этой версии Инди
-  // Варианты: sslvSSLv2, sslvSSLv23, sslvSSLv3, sslvTLSv1, sslvTLSv1_1,sslvTLSv1_2
-  FIOHandler.SSLOptions.Method := sslvSSLv23;
+  SetSSLMethod(smSSLv23);
   FCookieManager := TIdCookieManager.Create(nil);
   FHTTPClient.CookieManager := FCookieManager;
   FHTTPClient.AllowCookies := True;
@@ -380,6 +425,170 @@ begin
 end;
 
 procedure THTTPTask.SetRequest(const ARequest: string; const AMethod: THTTPHeaderMethod);
+begin
+  FRequestUrl := ARequest;
+  FMethod := AMethod;
+end;
+
+procedure THTTPTask.SetSSLMethod(const Value: TSSLMethod);
+begin
+  FSSLMethod := Value;
+  case Value of
+    smSSLv2: FIOHandler.SSLOptions.Method := sslvSSLv2;
+    smSSLv3: FIOHandler.SSLOptions.Method := sslvSSLv3;
+    smTLSv1: FIOHandler.SSLOptions.Method := sslvTLSv1;
+    smTLSv11: FIOHandler.SSLOptions.Method := sslvTLSv1_1;
+    smTLSv12: FIOHandler.SSLOptions.Method := sslvTLSv1_2;
+  else
+    FIOHandler.SSLOptions.Method := sslvSSLv23
+  end;
+end;
+
+{ TNetHTTPTask }
+
+procedure TNetHTTPTask.AddClientCookie(const ACookie: string);
+begin
+
+end;
+
+procedure TNetHTTPTask.AddHeader(const AName, AValue: string);
+begin
+  FHTTPClient.CustomHeaders[AName] := AValue;
+end;
+
+constructor TNetHTTPTask.Create(const AName: string; const ARequest: string; const AMethod: THTTPHeaderMethod);
+begin
+  inherited Create(AName);
+
+  FHTTPClient := TNetHTTPClient.Create(nil);
+  FHTTPClient.HandleRedirects := True;
+  FHTTPClient.UserAgent := cUserAgent;
+  FRequestUrl := ARequest;
+  FMethod := AMethod;
+end;
+
+destructor TNetHTTPTask.Destroy;
+begin
+  if Assigned(FPostParams) then
+    FreeAndNil(FPostParams);
+
+  FreeAndNil(FHTTPClient);
+
+  inherited Destroy;
+end;
+
+procedure TNetHTTPTask.DoExecute;
+var
+  vResponse: IHTTPResponse;
+begin
+  FResponseText := '';
+  try
+    case FMethod of
+      hhmGet:
+        if Assigned(FResponseStream) then
+          vResponse := FHTTPClient.Get(FRequestUrl, FResponseStream)
+        else
+          vResponse := FHTTPClient.Get(FRequestUrl);
+      hhmPost: vResponse := FHTTPClient.Post(FRequestUrl, FPostParams);
+      hhmPut: vResponse := FHTTPClient.Put(FRequestUrl, FPostParams);
+      hhmDelete: vResponse := FHTTPClient.Delete(FRequestUrl);
+      hhmPatch: ;
+    else
+      begin
+        FResponseCode := 0;
+        Exit;
+      end;
+    end;
+  except
+    on E: EIdHttpProtocolException do
+    begin
+      FResponseText := E.ErrorMessage; // FHTTPClient.ResponseText;
+    end;
+  end;
+
+  if Assigned(vResponse) then
+  begin
+    FResponseCode := vResponse.StatusCode;
+    if not Assigned(FResponseStream) then
+      FResponseText := vResponse.ContentAsString(TEncoding.Default);
+  end;
+end;
+
+function TNetHTTPTask.GetContentType: string;
+begin
+  Result := FHTTPClient.ContentType;
+end;
+
+procedure TNetHTTPTask.SetAccept(const AValue: string);
+begin
+  FHTTPClient.Accept := AValue;
+end;
+
+procedure TNetHTTPTask.SetAcceptCharSet(const AValue: string);
+begin
+  FHTTPClient.AcceptCharSet := AValue;
+end;
+
+procedure TNetHTTPTask.SetAcceptEncoding(const AValue: string);
+begin
+  FHTTPClient.AcceptEncoding := AValue;
+end;
+
+procedure TNetHTTPTask.SetAcceptLanguage(const AValue: string);
+begin
+  FHTTPClient.AcceptLanguage := AValue;
+end;
+
+procedure TNetHTTPTask.SetContentType(const Value: string);
+begin
+  FHTTPClient.ContentType := Value;
+end;
+
+procedure TNetHTTPTask.SetPostParams(const AText: string; const AEncoding: TEncoding);
+var
+  vStream: TStringStream;
+begin
+  if AText <> '' then
+    vStream := TStringStream.Create(AText, AEncoding)
+  else
+    vStream := nil;
+  SetPostParams(vStream);
+end;
+
+procedure TNetHTTPTask.SetPostParams(const AStrings: TStrings);
+var
+  vParams: string;
+  vParameter: string;
+  i: Integer;
+begin
+  vParams := '';
+  for i := 0 to AStrings.Count - 1 do
+  begin
+    vParameter := Trim(AStrings[i]);
+    if vParameter <> '' then
+    begin
+      if vParams <> '' then
+        vParams := vParams + '&';
+
+      if Pos('=', vParameter) > 0 then
+        vParams := vParams + Trim(AStrings.Names[i]) + '=' +
+          WWWEscape(Trim(AStrings.ValueFromIndex[i]))
+      else
+        vParams := vParams + WWWEscape(vParameter);
+    end;
+  end;
+
+  SetPostParams(vParams, TEncoding.UTF8);
+  FHTTPClient.ContentType := 'application/x-www-form-urlencoded';
+end;
+
+procedure TNetHTTPTask.SetPostParams(const AContent: TStream);
+begin
+  FPostParams := AContent;
+  TStream(FPostParams).Position := 0;
+end;
+
+procedure TNetHTTPTask.SetRequest(const ARequest: string; const AMethod: THTTPHeaderMethod);
 begin
   FRequestUrl := ARequest;
   FMethod := AMethod;

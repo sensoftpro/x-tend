@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- Basic theme for all Android versions -->
+    <style name="BaseAppTheme" parent="Theme.AppCompat.Light">
+        <!-- Hiding toolbar -->
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <!-- Splash screen image, which is displayed on cold application startup before first rednering form. -->
+        <item name="android:windowBackground">@drawable/launch_screen</item>
+        <!-- We make the system status bar transparent so that when loading the status bar overlaps
+             on a splash screen with a transparency effect -->
+        <item name="android:windowTranslucentStatus">true</item>
+
+        <!-- By default, Android does not use reels to select the date and time.
+             However, we have TfgDatePicker/TfgTimePicker components that should work
+             like drums. -->
+        <item name="android:datePickerStyle">@style/SpinnerDatePicker</item>
+        <item name="android:timePickerStyle">@style/SpinnerTimePicker</item>
+    </style>
+
+    <style name="AppTheme" parent="BaseAppTheme">
+    </style>
+
+    <!-- TfgDatePicker style for displaying component like a wheel -->
+    <style name="SpinnerDatePicker" parent="android:Widget.Material.DatePicker">
+        <item name="android:datePickerMode">spinner</item>
+    </style>
+
+    <!-- TfgTimePicker style for displaying component like a wheel -->
+    <style name="SpinnerTimePicker" parent="android:Widget.Material.TimePicker">
+        <item name="android:timePickerMode">spinner</item>
+    </style>
+    
+    <!-- TfgCollectionView style, which is necessary for the native view to have
+         the ability to display scrollbars. Even though in the end
+         there can be only one scrollbar, it is necessary to specify two types here. -->
+    <style name="CollectionView" parent="android:Widget">
+        <item name="android:scrollbars">vertical|horizontal</item>
+    </style>
+</resources>

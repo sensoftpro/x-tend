@@ -538,7 +538,7 @@ end;  *)
 
 procedure TCfgLocalizator.AddTranslation(const AKey, AText: string);
 begin
-  if AText <> '' then
+  if Assigned(FDefaultLanguage) and (AText <> '') then
     FDefaultLanguage[AKey] := AText;
 end;
 

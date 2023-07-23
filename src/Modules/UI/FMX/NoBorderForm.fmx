@@ -1,0 +1,14 @@
+object NoBorderFm: TNoBorderForm
+  ClientHeight = 640
+  ClientWidth = 480
+  FormFactor.Width = 640
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  Left = 100
+  Top = 100
+  DesignerMasterStyle = 0
+  Visible = False
+  BorderStyle = None
+  FormStyle = StayOnTop
+  Position = ScreenCenter
+end

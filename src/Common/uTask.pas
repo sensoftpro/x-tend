@@ -114,6 +114,7 @@ type
   TTaskEngine = class(TDomainModule)
   private
     FLambdas: TObjectList<TTaskHandle>;
+    FLambdaLock: TCriticalSection;
     procedure NotifyCompleted(const ATask: TTaskHandle);
   protected
     procedure DoExecuteTask(const ATask: TTaskHandle); virtual; abstract;
@@ -123,7 +124,7 @@ type
 
     // Creation and launch for an execution
     function Execute(const AName: string; const AExecutionProc: TExecutionProc): TTaskHandle;
-    procedure ExecuteManaged(const AName: string; const AExecutionProc: TExecutionProc);
+    function ExecuteManaged(const AName: string; const AExecutionProc: TExecutionProc): TTaskHandle;
   end;
 
   TSimpleTaskEngine = class(TTaskEngine)
@@ -203,6 +204,8 @@ begin
 end;
 
 procedure TExecutor.Execute;
+var
+  vCurrentTaskName: string;
 begin
   repeat
     // Бесконечно ожидаем "боевую" задачу на исполнение, или nil-задачу для завершения
@@ -210,12 +213,14 @@ begin
     if Assigned(FCurrentTask) then
     begin
       //Notify('takes a task');
-      TThread.Current.NameThreadForDebugging(FCurrentTask.Name);
+      vCurrentTaskName := FCurrentTask.Name;
+      NameThreadForDebugging(vCurrentTaskName);
       FEngine.AcquireThread;
       try
         FCurrentTask.ExecuteAsync;
       finally
         //Notify('task executed');
+        NameThreadForDebugging(vCurrentTaskName + ' - done');
         FEngine.NotifyCompleted(FCurrentTask);
         FCurrentTask := nil;
         FEngine.ReleaseThread;
@@ -357,7 +362,7 @@ begin
   if not SetState(tskRunning, tskCanceled) then
     Exit;
 
-  CheckSynchronize;
+ // CheckSynchronize; // todo: точно ещё нужно? этот вызов предполагает, что мы находимся в основном потоке (в smartcom connector это не так)
   FCancellationToken.SetEvent;
 
   vWaitResult := wrTimeout;
@@ -457,11 +462,13 @@ constructor TTaskEngine.Create(const ADomain: TObject; const AName: string);
 begin
   inherited Create(ADomain, AName);
   FLambdas := TObjectList<TTaskHandle>.Create;
+  FLambdaLock := TCriticalSection.Create;
 end;
 
 destructor TTaskEngine.Destroy;
 begin
   FreeAndNil(FLambdas);
+  FreeAndNil(FLambdaLock);
   inherited Destroy;
 end;
 
@@ -471,18 +478,26 @@ begin
   Result.Start(Self);
 end;
 
-procedure TTaskEngine.ExecuteManaged(const AName: string; const AExecutionProc: TExecutionProc);
-var
-  vTask: TLambdaTask;
+function TTaskEngine.ExecuteManaged(const AName: string; const AExecutionProc: TExecutionProc): TTaskHandle;
 begin
-  vTask := TLambdaTask.Create('Managed:' + AName, AExecutionProc);
-  FLambdas.Add(vTask);
-  vTask.Start(Self);
+  Result := TLambdaTask.Create('Managed:' + AName, AExecutionProc);
+  FLambdaLock.Enter;
+  try
+    FLambdas.Add(Result);
+  finally
+    FLambdaLock.Leave;
+  end;
+  Result.Start(Self);
 end;
 
 procedure TTaskEngine.NotifyCompleted(const ATask: TTaskHandle);
 begin
-  FLambdas.Remove(ATask);
+  FLambdaLock.Enter;
+  try
+    FLambdas.Remove(ATask);
+  finally
+    FLambdaLock.Leave;
+  end;
 end;
 
 { TLambdaTask }

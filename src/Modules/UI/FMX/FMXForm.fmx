@@ -1,13 +1,8 @@
 object FMXFm: TFMXForm
-  Left = 510
-  Top = 150
-  ClientHeight = 740
-  ClientWidth = 1040
-  Position = Designed
-  FormFactor.Width = 320
+  Position = DefaultSizeOnly
+  FormFactor.Width = 640
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
-  Left = 510
-  Top = 150
   DesignerMasterStyle = 0
+  Visible = False
 end

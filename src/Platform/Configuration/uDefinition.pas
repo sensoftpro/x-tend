@@ -634,10 +634,18 @@ type
 
   // Действия
   TActionDef = class(TDefinition)
+  private
+    FShortCuts: TList<TShortCut>;
   protected
     function IsParam: Boolean; override;
   public
     constructor Create(const AOwner: TObject; const AName, ACaption, AImageID: string);
+    destructor Destroy; override;
+
+    // https://docwiki.embarcadero.com/RADStudio/Alexandria/en/Representing_Keys_and_Shortcuts
+    function AddShortCut(const AShortCut: TShortCut): TActionDef; overload;
+    function AddShortCut(const AShortCutText: string): TActionDef; overload;
+    function ShortCutExists(const AShortCut: TShortCut): Boolean;
   end;
 
   TActions = class(TDefList<TActionDef>)
@@ -1616,19 +1624,48 @@ end;
 
 { TActionDef }
 
+function TActionDef.AddShortCut(const AShortCutText: string): TActionDef;
+var
+  vShortCut: TShortCut;
+begin
+  vShortCut := TextToShortCut(AShortCutText);
+  if vShortCut > 0 then
+    AddShortCut(vShortCut);
+  Result := Self;
+end;
+
+function TActionDef.AddShortCut(const AShortCut: TShortCut): TActionDef;
+begin
+  if not ShortCutExists(AShortCut) then
+    FShortCuts.Add(AShortCut);
+  Result := Self;
+end;
+
 constructor TActionDef.Create(const AOwner: TObject; const AName, ACaption, AImageID: string);
 begin
   inherited Create(AOwner, False, AName);
 
+  FShortCuts := TList<TShortCut>.Create;
   FFullName := AName;
   if Assigned(FDefinition) then
     FFullName := FDefinition.Name + '.' + FFullName;
   SetCaption(ACaption).SetImageID(AImageID);
 end;
 
+destructor TActionDef.Destroy;
+begin
+  FreeAndNil(FShortCuts);
+  inherited Destroy;
+end;
+
 function TActionDef.IsParam: Boolean;
 begin
   Result := True;
+end;
+
+function TActionDef.ShortCutExists(const AShortCut: TShortCut): Boolean;
+begin
+  Result := FShortCuts.Contains(AShortCut);
 end;
 
 { TDefItem }

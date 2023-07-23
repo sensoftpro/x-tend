@@ -197,6 +197,7 @@ type
     procedure OnPhoneKeyPress(Sender: TObject; var Key: Char);
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    function GetNewValue: Variant; override;
     procedure FillEditor; override;
     procedure DoOnChange; override;
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
@@ -464,6 +465,9 @@ end;
 { TDEIntegerEditControl }
 
 function TDEIntegerFieldEditor.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vEntity: TEntity;
+  vParamDef: TEntity;
 begin
   Result := TcxSpinEdit.Create(nil);
 
@@ -477,20 +481,45 @@ begin
 
   with TcxSpinEdit(Result).Properties do
   begin
-    if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
+    if FFieldDef.Definition.IsDescendantOf('_IntegerParameters') and (
+      (FFieldDef.Name = 'StartValue') or (FFieldDef.Name = 'EndValue') or (FFieldDef.Name = 'Value')) then
     begin
-      MaxValue := TSimpleFieldDef(FFieldDef).MaxValue;
-      AssignedValues.MaxValue := True;
-    end;
+      vEntity := TEntity(FView.ParentDomainObject);
+      if not Assigned(vEntity) then
+        Exit;
 
-    if not VarIsNull(TSimpleFieldDef(FFieldDef).MinValue) then
-    begin
-      MinValue := TSimpleFieldDef(FFieldDef).MinValue;
-      AssignedValues.MinValue := True;
-    end;
+      vParamDef := vEntity.ExtractEntity('ParameterDef');
+      if not Assigned(vParamDef) then
+        Exit;
 
-    if (Length(FFieldDef.Format) > 0) or FFieldDef.Definition.FieldExists('Format') then
-      DisplayFormat := GetFormat;
+      if vParamDef['HasMinValue'] and not VarIsNull(vParamDef['MinValue']) then
+      begin
+        MinValue := vParamDef['MinValue'];
+        AssignedValues.MinValue := True;
+      end;
+
+      if vParamDef['HasMaxValue'] and not VarIsNull(vParamDef['MaxValue']) then
+      begin
+        MaxValue := vParamDef['MaxValue'];
+        AssignedValues.MaxValue := True;
+      end;
+    end
+    else begin
+      if not VarIsNull(TSimpleFieldDef(FFieldDef).MaxValue) then
+      begin
+        MaxValue := TSimpleFieldDef(FFieldDef).MaxValue;
+        AssignedValues.MaxValue := True;
+      end;
+
+      if not VarIsNull(TSimpleFieldDef(FFieldDef).MinValue) then
+      begin
+        MinValue := TSimpleFieldDef(FFieldDef).MinValue;
+        AssignedValues.MinValue := True;
+      end;
+
+      if (Length(FFieldDef.Format) > 0) or FFieldDef.Definition.FieldExists('Format') then
+        DisplayFormat := GetFormat;
+    end;
   end;
 end;
 
@@ -904,6 +933,11 @@ begin
       vEdit.Style.Color := clWindow;
     end;
   end;
+end;
+
+function TDETextFieldEditor.GetNewValue: Variant;
+begin
+  Result := TcxTextEdit(FControl).EditingText;
 end;
 
 procedure TDETextFieldEditor.SwitchChangeHandlers(const AHandler: TNotifyEvent);
@@ -1589,7 +1623,7 @@ begin
   FAction.OnAccept := OnAccept;
   FAction.BeforeExecute := BeforeExecute;
   FAction.Caption := '';
-  FAction.ImageIndex := 23;
+  FAction.ImageIndex := AParent.GetImageIndex('open_file');
   if Assigned(FCreateParams) then
     FAction.Dialog.Filter := FCreateParams.Values['filter']
   else begin
@@ -1700,7 +1734,7 @@ begin
   FAction.OnAccept := BrowseForFolder1Accept;
   FAction.BeforeExecute := BeforeExecute;
   FAction.Caption := '';
-  FAction.ImageIndex := 22;
+  FAction.ImageIndex := AParent.GetImageIndex('folder');
 
   FBtn := TcxButton.Create(nil);
   FBtn.Align := alRight;

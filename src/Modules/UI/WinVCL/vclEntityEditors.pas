@@ -98,6 +98,7 @@ type
     FbtnAdd: TButton;
     FEntities: TEntityList;
     FTypeSelectionMenu: TPopupMenu;
+    FDisplayName: string;
   protected
     procedure UpdateVisibility; virtual;
   protected
@@ -108,7 +109,7 @@ type
     procedure DoDeinit; override;
   end;
 
-  TVCLRadioEntitySelector = class(TVCLControl) // сделан на TRadioGroup, в верхней части большой отступ для заголовка, когда нет заголовка элементы криво смотрятся (много пустого места сверху)
+  TVCLRadioEntitySelector = class(TVCLControl) // based on TRadioGroup. At the top there is a large indent for the title. If the title is empty, then the elements look crooked (a lot of empty space on top).
   private
     FEntities: TEntityList;
     procedure FillList;
@@ -120,9 +121,10 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TVCLRadioEntitySelector2 = class(TVCLControl) // сделан на TPanel с инстанцируемыми TRadioButton чтобы избавиться от пустого места сверху
+  TVCLRadioEntitySelector2 = class(TVCLControl) // based on TPanel with TRadioButton controls to get rid of empty space on top
   private
     FEntities: TEntityList;
+    FItemHeight: Integer;
     procedure OnChange(Sender: TObject);
     procedure FillList;
   protected
@@ -229,6 +231,10 @@ begin
 
   FbtnAdd := TButton(GetRealControl(vAddArea));
   FbtnAdd.Parent := FBasePanel;
+
+  FDisplayName := 'Name';
+  if Assigned(FCreateParams) and (FCreateParams.IndexOfName('DisplayFieldName') > -1) then
+    FDisplayName := FCreateParams.Values['DisplayFieldName'];
 end;
 
 procedure TVCLEntityFieldEditor.DoDeinit;
@@ -261,7 +267,7 @@ begin
     if not Assigned(vEntity) then
       Text := FOwner.GetTranslation(vDefinition, tpEmptyValue)
     else
-      Text := vEntity['Name'];
+      Text := vEntity[FDisplayName];
     Hint := Text;
   end;
 
@@ -698,14 +704,22 @@ begin
 end;
 
 function TVCLRadioEntitySelector2.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vRadioItem: TRadioButton;
 begin
   Result := TPanel.Create(nil);
   TPanel(Result).Name := 'radio';
   TPanel(Result).Caption := '';
+  TPanel(Result).Align := alClient;
   TPanel(Result).BevelOuter := bvNone;
   FNeedCreateCaption := False;
 
   FEntities := TEntityList.Create(TInteractor(FView.Interactor).Domain, TInteractor(FView.Interactor).Session);
+
+  vRadioItem := TRadioButton.Create(nil);
+  vRadioItem.Parent := TPanel(Result);
+  FItemHeight := vRadioItem.Height;
+  vRadioItem.Free;
 end;
 
 procedure TVCLRadioEntitySelector2.DoOnChange;
@@ -739,9 +753,9 @@ var
   vRadioEdit: TPanel;
   vRadioItem: TRadioButton;
   vField: TEntityField;
-  i: Integer;
+  i, c: Integer;
   vEnt: TEntity;
-  vStepSize: Integer;
+  vStepSize, vVisibleItemCount: Integer;
 begin
   vField := FView.ExtractEntityField;
   vField.GetEntitiesForSelect(TInteractor(FView.Interactor).Session, FEntities);
@@ -751,20 +765,31 @@ begin
   while vRadioEdit.ControlCount > 0 do
     vRadioEdit.Controls[0].Free;
 
-  vStepSize := vRadioEdit.Height div FEntities.Count;
-
+  vVisibleItemCount := 0;
   for i := 0 to FEntities.Count - 1 do
   begin
     vEnt := FEntities[i];
+    if not Assigned(vEnt) then Continue; // todo: надо обработать cRequired
+    Inc(vVisibleItemCount);
+  end;
+
+  vStepSize := (vRadioEdit.Height - FItemHeight) div (vVisibleItemCount - 1);
+  c := 0;
+  for i := 0 to FEntities.Count - 1 do
+  begin
+    vEnt := FEntities[i];
+    if not Assigned(vEnt) then Continue; // todo: надо обработать cRequired
 
     vRadioItem := TRadioButton.Create(nil);
+    vRadioItem.Width := vRadioEdit.Width;
     vRadioItem.Parent := vRadioEdit;
     vRadioItem.Caption := SafeDisplayName(vEnt);
     vRadioItem.Tag := NativeInt(vEnt);
-    vRadioItem.Top := vStepSize * i;
+    vRadioItem.Top := vStepSize * c;
     vRadioItem.OnClick := OnChange;
     if vEnt = TEntity(NativeInt(FView.FieldValue)) then
       vRadioItem.Checked := True;
+    Inc(c);
   end;
 end;
 

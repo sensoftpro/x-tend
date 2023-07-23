@@ -103,6 +103,7 @@ type
     procedure DoDrawPolyline(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer); override;
     procedure DoDrawBezier(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer); override;
     procedure DoDrawRect(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF); override;
+    procedure DoSetPixel(const AX, AY: Integer; const AColor: Cardinal); override;
     procedure DoDrawText(const AFont: TStyleFont; const AText: string; const ARect: TRectF;
       const AOptions: Cardinal; const AAngle: Single); override;
     function GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF; override;
@@ -110,6 +111,7 @@ type
     procedure DoInvertRect(const ARect: TRectF); override;
     procedure DoDrawImage(const AImage: TObject; const ARect: TRectF; const AOpacity: Single); override;
     procedure DoDrawContext(const AContext: TDrawContext); override;
+    procedure DoStretchDrawContext(const AContext: TDrawContext; const ARect: TRect); override;
 
     procedure DoColorizeBrush(const AFill: TStyleBrush; const AColor: Cardinal); override;
     procedure DoColorizePen(const AStroke: TStylePen; const AColor: Cardinal); override;
@@ -721,6 +723,19 @@ begin
 
   BitBlt(ThisCanvas.Handle, vRect.Left, vRect.Top, vRect.Width, vRect.Height,
     ThisCanvas.Handle, 0, 0, DSTINVERT);
+end;
+
+procedure TCommonVCLPainter.DoSetPixel(const AX, AY: Integer; const AColor: Cardinal);
+begin
+  ThisCanvas.Pixels[AX, AY] := AlphaColorToColor(AColor);
+end;
+
+procedure TCommonVCLPainter.DoStretchDrawContext(const AContext: TDrawContext; const ARect: TRect);
+begin
+  SetStretchBltMode(ThisCanvas.Handle, HALFTONE);
+  StretchBlt(ThisCanvas.Handle, ARect.Left, ARect.Top, ARect.Width, ARect.Height,
+    TWinDrawContext(AContext).Handle, 0, 0,
+    AContext.Width, AContext.Height, SRCCOPY);
 end;
 
 function TCommonVCLPainter.GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF;

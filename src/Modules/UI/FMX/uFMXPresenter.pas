@@ -38,16 +38,14 @@ interface
 uses
   System.StartUpCopy, System.Classes, System.SysUtils, System.UITypes,
 
-{$IFDEF MSWINDOWS }
+{$IF DEFINED(MSWINDOWS)}
   WinAPI.ShellApi, WinAPI.Windows, WinAPI.ActiveX,
-{$ENDIF}
-{$IFDEF ANDROID}
+{$ELSEIF DEFINED(ANDROID)}
   FMX.Helpers.Android, Androidapi.JNI.GraphicsContentViewText,
   Androidapi.JNI.Net, Androidapi.JNI.JavaTypes, idUri,Androidapi.IOUtils,
-{$ENDIF ANDROID}
-{$IFDEF IOS}
+{$ELSEIF DEFINED(IOS)}
   iOSapi.Foundation, FMX.Helpers.iOS,
-{$ENDIF IOS}
+{$ENDIF}
 
   FMX.Types, FMX.Controls, FMX.Graphics, FMX.Objects, FMX.Forms, FMX.Layouts,
   uPresenter, uSettings, uInteractor, uUIBuilder, uSession, uView, fmxArea,
@@ -58,6 +56,9 @@ type
 
 type
   TFMXPresenter = class(TPresenter)
+  //private
+    //FDebugShow: Boolean;
+    //FStyleBook: TStyleBook;
   protected
     procedure OnChildFormKeyDown(Sender: TObject; var Key: Word; var KeyChar: Char; Shift: TShiftState);
   protected
@@ -85,10 +86,13 @@ type
 
     function GetImagePlaceholder(const ASize: Integer): TStream; override;
     function DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject; override;
-
-    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
   public
+    constructor Create(const AName: string; const ASettings: TSettings); override;
+
     procedure ShowUIArea(const AArea: TUIArea; const AAreaName: string; const ACaption: string); override;
+    procedure ShowPage(const AInteractor: TInteractor; const APageType: string;
+      const AParams: TObject = nil; const AOnClose: TCloseProc = nil); override;
+    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
   end;
 
 procedure CopyTextSettings(const ATextSettings: TTextSettings; const ALayout: TLayout);
@@ -100,7 +104,7 @@ procedure CopyBrushSettings(const ABrush: TBrush; const ALayout: TLayout);
 implementation
 
 uses
-  System.Generics.Collections, System.Math, System.Types, System.StrUtils,
+  System.Generics.Collections, System.Math, System.Types, System.StrUtils, System.IOUtils,
   FMX.DialogService, FMX.Dialogs, FMX.MultiResBitmap,
   FMX.StdCtrls, FMX.ExtCtrls, FMX.Menus, FMX.TabControl, FMX.ListView, FMX.ImgList,
   FMX.Memo, FMX.Edit,
@@ -113,6 +117,7 @@ begin
   ATextSettings.FontColor := ALayout.Font.Color;
   ATextSettings.Font.Size := ALayout.Font.Size * 96 / 72;
   ATextSettings.Font.Style := ALayout.Font.Style;
+  ATextSettings.Trimming := TTextTrimming.None;
 end;
 
 procedure CopyMargins(const AControl: TControl; const ALayout: TLayout);
@@ -175,6 +180,13 @@ begin
 end;}
 
 { TFMXPresenter }
+
+constructor TFMXPresenter.Create(const AName: string; const ASettings: TSettings);
+begin
+  inherited;
+  Application.Initialize;
+  Application.Title := cPlatformTitle;
+end;
 
 function TFMXPresenter.CreateControl(const AParent: TUIArea; const AView: TView;
   const ALayout: TLayout; const AParams: string): TObject;
@@ -273,7 +285,7 @@ begin
   begin
     vPC := TTabControl.Create(nil);
     vPC.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
-    vPC.TabPosition := TTabPosition(ALayout.Page_Position);
+//    vPC.TabPosition := TTabPosition(ALayout.Page_Position); TabPosition != PagePosition
     vPC.TabHeight := ALayout.Page_Height;
     vPC.Anchors := ALayout.Anchors;
     vPC.Align := AlignToAlignLayout(ALayout.Align);
@@ -414,11 +426,11 @@ begin
     if ALayout.StyleName = '' then
     begin
       Application.CreateForm(TFMXForm, vForm);
-      Application.RealCreateForms;
+      Application.MainForm := vForm;
 
-      vForm.OnClose := DoMainFormClose;
-//      vForm.Position := TFormPosition.ScreenCenter;
       vForm.Caption := vDomain.AppTitle + ' (' + TUserSession(vInteractor.Session).CurrentUserName + ')';
+      vForm.Position := TFormPosition.ScreenCenter;
+      vForm.OnClose := DoMainFormClose;
     end
     // второстепенная автономная форма
     else if ALayout.StyleName = 'float' then
@@ -429,38 +441,35 @@ begin
         begin
           vArea := AParent.Areas[i];
           if (vArea.View = AView) and (GetRealControl(vArea) is TForm) then
-            Exit(vArea);
+          begin
+            vArea.Close;
+            Break;
+            //Exit(GetRealControl(vArea));
+          end;
         end;
       end;
 
       vForm := TFMXForm.Create(nil);
 
-      vForm.OnClose := DoFloatFormClose;
-//      vForm.Position := TFormPosition.MainFormCenter;
       vForm.Caption := ALayout.Caption;
+      vForm.Position := TFormPosition.MainFormCenter;
       vForm.BorderIcons := [TBorderIcon.biSystemMenu, TBorderIcon.biMinimize, TBorderIcon.biMaximize];
+      vForm.OnClose := DoFloatFormClose;
      end
     // автономная форма со свободным отображением
     else if ALayout.StyleName = 'free' then
     begin
-      vForm := TFMXForm.Create(nil);
-
-//      vForm.Position := TFormPosition.ScreenCenter;
-      vForm.Caption := ALayout.Caption;
-      vForm.BorderStyle := TfmxFormBorderStyle.None;
-      vForm.BorderIcons := [];
-      vForm.FormStyle := TFormStyle.StayOnTop;
+      vForm := TNoBorderForm.Create(nil);
+      vForm.Position := TFormPosition.ScreenCenter;
     end
     // дочерняя модальная форма
     else if (ALayout.StyleName = 'child') or (ALayout.StyleName = 'modal') then
     begin
-      vForm := TFMXForm.Create(nil);
+      vForm := TSingleBorderForm.Create(nil);
 
+      vForm.Position := TFormPosition.MainFormCenter;
       vForm.OnClose := DoChildFormClose;
       vForm.OnKeyDown := OnChildFormKeyDown;
-      vForm.BorderIcons := [TBorderIcon.biSystemMenu];
-//      vForm.Position := TFormPosition.MainFormCenter;
-      vForm.BorderStyle := TfmxFormBorderStyle.Single;
     end;
 
     if vForm = nil then
@@ -532,13 +541,8 @@ procedure TFMXPresenter.CreateMainForm(const ASession: TUserSession);
 begin
   inherited CreateMainForm(ASession);
 
-  if Assigned(ASession) and Assigned(ASession.Interactor) then
-  begin
-    if FStartParameter <> '' then
-      TDomain(ASession.Domain).ExecuteDefaultAction(ASession, FStartParameter);
-
-    Application.Run;
-  end;
+  if Assigned(ASession) and Assigned(ASession.Interactor) and (FStartParameter <> '') then
+    TDomain(ASession.Domain).ExecuteDefaultAction(ASession, FStartParameter);
 end;
 
 function TFMXPresenter.DoCreateImages(const ADomain: TObject; const AImages: TImages; const ASize: Integer): TObject;
@@ -594,19 +598,23 @@ var
   vResDiv8: Integer;
 begin
   vPlaceholder := TBitmap.Create;
-  vPlaceholder.SetSize(ASize, ASize);
-  vResDiv8 := Max(ASize div 8, 1);
-  vPlaceholder.Canvas.BeginScene;
   try
-    vPlaceholder.Canvas.Stroke.Thickness := 1;
-    vPlaceholder.Canvas.Stroke.Color := TAlphaColorRec.Gray;
-    vPlaceholder.Canvas.DrawRect(RectF(vResDiv8, vResDiv8, ASize - vResDiv8, ASize - vResDiv8), 0, 0, AllCorners, 1);
-  finally
-    vPlaceholder.Canvas.EndScene;
-  end;
+    vPlaceholder.SetSize(ASize, ASize);
+    vResDiv8 := Max(ASize div 8, 1);
+    vPlaceholder.Canvas.BeginScene;
+    try
+      vPlaceholder.Canvas.Stroke.Thickness := 1;
+      vPlaceholder.Canvas.Stroke.Color := TAlphaColorRec.Gray;
+      vPlaceholder.Canvas.DrawRect(RectF(vResDiv8, vResDiv8, ASize - vResDiv8, ASize - vResDiv8), 0, 0, AllCorners, 1);
+    finally
+      vPlaceholder.Canvas.EndScene;
+    end;
 
-  Result := TMemoryStream.Create;
-  vPlaceholder.SaveToStream(Result);
+    Result := TMemoryStream.Create;
+    vPlaceholder.SaveToStream(Result);
+  finally
+    FreeAndNil(vPlaceholder);
+  end;
 end;
 
 function TFMXPresenter.GetNativeControlClass: TNativeControlClass;
@@ -633,6 +641,29 @@ end;
 procedure TFMXPresenter.DoLogout(const AInteractor: TInteractor);
 begin
   inherited DoLogout(AInteractor);
+end;
+
+procedure TFMXPresenter.ShowPage(const AInteractor: TInteractor;
+  const APageType: string; const AParams: TObject; const AOnClose: TCloseProc);
+//var
+//  vDomain: TDomain;
+//  vDebugData: TEntity;
+begin
+  {if (APageType = 'debug') and (_Platform.DeploymentType = 'dev') and Assigned(AInteractor.RootArea) then
+  begin
+    vDomain := TDomain(AInteractor.Domain);
+    vDebugData := vDomain.FirstEntity('SysServices');
+    vDebugData._SetFieldValue(vDomain.DomainHolder,'AreasInfo', AInteractor.RootArea.TextHierarchy(''));
+    if not FDebugShow then
+    begin
+      FDebugShow := True;
+      vDomain.UIBuilder.Navigate(AInteractor.RootView,
+        'float', 'DebugForm', '', nil, vDomain.AppTitle, procedure(const AResult: TDialogResult)
+        begin
+          FDebugShow := False;
+        end);
+    end;
+  end;}
 end;
 
 procedure TFMXPresenter.ShowUIArea(const AArea: TUIArea;
@@ -752,16 +783,10 @@ begin
 end;
 
 procedure TFMXPresenter.DoRun(const AParameter: string);
-var
-  vDomain: TDomain;
 begin
   inherited DoRun(AParameter);
-
-  Application.Title := cPlatformTitle;
-  Application.Initialize;
-
-  vDomain := _Platform.Domains[0];
-  Login(vDomain);
+  
+  Application.Run;
 end;
 
 procedure TFMXPresenter.DoSetCursor(const ACursorType: TCursorType);

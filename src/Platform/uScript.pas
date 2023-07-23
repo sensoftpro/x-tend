@@ -126,7 +126,7 @@ type
     function InternalExecuteAction(const AView: TView; const AActionName: string;
       const AContext: TObject; const AParams: TEntity; const AParentHolder: TChangeHolder): Boolean;
     function InternalCheckActionFlags(const AView: TView; const AActionName: string;
-      const AContext: TObject; const AParams: TEntity): TViewState;
+      const AContext: TObject; const AParams: TEntity; const AParentHolder: TChangeHolder): TViewState;
     procedure FillActionParams(const AView: TView; const AActionName: string; const AContext: TObject;
       const AParams: TEntity);
     procedure ExecutePreparedAction(const AView: TView; const AParentHolder: TChangeHolder);
@@ -160,7 +160,7 @@ type
     function CanChangeField(const AView: TView; const AEntity: TEntity;
       const AFieldName: string; const ANewValue: Variant): Boolean;
     function BeforeUIClosing(const AInteractor: TInteractor; const AOnClose: TCloseProc): TCloseAction;
-    function CheckActionFlags(const AView: TView): TViewState;
+    function CheckActionFlags(const AView: TView; const AParentHolder: TChangeHolder): TViewState;
     function ExecuteAction(const AView: TView; const AParentHolder: TChangeHolder): Boolean;
     function ExecuteCommand(const AExecutor: TObject; const ATask: TTaskHandle; const AFiber, ACommand: TObject): Boolean;
     procedure CreateContentTypeChangeHandler(const ADefinition: TDefinition; const ATargetFieldName, AContentTypePath: string);
@@ -267,9 +267,9 @@ begin
   if not Assigned(AEntity.Collection) then
     Exit;
 
+  DoAfterEntityCreation(AHolder, AOwnerContext, AEntity);
   for vInclusion in FInclusions do
     vInclusion.DoAfterEntityCreation(AHolder, AOwnerContext, AEntity);
-  DoAfterEntityCreation(AHolder, AOwnerContext, AEntity);
 end;
 
 procedure TScript.AfterEntitySaved(const AHolder: TChangeHolder; const AEntity: TEntity);
@@ -364,7 +364,7 @@ begin
     Result := True;
 end;
 
-function TScript.CheckActionFlags(const AView: TView): TViewState;
+function TScript.CheckActionFlags(const AView: TView; const AParentHolder: TChangeHolder): TViewState;
 var
   vAction: TActionDef;
   vActionName: string;
@@ -394,10 +394,10 @@ begin
     else
       Result := vsHidden;
     for vSelectedItem in vListObject.Selection do
-      Result := Result or InternalCheckActionFlags(AView, vActionName, TEntity(vSelectedItem), vParams);
+      Result := Result or InternalCheckActionFlags(AView, vActionName, TEntity(vSelectedItem), vParams, AParentHolder);
   end
   else
-    Result := InternalCheckActionFlags(AView, vActionName, vContext, vParams);
+    Result := InternalCheckActionFlags(AView, vActionName, vContext, vParams, AParentHolder);
 end;
 
 function TScript.CheckField(const AEntity: TEntity; const AFieldName: string): Boolean;
@@ -839,9 +839,9 @@ begin
       vCollection.CreateDefaultEntity(AHolder, 3, 'Name;Code', ['Удаление', 'delete']);
 
       try
+        DoCreateDefaultEntities(vDomain, AHolder);
         for vInclusion in FInclusions do
           vInclusion.DoCreateDefaultEntities(vDomain, AHolder);
-        DoCreateDefaultEntities(vDomain, AHolder);
       except
         on E: Exception do
           vDomain.Logger.AddMessage('Ошибка при создании объектов по умолчанию. (' + E.Message + ')')
@@ -1087,7 +1087,7 @@ begin
 
             vSelectionCopy := TList<TEntity>.Create;
             for i := 0 to vSelectionCount - 1 do
-              if InternalCheckActionFlags(AView, vActionName, TEntity(vListObject.Selection[i]), vParams) = vsFullAccess then
+              if InternalCheckActionFlags(AView, vActionName, TEntity(vListObject.Selection[i]), vParams, AParentHolder) = vsFullAccess then
                 vSelectionCopy.Add(TEntity(vListObject.Selection[i]));
             try
               for i := vSelectionCopy.Count - 1 downto 0 do
@@ -1097,7 +1097,7 @@ begin
             end;
           end);
       end
-      else if InternalCheckActionFlags(AView, vActionName, vContext, vParams) = vsFullAccess then
+      else if InternalCheckActionFlags(AView, vActionName, vContext, vParams, AParentHolder) = vsFullAccess then
         vInteractor.ShowYesNoDialog(vInteractor.Translate('cptPrompt', 'Подтвердите'),
           vInteractor.Translate('msgWantDeleteRecord', 'Вы действительно хотите удалить запись') +
           ' [' + SafeDisplayName(vListObject.Selection[0]) +']?', False, procedure(const AResult: TDialogResult)
@@ -1105,7 +1105,7 @@ begin
             if AResult <> drYes then
               Exit;
 
-            if InternalCheckActionFlags(AView, vActionName, vContext, vParams) = vsFullAccess then
+            if InternalCheckActionFlags(AView, vActionName, vContext, vParams, AParentHolder) = vsFullAccess then
               InternalExecuteAction(AView, vActionName, vContext, vParams, AParentHolder);
           end);
 
@@ -1115,7 +1115,7 @@ begin
     begin
       vSelectionCopy := TList<TEntity>.Create;
       for i := 0 to vSelectionCount - 1 do
-        if InternalCheckActionFlags(AView, vActionName, TEntity(vListObject.Selection[i]), vParams) = vsFullAccess then
+        if InternalCheckActionFlags(AView, vActionName, TEntity(vListObject.Selection[i]), vParams, AParentHolder) = vsFullAccess then
           vSelectionCopy.Add(TEntity(vListObject.Selection[i]));
       try
         for i := vSelectionCopy.Count - 1 downto 0 do
@@ -1124,10 +1124,10 @@ begin
         FreeAndNil(vSelectionCopy);
       end;
     end
-    else if InternalCheckActionFlags(AView, vActionName, vContext, vParams) = vsFullAccess then
+    else if InternalCheckActionFlags(AView, vActionName, vContext, vParams, AParentHolder) = vsFullAccess then
       InternalExecuteAction(AView, vActionName, vContext, vParams, AParentHolder);
   end
-  else if InternalCheckActionFlags(AView, vActionName, vContext, vParams) = vsFullAccess then
+  else if InternalCheckActionFlags(AView, vActionName, vContext, vParams, AParentHolder) = vsFullAccess then
     InternalExecuteAction(AView, vActionName, vContext, vParams, AParentHolder);
 end;
 
@@ -1225,7 +1225,7 @@ begin
 end;
 
 function TScript.InternalCheckActionFlags(const AView: TView; const AActionName: string; const AContext: TObject;
-  const AParams: TEntity): TViewState;
+  const AParams: TEntity; const AParentHolder: TChangeHolder): TViewState;
 var
   vInclusion: TInclusion;
   vInteractor: TInteractor;
@@ -1251,6 +1251,8 @@ begin
   begin
     if not Assigned(vInteractor.Session) then
       Result := vsDisabled;
+    //else if not Assigned(AParentHolder) or not AParentHolder.IsModified then
+    //  Result := vsDisabled
   end
   else if AActionName = '#FilterByPeriod' then
   begin
@@ -1881,7 +1883,8 @@ begin
     begin
       if AActionName = 'ViewDocument' then
       begin
-        vFileName := TPath.Combine(TPath.GetTempPath, TPath.GetFileName(vEntity.GetFieldValue('FileName')));
+        vFileName := TPath.Combine(TConfiguration(FConfiguration).TempDir,
+          TPath.GetFileName(vEntity.GetFieldValue('FileName')));
         vContentStream := vEntity.GetFieldBlob('Content');
         vContentStream.Position := 0;
         if vContentStream is TMemoryStream then

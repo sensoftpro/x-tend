@@ -68,7 +68,6 @@ type
     procedure DoStop; override;
 
     function AreaFromSender(const ASender: TObject): TUIArea; override;
-    procedure DoLogin(const ADomain: TObject); override;
     procedure DoLogout(const AInteractor: TInteractor); override;
 
     function GetNativeControlClass: TNativeControlClass; override;
@@ -95,13 +94,13 @@ type
     procedure DoEnumerateControls(const ALayout: TLayout; const AControl: TObject); override; // DFM
     function CanLoadFromDFM: Boolean; override; // DFM
 
-    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
   public
     function CreateTempControl: TObject; override; // DFM
 
     procedure ShowUIArea(const AArea: TUIArea; const AAreaName: string; const ACaption: string); override;
     procedure ShowPage(const AInteractor: TInteractor; const APageType: string;
       const AParams: TObject = nil; const AOnClose: TCloseProc = nil); override;
+    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); override;
   end;
 
 procedure CopyFontSettings(const AFont: TFont; const ALayout: TLayout);
@@ -339,8 +338,7 @@ begin
     ALayout.Name := vSourceTabSheet.Name;
     ALayout.Tag := vSourceTabSheet.Tag;
     ALayout.Caption := vSourceTabSheet.Caption;
-	// TODO: Get image name from tab
-    //ALayout.ImageID := vSourceTabSheet.ImageIndex;
+    ALayout.ImageID := vSourceTabSheet.Hint;
     ALayout.ShowCaption := vSourceTabSheet.TabVisible;
   end
   else if ALayout.Kind = lkPages then
@@ -1139,11 +1137,6 @@ begin
   end;
 end;
 
-procedure TWinVCLPresenter.DoLogin(const ADomain: TObject);
-begin
-  inherited DoLogin(ADomain);
-end;
-
 procedure TWinVCLPresenter.DoLogout(const AInteractor: TInteractor);
 begin
   inherited DoLogout(AInteractor);
@@ -1284,20 +1277,14 @@ begin
 end;
 
 procedure TWinVCLPresenter.DoRun(const AParameter: string);
-var
-  vDomain: TDomain;
 begin
   inherited DoRun(AParameter);
 
-  Application.Title := cPlatformTitle;
   Application.Initialize;
 
   Application.OnShortCut := OnShortCut;
-
-  vDomain := _Platform.Domains[0];
-  Login(vDomain);
-
   Application.HintHidePause := -1;
+  
   Application.Run;
 end;
 

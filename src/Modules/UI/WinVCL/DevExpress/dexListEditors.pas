@@ -397,7 +397,7 @@ begin
     Result := 0
   else if AEnt1.IsService = AEnt2.IsService then
   begin
-    if (AFieldDef = nil) or ((AFieldDef.Definition.Kind = clkMixin) and (AEnt1.FieldByName(AFieldDef.Name).FieldDef.Kind <> AEnt2.FieldByName(AFieldDef.Name)
+    if (AFieldDef = nil) or ((AFieldDef.Definition.Kind = clkMixin) and (AEnt1.FieldByName(AFieldName).FieldDef.Kind <> AEnt2.FieldByName(AFieldName)
       .FieldDef.Kind)) then
     begin
       Result := CompareStr(AEnt1.DisplayName, AEnt2.DisplayName)
@@ -1842,7 +1842,7 @@ var
   vComboItem: TcxImageComboBoxItem;
   i: Integer;
   vDefinition: TDefinition;
-  vImageID: Integer;
+  vImageIndex: Integer;
 begin
   vCol := FTreeList.CreateColumn;
   vCol.Caption.Text := AOverriddenCaption;
@@ -1876,9 +1876,9 @@ begin
     begin
       vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
       vComboItem := TcxImageComboBoxProperties(vCol.Properties).Items.Add;
-      vImageID := FOwner.GetImageIndex(vDefinition._ImageID);
-      vComboItem.Value := vImageID;
-      vComboItem.ImageIndex := vImageID;
+      vImageIndex := FOwner.GetImageIndex(vDefinition._ImageID);
+      vComboItem.Value := vImageIndex;
+      vComboItem.ImageIndex := vImageIndex;
     end;
   end;
 
@@ -2707,7 +2707,7 @@ var
   vComboItem: TcxImageComboBoxItem;
   i: Integer;
   vDefinition: TDefinition;
-  vImageID: Integer;
+  vImageIndex: Integer;
   vStyleName: string;
 begin
   vCol := FMasterTableView.CreateColumn;
@@ -2788,9 +2788,9 @@ begin
         begin
           vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
           vComboItem := TcxImageComboBoxProperties(vCol.Properties).Items.Add;
-          vImageID := FOwner.GetImageIndex(vDefinition._ImageID);
-          vComboItem.Value := vImageID;
-          vComboItem.ImageIndex := vImageID;
+          vImageIndex := FOwner.GetImageIndex(vDefinition._ImageID);
+          vComboItem.Value := vImageIndex;
+          vComboItem.ImageIndex := vImageIndex;
         end;
       end
       else
@@ -2821,9 +2821,9 @@ begin
     begin
       vDefinition := TDefinition(FAllData.ContentDefinitions[i]);
       vComboItem := TcxImageComboBoxProperties(vCol.Properties).Items.Add;
-      vImageID := FOwner.GetImageIndex(vDefinition._ImageID);
-      vComboItem.Value := vImageID;
-      vComboItem.ImageIndex := vImageID;
+      vImageIndex := FOwner.GetImageIndex(vDefinition._ImageID);
+      vComboItem.Value := vImageIndex;
+      vComboItem.ImageIndex := vImageIndex;
     end;
   end;
 
@@ -3637,7 +3637,6 @@ var
   i: Integer;
   vEntity: TEntity;
   vNewFocusedRowIndex: Integer;
-  vRow: TcxCustomGridRow;
 begin
   if AKind = dckEntityChanged then
   begin
@@ -3671,12 +3670,7 @@ begin
     if AKind = dckListScrollUpdate then
       FMasterTableView.Controller.ClearSelection;
     vNewFocusedRowIndex := FMasterDS.FEntities.IndexOf(AParameter);
-    // if vNewFocusedRowIndex <> FMasterTableView.DataController.FocusedRowIndex then //отключил проверку чтобы всегда скролилось
-    begin
-      vRow := FMasterTableView.ViewData.Rows[vNewFocusedRowIndex];
-      vRow.Selected := True;
-      vRow.Focused := True;
-    end;
+    FMasterTableView.Controller.FocusRecord(vNewFocusedRowIndex, True);
   end
   else if AKind = dckViewStateChanged then
     // Сделать что-то с видимостью

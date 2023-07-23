@@ -825,8 +825,8 @@ begin
       if (ALayout.Tag and cFormDisableMaximizeButton) > 0 then
         vForm.BorderIcons := vForm.BorderIcons - [biMaximize];
 
-      if (ALayout.Tag and cFormPositionDesign) > 0 then
-        vForm.Position := poDesigned;
+      //if (ALayout.Tag and cFormPositionDesign) > 0 then
+      //  vForm.Position := poDesigned;
 
       if (ALayout.Tag and cFormNotResizable) > 0 then
         vForm.BorderStyle := bsSingle;
@@ -1027,7 +1027,7 @@ begin
   if (not FIsForm) and (FControl is TWinControl) then
     LockControl(TWinControl(FControl), True);
 
-  if FIsForm and FUIBuilder.IsMDIStyle then
+  if FIsForm and FUIBuilder.IsMDIStyle and Assigned(Application.MainForm) then
     SendMessage(Application.MainForm.ClientHandle, WM_SETREDRAW, 0, 0);
 end;
 
@@ -1082,7 +1082,7 @@ begin
   if (not FIsForm) and (FControl is TWinControl) then
     LockControl(TWinControl(FControl), False);
 
-  if FIsForm and FUIBuilder.IsMDIStyle then
+  if FIsForm and FUIBuilder.IsMDIStyle and Assigned(Application.MainForm) then
   begin
     SendMessage(Application.MainForm.ClientHandle, WM_SETREDRAW, 1, 0);
     RedrawWindow(Application.MainForm.ClientHandle, nil, 0, RDW_ERASE or RDW_FRAME or RDW_INVALIDATE or RDW_ALLCHILDREN);
@@ -1378,6 +1378,8 @@ TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, '', TVCLTreeViewNav
 TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'TreeView', TVCLTreeViewNavigation);
 TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'MainMenu', TVCLMainMenuNavigation);
 TPresenter.RegisterControlClass('Windows.VCL', uiNavigation, 'ToolBar', TVCLToolBarNavigation);
+TPresenter.RegisterControlClass('Windows.VCL', uiEntityEdit, 'OneButton', TVCLOneButtonNavigation);
+TPresenter.RegisterControlClass('Windows.DevExpress', uiEntityEdit, 'OneButton', TVCLOneButtonNavigation);
 
 TPresenter.RegisterControlClass('Windows.VCL', uiAction, '', TVCLButton);
 TPresenter.RegisterControlClass('Windows.VCL', uiAction, 'link', TVCLLink);

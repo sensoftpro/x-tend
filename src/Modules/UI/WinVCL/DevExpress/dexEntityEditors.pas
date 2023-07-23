@@ -68,6 +68,7 @@ type
     FFilterEdit: TEdit;
     FSearchType: TSearchType;
     FFilterText: string;
+    FDisplayName: string;
     procedure UpdateCount;
     procedure OnDblClick(Sender: TObject);
     procedure OnKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -82,7 +83,7 @@ type
     destructor Destroy; override;
 
     procedure Init(const AItems: TEntityList; const AIsSelectMode: Boolean;
-      const ASelectedEntity: TEntity; const AFilter: string);
+      const ASelectedEntity: TEntity; const AFilter, ADisplayName: string);
 
     property OnEntitySelected: TOnSelectEntityEvent read FOnEntitySelected write FOnEntitySelected;
   end;
@@ -96,6 +97,7 @@ type
     FEntities: TEntityList;
     FSelectPopup: TDESelectEntityPopup;
     FTypeSelectionMenu: TPopupMenu;
+    FDisplayName: string;
     procedure OnSelectClick(Sender: TObject);
     procedure ShowPopup(const AFilter: string);
     procedure DoOnClose(Sender: TObject);
@@ -116,7 +118,7 @@ type
     procedure DoDeinit; override;
   end;
 
-  TDERadioEntitySelector = class(TDEControl)  // сделан на TRadioGroup, в верхней части большой отступ для заголовка, когда нет заголовка элементы криво смотрятся (много пустого места сверху)
+  TDERadioEntitySelector = class(TDEControl)  // based on TRadioGroup. At the top there is a large indent for the title. If the title is empty, then the elements look crooked (a lot of empty space on top).
   private
     FEntities: TEntityList;
     procedure FillList;
@@ -128,9 +130,10 @@ type
     procedure SwitchChangeHandlers(const AHandler: TNotifyEvent); override;
   end;
 
-  TDERadioEntitySelector2 = class(TDEControl) // сделан на TPanel с инстанцируемыми TRadioButton чтобы избавиться от пустого места сверху
+  TDERadioEntitySelector2 = class(TDEControl) // based on TPanel with TRadioButton controls to get rid of empty space on top
   private
     FEntities: TEntityList;
+    FItemHeight: Integer;
     procedure OnChange(Sender: TObject);
     procedure FillList;
   protected
@@ -292,6 +295,10 @@ begin
 
   FbtnAdd := TcxButton(GetRealControl(vAddArea));
   FbtnAdd.Parent := FBasePanel;
+
+  FDisplayName := 'Name';
+  if Assigned(FCreateParams) and (FCreateParams.IndexOfName('DisplayFieldName') > -1) then
+    FDisplayName := FCreateParams.Values['DisplayFieldName'];
 end;
 
 procedure TDEEntityFieldEditor.DoDeinit;
@@ -335,7 +342,7 @@ begin
     if not Assigned(vEntity) then
       Text := FOwner.GetTranslation(vDefinition, tpEmptyValue)
     else
-      Text := vEntity['Name'];
+      Text := vEntity[FDisplayName];
     Hint := Text;
   end;
 
@@ -462,7 +469,7 @@ begin
       FSelectPopup.OnEntitySelected := OnEntitySelected;
     end;
 
-    FSelectPopup.Init(FEntities, True, vEntity, AFilter);
+    FSelectPopup.Init(FEntities, True, vEntity, AFilter, FDisplayName);
     FSelectPopup.ShowFor(TWinControl(FControl), '');
   finally
     TPresenter(vInteractor.Presenter).SetCursor(vPrevCursor);
@@ -1293,13 +1300,14 @@ begin
 end;
 
 procedure TDESelectEntityPopup.Init(const AItems: TEntityList; const AIsSelectMode: Boolean;
-  const ASelectedEntity: TEntity; const AFilter: string);
+  const ASelectedEntity: TEntity; const AFilter, ADisplayName: string);
 var
   i: Integer;
   vCaption: string;
   vDomain: TDomain;
 begin
   FAllData := AItems;
+  FDisplayName := ADisplayName;
 
   if FAllData.Filler is TEntityField then
     FSearchType := TEntityField(FAllData.Filler).SearchType
@@ -1402,8 +1410,8 @@ var
   vEntity: TEntity;
   vNode: TcxTreeListNode;
 begin
+  FList.BeginUpdate;
   try
-    FList.BeginUpdate;
     FList.Clear;
 
     FAllData.Resort;
@@ -1418,7 +1426,7 @@ begin
         if not Assigned(vEntity) then
           vNode.Values[0] := FAllData.MainDefinition._EmptyValue
         else
-          vNode.Values[0] := vEntity['Name'];
+          vNode.Values[0] := vEntity[FDisplayName];
         if vEntity = FSelectedEntity then
           vNode.Focused := True;
       end;
@@ -1512,14 +1520,22 @@ begin
 end;
 
 function TDERadioEntitySelector2.DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject;
+var
+  vRadioItem: TcxRadioButton;
 begin
   Result := TPanel.Create(nil);
   TPanel(Result).Name := 'radio';
   TPanel(Result).Caption := '';
+  TPanel(Result).Align := alClient;
   TPanel(Result).BevelOuter := bvNone;
   FNeedCreateCaption := False;
 
   FEntities := TEntityList.Create(TInteractor(FView.Interactor).Domain, TInteractor(FView.Interactor).Session);
+
+  vRadioItem := TcxRadioButton.Create(nil);
+  vRadioItem.Parent := TPanel(Result);
+  FItemHeight := vRadioItem.Height;
+  vRadioItem.Free;
 end;
 
 procedure TDERadioEntitySelector2.DoOnChange;
@@ -1553,9 +1569,9 @@ var
   vRadioEdit: TPanel;
   vRadioItem: TcxRadioButton;
   vField: TEntityField;
-  i: Integer;
+  i, c: Integer;
   vEnt: TEntity;
-  vStepSize: Integer;
+  vStepSize, vVisibleItemCount: Integer;
 begin
   vField := FView.ExtractEntityField;
   vField.GetEntitiesForSelect(TInteractor(FView.Interactor).Session, FEntities);
@@ -1565,20 +1581,32 @@ begin
   while vRadioEdit.ControlCount > 0 do
     vRadioEdit.Controls[0].Free;
 
-  vStepSize := vRadioEdit.Height div FEntities.Count;
-
+  vVisibleItemCount := 0;
   for i := 0 to FEntities.Count - 1 do
   begin
     vEnt := FEntities[i];
+    if not Assigned(vEnt) then Continue; // todo: надо обработать cRequired
+    Inc(vVisibleItemCount);
+  end;
+
+  vStepSize := (vRadioEdit.Height - FItemHeight) div (vVisibleItemCount - 1);
+  c := 0;
+  for i := 0 to FEntities.Count - 1 do
+  begin
+    vEnt := FEntities[i];
+    if not Assigned(vEnt) then Continue; // todo: надо обработать cRequired
 
     vRadioItem := TcxRadioButton.Create(nil);
+    vRadioItem.Width := vRadioEdit.Width;
+    //vRadioItem.AutoSize := True;
     vRadioItem.Parent := vRadioEdit;
     vRadioItem.Caption := SafeDisplayName(vEnt);
     vRadioItem.Tag := NativeInt(vEnt);
-    vRadioItem.Top := vStepSize * i;
+    vRadioItem.Top := vStepSize * c;
     vRadioItem.OnClick := OnChange;
     if vEnt = TEntity(NativeInt(FView.FieldValue)) then
       vRadioItem.Checked := True;
+    Inc(c);
   end;
 end;
 

@@ -175,7 +175,7 @@ type
     constructor Create(const ASize: Integer);
     destructor Destroy; override;
 
-    procedure Add(const AName: string; const AStream: TStream);
+    procedure Add(const AName: string; const AIndex: Integer; const AStream: TStream);
     procedure FillWithPlaceholder(const APlaceholder: TStream);
 
     property Items[const AIndex: Integer]: TStream read GetItem; default;
@@ -265,9 +265,9 @@ type
     function CanLoadFromDFM: Boolean; virtual;
 
     function ActiveInteractor: TInteractor;
-    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
   public
     function CanCloseChildForm(const AForm: TObject; const AModalResult: Integer): Boolean;
+    procedure SetApplicationUI(const AAppTitle: string; const AIconName: string = ''); virtual; abstract;
   public
     constructor Create(const AName: string; const ASettings: TSettings); virtual;
     destructor Destroy; override;
@@ -751,17 +751,21 @@ begin
   FNativeControlClass := GetNativeControlClass;
   FCursorType := crtDefault;
   FCommonIcons := TIcons.Create;
-  FCommonIcons.Load(GetResDir);
+  FCommonIcons.Load(GetPlatformDir);
 
   vThemeName := Trim(ASettings.GetValue('Core', 'Theme', ''));
   if vThemeName <> '' then
   begin
-    vThemeDir := TPath.Combine(GetResDir, 'themes' + PathDelim + vThemeName);
+    vThemeDir := TPath.Combine(GetPlatformDir, 'themes' + PathDelim + vThemeName);
     if TDirectory.Exists(vThemeDir)  then
       FCommonIcons.Load(vThemeDir);
   end;
 
   FInteractors := TList<TInteractor>.Create;
+{$IFDEF MSWINDOWS}
+  if Length(GetPlatformDir) > 190 then
+    ShowMessage('Предупреждение', 'Программа расположена по слишком длинному пути, она может работать неправильно.', msWarning);
+{$ENDIF}
 end;
 
 function TPresenter.CreateArea(const AParent: TUIArea; const AView: TView;
@@ -858,11 +862,17 @@ var
   var
     vName: string;
     vStream: TStream;
+    vIndex: Integer;
   begin
+    if not Assigned(AIcons) then Exit;
+    
     for vName in AIcons.Items.Keys do
     begin
       vStream := AIcons.IconByName(vName);
-      AImages.Add(vName, vStream);
+      vIndex := TDomain(ADomain).UIBuilder.GetImageIndex(vName);
+      AImages.Add(vName, vIndex, vStream);
+      if vIndex < 0 then
+        TDomain(ADomain).UIBuilder.StoreImageIndex(vName, vImages.Indices[vName]);
     end;
   end;
 begin
@@ -1080,7 +1090,6 @@ var
   i: Integer;
   vCloseProc: TCloseProc;
   vModalResult: TModalResult;
-  vResultAction: TCloseAction;
 
   function GetUnfilledRequiredFields(const AArea: TUIArea; var AFields: string): Boolean;
   var
@@ -1149,7 +1158,6 @@ begin
   if vModalResult = mrNone then
     vModalResult := mrCancel;
   Action := TCloseAction.caNone;
-  vResultAction := TCloseAction.caNone;
 
   if vArea.IsClosing or (vModalResult = mrOk)
     or not Assigned(vHolder) or not vHolder.IsVisibleModified then
@@ -1245,7 +1253,7 @@ begin
     vInteractor := TInteractor(vArea.Interactor);
 
     vCanBeClosed := not (Assigned(vCloseView) and (TCheckActionFlagsFunc(TConfiguration(vInteractor.Configuration).
-      CheckActionFlagsFunc)(vCloseView) <> vsFullAccess));
+      CheckActionFlagsFunc)(vCloseView, nil) <> vsFullAccess));
 
     if vCanBeClosed then
     begin
@@ -1282,11 +1290,6 @@ var
   vResult: TDialogResult;
 begin
   vSession := nil;
-
-  SetApplicationUI(vDomain.AppTitle, vDomain.Configuration.IconFileName);
-
-  vDomain.NotifyLoadingProgress(100);
-
   vUsers := TEntityList.Create(vDomain, vDomain.DomainSession);
   vDomain.GetEntityList(vDomain.DomainSession, vDomain.Configuration['SysUsers'], vUsers, '');
   try
@@ -1371,12 +1374,12 @@ begin
             if AResult = drYes then
               DoLogin(ADomain)
             else
-              SetApplicationUI(cPlatformTitle);
+              Stop;
           end);
       end;
     end
     else
-      SetApplicationUI(cPlatformTitle);
+      Stop;
   end;
 end;
 
@@ -1431,27 +1434,118 @@ procedure TPresenter.DoProcessShortCut(const AShift: TShiftState; const AKey: Wo
 var
   vActiveInteractor: TInteractor;
   vView: TView;
+  vViewExists: Boolean;
+  vShortCut: TShortCut;
+  vActionAreas: TList<TUIArea>;
+  vActionArea: TUIArea;
+
+  function FindAreaByShortCut(const AResultList: TList<TUIArea>; const AParentArea: TUIArea;
+    const ASkipArea: TUIArea = nil): TUIArea;
+  var
+    i, j: Integer;
+    vArea: TUIArea;
+  begin
+    Result := nil;
+    if not Assigned(AParentArea) then
+      Exit;
+    if not AParentArea.Count = 0 then
+      Exit;
+
+    for i := 0 to AParentArea.Count - 1 do
+    begin
+      vArea := AParentArea.Areas[i];
+      if vArea = ASkipArea then
+        Continue;
+
+      if vArea.View.DefinitionKind in [dkDomain, dkCollection, dkEntity, dkListField, dkObjectField] then
+        FindAreaByShortCut(AResultList, vArea)
+      else if vArea.View.DefinitionKind = dkAction then
+      begin
+        if TActionDef(vArea.View.Definition).ShortCutExists(vShortCut) then
+        begin
+          // Для гридов с PopupMenu действие добавится дважды, проверяем уникальность по View
+          vViewExists := False;
+          for j := 0 to AResultList.Count - 1 do
+          begin
+            vViewExists := AResultList[j].View = vArea.View;
+            if vViewExists then
+              Break;
+          end;
+
+          if not vViewExists then
+            AResultList.Add(vArea);
+        end;
+      end;
+
+      if AResultList.Count > 1 then
+        Exit;
+    end;
+  end;
+
+  procedure FindAreaByShortCutOnCurrentArea(const AResultList: TList<TUIArea>;
+    const AStartArea, AEndArea: TUIArea);
+  var
+    vCurArea, vParentArea: TUIArea;
+  begin
+    if not Assigned(AStartArea) then
+      FindAreaByShortCut(AResultList, AEndArea)
+    else begin
+      vCurArea := nil;
+      vParentArea := AStartArea;
+      repeat
+        FindAreaByShortCut(AResultList, vParentArea, vCurArea);
+        if (AResultList.Count > 0) or (vParentArea = AEndArea) then
+          Exit;
+
+        vCurArea := vParentArea;
+        vParentArea := vCurArea.Parent;
+      until not Assigned(vParentArea);
+    end;
+  end;
 begin
   vActiveInteractor := ActiveInteractor;
-  if Assigned(vActiveInteractor) and (ssCtrl in AShift) and (ssAlt in AShift) and (ssShift in AShift) then
+  if Assigned(vActiveInteractor) then
   begin
-    if AKey = vkE then
+    if (ssCtrl in AShift) and (ssAlt in AShift) and (ssShift in AShift) then
     begin
-      AHandled := True;
-      if not Assigned(vActiveInteractor.ActiveArea) then
-        Exit;
-      vView := vActiveInteractor.ActiveArea.View;
-      if not (vView.DefinitionKind in [dkAction, dkListField, dkObjectField, dkSimpleField]) then
-        Exit;
-      if not TUserSession(vActiveInteractor.Session).IsAdmin then
-        Exit;
+      if AKey = vkE then
+      begin
+        AHandled := True;
+        if not Assigned(vActiveInteractor.ActiveArea) then
+          Exit;
+        vView := vActiveInteractor.ActiveArea.View;
+        if not (vView.DefinitionKind in [dkAction, dkListField, dkObjectField, dkSimpleField]) then
+          Exit;
+        if not TUserSession(vActiveInteractor.Session).IsAdmin then
+          Exit;
 
-      vView.ElevateAccess;
-    end
-    else if AKey = vkR then
-    begin
-      AHandled := True;
-      TDomain(vActiveInteractor.Domain).ReloadChanges(TDomain(vActiveInteractor.Domain).DomainHolder);
+        vView.ElevateAccess;
+        Exit;
+      end
+      else if AKey = vkR then
+      begin
+        AHandled := True;
+        TDomain(vActiveInteractor.Domain).ReloadChanges(TDomain(vActiveInteractor.Domain).DomainHolder);
+        Exit;
+      end;
+    end;
+
+    vShortCut := KeyStateToShortCut(AShift, AKey);
+    if vShortCut = 0 then
+      Exit;
+
+    vActionAreas := TList<TUIArea>.Create;
+    try
+      FindAreaByShortCutOnCurrentArea(vActionAreas, vActiveInteractor.ActiveArea,
+        vActiveInteractor.CurrentArea);
+      if vActionAreas.Count = 1 then
+      begin
+        AHandled := True;
+        vActionArea := vActionAreas[0];
+        vActionArea.ExecuteUIAction(vActionArea.View);
+      end;
+    finally
+      FreeAndNil(vActionAreas);
     end;
   end;
 end;
@@ -1677,7 +1771,7 @@ begin
 
   try
     vCanBeClosed := not (Assigned(vCloseView) and (TCheckActionFlagsFunc(TConfiguration(vInteractor.Configuration).
-      CheckActionFlagsFunc)(vCloseView) <> vsFullAccess));
+      CheckActionFlagsFunc)(vCloseView, nil) <> vsFullAccess));
 
     if (vView.DomainObject is TEntity) and TEntity(vView.DomainObject).InstanceOf('_FormLayout') then
       vDelEntity := TEntity(vView.DomainObject);
@@ -1948,12 +2042,26 @@ end;
 
 { TImages }
 
-procedure TImages.Add(const AName: string; const AStream: TStream);
+procedure TImages.Add(const AName: string; const AIndex: Integer; const AStream: TStream);
+var
+  i: Integer;
 begin
-  FIndices.Add(AName, FItems.Count);
   if AName = '' then
     FPlaceholder := AStream;
-  FItems.Add(AStream);
+
+  if AIndex < 0 then
+  begin
+    FIndices.Add(AName, FItems.Count);
+    FItems.Add(AStream);
+  end
+  else if AIndex >= FItems.Count then
+  begin
+    for i := FItems.Count to AIndex - 1 do
+      FItems.Add(nil);
+    FItems.Add(AStream);
+  end
+  else
+    FItems[AIndex] := AStream;
 end;
 
 constructor TImages.Create(const ASize: Integer);

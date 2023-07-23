@@ -35,6 +35,7 @@ type
   private
     FInvertEffect: TInvertEffect;
     FInvertBitmap: TBitmap;
+    FSaveState: TCanvasSaveState;
     function ThisCanvas: TCanvas;
   protected
     procedure DoDrawEllipse(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF); override;
@@ -46,6 +47,7 @@ type
     procedure DoDrawPolyline(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer); override;
     procedure DoDrawBezier(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer); override;
     procedure DoDrawRect(const AFill: TStyleBrush; const AStroke: TStylePen; const ARect: TRectF); override;
+    procedure DoSetPixel(const AX, AY: Integer; const AColor: Cardinal); override;
     procedure DoDrawText(const AFont: TStyleFont; const AText: string; const ARect: TRectF;
       const AOptions: Cardinal; const AAngle: Single); override;
     function GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF; override;
@@ -53,6 +55,7 @@ type
     procedure DoInvertRect(const ARect: TRectF); override;
     procedure DoDrawImage(const AImage: TObject; const ARect: TRectF; const AOpacity: Single); override;
     procedure DoDrawContext(const AContext: TDrawContext); override;
+    procedure DoStretchDrawContext(const AContext: TDrawContext; const ARect: TRect); override;
 
     procedure DoColorizeBrush(const AFill: TStyleBrush; const AColor: Cardinal); override;
     procedure DoColorizePen(const AStroke: TStylePen; const AColor: Cardinal); override;
@@ -207,7 +210,13 @@ end;
 
 procedure TFMXPainter.DoClipRect(const ARect: TRectF);
 begin
-  ThisCanvas.IntersectClipRect(ARect);
+  if not IsRectEmpty(ARect) then
+  begin
+    FSaveState := ThisCanvas.SaveState;
+    ThisCanvas.IntersectClipRect(ARect);
+  end
+  else
+    ThisCanvas.RestoreState(FSaveState);
 end;
 
 procedure TFMXPainter.DoColorizeBrush(const AFill: TStyleBrush; const AColor: Cardinal);
@@ -337,10 +346,19 @@ end;
 procedure TFMXPainter.DoDrawPolyline(const AStroke: TStylePen; const APoints: PPointF; const ACount: Integer);
 var
   vPath: TPathData;
-  vPoints: PPointFArray absolute APoints;
+  vPoints: TArray<TPoint>;
   i: Integer;
+  function PPointFToPoints(const APoints: PPointF; const ACount: Integer): TArray<TPoint>;
+  var
+    j: Integer;
+  begin
+    SetLength(Result, ACount);
+    for j := 0 to ACount - 1 do
+      Result[j] := PPointF(NativeInt(APoints) + j * SizeOf(TPointF))^.Round;
+  end;
 begin
   vPath := TPathData.Create;
+  vPoints := PPointFToPoints(APoints, ACount);
   vPath.MoveTo(vPoints[0]);
   for i := 1 to ACount - 1 do
   begin
@@ -449,6 +467,24 @@ begin
   FInvertEffect.ProcessEffect(ThisCanvas, FInvertBitmap, 0);
 
   ThisCanvas.DrawBitmap(FInvertBitmap, FInvertBitmap.BoundsF, ARect, 1, True);
+end;
+
+procedure TFMXPainter.DoSetPixel(const AX, AY: Integer; const AColor: Cardinal);
+var
+  vPixelRegion: TRectF;
+  vPixelPos: TPointF;
+begin
+  ThisCanvas.Stroke.Color := AColor;
+  vPixelPos := ThisCanvas.AlignToPixel(TPointF.Create(AX, AY));
+  vPixelRegion := TRectF.Create(vPixelPos, 1, 1);
+  ThisCanvas.DrawRect(vPixelRegion, 0, 0, AllCorners, 1);
+end;
+
+procedure TFMXPainter.DoStretchDrawContext(const AContext: TDrawContext;
+  const ARect: TRect);
+begin
+  if Assigned(TFMXContext(AContext).Bitmap) then
+    ThisCanvas.DrawBitmap(TFMXContext(AContext).Bitmap, AContext.ClientRect, ARect, 1, True);
 end;
 
 function TFMXPainter.GetTextExtents(const AFont: TStyleFont; const AText: string): TSizeF;

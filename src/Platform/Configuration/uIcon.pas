@@ -168,7 +168,7 @@ begin
   if not DirectoryExists(vDirectory) then
     Exit;
 
-  vDirectories := TDirectory.GetDirectories(vDirectory);
+  vDirectories := TArray<string>(TDirectory.GetDirectories(vDirectory));
   for vFullDirName in vDirectories do
   begin
     vDirName := GetOwnerDirectoryName(vFullDirName);

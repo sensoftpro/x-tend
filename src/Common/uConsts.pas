@@ -352,12 +352,11 @@ function StrToCondition(const ACondition: string): TConditionKind;
 function ApplyModifier(const AValue: string; const AModifier: TConditionModifier = cmNone): string;
 
 function GetBinDir: string;
-function GetResDir: string;
 function GetPlatformDir: string;
-//function GetCommonDir: string;
+function GetDataDir: string;
 function GetDesktopDir: string;
-function GetTempDir: string;
 function GetOwnerDirectoryName(const APath: string): string;
+function GetParentPath(const APath: string): string;
 
 function IsOnline: Boolean;
 
@@ -368,8 +367,12 @@ var
 implementation
 
 uses
-{$IFDEF MSWINDOWS}
+{$IF DEFINED(MSWINDOWS)}
   WinApi.Windows, WinApi.ShlObj, WinApi.Wininet,
+{$ELSEIF DEFINED(MACOS)}
+  //Macapi.CoreFoundation, Macapi.CoreLocation, Macapi.CoreMedia,
+  //Macapi.CoreServices,
+  Macapi.Foundation, //Macapi.Security,
 {$ENDIF}
   IOUtils, SysUtils, StrUtils;
 
@@ -419,13 +422,22 @@ end;
 
 // Directory for executable files and settings
 function GetBinDir: string;
+{$IF DEFINED(MACOS)}
+var
+  vMainBundle: NSBundle;
+{$ENDIF}
 begin
 {$IF DEFINED(MSWINDOWS)}
   Result := TPath.GetLibraryPath;
-  if DeveloperMode then
-    Result := GetParentPath(Result)
 {$ELSEIF DEFINED(LINUX)}
   Result := TPath.GetLibraryPath;
+{$ELSEIF DEFINED(MACOS)}
+  // Получаем бандл текущего приложения
+  vMainBundle := TNSBundle.Wrap(TNSBundle.OCClass.mainBundle);
+  // Название приложения: vMainBundle.bundleIdentifier.UTF8String);
+  // Путь к бандлу: vMainBundle.bundlePath.UTF8String);
+  // Путь к исполняемому файлу: vMainBundle.executablePath.UTF8String);
+  Result := TPath.GetDirectoryName(UTF8ToString(vMainBundle.executablePath.UTF8String));
 {$ELSEIF DEFINED(ANDROID)}
   // assets/internal
   Result := TPath.GetHomePath;
@@ -433,6 +445,15 @@ begin
   Result := TPath.GetLibraryPath;
 {$ENDIF}
 end;
+
+(*function GetCommonDir: string;
+begin
+{$IF DEFINED(MSWINDOWS) OR DEFINED(POSIX)}
+  Result := GetBinDir;
+{$ELSE}
+  Result := TPath.Combine(TPath.GetSharedDocumentsPath, cProductCreator);
+{$ENDIF}
+end;*)
 
 // Directory for platform resources
 function GetPlatformDir: string;
@@ -445,24 +466,8 @@ begin
     Result := TPath.GetLibraryPath;
 {$ELSEIF DEFINED(LINUX)}
   Result := GetBinDir;
-{$ELSEIF DEFINED(ANDROID)}
-  // assets/internal
-  Result := GetBinDir;
-{$ELSE}
-  FIX
-  Result := TPath.Combine(TPath.GetHomePath, 'Common');
-{$ENDIF}
-end;
-
-function GetResDir: string;
-begin
-{$IF DEFINED(MSWINDOWS)}
-  if DeveloperMode then
-    Result := TPath.Combine(GetPlatformDir, 'res')
-  else
-    Result := TPath.GetLibraryPath;
-{$ELSEIF DEFINED(LINUX)}
-  Result := GetBinDir;
+{$ELSEIF DEFINED(MACOS)}
+  Result := TPath.Combine(GetParentPath(GetBinDir), 'Resources');
 {$ELSEIF DEFINED(ANDROID)}
   // assets/internal
   Result := GetBinDir;
@@ -471,30 +476,23 @@ begin
 {$ENDIF}
 end;
 
-function GetTempDir: string;
+function GetDataDir: string;
 begin
-  Result := TPath.GetTempPath;
+  Result := TPath.Combine(GetPlatformDir, 'data');
 end;
-
-//function _GetCommonDir: string;
-//begin
-//{$IF DEFINED(MSWINDOWS)}
-//  Result := _GetBinDir;
-//{$ELSE}
-//  Result := TPath.Combine(TPath.GetSharedDocumentsPath, cProductCreator);
-//{$ENDIF}
-//end;
 
 function GetDesktopDir: string;
-{$IFDEF MSWINDOWS}
+{$IF DEFINED(MSWINDOWS)}
 var
   Buf: array[0..MAX_PATH - 1] of Char;
 {$ENDIF}
 begin
-{$IFDEF MSWINDOWS}
+{$IF DEFINED(MSWINDOWS)}
   SHGetSpecialFolderPath(0, Buf, CSIDL_DESKTOP, False);
   Result := Buf;
 {$ELSEIF DEFINED(LINUX)}
+  Result := TPath.Combine(TPath.GetHomePath, 'Desktop');
+{$ELSEIF DEFINED(MACOS)}
   Result := TPath.Combine(TPath.GetHomePath, 'Desktop');
 {$ELSEIF DEFINED(POSIX)}
   Result := TPath.Combine(TPath.GetHomePath, 'Desktop');

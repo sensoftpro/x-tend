@@ -140,7 +140,7 @@ type
   end;
 
 type
-  TCheckActionFlagsFunc = function(const AView: TView): TViewState of object;
+  TCheckActionFlagsFunc = function(const AView: TView; const AParentHolder: TObject): TViewState of object;
 
 implementation
 
@@ -750,6 +750,7 @@ begin
     vPostfix := FName;
     FName := Copy(FName, 1, vPos - 1);
     Delete(vPostfix, 1, vPos);
+    // TODO: за тильдой может быть номер, постфикс для другого отображения и фильтр
     if StrToIntDef(vPostfix, -999) = -999 then
       FFilter := Trim(vPostfix);
   end;
@@ -1348,7 +1349,7 @@ begin
           end;
         end;
 
-        FState := TCheckActionFlagsFunc(TConfiguration(TInteractor(FInteractor).Configuration).CheckActionFlagsFunc)(Self);
+        FState := TCheckActionFlagsFunc(TConfiguration(TInteractor(FInteractor).Configuration).CheckActionFlagsFunc)(Self, nil);
         FState := FState and vSession.GetUIState(vActionName, vEntityState);
         if (FName = 'Add') or (FName = 'Edit') or (FName = 'Delete') or (FName = 'Link') or (FName = 'OpenInPage')
           or (FName = 'Unlink') or (FName = 'View') or (FName = 'Refresh') or (FName = 'ViewDocument') or (FName = 'ClearDocument')

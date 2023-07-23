@@ -47,6 +47,7 @@ type
     FDomains: TObjectStringDictionary<TDomain>;
     FPresenter: TPresenter;
     FEnumerations: TEnumerations;
+    FProcessMediator: TObject;
     // Настройки платформы
     FSettings: TSettings;
     FLocalizator: TLocalizator;
@@ -55,14 +56,14 @@ type
     FEnvironmentID: string;
     FWereErrors: Boolean;
 
+    procedure Start;
     procedure Stop;
-    procedure Start(const AParameter: string); // запускаем процессоры для приема внешних активностей
     procedure HandleExternalData(const AData: string);
     function GetLanguage: string;
     procedure SetLanguage(const Value: string);
     function CreatePresenter(const ASettings: TSettings): TPresenter;
   public
-    constructor Create(const ASettings: TSettings);
+    constructor Create;
     destructor Destroy; override;
 
     function Translate(const AKey, ADefault: string): string;
@@ -70,7 +71,6 @@ type
     function DomainByUId(const AUId: string): TDomain;
     function ResolveModuleName(const ASettings: TSettings; const AName: string): string;
     function ResolveModuleInfo(const ASettings: TSettings; const AName, AType: string): TModuleInfo;
-    procedure Init;
 
     property Domains: TObjectStringDictionary<TDomain> read FDomains;
     property Presenter: TPresenter read FPresenter;
@@ -93,9 +93,10 @@ uses
 {$ELSEIF DEFINED(POSIX)}
   Posix.Unistd,
 {$ENDIF}
-  Classes, SysUtils, IOUtils, SyncObjs, Threading, uConsts, uCodeConfiguration, uScript, uUtils;
+  Classes, SysUtils, StrUtils, IOUtils, SyncObjs, Threading, uConsts, uCodeConfiguration, uScript, uUtils;
 
 const
+  cUniqueAppName = 'Sensoft.Platform';
   cBrushStyleNames: array[TBrushStyle] of string = ('Сплошная', 'Нет заливки',
     'Горизонтальная', 'Вертикальная', 'Прямая диагональная', 'Обратная диагональная',
     'Перекрестная', 'Диаг. перекрестная');
@@ -124,11 +125,11 @@ type
     FFileName: string;
     FEventName: string;
     FAlreadyExists: Boolean;
-  {$IFDEF MSWINDOWS}
+  {$IF DEFINED(MSWINDOWS)}
     FFileMapping: THandle;
-  {$ELSE} {$IFDEF POSIX}
-    FLockFile: TextFile;
-  {$ENDIF}  {$ENDIF}
+  {$ELSEIF DEFINED(POSIX)}
+    //FLockFile: TextFile;
+  {$ENDIF}
     FBaseAddress: Pointer;
     FEvent: TEvent;
     FWaitingTask: ITask;
@@ -150,7 +151,7 @@ begin
   Result := FConfigurations.ObjectByName(AName);
 end;
 
-constructor TPlatform.Create(const ASettings: TSettings);
+constructor TPlatform.Create;
 var
   vLanguage: string;
 
@@ -173,19 +174,20 @@ begin
   Randomize;
 
   FWereErrors := False;
-  FSettings := ASettings;
 
+  FSettings := TIniSettings.Create(TPath.Combine(GetPlatformDir, 'settings.ini'));
   FConfigurations := TObjectStringDictionary<TConfiguration>.Create;
   FDomains := TObjectStringDictionary<TDomain>.Create;
   FEnumerations := TEnumerations.Create;
   AddEnums;
 
-  FLocalizator := TLocalizator.Create(TPath.Combine(GetResDir, 'translations'), TPath.Combine(GetBinDir, 'settings.ini'));
-  if Assigned(ASettings) then
-    vLanguage := ASettings.GetValue('Core', 'Language', '')
-  else
-    vLanguage := '';
+  FPresenter := CreatePresenter(FSettings);
+
+  FLocalizator := TLocalizator.Create(TPath.Combine(GetPlatformDir, 'translations'), TPath.Combine(GetPlatformDir, 'settings.ini'));
+  vLanguage := FSettings.GetValue('Core', 'Language', '');
   FTranslator := TTranslator.Create(FLocalizator, vLanguage);
+  FProcessMediator := TProcessMediator.Create(cUniqueAppName);
+  TProcessMediator(FProcessMediator).OnDataReceived := HandleExternalData;
 
   _Platform := Self;
 end;
@@ -213,6 +215,7 @@ destructor TPlatform.Destroy;
 begin
   Stop;
 
+  FreeAndNil(FProcessMediator);
   FreeAndNil(FTranslator);
   FreeAndNil(FLocalizator);
   FreeAndNil(FDomains);
@@ -252,17 +255,13 @@ begin
   end;
 end;
 
-type
-  TPresenterCrack = class(TPresenter);
-
-procedure TPlatform.Init;
+procedure TPlatform.Start;
 var
   vScripts: TStrings;
   vName: string;
   vConfigurationDir: string;
   vConfiguration: TConfiguration;
   vDomain: TDomain;
-  vSettings: TIniSettings;
 begin
   FWereErrors := False;
   vConfigurationDir := '';
@@ -281,13 +280,6 @@ begin
     FreeAndNil(vScripts);
   end;
 
-  vSettings := TIniSettings.Create(TPath.Combine(vConfigurationDir, 'settings.ini'));
-  try
-    FPresenter := CreatePresenter(vSettings);
-  finally
-    FreeAndNil(vSettings);
-  end;
-
   for vConfiguration in FConfigurations do
   begin
     vDomain := TDomain.Create(Self, vConfiguration, vName, FSettings);
@@ -299,6 +291,18 @@ begin
     vDomain.Init;
     FWereErrors := FWereErrors or vDomain.WereErrors;
   end;
+
+  if FWereErrors then
+    Exit;
+
+  for vDomain in FDomains do
+    vDomain.Run;
+
+  vDomain := _Platform.Domains[0];
+
+  FPresenter.SetApplicationUI(vDomain.AppTitle, vDomain.Configuration.IconFileName);
+
+  vDomain.NotifyLoadingProgress(100);
 end;
 
 function TPlatform.ResolveModuleInfo(const ASettings: TSettings; const AName, AType: string): TModuleInfo;
@@ -369,73 +373,62 @@ begin
   else
     vParameter := '';
 
-  vSettings := TIniSettings.Create(TPath.Combine(GetBinDir, 'settings.ini'));
-  vIsSingleton := SameText(vSettings.GetValue('Core', 'RunMode', ''), 'singleton');
-  if vSettings.KeyExists('Core', 'DevMode') then
-    DeveloperMode := StrToIntDef(vSettings.GetValue('Core', 'DevMode', ''), 0) <> 0
-  else
-    DeveloperMode := True;
-
-  vProcessMediator := TProcessMediator.Create('Sensoft.Platform');
-
-  if vIsSingleton and vProcessMediator.AlreadyExists then
-  begin
-    try
-      vProcessMediator.SendData(vParameter);
-    finally
-      FreeAndNil(vProcessMediator);
-      FreeAndNil(vSettings);
-    end;
-
-    Exit;
+  vSettings := TIniSettings.Create(TPath.Combine(GetPlatformDir, 'settings.ini'));
+  try
+    vIsSingleton := SameText(vSettings.GetValue('Core', 'RunMode', ''), 'singleton');
+    if vSettings.KeyExists('Core', 'DevMode') then
+      DeveloperMode := StrToIntDef(vSettings.GetValue('Core', 'DevMode', ''), 0) <> 0
+    else
+      DeveloperMode := True;
+  finally
+    FreeAndNil(vSettings);
   end;
 
-  try
+  if vIsSingleton then
+  begin
+    vProcessMediator := TProcessMediator.Create(cUniqueAppName);
     try
-      _Platform := TPlatform.Create(vSettings);
-      vProcessMediator.OnDataReceived := _Platform.HandleExternalData;
-    except
-      on E: Exception do
+      if vProcessMediator.AlreadyExists then
       begin
-        FreeAndNil(vSettings);
+        vProcessMediator.SendData(vParameter);
         Exit;
       end;
+    finally
+      FreeAndNil(vProcessMediator);
+    end;
+  end;
+
+  _Platform := TPlatform.Create;
+  try
+    _Platform.Start;
+
+    // Deferred execution of an application initialization
+    // !!! Doesn't work in UniGUI
+    if SameText(_Platform.Presenter.Name, 'FMX') then
+    begin
+      TThread.CreateAnonymousThread(procedure
+        begin
+          TThread.Queue(nil, procedure
+          begin
+            _Platform.Presenter.Login(_Platform.Domains[0]);
+          end);
+        end).Start;
+    end
+    else if StartsText('Windows', _Platform.Presenter.Name) then
+    begin
+      _Platform.Presenter.Login(_Platform.Domains[0]);
     end;
 
-    try
-      try
-        _Platform.Init;
-        _Platform.Start(vParameter);
-      except
-        on E: Exception do
-          raise Exception.Create('Ошибка приложения: ' + E.Message + #13#10'Дальнейшая работа невозможна');
-      end;
-    finally
-      _Platform.Free;  // в деструкторе ещё может быть использована переменная _Platform
-      _Platform := nil;//
-    end;
+    _Platform.Presenter.Run(vParameter);
   finally
-    FreeAndNil(vProcessMediator);
+    _Platform.Free; // в деструкторе ещё может быть использована переменная _Platform
+    _Platform := nil;
   end;
 end;
 
 procedure TPlatform.SetLanguage(const Value: string);
 begin
   FTranslator.Language := Value;
-end;
-
-procedure TPlatform.Start(const AParameter: string);
-var
-  vDomain: TDomain;
-begin
-  if FWereErrors then
-    Exit;
-
-  for vDomain in FDomains do
-    vDomain.Run;
-
-  if Assigned(FPresenter) then
-    FPresenter.Run(AParameter);
 end;
 
 procedure TPlatform.Stop;
@@ -466,28 +459,18 @@ begin
   FFileName := AUniqueName + '$File';
   FEventName := AUniqueName + '$Event';
 
-{$IFDEF MSWINDOWS}
+{$IF DEFINED(MSWINDOWS)}
   FFileMapping := OpenFileMapping(FILE_MAP_WRITE or FILE_MAP_READ, False, PChar(FFileName));
   FAlreadyExists := FFileMapping <> 0;
-{$ELSE} {$IFDEF POSIX}
-  FFileName := TPath.Combine(GetTempDir, 'Sensoft.Platform.lock');
-  FAlreadyExists := TFile.Exists(FFileName);
-{$ELSE}
-  FAlreadyExists := False;
-{$ENDIF} {$ENDIF}
 
   if not FAlreadyExists then
   begin
-{$IFDEF MSWINDOWS}
     FFileMapping := CreateFileMapping(INVALID_HANDLE_VALUE, nil, PAGE_READWRITE, 0, ADataSize, PChar(FFileName));
     if FFileMapping = 0 then
       FBaseAddress := nil
     else
       FBaseAddress := MapViewOfFile(FFileMapping, FILE_MAP_WRITE or FILE_MAP_READ, 0, 0, 0);
-{$ELSE}
-    FBaseAddress := nil;
-{$ENDIF}
-{$IFDEF MSWINDOWS}
+
     FEvent := TEvent.Create(nil, False, False, FEventName);
     FWaitingTask := TTask.Run(procedure
       var
@@ -508,21 +491,29 @@ begin
             Break;
         end;
       end);
-{$ELSE}
-  //AssignFile(FLockFile, '/tmp/Sensoft.Platform.lock');
-  //Rewrite(FLockFile);
-  //CloseFile(FLockFile);
-{$ENDIF}
   end
   else begin
-{$IFDEF MSWINDOWS}
     FBaseAddress := MapViewOfFile(FFileMapping, FILE_MAP_WRITE or FILE_MAP_READ, 0, 0, 0);
-{$ELSE}
-    FBaseAddress := nil;
-{$ENDIF}
     FEvent := nil;
     FWaitingTask := nil;
   end;
+{$ELSEIF DEFINED(POSIX)}
+  FFileName := TPath.Combine(TPath.GetTempPath, 'Sensoft.Platform.lock');
+  FAlreadyExists := TFile.Exists(FFileName);
+
+  if not FAlreadyExists then
+  begin
+    FBaseAddress := nil;
+    //AssignFile(FLockFile, '/tmp/Sensoft.Platform.lock');
+    //Rewrite(FLockFile);
+    //CloseFile(FLockFile);
+  end
+  else begin
+    FBaseAddress := nil;
+    FEvent := nil;
+    FWaitingTask := nil;
+  end;
+{$ENDIF}
 end;
 
 destructor TProcessMediator.Destroy;
@@ -537,15 +528,15 @@ begin
     FEvent.SetEvent;
   FreeAndNil(FEvent);
 
-{$IFDEF MSWINDOWS}
+{$IF DEFINED(MSWINDOWS)}
   if Assigned(FBaseAddress) then
     UnmapViewOfFile(FBaseAddress);
   if FFileMapping <> 0 then
     CloseHandle(FFileMapping);
-{$ELSE} {$IFDEF POSIX}
+{$ELSEIF DEFINED(POSIX)}
   if FileExists('/tmp/Sensoft.Platform.lock') then
     DeleteFile('/tmp/Sensoft.Platform.lock');
-{$ENDIF} {$ENDIF}
+{$ENDIF}
 
   inherited Destroy;
 end;

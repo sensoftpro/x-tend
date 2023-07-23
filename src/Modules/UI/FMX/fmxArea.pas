@@ -39,7 +39,7 @@ uses
   System.Classes, System.Generics.Collections, System.Types, System.UITypes, System.SysUtils,
 
   FMX.StdCtrls, FMX.Controls, FMX.Types, FMX.Layouts, FMX.Menus, FMX.Forms,
-  FMX.Controls.Presentation, FMX.TreeView,
+  FMX.Controls.Presentation, FMX.TreeView, FMX.ListBox,
 
   uConsts, uUIBuilder, uDefinition, uEntity, uView, uLayout;
 
@@ -54,6 +54,7 @@ type
     procedure DoClose(const AModalResult: Integer); override;
     procedure DoBeginUpdate; override;
     procedure DoEndUpdate; override;
+    procedure DoRegisterChanges(const Value: Boolean); override;
 
     procedure AssignFromLayout(const ALayout: TLayout; const AParams: string); override;
 
@@ -139,22 +140,44 @@ type
     FNavBar: TPanel;
     FNavBarGroup: TExpander;
     FNavBarItem: TButton;
-    FLastPos: Single;
   protected
     function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
     function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
       const ACaption, AHint: string; const AImageIndex: Integer): TObject; override;
   end;
 
+  TFMXOneButtonNavigation = class(TFMXControl)
+  private
+    FButton: TButton;
+    FPopupButton: TButton;
+    FMenu: TPopupMenu;
+    FItem: TMenuItem;
+    procedure OnClick(Sender: TObject);
+  protected
+    function DoCreateControl(const AParent: TUIArea; const ALayout: TLayout): TObject; override;
+    function DoCreateItem(const AParent: TUIArea; const ANavItem: TNavigationItem;
+      const ACaption, AHint: string; const AImageIndex: Integer): TObject;
+      override;
+  end;
+
   TFMXForm = class(TForm)
+  end;
+
+  TNoBorderForm = class(TForm)
+  end;
+
+  TSingleBorderForm = class(TForm)
   end;
 
 function AlignToAlignLayout(const AAlign: Byte): TAlignLayout; overload;
 function AlignToAlignLayout(const AAlign: TLayoutAlign): TAlignLayout; overload;
+function DecimalDigitsFromFieldFormat(const AFormat: string): Integer;
 
 implementation
 
 {$R FMXForm.fmx}
+{$R NoBorderForm.fmx}
+{$R SingleBorderForm.fmx}
 
 uses
   Math, StrUtils, Generics.Defaults, Variants,
@@ -168,6 +191,18 @@ uses
 const
   fsUnderline = System.UITypes.TFontStyle.fsUnderline;
   clBtnFace = TColors.SysBtnFace;
+
+function DecimalDigitsFromFieldFormat(const AFormat: string): Integer;
+var
+  vLength: integer;
+  vDotPos: integer;
+begin
+  Result := 0;
+  vLength := Length(AFormat);
+  vDotPos := LastDelimiter('.', AFormat);
+  if (vLength > 0) and (vDotPos > 0) then
+    Result := Length(AFormat) - LastDelimiter('.', AFormat);
+end;
 
 function AlignToAlignLayout(const AAlign: Byte): TAlignLayout;
 begin
@@ -410,7 +445,10 @@ begin
     if vComposition = '' then
     begin
       if ALayout.Button_ShowCaption then
-        vButton.Text := vCaption
+      begin
+        vButton.Text := vCaption;
+        vButton.ImageIndex := vImageIndex;
+      end
       else begin
         vButton.ImageIndex := vImageIndex;
         vButton.StyleLookup := 'stepperbuttonleft';
@@ -599,8 +637,8 @@ begin
       if (ALayout.Tag and cFormDisableMaximizeButton) > 0 then
         vForm.BorderIcons := vForm.BorderIcons - [TBorderIcon.biMaximize];
 
-      if (ALayout.Tag and cFormPositionDesign) > 0 then
-        vForm.Position := TFormPosition.Designed;
+      //if (ALayout.Tag and cFormPositionDesign) > 0 then
+      //  vForm.Position := TFormPosition.Designed;
 
       if (ALayout.Tag and cFormNotResizable) > 0 then
         vForm.BorderStyle := TFmxFormBorderStyle.Single;
@@ -625,7 +663,6 @@ begin
         vForm.Caption := ALayout.Caption;
 //      if ALayout.Color <> TAlphaColorRec.Gray then
 //      begin
-//        showmessage(inttostr(ALayout.Color));
 //        vForm.Fill.Color := ALayout.Color;
 //        vForm.Fill.Kind := TBrushKind.Solid;
 //      end;
@@ -828,7 +865,7 @@ begin
   Result := vLabel;
 
   vLabel.Parent := TFmxObject(GetRealControl(FParent));
-//  vLabel.Align := TAlignLayout.Client;
+  vLabel.TextSettings.Trimming := TTextTrimming.None;
   vLabel.Visible := True;
   vLabel.Text := ACaption;
   vLabel.Hint := AHint;
@@ -854,6 +891,25 @@ procedure TFMXControl.DoEndUpdate;
 begin
 end;
 
+procedure TFMXControl.DoRegisterChanges(const Value: Boolean);
+var
+  vForm: TCustomForm;
+  vAddr: Pointer;
+  vFormStates: TFmxFormStates;
+begin
+  if not (FControl is TCustomForm) then
+    Exit;
+
+  vForm := TCustomForm(FControl);
+  vFormStates := vForm.FormState;
+  vAddr := @vForm.FormState;
+
+  if Value then
+    TFmxFormStates(vAddr^) := vFormStates - [TFmxFormState.Showing]
+  else
+    TFmxFormStates(vAddr^) := vFormStates + [TFmxFormState.Showing];
+end;
+
 function TFMXControl.GetActiveChildArea: TUIArea;
 begin
   if FControl is TTabControl then
@@ -867,8 +923,10 @@ begin
   if FIsForm then
     Result := TRect.Create(TForm(FControl).Left, TForm(FControl).Top,
       TForm(FControl).Left + TForm(FControl).Width, TForm(FControl).Top + TForm(FControl).Height)
+  else if FControl is TControl then
+    Result := TControl(FControl).BoundsRect.Round
   else
-    Result := TControl(FControl).BoundsRect.Round;
+    Result := TRect.Empty;
 end;
 
 function TFMXControl.GetFocused: Boolean;
@@ -973,7 +1031,14 @@ end;
 procedure TFMXControl.SetBounds(const Value: TRect);
 begin
   if FIsForm then
-    TForm(FControl).SetBoundsF(Value.Left, Value.Top, Value.Width, Value.Height)
+  begin
+    RegisterChanges := False;
+    try
+      TForm(FControl).SetBoundsF(Value.Left, Value.Top, Value.Width, Value.Height);
+    finally
+      RegisterChanges := True;
+    end;
+  end
   else if FControl is TControl then
     TControl(FControl).SetBounds(Value.Left, Value.Top, Value.Width, Value.Height);
 
@@ -1155,6 +1220,87 @@ begin
   end;
 end;
 
+{ TFMXOneButtonNavigation }
+
+function TFMXOneButtonNavigation.DoCreateControl(const AParent: TUIArea;
+  const ALayout: TLayout): TObject;
+var
+  vImageSize: Integer;
+  vActionName: string;
+  vAction: TActionDef;
+begin
+  FButton := TButton.Create(nil);
+  FPopupButton := TButton.Create(FButton);
+
+  FButton.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
+  FButton.AddObject(FPopupButton);
+
+  vImageSize := StrToIntDef(GetUrlParam(FParams, 'ImageSize'), 16);
+  FButton.Images := TImageList(FUIBuilder.Images[vImageSize]);
+
+  FPopupButton.Images := TImageList(FUIBuilder.Images[vImageSize]);
+  FPopupButton.ImageIndex := AParent.GetImageIndex('arrow_down');
+
+  vActionName := GetUrlParam(FParams, 'Action');
+  if Length(vActionName) > 0 then
+  begin
+    FView := FView.BuildView(vActionName);
+    Assert(FView.DefinitionKind = dkAction);
+
+    vAction := TActionDef(FView.Definition);
+    FButton.ImageIndex := AParent.GetImageIndex(vAction._ImageID);
+    FButton.Text := AParent.GetTranslation(vAction, tpCaption);
+    FButton.Hint := AParent.GetTranslation(vAction, tpHint);
+    FButton.OnClick := AParent.OnAreaClick;
+    FPopupButton.OnClick := OnClick;
+  end
+  else
+  begin
+    FButton.ImageIndex := AParent.GetImageIndex
+      (GetUrlParam(FParams, 'ImageIndex'));
+    FButton.Text := GetUrlParam(FParams, 'Caption');
+    FButton.Hint := GetUrlParam(FParams, 'Hint');
+    FButton.OnClick := OnClick;
+  end;
+  FMenu := TPopupMenu.Create(nil);
+  FMenu.Parent := FButton;
+  FMenu.PopupComponent := FButton;
+  FMenu.Images := TImageList(FUIBuilder.Images[16]);
+  FButton.PopupMenu := FMenu;
+
+  FPopupButton.Images := TImageList(FUIBuilder.Images[16]);
+  FPopupButton.Width := 20;
+  FPopupButton.Align := TAlignLayout.Right;
+  Result := FButton;
+end;
+
+function TFMXOneButtonNavigation.DoCreateItem(const AParent: TUIArea;
+  const ANavItem: TNavigationItem; const ACaption, AHint: string;
+  const AImageIndex: Integer): TObject;
+var
+  vControl: TObject;
+begin
+  FItem := TMenuItem.Create(nil);
+  FItem.Text := ACaption;
+  FItem.Hint := AHint;
+  FItem.ImageIndex := AImageIndex;
+  FItem.OnClick := FOwner.OnAreaClick;
+  vControl := GetRealControl(AParent);
+  if (ANavItem.Level > 0) and (vControl is TMenuItem) then
+    TMenuItem(vControl).AddObject(FItem)
+  else
+    FMenu.AddObject(FItem);
+  Result := FItem;
+end;
+
+procedure TFMXOneButtonNavigation.OnClick(Sender: TObject);
+var
+  vPoint: TPointF;
+begin
+  vPoint := FButton.LocalToScreen(PointF(0, FButton.Height));
+  FMenu.Popup(vPoint.X, vPoint.Y);
+end;
+
 initialization
 
 RegisterClasses([TLabel, TPanel, TSplitter, TImage, TMemo, TTabControl, TScrollBox, TShape, TPopupMenu]);
@@ -1164,6 +1310,7 @@ TPresenter.RegisterControlClass('FMX', uiNavigation, 'TreeView', TFMXTreeViewNav
 TPresenter.RegisterControlClass('FMX', uiNavigation, 'MainMenu', TFMXMainMenuNavigation);
 TPresenter.RegisterControlClass('FMX', uiNavigation, 'ToolBar', TFMXToolBarNavigation);
 TPresenter.RegisterControlClass('FMX', uiNavigation, 'NavBar', TFMXNavBarNavigation);
+TPresenter.RegisterControlClass('FMX', uiEntityEdit, 'OneButton', TFMXOneButtonNavigation);
 
 TPresenter.RegisterControlClass('FMX', uiAction, '', TFMXButton);
 TPresenter.RegisterControlClass('FMX', uiAction, 'link', TFMXLink);

@@ -50,6 +50,7 @@ type
 
   TNativeControl = class
   private
+    FRegisterChanges: Boolean;
     function GetDescription: string;
   protected
     [Weak] FOwner: TUIArea;
@@ -79,6 +80,7 @@ type
     procedure DoClose(const AModalResult: Integer); virtual;
     procedure DoBeginUpdate; virtual;
     procedure DoEndUpdate; virtual;
+    procedure DoRegisterChanges(const Value: Boolean); virtual;
 
     function DoCreateCaption(const AParent: TUIArea; const ACaption, AHint: string): TObject; virtual;
     procedure DoAfterSetParent(const AParent: TUIArea); virtual;
@@ -141,6 +143,7 @@ type
     procedure CreateContent(const AContent: TObject); virtual;
     procedure AfterSetParent(const AParent: TUIArea);
 
+    property Domain: TObject read FDomain;
     property Owner: TUIArea read FOwner;
     property Parent: TUIArea read FParent write SetParent;
     property View: TView read FView;
@@ -153,6 +156,7 @@ type
     property ActiveChildArea: TUIArea read GetActiveChildArea write SetActiveChildArea;
     property ModalResult: TModalResult read GetModalResult write SetModalResult;
     property WindowState: TWindowState read GetWindowState write SetWindowState;
+    property RegisterChanges: Boolean read FRegisterChanges write DoRegisterChanges;
 
     property IsForm: Boolean read FIsForm;
     property ShowCaption: Boolean read FShowCaption;
@@ -183,7 +187,7 @@ type
   protected
     FOwner: TUIArea;
     procedure UpdateBinding(const ABinding: TObject); virtual;
-    procedure ExecuteUIAction(const AArea: TUIArea; const AView: TView); Virtual;
+    procedure ExecuteUIAction(const AArea: TUIArea; const AView: TView); virtual;
   public
     constructor Create(const AOwner: TUIArea; const AScene: TScene); virtual;
     destructor Destroy; override;
@@ -233,6 +237,8 @@ type
     function GetTabStop: Boolean;
     function GetActiveChildArea: TUIArea;
     function GetName: string;
+    function GetRegisterChanges: Boolean;
+    procedure SetRegisterChanges(const Value: Boolean);
   private
     procedure DoProcessChilds(const AParent: TUIArea; const AView: TView; const ANavItem: TNavigationItem);
     function DoCreateChildArea(const ALayout: TLayout; const AView: TView; const AParams: string = ''; const AOnClose: TCloseProc = nil): TUIArea;
@@ -266,7 +272,9 @@ type
     procedure Close(const AModalResult: Integer = mrOk);
     function TextHierarchy(const AIndent: string = ''): string;
     function AreaById(const AId: string; const ARecoursive: Boolean = True): TUIArea;
+    function AreaByView(const AView: TView): TUIArea;
     function Contains(const AArea: TUIArea): Boolean;
+    function ContainView(const AView: TView): Boolean;
     procedure ExecuteUIAction(const AView: TView);
     procedure UnbindContent(const AForceUnbind: Boolean = False);
     procedure UpdateArea(const AKind: Word; const AParameter: TEntity = nil);
@@ -322,6 +330,7 @@ type
     property TabStop: Boolean read GetTabStop;
     property OnClose: TCloseProc read FOnClose write FOnClose;
     property IsClosing: Boolean read FIsClosing;
+    property RegisterChanges: Boolean read GetRegisterChanges write SetRegisterChanges;
   end;
 
   TUIAreaComparer = class(TComparer<TUIArea>)
@@ -501,7 +510,7 @@ begin
   vFileName := TDomain(FUIBuilder.Domain).Configuration.FindLayoutFile(ALayoutName, vLayoutExt, vPostfix);
   if vFileName = '' then
   begin
-    vFileName := GetResDir + PathDelim + 'layouts' + PathDelim + ALayoutName + vLayoutExt;
+    vFileName := TPath.Combine(GetPlatformDir, 'layouts' + PathDelim + ALayoutName + vLayoutExt);
     if not TFile.Exists(vFileName) then
       vFileName := '';
   end;
@@ -639,7 +648,7 @@ begin
   Result.ArrangeChildAreas;
 
   if (_Platform.DeploymentType = 'dev') or (_Platform.DeploymentType = 'mock') then
-    Result.SaveToDFM(TPath.Combine(TPath.GetTempPath, ALayoutName + '_auto'));
+    Result.SaveToDFM(TPath.Combine(TConfiguration(vDefinition.Configuration).TempDir, ALayoutName + '_auto'));
 end;
 
 function TLayouts.MakeLayoutFromFile(const AFileName: string): TLayout;
@@ -896,6 +905,18 @@ begin
   else
     vAreaName := AAreaName;
 
+  // Check for the same form
+  if ((vAreaName = 'float') or (vAreaName = 'free')) and Assigned(vInteractor.RootArea) then
+  begin
+    vUIArea := vInteractor.RootArea.AreaByView(AView);
+    if Assigned(vUIArea) then
+    begin
+      // TODO Activate only?
+      TPresenter(FPresenter).ShowUIArea(vUIArea, vAreaName, ACaption);
+      Exit;
+    end;
+  end;
+
   // Creation of forms
   if (vAreaName = '') or (vAreaName = 'float') or (vAreaName = 'free')
     or (vAreaName = 'child') or (vAreaName = 'modal') then
@@ -909,14 +930,6 @@ begin
 
     vUIArea := TPresenter(FPresenter).CreateArea(vInteractor.CurrentArea, AView, vFormLayout, '', AOnClose);
 
-    if ((vAreaName = 'float') or (vAreaName = 'free')) and Assigned(vInteractor.RootArea)
-      and vInteractor.RootArea.Contains(vUIArea) then
-    begin
-      // TODO Activate only?
-      TPresenter(FPresenter).ShowUIArea(vUIArea, vAreaName, ACaption);
-      Exit;
-    end;
-
     vUIArea.SetHolder(AChangeHolder);
 
     // Main (application) form
@@ -926,7 +939,12 @@ begin
       try
         vInteractor.RootArea := vUIArea;
         vInteractor.CurrentArea := vUIArea;
-        ApplyLayout(vUIArea, AView, vLayoutName, AOptions);
+        vUIArea.RegisterChanges := False;
+        try
+          ApplyLayout(vUIArea, AView, vLayoutName, AOptions);
+        finally
+          vUIArea.RegisterChanges := True;
+        end;
 
         TPresenter(FPresenter).ShowUIArea(vUIArea, vAreaName, ACaption);
 
@@ -1220,9 +1238,24 @@ begin
   Result := nil;
 end;
 
+function TUIArea.AreaByView(const AView: TView): TUIArea;
+var
+  i: Integer;
+begin
+  for i := 0 to FAreas.Count - 1 do
+    if FAreas[i].View = AView then
+      Exit(FAreas[i]);
+  Result := nil;
+end;
+
 procedure TUIArea.AssignFromLayout(const ALayout: TLayout; const AParams: string);
 begin
-  FNativeControl.AssignFromLayout(ALayout, AParams);
+  FNativeControl.RegisterChanges := False;
+  try
+    FNativeControl.AssignFromLayout(ALayout, AParams);
+  finally
+    FNativeControl.RegisterChanges := True;
+  end;
 end;
 
 procedure TUIArea.BeginUpdate;
@@ -1304,6 +1337,16 @@ end;
 function TUIArea.Contains(const AArea: TUIArea): Boolean;
 begin
   Result := FAreas.Contains(AArea);
+end;
+
+function TUIArea.ContainView(const AView: TView): Boolean;
+var
+  i: Integer;
+begin
+  for i := 0 to FAreas.Count - 1 do
+    if FAreas[i].View = AView then
+      Exit(True);
+  Result := False;
 end;
 
 constructor TUIArea.Create(const AParent: TUIArea; const AView: TView; const ALayout: TLayout; const AParams: string = '');
@@ -2009,6 +2052,11 @@ begin
   Result := FUIBuilder.FPresenter;
 end;
 
+function TUIArea.GetRegisterChanges: Boolean;
+begin
+  Result := FNativeControl.RegisterChanges;
+end;
+
 procedure TUIArea.OnActionMenuSelected(Sender: TObject);
 var
   vArea: TUIArea;
@@ -2205,6 +2253,11 @@ procedure TUIArea.SetParent(const Value: TUIArea);
 begin
   FParent := Value;
   FNativeControl.Parent := Value;
+end;
+
+procedure TUIArea.SetRegisterChanges(const Value: Boolean);
+begin
+  FNativeControl.RegisterChanges := Value;
 end;
 
 procedure TUIArea.SetView(const Value: TView);
@@ -2438,6 +2491,11 @@ end;
 
 procedure TNativeControl.DoOnExit(Sender: TObject);
 begin
+end;
+
+procedure TNativeControl.DoRegisterChanges(const Value: Boolean);
+begin
+  FRegisterChanges := Value;
 end;
 
 procedure TNativeControl.FillEditor;

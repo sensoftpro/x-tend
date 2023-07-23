@@ -417,8 +417,21 @@ var
   i: Integer;
   vQuery: TQueryExecutor;
   vCollectionName: string;
+  vParamDef: TEntity;
+  vIsRequired: Boolean;
 begin
   vList.Clear;
+
+  if FInstance.InstanceOf('_ObjectParameters') and (FFieldDef.Name = 'Value') then
+  begin
+    vParamDef := FInstance.ExtractEntity('ParameterDef');
+    if Assigned(vParamDef) then
+      vIsRequired := vParamDef['IsRequired']
+    else
+      vIsRequired := False;
+  end
+  else
+    vIsRequired := FFieldDef.HasFlag(cRequired);
 
   if (TEntityFieldDef(FFieldDef).ContentDefinitionName = '~') and Assigned(FContentDefinition) then
     vCollectionName := FContentDefinition.Name
@@ -432,7 +445,7 @@ begin
     for i := 0 to vQuery.Results.Count - 1 do
       vList.Add(vQuery.Results[i]);
     vList.Sort(SortType);
-    if not FFieldDef.HasFlag(cRequired) then
+    if not vIsRequired then
       vList.AddFirst(nil);
     vList.SetFiller(Self, False, TEntityFieldDef(FFieldDef).QueryDef);
   finally

@@ -1725,7 +1725,6 @@ begin
     vTabSheet.Caption := ALayout.Caption;
     vTabSheet.ImageIndex := AParent.GetImageIndex(ALayout.ImageID);
     vTabSheet.TabVisible := ALayout.ShowCaption;
-    //vTabSheet.PageIndex := ;
   end;
 end;
 
@@ -1959,7 +1958,7 @@ begin
   FBtn.Parent := vBase;
   FBtn.Width := 40;
   FBtn.Images := TUniNativeImageList(FUIBuilder.Images[16]);
-  FBtn.ImageIndex := 22;
+  FBtn.ImageIndex := AParent.GetImageIndex('folder');
   FBtn.OnClick := CLBBrowseForCFolder;
 
   FText := TUniEdit.Create(ExtractOwner(AParent));
@@ -2030,7 +2029,7 @@ begin
   FBtn.Parent := vBase;
   FBtn.Width := 40;
   FBtn.Images := TUniNativeImageList(FUIBuilder.Images[16]);
-  FBtn.ImageIndex := 23;
+  FBtn.ImageIndex := AParent.GetImageIndex('open_file');
   FBtn.OnClick := CLBBrowseForCFolder;
 
   FText := TUniEdit.Create(ExtractOwner(AParent));

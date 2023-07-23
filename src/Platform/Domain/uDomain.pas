@@ -173,9 +173,10 @@ type
     function Log(const AMessage: string; const AMessageKind: TMessageKind = mkAny): string;
     function LogEnter(const AMessage: string): string;
     function LogExit(const AMessage: string): string;
+    procedure SysLog(const AMessage: string);
 
     function ExecuteTask(const AName: string; const AExecutionProc: TExecutionProc): TTaskHandle;
-    procedure ExecuteManagedTask(const AName: string; const AExecutionProc: TExecutionProc);
+    function ExecuteManagedTask(const AName: string; const AExecutionProc: TExecutionProc): TTaskHandle;
 
     property AppName: string read FAppName;
     property AppTitle: string read FAppTitle;
@@ -544,13 +545,14 @@ begin
   TExecuteDefaultActionFunc(FConfiguration.ExecuteDefaultActionFunc)(vSession, AParameter);
 end;
 
-procedure TDomain.ExecuteManagedTask(const AName: string; const AExecutionProc: TExecutionProc);
+function TDomain.ExecuteManagedTask(const AName: string; const AExecutionProc: TExecutionProc): TTaskHandle;
 var
   vTaskEngine: TTaskEngine;
 begin
+  Result := nil;
   vTaskEngine := TTaskEngine(Module['TaskEngine']);
   if Assigned(vTaskEngine) then
-    vTaskEngine.ExecuteManaged(AName, AExecutionProc)
+    Result := vTaskEngine.ExecuteManaged(AName, AExecutionProc)
   else
     AExecutionProc(nil);
 end;
@@ -1333,6 +1335,11 @@ begin
   end
   else
     Result := True;
+end;
+
+procedure TDomain.SysLog(const AMessage: string);
+begin
+  FLogger.AddMessage(AMessage);
 end;
 
 function TDomain.Translate(const AKey, ADefault: string): string;

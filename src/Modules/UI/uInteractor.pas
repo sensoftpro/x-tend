@@ -50,20 +50,22 @@ type
     FUIBuilder: TUIBuilder;
     FRootView: TView;
     FRootArea: TUIArea;
+    FUniqueIds: TDictionary<string, Integer>;
+    FAreaStack: TStack<TUIArea>;
     FDefaultParams: string;
     [Weak] FCurrentArea: TUIArea;
-    [Weak] FAreaStack: TStack<TUIArea>;
     [Weak] FLastArea: TUIArea;
     [Weak] FActiveArea: TUIArea;
     [Weak] FPagedArea: TUIArea;
 
     procedure SetLastArea(const Value: TUIArea);
     procedure SetPagedArea(const Value: TUIArea);
+    function GetUniqueViewName(const AViewName: string): string;
   public
     constructor Create(const APresenter, ASession: TObject);
     destructor Destroy; override;
 
-    function GetViewOfEntity(const AEntity: TObject): TView;
+    function GetViewOfEntity(const AEntity: TObject; const APostfix: string = ''; const AUnique: Boolean = False): TView;
     procedure ShowEntityEditor(const AView: TView; const AHolder: TObject; const ALayoutName: string = '';
       const ACaption: string = ''; const AOnClose: TCloseProc = nil);
     procedure AtomicEditEntity(const AGetViewFunc: TGetViewFunc; const AParentHolder: TObject;
@@ -183,6 +185,7 @@ begin
   FUIBuilder := TDomain(FDomain).UIBuilder;
   FUIBuilder.Presenter := APresenter;
   FAreaStack := TStack<TUIArea>.Create;
+  FUniqueIds := TDictionary<string, Integer>.Create;
 
   FRootArea := nil;
   FCurrentArea := nil;
@@ -196,6 +199,7 @@ end;
 destructor TInteractor.Destroy;
 begin
   FreeAndNil(FAreaStack);
+  FreeAndNil(FUniqueIds);
   SetLastArea(nil);
   FCurrentArea := nil;
   FPagedArea := nil;
@@ -218,21 +222,43 @@ begin
   ShowEntityEditor(GetViewOfEntity(AEntity), nil, ALayoutName, ACaption, AOnClose);
 end;
 
-function TInteractor.GetViewOfEntity(const AEntity: TObject): TView;
+function TInteractor.GetUniqueViewName(const AViewName: string): string;
+var
+  vLastID: Integer;
+begin
+  if FUniqueIds.TryGetValue(AViewName, vLastID) then
+    vLastID := vLastID + 1
+  else
+    vLastID := 1;
+  FUniqueIds.AddOrSetValue(AViewName, vLastID);
+  Result := AViewName + '~' + IntToStr(vLastID);
+end;
+
+function TInteractor.GetViewOfEntity(const AEntity: TObject; const APostfix: string = ''; const AUnique: Boolean = False): TView;
 var
   vEntity: TEntity absolute AEntity;
+  vDefinitionName: string;
+  vViewName: string;
 begin
   if not Assigned(vEntity) then
     Exit(nil);
 
+  vDefinitionName := vEntity.Definition.Name;
   if vEntity.ID > 0 then
-    Result := FRootView.BuildView(vEntity.Definition.Name + '/' + IntToStr(vEntity.ID))
+    vViewName := vDefinitionName + '/' + IntToStr(vEntity.ID)
   else if vEntity.ID < 0 then
-    Result := FRootView.BuildView(vEntity.Definition.Name + '/New' + IntToStr(-vEntity.ID))
+    vViewName := vDefinitionName + '/New' + IntToStr(-vEntity.ID)
   else if (vEntity.ID = 0) and not vEntity.IsNew then
-    Result := FRootView.BuildView(vEntity.Definition.Name + '/Auto')
+    vViewName := vDefinitionName + '/Auto'
   else
-    Result := nil;
+    Exit(nil);
+
+  if APostfix <> '' then
+    vViewName := vViewName + '~' + APostfix;
+  if AUnique then
+    vViewName := GetUniqueViewName(vViewName);
+
+  Result := FRootView.BuildView(vViewName);
 end;
 
 function TInteractor.NeedSkipColumn(const ASource: TObject; const AFieldDef: TObject): Boolean;

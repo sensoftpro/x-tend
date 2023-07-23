@@ -187,6 +187,8 @@ begin
   try
     vImageSize := StrToIntDef(vParams.Values['ImageSize'], 16);
     vImageID := vParams.Values['ImageID'];
+    if vImageID = '' then
+      vImageID := vActionDef._ImageID;
     vComposition := Trim(vParams.Values['Composition']);
     vViewStyle := Trim(vParams.Values['ViewStyle']);
     vOverriddenCaption := Trim(vParams.Values['Caption']);

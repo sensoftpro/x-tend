@@ -216,7 +216,7 @@ begin
     FStyle.AddFontParams('info.text', 'Tahoma', 8, $FF303030);
     FStyle.AddStrokeParams('peak', TAlphaColorRec.Skyblue);
     FStyle.AddFontParams('peak', 'Tahoma', 8, $FF303030);
-    FStyle.AddImageParams('peak', 'panel.png', False).CutRect := Rect(7, 27, 8, 28);
+    FStyle.AddImageParams('peak', 'panel.png', False).CutRect := Rect(7, 7, 8, 8);
     FStyle.AddStrokeParams('gaussian', $FF00A0FF, 2);
     FStyle.AddFillParams('geometry', MakeColor(TAlphaColorRec.Red, 20/255));
     FStyle.AddFontParams('geometry', 'Tahoma', 7, TAlphaColorRec.Maroon);

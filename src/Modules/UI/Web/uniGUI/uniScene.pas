@@ -17,7 +17,8 @@ type
       var AlignRect: TRect; AlignInfo: TAlignInfo);
     procedure DoResize(Sender: TUniControl; OldWidth,
       OldHeight: Integer);
-    procedure OnAjaxEvent(Sender: TComponent; EventName: string; Params: TUniStrings);
+    procedure DoMouseMove(Sender: TObject; Shift: TShiftState; X: Integer; Y:Integer);
+	procedure OnAjaxEvent(Sender: TComponent; EventName: string; Params: TUniStrings);
     procedure OnCanvasReady(Sender: TObject);
   protected
     function DoCreateScene(const APlaceholder: TObject): TPainter; override;
@@ -77,9 +78,10 @@ begin
   FPanel.OnKeyDown := OnKeyDown;
   FPanel.OnKeyUp := OnKeyUp;
 
-//  FPanel.OnMouseDown := OnMouseDown;
-//  FPanel.OnMouseUp := OnMouseUp;
+  FPanel.OnMouseDown := OnMouseDown;
+  FPanel.OnMouseUp := OnMouseUp;
   FPanel.OnDblClick := OnDblClick;
+  TCrackedUniCanvas(FPanel).OnMouseMove := DoMouseMove;
   FPanel.OnAjaxEvent := OnAjaxEvent;
   FPanel.OnMouseLeave := OnMouseLeave;
   FPanel.OnCanvasReady := OnCanvasReady;
@@ -112,6 +114,12 @@ begin
   FPanel := nil;
 end;
 
+procedure TUniGUIScene.DoMouseMove(Sender: TObject; Shift: TShiftState; X, Y: Integer);
+begin
+  OnMouseMove(Sender, Shift, X, Y);
+  DoRedraw;
+end;
+
 procedure TUniGUIScene.DoRedraw;
 begin
   OnPaint(FPanel);
@@ -134,9 +142,14 @@ begin
 end;
 
 function TUniGUIScene.GetClientPos: TPointF;
+var
+  vClientPos: TPoint;
 begin
-  UniSession.JSCode('updateMousePosition("' + FPanel.JSName + '");');
-  Result := FMousePos;
+  GetCursorPos(vClientPos);
+  Result := FPanel.ScreenToClient(vClientPos);
+
+//  UniSession.JSCode('updateMousePosition("' + FPanel.JSName + '");');
+//  Result := FMousePos;
 end;
 
 function TUniGUIScene.GetScaleFactor: Single;
@@ -227,7 +240,7 @@ procedure TUniGUIScene.OnCanvasReady(Sender: TObject);
 begin
   OnResize(Sender);
   DoRedraw;
-  UniSession.JSCode('bindCanvas("' + FPanel.JSName + '");');
+  //UniSession.JSCode('bindCanvas("' + FPanel.JSName + '");');
 end;
 
 procedure TUniGUIScene.SetEnabled(const AValue: Boolean);
