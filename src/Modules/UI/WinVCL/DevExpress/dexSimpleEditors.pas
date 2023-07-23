@@ -1624,18 +1624,26 @@ begin
   FAction.BeforeExecute := BeforeExecute;
   FAction.Caption := '';
   FAction.ImageIndex := AParent.GetImageIndex('open_file');
+
   if Assigned(FCreateParams) then
-    FAction.Dialog.Filter := FCreateParams.Values['filter']
-  else begin
-    vFieldDef := TFieldDef(FView.Definition);
-    vStyleParams := CreateDelimitedList(vFieldDef.StyleName, '&');
-    try
-      FAction.Dialog.Filter := vStyleParams.Values['filter'];
-      FAction.Dialog.DefaultExt := vStyleParams.Values['ext'];
-    finally
-      FreeAndNil(vStyleParams);
-    end;
+  begin
+    FAction.Dialog.Filter := FCreateParams.Values['filter'];
+    FAction.Dialog.DefaultExt := FCreateParams.Values['ext'];
   end;
+
+  vFieldDef := TFieldDef(FView.Definition);
+  vStyleParams := CreateDelimitedList(vFieldDef.StyleName, '&');
+  try
+    if vStyleParams.Values['filter'] <> '' then
+      FAction.Dialog.Filter := vStyleParams.Values['filter'];
+    if vStyleParams.Values['ext'] <> '' then
+      FAction.Dialog.DefaultExt := vStyleParams.Values['ext'];
+  finally
+    FreeAndNil(vStyleParams);
+  end;
+  
+  if FAction.Dialog.Filter <> '' then
+    FAction.Dialog.Options := FAction.Dialog.Options + [ofFileMustExist];
 
   FBtn := TcxButton.Create(nil);
   FBtn.Align := alRight;
@@ -1671,7 +1679,7 @@ begin
     FText.EditValue := FView.FieldValue;
     FText.Hint := FView.FieldValue;
     FText.Enabled := True;
-    FText.Properties.ReadOnly := FView.State < vsSelectOnly;
+    FText.Properties.ReadOnly := FView.State < vsFullAccess;
 
     if FText.Properties.ReadOnly then
     begin
