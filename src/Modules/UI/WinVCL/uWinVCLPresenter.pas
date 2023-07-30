@@ -606,6 +606,7 @@ begin
   else if ALayout.Kind = lkPages then
   begin
     vPC := TPageControl.Create(nil);
+    vPC.Parent := TWinControl(vParentControl);
     vPC.DoubleBuffered := True;
     vPC.SetBounds(ALayout.Left, ALayout.Top, ALayout.Width, ALayout.Height);
     vPC.TabPosition := TTabPosition(ALayout.Page_Position);
@@ -1021,13 +1022,11 @@ end;
 
 function TWinVCLPresenter.GetImagePlaceholder(const ASize: Integer): TStream;
 var
-  vPlaceholder: TBitmap;
+  vPlaceholder: TPngImage;
   vResDiv8: Integer;
 begin
-  vPlaceholder := TBitmap.Create;
+  vPlaceholder := TPngImage.CreateBlank(COLOR_RGB, 8, ASize, ASize);
   try
-    vPlaceholder.SetSize(ASize, ASize);
-    vPlaceholder.PixelFormat := pf32bit;
     vResDiv8 := Max(ASize div 8, 1);
     vPlaceholder.Canvas.Pen.Width := 1;
     vPlaceholder.Canvas.Pen.Color := clGray;

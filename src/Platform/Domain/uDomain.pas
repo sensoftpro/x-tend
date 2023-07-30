@@ -38,7 +38,7 @@ interface
 uses
   Generics.Collections, uFastClasses, Classes, SyncObjs, uModule, uConsts, uConfiguration, uDefinition,
   uCollection, uEntity, uEntityList, uStorage, uSession, uChangeManager, uSettings, uLogger, uScheduler,
-  uTranslator, uJSON, uUtils, uView, uUIBuilder, uTask;
+  uTranslator, uJSON, uUtils, uView, uUIBuilder, uTask, uNet;
 
 type
   TDomainLock = class
@@ -177,6 +177,8 @@ type
 
     function ExecuteTask(const AName: string; const AExecutionProc: TExecutionProc): TTaskHandle;
     function ExecuteManagedTask(const AName: string; const AExecutionProc: TExecutionProc): TTaskHandle;
+
+    function CreateNetPoint(const ANetPointProtocol: TNetPointProtocol): TNetPoint;
 
     property AppName: string read FAppName;
     property AppTitle: string read FAppTitle;
@@ -460,6 +462,17 @@ begin
     'Sensoft', 'https://sensoft.pro', 'info@sensoft.pro', 2019]);
 
   NotifyLoadingProgress(0, 'Создание домена');
+end;
+
+function TDomain.CreateNetPoint(const ANetPointProtocol: TNetPointProtocol): TNetPoint;
+var
+  vNetEngine: TNetEngine;
+begin
+  vNetEngine := TNetEngine(GetModuleByName('NetEngine'));
+  if Assigned(vNetEngine) then
+    Result := vNetEngine.CreateNetPoint(ANetPointProtocol)
+  else
+    Result := nil;
 end;
 
 function TDomain.CreateNewEntity(const AHolder: TObject; const ACollectionName: string; const AID: Integer;

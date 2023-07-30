@@ -14,7 +14,7 @@ uses
   uFastClasses in '..\..\Common\uFastClasses.pas',
   uTensor in '..\..\Common\uTensor.pas',
   uTask in '..\..\Common\uTask.pas',
-  uWebTask in '..\..\Common\uWebTask.pas',
+  uNet in '..\..\Common\uNet.pas',
   uComplexObject in '..\..\Platform\uComplexObject.pas',
   uSettings in '..\..\Platform\uSettings.pas',
   uChartData in '..\..\Common\Scene\uChartData.pas',

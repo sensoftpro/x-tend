@@ -79,7 +79,7 @@ type
 implementation
 
 uses
-  SysUtils, IOUtils, uConsts;
+  Types, SysUtils, IOUtils, uConsts;
 
 { TIcons }
 

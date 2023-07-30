@@ -86,7 +86,7 @@ function FindLastEntity(const AListField: TListField; const ATimeFieldName: stri
 implementation
 
 uses
-  Variants, SysUtils, Math, uDomain, uComplexObject, uUtils, uTask, uWebTask;
+  Variants, SysUtils, Math, uDomain, uComplexObject, uUtils, uTask, uNet;
 
 function FindLastEntity(const AListField: TListField; const ATimeFieldName: string): TEntity;
 var
@@ -106,7 +106,7 @@ function CheckEmailConnection(const ADomain: TObject): string;
 var
   vConstants: TEntity;
   vMailService: TEntity;
-  vTask: TEMailTask;
+  vEMail: TSMTPClient;
   vDomain: TDomain absolute ADomain;
 begin
   Result := vDomain.Translate('msgWrongSMTP', 'Ошибка. Приложение не настроено для работы с электронной почтой');
@@ -118,12 +118,16 @@ begin
   if not Assigned(vMailService) then
     Exit;
 
-  vTask := TEMailTask.Create('EMail', vMailService['SmtpHost'], vMailService['SmtpPort'], vConstants['MailLogin'],
+  vEMail := TSMTPClient(vDomain.CreateNetPoint(nppSMTPClient));
+  if not Assigned(vEMail) then
+    Exit('Протокол Email не поддержан');
+
+  vEMail.Init(vMailService['SmtpHost'], vMailService['SmtpPort'], vConstants['MailLogin'],
     vConstants['MailPassword'], vConstants['MailFromName'], '', vMailService['SmtpTimeout']);
   try
-    Result := vTask.CheckConnection;
+    Result := vEMail.CheckConnection;
   finally
-    FreeAndNil(vTask);
+    FreeAndNil(vEMail);
   end;
 end;
 
@@ -132,7 +136,7 @@ function SendEmail(const ADomain: TObject; const ARecipients, ASubject, AMessage
 var
   vConstants: TEntity;
   vMailService: TEntity;
-  vTask: TEMailTask;
+  vEMail: TSMTPClient;
   vDomain: TDomain absolute ADomain;
 begin
   Result := False;
@@ -144,15 +148,17 @@ begin
   if not Assigned(vMailService) then
     Exit;
 
-  vTask := TEMailTask.Create('EMail', vMailService['SmtpHost'], vMailService['SmtpPort'], vConstants['MailLogin'],
+  vEMail := TSMTPClient(vDomain.CreateNetPoint(nppSMTPClient));
+  if not Assigned(vEMail) then
+    Exit;
+
+  vEMail.Init(vMailService['SmtpHost'], vMailService['SmtpPort'], vConstants['MailLogin'],
     vConstants['MailPassword'], vConstants['MailFromName'], '', vMailService['SmtpTimeout']);
   try
-    vTask.InitTask(ARecipients, ASubject, AMessage, AAttachments);
-    vTask.ContentType := 'text/html';
-    vTask.Start(nil);
+    vEMail.SetContentType('text/html').Send(ARecipients, ASubject, AMessage, AAttachments);
     Result := True;
   finally
-    FreeAndNil(vTask);
+    FreeAndNil(vEMail);
   end;
 end;
 

@@ -138,7 +138,7 @@
         <DCCReference Include="..\..\Common\uFastClasses.pas"/>
         <DCCReference Include="..\..\Common\uTensor.pas"/>
         <DCCReference Include="..\..\Common\uTask.pas"/>
-        <DCCReference Include="..\..\Common\uWebTask.pas"/>
+        <DCCReference Include="..\..\Common\uNet.pas"/>
         <DCCReference Include="..\..\Platform\uComplexObject.pas"/>
         <DCCReference Include="..\..\Platform\uSettings.pas"/>
         <DCCReference Include="..\..\Common\Scene\uChartData.pas"/>
